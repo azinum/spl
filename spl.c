@@ -1,6 +1,8 @@
 /* spl.c - simple programming language */
 
 #include <stdio.h>  /* puts, printf */
+#include <string.h> /* strcmp */
+#include <stdlib.h> /* malloc, fread */
 #include <stdint.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -59,22 +61,26 @@ typedef enum Ir_code {
 /* intermidiate representation of the instructions which are to be generated or interpreted */
 typedef struct Ir {
   Ir_code i;
+  i32 dest;
+  i32 src0;
+  i32 src1;
 } Ir;
+
+#define MAX_INS (1024 * 10)
 
 /* compile state */
 typedef struct Compile {
   i32 status;
+  Ir ins[MAX_INS];
+  u32 ins_count;
 } Compile;
 
-#define MAX_INS (1024 * 10)
-
 /*
-  input -> lexer -> parser -> ast? -> intermidiate representation -> interpreter/code generator
+  frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
+  backend:  -> code optimization -> code generation (or interpret the intermidiate representation)
 */
 typedef struct Parser {
   Lexer l;
-  Ir ins[MAX_INS];
-  u32 ins_count;
 } Parser;
 
 static i32 parser_init(Parser* p, char* source);
@@ -94,25 +100,58 @@ inline i32 is_alpha(char ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
-static void error_printline(FILE* fp, char* source, char* index);
+static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
 
 i32 main(i32 argc, char** argv) {
-  const char* source =
-    "hello; 1234;\n"
-    "b;;;;;; 1;\n"
-  ;
+  char* source = NULL;
+  FILE* fp = NULL;
+  if (argc < 2) {
+    printf("Usage; %s [-t | <filename>]\n", argv[0]);
+    return EXIT_SUCCESS;
+  }
+  else {
+    char* filename = argv[1];
+    if (!strcmp(filename, "-t")) {
+      return EXIT_SUCCESS;
+    }
+    else {
+      fp = fopen(filename, "rb");
+      if (!fp) {
+        fprintf(stderr, "Failed to open file `%s`\n", filename);
+        return EXIT_FAILURE;
+      }
+      fseek(fp, 0, SEEK_END);
+      i32 size = ftell(fp);
+      fseek(fp, 0, SEEK_SET);
+      source = malloc(size);
+      if (!source) {
+        fprintf(stderr, "Failed to allocate memory for source file `%s`\n", filename);
+        fclose(fp);
+      }
+      i32 read_size = fread(source, 1, size, fp);
+      assert("something went wrong when reading file" && read_size == size);
+      (void)read_size;  // Ignore
+    }
+  }
+
   Parser p;
   if (parser_init(&p, (char*)source) == NoError) {
     if (parse(&p) == NoError) {
       printf("Parsing complete\n");
     }
   }
+  if (fp) {
+    fclose(fp);
+  }
+  free(source);
   return 0;
 }
 
 i32 parser_init(Parser* p, char* source) {
+  if (!source) {
+    return Error;
+  }
   lexer_init(&p->l, source);
-  p->ins_count = 0;
   return NoError;
 }
 
@@ -127,7 +166,7 @@ void parser_error(Parser* p, const char* fmt, ...) {
 
   FILE* fp = stderr;
   fprintf(fp, "[parse-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
-  error_printline(fp, l->source, l->index);
+  error_printline(fp, l->source, l->index, l->token.length);
   l->token.type = T_EOF;
 }
 
@@ -224,7 +263,7 @@ void lexer_error(Lexer* l, const char* fmt, ...) {
 
   FILE* fp = stderr;
   fprintf(fp, "[lex-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
-  error_printline(fp, l->source, l->index);
+  error_printline(fp, l->source, l->index, l->token.length);
   l->token.type = T_EOF;
 }
 
@@ -327,7 +366,6 @@ Token lexer_next(Lexer* l) {
           lexer_read_number(l);
           goto done;
         }
-        // Error
         lexer_error(l, "Unrecognized token `%.*s`\n", l->token.length, l->token.buffer);
         l->token.type = T_EOF;
         goto done;
@@ -344,14 +382,14 @@ Token lexer_peek(Lexer* l) {
   return l->token;
 }
 
-// FIXME: The arrow points to the end of the offending token, however it should point to the beginning.
-void error_printline(FILE* fp, char* source, char* index) {
+void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   assert(source);
+  index -= token_length;
   i32 offset = index - source;
   i32 start_offset = 0;
   i32 end_offset = 0;
 
-  // Scan to the beginning of the line
+  /* Scan to the beginning of the line */
   char* at = index;
   while (start_offset < offset) {
     start_offset++;
@@ -360,7 +398,7 @@ void error_printline(FILE* fp, char* source, char* index) {
       break;
     }
   }
-  // And then we scan to the end of the line
+  /* And then we scan to the end of the line */
   do {
     char ch = *(at + end_offset);
     if (ch == '\n' || ch == '\r' || ch == '\0') {
@@ -368,7 +406,8 @@ void error_printline(FILE* fp, char* source, char* index) {
     }
     end_offset++;
   } while (1);
-  fprintf(fp, "%.*s\n", end_offset + start_offset, at - start_offset);
+  i32 line_length = end_offset + start_offset - 1;
+  fprintf(fp, "%.*s\n", line_length, at - start_offset + 1);
   for (i32 i = 0; i < start_offset - 1; ++i) {
     fprintf(fp, "-");
   }

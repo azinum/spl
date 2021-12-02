@@ -7,7 +7,8 @@ all: compile
 compile:
 	${CC} ${SRC} -o ${PROG} ${FLAGS}
 
-run:
-	./${PROG}
 clean:
 	rm ${PROG}
+
+run:
+	./${PROG} test.spl
