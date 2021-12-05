@@ -1,4 +1,4 @@
-/* spl.cpp - simple programming language */
+/* spl.c - simple programming language */
 
 #include <stdio.h>  /* puts, printf */
 #include <string.h> /* strcmp */
@@ -14,6 +14,8 @@
 #else
   #define v_printf(...)
 #endif
+
+#define SIMULATE 0
 
 typedef enum Error_code {
   Error = -1,
@@ -195,7 +197,6 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
-#define SIMULATE 0
   char* filename = NULL;
   char* source = NULL;
   FILE* fp = NULL;
@@ -239,12 +240,14 @@ i32 main(i32 argc, char** argv) {
         if (ir_start_compile(&c, p.ast) == NoError) {
           v_printf("IR compile complete!\n");
 #if SIMULATE
+          v_printf("Simulating IR\n");
           VM vm;
           if (vm_init(&vm) == NoError) {
             vm_exec(&vm, &c);
             vm_free(&vm);
           }
 #else
+          v_printf("Compiling to nasm (x86_x64)\n");
           char path[MAX_PATH_SIZE] = {0};
           snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
           FILE* fp = fopen(path, "w");
@@ -366,6 +369,10 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
   for (i32 i = 0; i < c->ins_count; ++i) {
     const Op* op = &c->ins[i];
     switch (op->i) {
+      case I_NOP: {
+        o("  nop\n");
+        break;
+      }
       case I_RET: {
         o("  ret\n");
         break;
