@@ -47,7 +47,7 @@ typedef struct Token {
   i32 column;
 } Token;
 
-static const char* token_type_str[] = {
+static const char* token_type_str[MAX_TOKEN_TYPE] = {
   "T_NONE",
   "T_EOF",
   "T_IDENTIFIER",
@@ -64,29 +64,6 @@ typedef struct Lexer {
   i32 status;
 } Lexer;
 
-typedef enum Ir_code {
-  I_NOP = 0,
-  I_COPY,
-  I_ADD,
-} Ir_code;
-
-/* intermidiate representation of the instructions which are to be generated or interpreted */
-typedef struct Op {
-  Ir_code i;
-  i32 dest;
-  i32 src0;
-  i32 src1;
-} Op;
-
-#define MAX_INS 1024
-
-/* compile state */
-typedef struct Compile {
-  i32 status;
-  Op ins[MAX_INS];
-  u32 ins_count;
-} Compile;
-
 typedef Token Value;
 typedef enum Ast_type {
   AstNone = 0,
@@ -98,7 +75,7 @@ typedef enum Ast_type {
   MAX_AST_TYPE,
 } Ast_type;
 
-static const char* ast_type_str[] = {
+static const char* ast_type_str[MAX_AST_TYPE] = {
   "AstNone",
   "AstRoot",
   "AstValue",
@@ -123,6 +100,48 @@ typedef struct Parser {
   Ast* current;
   i32 status;
 } Parser;
+
+typedef enum Ir_code {
+  I_NOP = 0,
+  I_COPY,
+  I_ADD,
+
+  MAX_IR_CODE,
+} Ir_code;
+
+static const char* ir_code_str[MAX_IR_CODE] = {
+  "I_NOP",
+  "I_COPY",
+  "I_ADD",
+};
+
+/* intermidiate representation of the instructions which are to be generated or interpreted */
+typedef struct Op {
+  Ir_code i;
+  i32 dest;
+  i32 src0;
+  i32 src1;
+} Op;
+
+#define OP(_i) ((Op) {.i = _i, })
+
+#define MAX_INS 1024   /* temp */
+
+/* compile state */
+typedef struct Compile {
+  Op ins[MAX_INS];
+  u32 ins_count;
+  i32 status;
+} Compile;
+
+static i32 ir_init(Compile* c);
+static void ir_free(Compile* c);
+static void ir_compile_error(Compile* c, const char* fmt, ...);
+static i32 ir_start_compile(Compile* c, Ast* ast);
+static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
+static i32 ir_compile(Compile* c, Ast* ast);
+static i32 ir_compile_stmt(Compile* c, Ast* ast);
+static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
 
 static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
@@ -180,7 +199,7 @@ i32 main(i32 argc, char** argv) {
       }
       i32 read_size = fread(source, 1, size, fp);
       assert("something went wrong when reading file" && read_size == size);
-      (void)read_size;  // Ignore
+      (void)read_size;  /* ignore */
     }
   }
 
@@ -188,7 +207,14 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-      ast_print(p.ast, 0, stdout);
+      /* ast_print(p.ast, 0, stdout); */
+      Compile c;
+      if (ir_init(&c) == NoError) {
+        if (ir_start_compile(&c, p.ast) == NoError) {
+          printf("IR compile complete!\n");
+        }
+        ir_free(&c);
+      }
     }
     parser_free(&p);
   }
@@ -197,6 +223,93 @@ i32 main(i32 argc, char** argv) {
   }
   free(source);
   return 0;
+}
+
+i32 ir_init(Compile* c) {
+  c->ins_count = 0;
+  c->status = NoError;
+  return NoError;
+}
+
+void ir_free(Compile* c) {
+  FILE* fp = stdout;
+  fprintf(fp, "ins_count: %u\n", c->ins_count);
+  for (u32 i = 0; i < c->ins_count; ++i) {
+    Op* op = &c->ins[i];
+    fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
+  }
+}
+
+/* TODO(lucas): location error printing */
+void ir_compile_error(Compile* c, const char* fmt, ...) {
+  char err_buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(err_buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stderr;
+  fprintf(fp, "[ir-compile-error]: %s", err_buffer);
+  c->status = Error;
+}
+
+i32 ir_push_ins(Compile* c, Op ins, i32* ins_count) {
+  if (c->ins_count < MAX_INS) {
+    c->ins[c->ins_count++] = ins;
+    if (ins_count) {
+      (*ins_count)++;
+    }
+    return NoError;
+  }
+  assert("instruction cap reached" && 0);
+  return Error;
+}
+
+i32 ir_start_compile(Compile* c, Ast* ast) {
+  if (!ast) {
+    return c->status;
+  }
+  assert("something went very wrong" && ast->type == AstRoot);
+  for (i32 i = 0; i < ast->count; ++i) {
+    if (ir_compile(c, ast->node[i]) != NoError) {
+      break;
+    }
+  }
+  return c->status;
+}
+
+i32 ir_compile(Compile* c, Ast* ast) {
+  switch (ast->type) {
+    case AstExpression: {
+      printf("AstExpression\n");
+      return ir_compile_expr(c, ast);
+    }
+    case AstStatement: {
+      printf("AstStatement\n");
+      return ir_compile_stmt(c, ast);
+    }
+    case AstValue: {
+      ir_push_ins(c, OP(I_NOP), NULL);
+      printf("AstValue\n");
+      break;
+    }
+    default: {
+      ir_compile_error(c, "Invalid AST branch type\n");
+      c->status = Error;
+      break;
+    }
+  }
+  return c->status;
+}
+
+i32 ir_compile_stmt(Compile* c, Ast* ast) {
+  ir_push_ins(c, OP(I_NOP), NULL);
+  return c->status;
+}
+
+i32 ir_compile_expr(Compile* c, Ast* ast) {
+  ir_push_ins(c, OP(I_NOP), NULL);
+  return c->status;
 }
 
 i32 parser_init(Parser* p, char* source) {
@@ -460,7 +573,7 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   i32 start_offset = 0;
   i32 end_offset = 0;
 
-  /* Scan to the beginning of the line */
+  /* scan to the beginning of the line */
   char* at = index;
   while (start_offset < offset) {
     start_offset++;
@@ -469,7 +582,7 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
       break;
     }
   }
-  /* And then we scan to the end of the line */
+  /* and then we scan to the end of the line */
   do {
     char ch = *(at + end_offset);
     if (ch == '\n' || ch == '\r' || ch == '\0') {
