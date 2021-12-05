@@ -105,6 +105,7 @@ typedef enum Ir_code {
   I_NOP = 0,
   I_COPY,
   I_ADD,
+  I_RET,
 
   MAX_IR_CODE,
 } Ir_code;
@@ -113,6 +114,7 @@ static const char* ir_code_str[MAX_IR_CODE] = {
   "I_NOP",
   "I_COPY",
   "I_ADD",
+  "I_RET",
 };
 
 /* intermidiate representation of the instructions which are to be generated or interpreted */
@@ -134,6 +136,12 @@ typedef struct Compile {
   i32 status;
 } Compile;
 
+
+/* virtual machine for interpreting the IR code*/
+typedef struct VM {
+  i32 ip;
+} VM;
+
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
@@ -142,6 +150,10 @@ static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
+
+static i32 vm_init(VM* vm);
+static void vm_free(VM* vm);
+static i32 vm_exec(VM* vm, Compile* c);
 
 static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
@@ -212,6 +224,11 @@ i32 main(i32 argc, char** argv) {
       if (ir_init(&c) == NoError) {
         if (ir_start_compile(&c, p.ast) == NoError) {
           printf("IR compile complete!\n");
+          VM vm;
+          if (vm_init(&vm) == NoError) {
+            vm_exec(&vm, &c);
+            vm_free(&vm);
+          }
         }
         ir_free(&c);
       }
@@ -275,22 +292,20 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
       break;
     }
   }
+  ir_push_ins(c, OP(I_RET), NULL);
   return c->status;
 }
 
 i32 ir_compile(Compile* c, Ast* ast) {
   switch (ast->type) {
     case AstExpression: {
-      printf("AstExpression\n");
       return ir_compile_expr(c, ast);
     }
     case AstStatement: {
-      printf("AstStatement\n");
       return ir_compile_stmt(c, ast);
     }
     case AstValue: {
       ir_push_ins(c, OP(I_NOP), NULL);
-      printf("AstValue\n");
       break;
     }
     default: {
@@ -310,6 +325,38 @@ i32 ir_compile_stmt(Compile* c, Ast* ast) {
 i32 ir_compile_expr(Compile* c, Ast* ast) {
   ir_push_ins(c, OP(I_NOP), NULL);
   return c->status;
+}
+
+i32 vm_init(VM* vm) {
+  return NoError;
+}
+
+void vm_free(VM* vm) {
+
+}
+
+i32 vm_exec(VM* vm, Compile* c) {
+  for (;;) {
+    const Op* op = &c->ins[vm->ip++];
+    switch (op->i) {
+      case I_NOP: {
+        break;
+      }
+      case I_COPY: {
+        break;
+      }
+      case I_ADD: {
+        break;
+      }
+      case I_RET: {
+        return NoError;
+      }
+      default:
+        assert("tried to decode an instruction which do not exist" && 0);
+        return Error;
+    }
+  }
+  return NoError;
 }
 
 i32 parser_init(Parser* p, char* source) {
