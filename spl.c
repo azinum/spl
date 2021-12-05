@@ -61,6 +61,7 @@ typedef struct Lexer {
   char* index;  /* pointer alias of source */
   i32 line;
   i32 column;
+  i32 status;
 } Lexer;
 
 typedef enum Ir_code {
@@ -186,8 +187,7 @@ i32 main(i32 argc, char** argv) {
   Parser p;
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
-    if (p.status == NoError) {
-      printf("Parsing complete\n");
+    if (p.status == NoError && p.l.status == NoError) {
       ast_print(p.ast, 0, stdout);
     }
     parser_free(&p);
@@ -321,6 +321,7 @@ void lexer_init(Lexer* l, char* source) {
   l->index = source;
   l->line = 1;
   l->column = 1;
+  l->status = NoError;
 }
 
 void lexer_error(Lexer* l, const char* fmt, ...) {
@@ -334,6 +335,7 @@ void lexer_error(Lexer* l, const char* fmt, ...) {
   fprintf(fp, "[lex-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
   error_printline(fp, l->source, l->index, l->token.length);
   l->token.type = T_EOF;
+  l->status = Error;
 }
 
 void next(Lexer* l) {
