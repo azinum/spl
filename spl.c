@@ -81,7 +81,16 @@ typedef enum Ast_type {
   AstValue,
   AstExpression,
   AstStatement,
+
+  MAX_AST_TYPE,
 } Ast_type;
+
+static const char* ast_type_str[] = {
+  "AstNone",
+  "AstValue",
+  "AstExpression",
+  "AstStatement",
+};
 
 typedef struct Ast {
   struct Ast** node;
@@ -96,7 +105,8 @@ typedef struct Ast {
 */
 typedef struct Parser {
   Lexer l;
-  Ast ast;
+  Ast* ast;
+  Ast* current;
 } Parser;
 
 static i32 parser_init(Parser* p, char* source);
@@ -104,7 +114,7 @@ static void parser_free(Parser* p);
 static void parser_error(Parser* p, const char* fmt, ...);
 static i32 parse(Parser* p);
 static i32 parse_statements(Parser* p);
-static i32 parse_statement(Parser* p);
+static Ast* parse_statement(Parser* p);
 static void lexer_init(Lexer* l, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -119,11 +129,12 @@ static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
 
-static Ast ast_create();
+static Ast* ast_create();
+static void ast_init_node(Ast* node);
 static Ast* ast_alloc_node();
 static Ast* ast_push_node(Ast* ast, Ast_type type, Value value);
+static Ast* ast_push(Ast* ast, Ast* node);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
-static void ast_free_level(Ast* ast, i32 level);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
@@ -162,7 +173,7 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     if (parse(&p) == NoError) {
       printf("Parsing complete\n");
-      ast_print(&p.ast, 0, stdout);
+      ast_print(p.ast, 0, stdout);
     }
     parser_free(&p);
   }
@@ -179,11 +190,13 @@ i32 parser_init(Parser* p, char* source) {
   }
   lexer_init(&p->l, source);
   p->ast = ast_create();
+  p->current = NULL;
   return NoError;
 }
 
 void parser_free(Parser* p) {
-  ast_free(&p->ast);
+  ast_free(p->ast);
+  p->current = NULL;
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
@@ -214,6 +227,7 @@ i32 parse(Parser* p) {
 */
 i32 parse_statements(Parser* p) {
   i32 result = NoError;
+  Ast* statements = p->ast;
   for (;;) {
     Token t = lexer_next(&p->l);
     switch (t.type) {
@@ -224,10 +238,11 @@ i32 parse_statements(Parser* p) {
         break;
       }
       default: {
-        result = parse_statement(p);
-        if (result != NoError) {
+        Ast* stmt = parse_statement(p);
+        if (!stmt) {
           goto done;
         }
+        ast_push(statements, stmt);
         break;
       }
     }
@@ -241,36 +256,38 @@ done:
       | number ';'
       ;
 */
-i32 parse_statement(Parser* p) {
-  i32 result = NoError;
+Ast* parse_statement(Parser* p) {
+  Ast* stmt = ast_alloc_node();
+  if (!stmt) return NULL;
+  stmt->type = AstStatement;
 
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_IDENTIFIER: {
-      ast_push_node(&p->ast, AstValue, t);
+      ast_push_node(stmt, AstValue, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
-        return Error;
+        return NULL;
       }
       break;
     }
     case T_NUMBER: {
-      ast_push_node(&p->ast, AstValue, t);
+      ast_push_node(stmt, AstValue, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
-        return Error;
+        return NULL;
       }
       break;
     }
     default: {
       parser_error(p, "expected identifier or number, but got `%.*s`\n", t.length, t.buffer);
-      return Error;
+      return NULL;
     }
   }
 
-  return result;
+  return stmt;
 }
 
 void lexer_init(Lexer* l, char* source) {
@@ -447,8 +464,14 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   fprintf(fp, "^\n");
 }
 
-Ast ast_create() {
-  return (Ast) {
+Ast* ast_create() {
+  Ast* ast = ast_alloc_node();
+  ast_init_node(ast);
+  return ast;
+}
+
+void ast_init_node(Ast* node) {
+  *node = (Ast) {
     .node = NULL,
     .count = 0,
     .type = AstNone,
@@ -462,7 +485,7 @@ Ast* ast_alloc_node() {
     fprintf(stderr, "Failed to allocate ast node\n");
     return NULL;
   }
-  *node = ast_create();
+  ast_init_node(node);
   return node;
 }
 
@@ -473,6 +496,10 @@ Ast* ast_push_node(Ast* ast, Ast_type type, Value value) {
   }
   node->type = type;
   node->value = value;
+  return ast_push(ast, node);
+}
+
+Ast* ast_push(Ast* ast, Ast* node) {
   if (ast->count == 0) {
     ast->node = malloc(sizeof(Ast*));
   }
@@ -492,31 +519,27 @@ void ast_print(const Ast* ast, i32 level, FILE* fp) {
   if (!ast) {
     return;
   }
-  for (i32 i = 0; i < level; ++i, fprintf(fp, "  "));
-  fprintf(fp, "`%.*s` <%d, %d>\n", ast->value.length, ast->value.buffer, ast->value.type, ast->type);
+  for (i32 i = 0; i < level; ++i, fprintf(fp, "    "));
+  assert("something went very wrong" && ast->type < MAX_AST_TYPE);
+  fprintf(fp, "<%d, %s>: `%.*s`\n", ast->value.type, ast_type_str[ast->type], ast->value.length, ast->value.buffer);
   for (i32 i = 0; i < ast->count; ++i) {
     ast_print(ast->node[i], level + 1, fp);
   }
 }
 
-void ast_free_level(Ast* ast, i32 level) {
+void ast_free(Ast* ast) {
   if (!ast) {
     return;
   }
   for (i32 i = 0; i < ast->count; ++i) {
-    ast_free_level(ast->node[i], level + 1);
+    ast_free(ast->node[i]);
   }
   if (ast->node) {
     free(ast->node);
     ast->count = 0;
   }
-  /* Free all nodes which are not the root (because the root is allocated on stack, or some other user-defined place) */
-  if (ast && level > 0) {
+  if (ast) {
     free(ast);
     ast = NULL;
   }
-}
-
-void ast_free(Ast* ast) {
-  ast_free_level(ast, 0);
 }
