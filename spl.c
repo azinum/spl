@@ -28,7 +28,8 @@ typedef uint8_t u8;
 #define MAX_ERR_SIZE 512
 
 typedef enum Token_type {
-  T_EOF = 0,
+  T_NONE = 0,
+  T_EOF,
 
   T_IDENTIFIER,
   T_NUMBER,
@@ -47,6 +48,7 @@ typedef struct Token {
 } Token;
 
 static const char* token_type_str[] = {
+  "T_NONE",
   "T_EOF",
   "T_IDENTIFIER",
   "T_ASSIGN",
@@ -118,6 +120,7 @@ typedef struct Parser {
   Lexer l;
   Ast* ast;
   Ast* current;
+  i32 status;
 } Parser;
 
 static i32 parser_init(Parser* p, char* source);
@@ -182,7 +185,8 @@ i32 main(i32 argc, char** argv) {
 
   Parser p;
   if (parser_init(&p, (char*)source) == NoError) {
-    if (parse(&p) == NoError) {
+    parse(&p);
+    if (p.status == NoError) {
       printf("Parsing complete\n");
       ast_print(p.ast, 0, stdout);
     }
@@ -202,6 +206,7 @@ i32 parser_init(Parser* p, char* source) {
   lexer_init(&p->l, source);
   p->ast = ast_create(AstRoot);
   p->current = NULL;
+  p->status = NoError;
   return NoError;
 }
 
@@ -237,7 +242,6 @@ i32 parse(Parser* p) {
        ;
 */
 i32 parse_statements(Parser* p) {
-  i32 result = NoError;
   Ast* statements = p->ast;
   for (;;) {
     Token t = lexer_next(&p->l);
@@ -259,7 +263,7 @@ i32 parse_statements(Parser* p) {
     }
   }
 done:
-  return result;
+  return p->status;
 }
 
 /*
@@ -280,6 +284,7 @@ Ast* parse_statement(Parser* p) {
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
+        p->status = Error;
         return NULL;
       }
       break;
@@ -289,12 +294,14 @@ Ast* parse_statement(Parser* p) {
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
+        p->status = Error;
         return NULL;
       }
       break;
     }
     default: {
       parser_error(p, "expected identifier or number, but got `%.*s`\n", t.length, t.buffer);
+      p->status = Error;
       return NULL;
     }
   }
