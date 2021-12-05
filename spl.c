@@ -15,8 +15,6 @@
   #define v_printf(...)
 #endif
 
-#define SIMULATE 0
-
 typedef enum Error_code {
   Error = -1,
   NoError = 0,
@@ -147,12 +145,6 @@ typedef struct Compile {
   i32 status;
 } Compile;
 
-
-/* virtual machine for interpreting the IR code*/
-typedef struct VM {
-  i32 ip;
-} VM;
-
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
@@ -163,10 +155,6 @@ static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
 
 static i32 compile_nasm_x86_64(Compile* c, FILE* fp);
-
-static i32 vm_init(VM* vm);
-static void vm_free(VM* vm);
-static i32 vm_exec(VM* vm, Compile* c);
 
 static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
@@ -197,6 +185,9 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
+  (void)ast_print;
+  (void)ir_code_str;
+
   char* filename = NULL;
   char* source = NULL;
   FILE* fp = NULL;
@@ -239,23 +230,14 @@ i32 main(i32 argc, char** argv) {
       if (ir_init(&c) == NoError) {
         if (ir_start_compile(&c, p.ast) == NoError) {
           v_printf("IR compile complete!\n");
-#if SIMULATE
-          v_printf("Simulating IR\n");
-          VM vm;
-          if (vm_init(&vm) == NoError) {
-            vm_exec(&vm, &c);
-            vm_free(&vm);
-          }
-#else
-          v_printf("Compiling to nasm (x86_x64)\n");
           char path[MAX_PATH_SIZE] = {0};
           snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
           FILE* fp = fopen(path, "w");
           if (fp) {
+            v_printf("Compiling to nasm (x86_x64)\n");
             compile_nasm_x86_64(&c, fp);
             fclose(fp);
           }
-#endif
         }
         ir_free(&c);
       }
@@ -373,12 +355,9 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
         o("  nop\n");
         break;
       }
-      case I_RET: {
-        o("  nop; I_RET\n");
+      default: {
         break;
       }
-      default:
-        break;
     }
   }
 
@@ -392,39 +371,6 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
   return NoError;
 }
 #undef o
-
-i32 vm_init(VM* vm) {
-  vm->ip = 0;
-  return NoError;
-}
-
-void vm_free(VM* vm) {
-
-}
-
-i32 vm_exec(VM* vm, Compile* c) {
-  for (;;) {
-    const Op* op = &c->ins[vm->ip++];
-    switch (op->i) {
-      case I_NOP: {
-        break;
-      }
-      case I_COPY: {
-        break;
-      }
-      case I_ADD: {
-        break;
-      }
-      case I_RET: {
-        return NoError;
-      }
-      default:
-        assert("attempted to decode an instruction which do not exist" && 0);
-        return Error;
-    }
-  }
-  return NoError;
-}
 
 i32 parser_init(Parser* p, char* source) {
   if (!source) {
