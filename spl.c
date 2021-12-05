@@ -100,6 +100,7 @@ typedef struct Parser {
 } Parser;
 
 static i32 parser_init(Parser* p, char* source);
+static void parser_free(Parser* p);
 static void parser_error(Parser* p, const char* fmt, ...);
 static i32 parse(Parser* p);
 static i32 parse_statements(Parser* p);
@@ -161,7 +162,9 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     if (parse(&p) == NoError) {
       printf("Parsing complete\n");
+      ast_print(&p.ast, 0, stdout);
     }
+    parser_free(&p);
   }
   if (fp) {
     fclose(fp);
@@ -175,7 +178,12 @@ i32 parser_init(Parser* p, char* source) {
     return Error;
   }
   lexer_init(&p->l, source);
+  p->ast = ast_create();
   return NoError;
+}
+
+void parser_free(Parser* p) {
+  ast_free(&p->ast);
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
@@ -239,6 +247,7 @@ i32 parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_IDENTIFIER: {
+      ast_push_node(&p->ast, AstValue, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
@@ -247,6 +256,7 @@ i32 parse_statement(Parser* p) {
       break;
     }
     case T_NUMBER: {
+      ast_push_node(&p->ast, AstValue, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
