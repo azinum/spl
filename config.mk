@@ -1,6 +1,6 @@
 # config.mk
 
-CC=gcc
+CC=clang
 
 SRC=spl.c
 

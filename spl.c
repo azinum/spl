@@ -1,4 +1,4 @@
-/* spl.c - simple programming language */
+/* spl.cpp - simple programming language */
 
 #include <stdio.h>  /* puts, printf */
 #include <string.h> /* strcmp */
@@ -59,21 +59,36 @@ typedef enum Ir_code {
 } Ir_code;
 
 /* intermidiate representation of the instructions which are to be generated or interpreted */
-typedef struct Ir {
+typedef struct Op {
   Ir_code i;
   i32 dest;
   i32 src0;
   i32 src1;
-} Ir;
+} Op;
 
-#define MAX_INS (1024 * 10)
+#define MAX_INS 1024
 
 /* compile state */
 typedef struct Compile {
   i32 status;
-  Ir ins[MAX_INS];
+  Op ins[MAX_INS];
   u32 ins_count;
 } Compile;
+
+typedef Token Value;
+typedef enum Ast_type {
+  AstNone = 0,
+  AstValue,
+  AstExpression,
+  AstStatement,
+} Ast_type;
+
+typedef struct Ast {
+  struct Ast** node;
+  u32 count;
+  Ast_type type;
+  Value value;
+} Ast;
 
 /*
   frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
@@ -81,6 +96,7 @@ typedef struct Compile {
 */
 typedef struct Parser {
   Lexer l;
+  Ast ast;
 } Parser;
 
 static i32 parser_init(Parser* p, char* source);
@@ -101,6 +117,13 @@ static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
+
+static Ast ast_create();
+static Ast* ast_alloc_node();
+static Ast* ast_push_node(Ast* ast, Ast_type type, Value value);
+static void ast_print(const Ast* ast, i32 level, FILE* fp);
+static void ast_free_level(Ast* ast, i32 level);
+static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
   char* source = NULL;
@@ -123,7 +146,7 @@ i32 main(i32 argc, char** argv) {
       fseek(fp, 0, SEEK_END);
       i32 size = ftell(fp);
       fseek(fp, 0, SEEK_SET);
-      source = malloc(size);
+      source = (char*)malloc(size);
       if (!source) {
         fprintf(stderr, "Failed to allocate memory for source file `%s`\n", filename);
         fclose(fp);
@@ -412,4 +435,78 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
     fprintf(fp, "-");
   }
   fprintf(fp, "^\n");
+}
+
+Ast ast_create() {
+  return (Ast) {
+    .node = NULL,
+    .count = 0,
+    .type = AstNone,
+    .value = {0},
+  };
+}
+
+Ast* ast_alloc_node() {
+  Ast* node = malloc(sizeof(Ast));
+  if (!node) {
+    fprintf(stderr, "Failed to allocate ast node\n");
+    return NULL;
+  }
+  *node = ast_create();
+  return node;
+}
+
+Ast* ast_push_node(Ast* ast, Ast_type type, Value value) {
+  Ast* node = ast_alloc_node();
+  if (!node) {
+    return NULL;
+  }
+  node->type = type;
+  node->value = value;
+  if (ast->count == 0) {
+    ast->node = malloc(sizeof(Ast*));
+  }
+  else {
+    Ast** tmp = realloc(ast->node, sizeof(Ast*) * (ast->count + 1));
+    if (!tmp) {
+      fprintf(stderr, "Failed to resize list of ast node references\n");
+      return NULL;
+    }
+    ast->node = tmp;
+  }
+  ast->node[ast->count++] = node;
+  return node;
+}
+
+void ast_print(const Ast* ast, i32 level, FILE* fp) {
+  if (!ast) {
+    return;
+  }
+  for (i32 i = 0; i < level; ++i, fprintf(fp, "  "));
+  fprintf(fp, "`%.*s` <%d, %d>\n", ast->value.length, ast->value.buffer, ast->value.type, ast->type);
+  for (i32 i = 0; i < ast->count; ++i) {
+    ast_print(ast->node[i], level + 1, fp);
+  }
+}
+
+void ast_free_level(Ast* ast, i32 level) {
+  if (!ast) {
+    return;
+  }
+  for (i32 i = 0; i < ast->count; ++i) {
+    ast_free_level(ast->node[i], level + 1);
+  }
+  if (ast->node) {
+    free(ast->node);
+    ast->count = 0;
+  }
+  /* Free all nodes which are not the root (because the root is allocated on stack, or some other user-defined place) */
+  if (ast && level > 0) {
+    free(ast);
+    ast = NULL;
+  }
+}
+
+void ast_free(Ast* ast) {
+  ast_free_level(ast, 0);
 }
