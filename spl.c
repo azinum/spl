@@ -7,6 +7,14 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#define VERBOSE 1
+
+#if VERBOSE
+  #define v_printf(...) fprintf(stdout, __VA_ARGS__)
+#else
+  #define v_printf(...)
+#endif
+
 typedef enum Error_code {
   Error = -1,
   NoError = 0,
@@ -26,6 +34,7 @@ typedef uint8_t u8;
 #define GB(n) (MB(n * 1024))
 
 #define MAX_ERR_SIZE 512
+#define MAX_PATH_SIZE 512
 
 typedef enum Token_type {
   T_NONE = 0,
@@ -151,6 +160,8 @@ static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
 
+static i32 compile_nasm_x86_64(Compile* c, FILE* fp);
+
 static i32 vm_init(VM* vm);
 static void vm_free(VM* vm);
 static i32 vm_exec(VM* vm, Compile* c);
@@ -184,6 +195,8 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
+#define SIMULATE 0
+  char* filename = NULL;
   char* source = NULL;
   FILE* fp = NULL;
   if (argc < 2) {
@@ -191,7 +204,7 @@ i32 main(i32 argc, char** argv) {
     return EXIT_SUCCESS;
   }
   else {
-    char* filename = argv[1];
+    filename = argv[1];
     if (!strcmp(filename, "-t")) {
       return EXIT_SUCCESS;
     }
@@ -214,6 +227,7 @@ i32 main(i32 argc, char** argv) {
       (void)read_size;  /* ignore */
     }
   }
+  assert(filename != NULL);
 
   Parser p;
   if (parser_init(&p, (char*)source) == NoError) {
@@ -223,12 +237,22 @@ i32 main(i32 argc, char** argv) {
       Compile c;
       if (ir_init(&c) == NoError) {
         if (ir_start_compile(&c, p.ast) == NoError) {
-          printf("IR compile complete!\n");
+          v_printf("IR compile complete!\n");
+#if SIMULATE
           VM vm;
           if (vm_init(&vm) == NoError) {
             vm_exec(&vm, &c);
             vm_free(&vm);
           }
+#else
+          char path[MAX_PATH_SIZE] = {0};
+          snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
+          FILE* fp = fopen(path, "w");
+          if (fp) {
+            compile_nasm_x86_64(&c, fp);
+            fclose(fp);
+          }
+#endif
         }
         ir_free(&c);
       }
@@ -249,12 +273,14 @@ i32 ir_init(Compile* c) {
 }
 
 void ir_free(Compile* c) {
+#if 0
   FILE* fp = stdout;
   fprintf(fp, "ins_count: %u\n", c->ins_count);
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
     fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
   }
+#endif
 }
 
 /* TODO(lucas): location error printing */
@@ -327,7 +353,41 @@ i32 ir_compile_expr(Compile* c, Ast* ast) {
   return c->status;
 }
 
+i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
+#define o(...) fprintf(fp, __VA_ARGS__)
+#define ENTRY "_start"
+#define MEMORY_CAPACITY KB(512)
+
+  o("bits 64\n");
+  o("section .text\n");
+  o("global %s\n", ENTRY);
+  o("%s:\n", ENTRY);
+
+  for (i32 i = 0; i < c->ins_count; ++i) {
+    const Op* op = &c->ins[i];
+    switch (op->i) {
+      case I_RET: {
+        o("  ret\n");
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  o("\n");
+  o("  mov rax, 60 ; exit syscall\n");
+  o("  mov rdi, 0\n");
+  o("  syscall\n");
+  o("section .data\n");
+  o("section .bss\n");
+  o("memory: resb %d\n", MEMORY_CAPACITY);
+  return NoError;
+}
+#undef o
+
 i32 vm_init(VM* vm) {
+  vm->ip = 0;
   return NoError;
 }
 
@@ -352,7 +412,7 @@ i32 vm_exec(VM* vm, Compile* c) {
         return NoError;
       }
       default:
-        assert("tried to decode an instruction which do not exist" && 0);
+        assert("attempted to decode an instruction which do not exist" && 0);
         return Error;
     }
   }
