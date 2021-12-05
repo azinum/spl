@@ -374,7 +374,7 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_RET: {
-        o("  ret\n");
+        o("  nop; I_RET\n");
         break;
       }
       default:
