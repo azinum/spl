@@ -34,6 +34,8 @@ typedef enum Token_type {
   T_NUMBER,
   T_ASSIGN,
   T_SEMICOLON,
+
+  MAX_TOKEN_TYPE,
 } Token_type;
 
 typedef struct Token {
@@ -43,6 +45,13 @@ typedef struct Token {
   i32 line;
   i32 column;
 } Token;
+
+static const char* token_type_str[] = {
+  "T_EOF",
+  "T_IDENTIFIER",
+  "T_ASSIGN",
+  "T_SEMICOLON",
+};
 
 typedef struct Lexer {
   Token token;
@@ -78,6 +87,7 @@ typedef struct Compile {
 typedef Token Value;
 typedef enum Ast_type {
   AstNone = 0,
+  AstRoot,
   AstValue,
   AstExpression,
   AstStatement,
@@ -87,6 +97,7 @@ typedef enum Ast_type {
 
 static const char* ast_type_str[] = {
   "AstNone",
+  "AstRoot",
   "AstValue",
   "AstExpression",
   "AstStatement",
@@ -129,7 +140,7 @@ static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
 
-static Ast* ast_create();
+static Ast* ast_create(Ast_type type);
 static void ast_init_node(Ast* node);
 static Ast* ast_alloc_node();
 static Ast* ast_push_node(Ast* ast, Ast_type type, Value value);
@@ -189,7 +200,7 @@ i32 parser_init(Parser* p, char* source) {
     return Error;
   }
   lexer_init(&p->l, source);
-  p->ast = ast_create();
+  p->ast = ast_create(AstRoot);
   p->current = NULL;
   return NoError;
 }
@@ -257,9 +268,10 @@ done:
       ;
 */
 Ast* parse_statement(Parser* p) {
-  Ast* stmt = ast_alloc_node();
-  if (!stmt) return NULL;
-  stmt->type = AstStatement;
+  Ast* stmt = ast_create(AstStatement);
+  if (!stmt) {
+    return NULL;
+  }
 
   Token t = lexer_peek(&p->l);
   switch (t.type) {
@@ -464,9 +476,10 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   fprintf(fp, "^\n");
 }
 
-Ast* ast_create() {
+Ast* ast_create(Ast_type type) {
   Ast* ast = ast_alloc_node();
   ast_init_node(ast);
+  ast->type = type;
   return ast;
 }
 
@@ -520,8 +533,8 @@ void ast_print(const Ast* ast, i32 level, FILE* fp) {
     return;
   }
   for (i32 i = 0; i < level; ++i, fprintf(fp, "    "));
-  assert("something went very wrong" && ast->type < MAX_AST_TYPE);
-  fprintf(fp, "<%d, %s>: `%.*s`\n", ast->value.type, ast_type_str[ast->type], ast->value.length, ast->value.buffer);
+  assert("something went very wrong" && ast->type < MAX_AST_TYPE && ast->value.type < MAX_TOKEN_TYPE);
+  fprintf(fp, "<%s, %s>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->value.type],  ast->value.length, ast->value.buffer);
   for (i32 i = 0; i < ast->count; ++i) {
     ast_print(ast->node[i], level + 1, fp);
   }
