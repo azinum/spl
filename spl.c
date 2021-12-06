@@ -7,19 +7,6 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#define VERBOSE 1
-
-#if VERBOSE
-  #define v_printf(...) fprintf(stdout, __VA_ARGS__)
-#else
-  #define v_printf(...)
-#endif
-
-typedef enum Error_code {
-  Error = -1,
-  NoError = 0,
-} Error_code;
-
 typedef float f32;
 typedef double f64;
 typedef int32_t i32;
@@ -29,12 +16,24 @@ typedef uint16_t u16;
 typedef int8_t i8;
 typedef uint8_t u8;
 
+#define ARR_SIZE(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 #define KB(n) (n * 1024)
 #define MB(n) (KB(n * 1024))
 #define GB(n) (MB(n * 1024))
 
 #define MAX_ERR_SIZE 512
 #define MAX_PATH_SIZE 512
+
+#define VERBOSE 1
+
+#if VERBOSE
+  #define v_printf(...) fprintf(stdout, __VA_ARGS__)
+#else
+  #define v_printf(...)
+#endif
+
+#define Error (-1)
+#define NoError (0)
 
 typedef enum Token_type {
   T_NONE = 0,
@@ -57,7 +56,7 @@ typedef struct Token {
   i32 column;
 } Token;
 
-static const char* token_type_str[MAX_TOKEN_TYPE] = {
+static const char* token_type_str[] = {
   "T_NONE",
   "T_EOF",
 
@@ -87,7 +86,7 @@ typedef enum Ast_type {
   MAX_AST_TYPE,
 } Ast_type;
 
-static const char* ast_type_str[MAX_AST_TYPE] = {
+static const char* ast_type_str[] = {
   "AstNone",
   "AstRoot",
   "AstToken",
@@ -124,7 +123,7 @@ typedef enum Ir_code {
   MAX_IR_CODE,
 } Ir_code;
 
-static const char* ir_code_str[MAX_IR_CODE] = {
+static const char* ir_code_str[] = {
   "I_NOP",
   "I_POP",
   "I_COPY",
@@ -198,8 +197,10 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
-  (void)ast_print;
-  (void)ir_code_str;
+  (void)ast_print; (void)ir_code_str;
+  assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
+  assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
+  assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
 
   char* filename = NULL;
   char* source = NULL;
