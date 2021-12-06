@@ -44,6 +44,7 @@ typedef enum Token_type {
   T_NUMBER,
   T_ASSIGN,
   T_SEMICOLON,
+  T_POP,
 
   MAX_TOKEN_TYPE,
 } Token_type;
@@ -64,6 +65,7 @@ static const char* token_type_str[MAX_TOKEN_TYPE] = {
   "T_NUMBER",
   "T_ASSIGN",
   "T_SEMICOLON",
+  "T_POP",
 };
 
 typedef struct Lexer {
@@ -113,6 +115,7 @@ typedef struct Parser {
 
 typedef enum Ir_code {
   I_NOP = 0,
+  I_POP,
   I_COPY,
   I_PUSH_INT,
   I_ADD,
@@ -123,6 +126,7 @@ typedef enum Ir_code {
 
 static const char* ir_code_str[MAX_IR_CODE] = {
   "I_NOP",
+  "I_POP",
   "I_COPY",
   "I_PUSH_INT",
   "I_ADD",
@@ -340,20 +344,28 @@ i32 ir_compile(Compile* c, Ast* ast) {
       return ir_compile_stmt(c, ast);
     }
     case AstToken: {
-      if (ast->value.type == T_NUMBER) {
-        i32 num = 0;
-        str_to_int(ast->value.buffer, ast->value.length, &num);
-        i32 address = ir_push_value(c, &num, sizeof(num));
-        if (address >= 0) {
-          ir_push_ins(c, (Op) {
-            .i = I_PUSH_INT,
-            .dest = 0,
-            .src0 = address,
-            .src1 = 0,
-          }, NULL);
+      switch (ast->value.type) {
+        case T_NUMBER: {
+          i32 num = 0;
+          str_to_int(ast->value.buffer, ast->value.length, &num);
+          i32 address = ir_push_value(c, &num, sizeof(num));
+          if (address >= 0) {
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_INT,
+              .dest = 0,
+              .src0 = address,
+              .src1 = 0,
+            },  NULL);
+          }
+          break;
         }
-        else {
-          // Handle
+        case T_POP: {
+          ir_push_ins(c, OP(I_POP), NULL);
+          break;
+        }
+        default: {
+          assert(0);  /* TODO(lucas): handle */
+          break;
         }
       }
       break;
@@ -395,6 +407,10 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
     switch (op->i) {
       case I_NOP: {
         o("  nop\n");
+        break;
+      }
+      case I_POP: {
+        o("  pop rax\n");
         break;
       }
       case I_PUSH_INT: {
@@ -510,6 +526,7 @@ Ast* parse_statement(Parser* p) {
       }
       break;
     }
+    case T_POP:
     case T_NUMBER: {
       ast_push_node(stmt, AstToken, t);
       t = lexer_next(&p->l);
@@ -586,8 +603,8 @@ Token lexer_read_symbol(Lexer* l) {
     l->column++;
   }
   l->token.length = l->index - l->token.buffer;
-  if (compare(l->token, "nop")) {
-    assert("token `nop` not implemented" && 0);
+  if (compare(l->token, "pop")) {
+    l->token.type = T_POP;
   }
   else {
     l->token.type = T_IDENTIFIER;
