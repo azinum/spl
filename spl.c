@@ -59,7 +59,9 @@ typedef struct Token {
 static const char* token_type_str[MAX_TOKEN_TYPE] = {
   "T_NONE",
   "T_EOF",
+
   "T_IDENTIFIER",
+  "T_NUMBER",
   "T_ASSIGN",
   "T_SEMICOLON",
 };
@@ -73,11 +75,10 @@ typedef struct Lexer {
   i32 status;
 } Lexer;
 
-typedef Token Value;
 typedef enum Ast_type {
   AstNone = 0,
   AstRoot,
-  AstValue,
+  AstToken,
   AstExpression,
   AstStatement,
 
@@ -87,7 +88,7 @@ typedef enum Ast_type {
 static const char* ast_type_str[MAX_AST_TYPE] = {
   "AstNone",
   "AstRoot",
-  "AstValue",
+  "AstToken",
   "AstExpression",
   "AstStatement",
 };
@@ -96,7 +97,7 @@ typedef struct Ast {
   struct Ast** node;
   u32 count;
   Ast_type type;
-  Value value;
+  Token value;
 } Ast;
 
 /*
@@ -113,6 +114,7 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_COPY,
+  I_PUSH_INT,
   I_ADD,
   I_RET,
 
@@ -122,6 +124,7 @@ typedef enum Ir_code {
 static const char* ir_code_str[MAX_IR_CODE] = {
   "I_NOP",
   "I_COPY",
+  "I_PUSH_INT",
   "I_ADD",
   "I_RET",
 };
@@ -136,20 +139,25 @@ typedef struct Op {
 
 #define OP(_i) ((Op) {.i = _i, })
 
-#define MAX_INS 1024   /* temp */
+#define MAX_INS (1024)   /* temp */
+#define MAX_DATA (KB(32))  /* temp */
 
 /* compile state */
 typedef struct Compile {
   Op ins[MAX_INS];
   u32 ins_count;
+  u8 data[MAX_DATA];
+  u32 data_index;
   i32 status;
 } Compile;
 
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
+static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
+static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
@@ -175,11 +183,12 @@ static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
+static i32 str_to_int(char* str, i32 length, i32* out);
 
 static Ast* ast_create(Ast_type type);
 static void ast_init_node(Ast* node);
 static Ast* ast_alloc_node();
-static Ast* ast_push_node(Ast* ast, Ast_type type, Value value);
+static Ast* ast_push_node(Ast* ast, Ast_type type, Token value);
 static Ast* ast_push(Ast* ast, Ast* node);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
@@ -225,16 +234,19 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-      /* ast_print(p.ast, 0, stdout); */
+#if 0
+      ast_print(p.ast, 0, stdout);
+#endif
       Compile c;
       if (ir_init(&c) == NoError) {
         if (ir_start_compile(&c, p.ast) == NoError) {
-          v_printf("IR compile complete!\n");
+#if 1
+          ir_print(&c, stdout);
+#endif
           char path[MAX_PATH_SIZE] = {0};
           snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
           FILE* fp = fopen(path, "w");
           if (fp) {
-            v_printf("Compiling to nasm (x86_x64)\n");
             compile_nasm_x86_64(&c, fp);
             fclose(fp);
           }
@@ -248,24 +260,26 @@ i32 main(i32 argc, char** argv) {
     fclose(fp);
   }
   free(source);
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 i32 ir_init(Compile* c) {
   c->ins_count = 0;
+  c->data_index = 0;
   c->status = NoError;
   return NoError;
 }
 
 void ir_free(Compile* c) {
-#if 0
-  FILE* fp = stdout;
+
+}
+
+void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "ins_count: %u\n", c->ins_count);
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
     fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
   }
-#endif
 }
 
 /* TODO(lucas): location error printing */
@@ -293,6 +307,16 @@ i32 ir_push_ins(Compile* c, Op ins, i32* ins_count) {
   return Error;
 }
 
+i32 ir_push_value(Compile* c, void* value, u32 size) {
+  i32 address = c->data_index;
+  if (address + size < MAX_DATA) {
+    memcpy(&c->data[c->data_index], value, size);
+    c->data_index += size;
+    return address;
+  }
+  return -1;
+}
+
 i32 ir_start_compile(Compile* c, Ast* ast) {
   if (!ast) {
     return c->status;
@@ -315,8 +339,23 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstStatement: {
       return ir_compile_stmt(c, ast);
     }
-    case AstValue: {
-      ir_push_ins(c, OP(I_NOP), NULL);
+    case AstToken: {
+      if (ast->value.type == T_NUMBER) {
+        i32 num = 0;
+        str_to_int(ast->value.buffer, ast->value.length, &num);
+        i32 address = ir_push_value(c, &num, sizeof(num));
+        if (address >= 0) {
+          ir_push_ins(c, (Op) {
+            .i = I_PUSH_INT,
+            .dest = 0,
+            .src0 = address,
+            .src1 = 0,
+          }, NULL);
+        }
+        else {
+          // Handle
+        }
+      }
       break;
     }
     default: {
@@ -329,12 +368,15 @@ i32 ir_compile(Compile* c, Ast* ast) {
 }
 
 i32 ir_compile_stmt(Compile* c, Ast* ast) {
-  ir_push_ins(c, OP(I_NOP), NULL);
+  for (i32 i = 0; i < ast->count; ++i) {
+    if (ir_compile(c, ast->node[i]) != NoError) {
+      break;
+    }
+  }
   return c->status;
 }
 
 i32 ir_compile_expr(Compile* c, Ast* ast) {
-  ir_push_ins(c, OP(I_NOP), NULL);
   return c->status;
 }
 
@@ -353,6 +395,12 @@ i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
     switch (op->i) {
       case I_NOP: {
         o("  nop\n");
+        break;
+      }
+      case I_PUSH_INT: {
+        i32 value = *(i32*)&c->data[op->src0];
+        o("  mov rax, %d\n", value);
+        o("  push rax\n");
         break;
       }
       default: {
@@ -453,7 +501,7 @@ Ast* parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_IDENTIFIER: {
-      ast_push_node(stmt, AstValue, t);
+      ast_push_node(stmt, AstToken, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
@@ -463,7 +511,7 @@ Ast* parse_statement(Parser* p) {
       break;
     }
     case T_NUMBER: {
-      ast_push_node(stmt, AstValue, t);
+      ast_push_node(stmt, AstToken, t);
       t = lexer_next(&p->l);
       if (!expect(t, T_SEMICOLON)) {
         parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
@@ -658,6 +706,20 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   fprintf(fp, "^\n");
 }
 
+i32 str_to_int(char* str, i32 length, i32* out) {
+  *out = 0;
+  for (i32 i = 0; i < length; ++i) {
+    char ch = str[i];
+    if (is_digit(ch)) {
+      *out = *out * 10 + (str[i] - '0');
+      continue;
+    }
+    *out = -1;
+    return Error;
+  }
+  return NoError;
+}
+
 Ast* ast_create(Ast_type type) {
   Ast* ast = ast_alloc_node();
   ast_init_node(ast);
@@ -684,7 +746,7 @@ Ast* ast_alloc_node() {
   return node;
 }
 
-Ast* ast_push_node(Ast* ast, Ast_type type, Value value) {
+Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
   Ast* node = ast_alloc_node();
   if (!node) {
     return NULL;
