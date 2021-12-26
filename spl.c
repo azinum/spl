@@ -162,7 +162,7 @@ static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
 
-static i32 compile_nasm_x86_64(Compile* c, FILE* fp);
+static i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp);
 
 static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
@@ -234,7 +234,7 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-#if 0
+#if 1
       ast_print(p.ast, 0, stdout);
 #endif
       Compile c;
@@ -247,7 +247,7 @@ i32 main(i32 argc, char** argv) {
           snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
           FILE* fp = fopen(path, "w");
           if (fp) {
-            compile_nasm_x86_64(&c, fp);
+            compile_linux_nasm_x86_64(&c, fp);
             fclose(fp);
           }
         }
@@ -380,7 +380,7 @@ i32 ir_compile_expr(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 compile_nasm_x86_64(Compile* c, FILE* fp) {
+i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 #define o(...) fprintf(fp, __VA_ARGS__)
 #define ENTRY "_start"
 #define MEMORY_CAPACITY KB(512)
@@ -632,6 +632,19 @@ Token lexer_next(Lexer* l) {
       case '\n': {
         l->line++;
         l->column = 1;
+        break;
+      }
+      case '/': {
+        if (*l->index == '/') {
+          l->index++;
+          l->column++;
+          while (*l->index != '\n' && *l->index != '\0') {
+            l->index++;
+            l->column++;
+          }
+          l->line++;
+          l->column = 1;
+        }
         break;
       }
       case '=': {
