@@ -1,8 +1,8 @@
-/* spl.c - simple programming language */
+// spl.c - simple programming language
 
-#include <stdio.h>  /* puts, printf */
-#include <string.h> /* strcmp */
-#include <stdlib.h> /* malloc, fread */
+#include <stdio.h>  // puts, printf
+#include <string.h> // strcmp
+#include <stdlib.h> // malloc, fread
 #include <stdint.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -68,8 +68,8 @@ static const char* token_type_str[MAX_TOKEN_TYPE] = {
 
 typedef struct Lexer {
   Token token;
-  char* source; /* null terminated input string  */
-  char* index;  /* pointer alias of source */
+  char* source; // null terminated input string
+  char* index;  // pointer alias of source
   i32 line;
   i32 column;
   i32 status;
@@ -100,10 +100,9 @@ typedef struct Ast {
   Token value;
 } Ast;
 
-/*
-  frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
-  backend:  -> code optimization -> code generation (or interpret the intermidiate representation)
-*/
+
+// frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
+// backend: -> code optimization -> code generation (or interpret the intermidiate representation)
 typedef struct Parser {
   Lexer l;
   Ast* ast;
@@ -129,7 +128,7 @@ static const char* ir_code_str[MAX_IR_CODE] = {
   "I_RET",
 };
 
-/* intermidiate representation of the instructions which are to be generated or interpreted */
+// intermidiate representation of the instructions which are to be generated or interpreted
 typedef struct Op {
   Ir_code i;
   i32 dest;
@@ -139,10 +138,10 @@ typedef struct Op {
 
 #define OP(_i) ((Op) {.i = _i, })
 
-#define MAX_INS (1024)   /* temp */
-#define MAX_DATA (KB(32))  /* temp */
+#define MAX_INS (1024) // temp
+#define MAX_DATA (KB(32)) // temp
 
-/* compile state */
+// compile state
 typedef struct Compile {
   Op ins[MAX_INS];
   u32 ins_count;
@@ -160,7 +159,9 @@ static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
-static i32 ir_compile_expr(Compile* c, Ast* ast); /* NOTE(lucas): these will probably change to something more specific */
+static i32 ir_compile_expr(Compile* c, Ast* ast); // NOTE(lucas): these will probably change to something more specific
+
+static i32 program_typecheck(Ast* ast);
 
 static i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp);
 
@@ -218,14 +219,15 @@ i32 main(i32 argc, char** argv) {
       fseek(fp, 0, SEEK_END);
       i32 size = ftell(fp);
       fseek(fp, 0, SEEK_SET);
-      source = (char*)malloc(size);
+      source = (char*)malloc(size + 1);
       if (!source) {
         fprintf(stderr, "Failed to allocate memory for source file `%s`\n", filename);
         fclose(fp);
       }
       i32 read_size = fread(source, 1, size, fp);
       assert("something went wrong when reading file" && read_size == size);
-      (void)read_size;  /* ignore */
+      (void)read_size;  // ignore warning
+      source[read_size] = '\0';
     }
   }
   assert(filename != NULL);
@@ -234,26 +236,36 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-#if 1
-      ast_print(p.ast, 0, stdout);
-#endif
-      Compile c;
-      if (ir_init(&c) == NoError) {
-        if (ir_start_compile(&c, p.ast) == NoError) {
-#if 1
-          ir_print(&c, stdout);
-#endif
-          char path[MAX_PATH_SIZE] = {0};
-          snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
-          FILE* fp = fopen(path, "w");
-          if (fp) {
-            compile_linux_nasm_x86_64(&c, fp);
-            fclose(fp);
+      if (program_typecheck(p.ast) == NoError) {
+        Compile c;
+        if (ir_init(&c) == NoError) {
+          if (ir_start_compile(&c, p.ast) == NoError) {
+            ir_print(&c, stdout);
+
+            char path[MAX_PATH_SIZE] = {0};
+            snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
+            FILE* fp = fopen(path, "w");
+            if (fp) {
+              compile_linux_nasm_x86_64(&c, fp);
+              fclose(fp);
+            }
           }
+          else {
+            // TODO: Handle
+          }
+          ir_free(&c);
         }
-        ir_free(&c);
+        else {
+          // TODO: Handle
+        }
       }
     }
+    else {
+      // Handle
+    }
+#if 0
+      ast_print(p.ast, 0, stdout);
+#endif
     parser_free(&p);
   }
   if (fp) {
@@ -282,7 +294,7 @@ void ir_print(Compile* c, FILE* fp) {
   }
 }
 
-/* TODO(lucas): location error printing */
+// TODO(lucas): location error printing
 void ir_compile_error(Compile* c, const char* fmt, ...) {
   char err_buffer[MAX_ERR_SIZE] = {0};
   va_list args;
@@ -378,6 +390,10 @@ i32 ir_compile_stmt(Compile* c, Ast* ast) {
 
 i32 ir_compile_expr(Compile* c, Ast* ast) {
   return c->status;
+}
+
+i32 program_typecheck(Ast* ast) {
+  return NoError;
 }
 
 i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
@@ -606,7 +622,7 @@ Token lexer_read_number(Lexer* l) {
 }
 
 i32 is_digit(char ch) {
-  return ch >= '0' && ch <= '9';
+  return (ch >= '0') && (ch <= '9');
 }
 
 i32 is_alpha(char ch) {
@@ -636,14 +652,10 @@ Token lexer_next(Lexer* l) {
       }
       case '/': {
         if (*l->index == '/') {
-          l->index++;
-          l->column++;
           while (*l->index != '\n' && *l->index != '\0') {
             l->index++;
             l->column++;
           }
-          l->line++;
-          l->column = 1;
         }
         break;
       }
@@ -694,7 +706,7 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   i32 start_offset = 0;
   i32 end_offset = 0;
 
-  /* scan to the beginning of the line */
+  // scan to the beginning of the line
   char* at = index;
   while (start_offset < offset) {
     start_offset++;
@@ -703,7 +715,7 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
       break;
     }
   }
-  /* and then we scan to the end of the line */
+  // and then we scan to the end of the line
   do {
     char ch = *(at + end_offset);
     if (ch == '\n' || ch == '\r' || ch == '\0') {
