@@ -84,6 +84,8 @@ typedef enum Token_type {
   T_SUB,
   T_SEMICOLON,
   T_POP,
+  T_LEFT_P,
+  T_RIGHT_P,
 
   MAX_TOKEN_TYPE,
 } Token_type;
@@ -107,6 +109,8 @@ static const char* token_type_str[] = {
   "T_SUB",
   "T_SEMICOLON",
   "T_POP",
+  "T_LEFT_P",
+  "T_RIGHT_P",
 };
 
 typedef struct Lexer {
@@ -376,11 +380,9 @@ void ir_compile_warning(Compile* c, const char* fmt, ...) {
 
 i32 ir_push_ins(Compile* c, Op ins, i32* ins_count) {
   list_push(c->ins, c->ins_count, ins);
-  //(int[]){0, *ins_count + 1}[ins_count != NULL];
-  // const u32 increment_count
-  // if (ins_count) {
-  //   (*ins_count)++;
-  // }
+  if (ins_count) {
+    (*ins_count)++;
+  }
   return NoError;
 }
 
@@ -540,14 +542,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  pop rax\n");
         o("  pop rbx\n");
         o("  add rax, rbx\n");
-        o("  push rbx");
+        o("  push rbx\n");
         break;
       }
       case I_SUB: {
         o("  pop rax\n");
         o("  pop rbx\n");
         o("  sub rax, rbx\n");
-        o("  push rbx");
+        o("  push rbx\n");
         break;
       }
       default: {
@@ -655,24 +657,6 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = parse_expr(p);
       return expr;
     }
-#if 0
-    case T_POP:
-    case T_NUMBER: {
-      ast_push_node(stmt, AstToken, t);
-      t = lexer_next(&p->l);
-      if (!expect(t, T_SEMICOLON)) {
-        parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
-        p->status = Error;
-        return NULL;
-      }
-      break;
-    }
-    default: {
-      parser_error(p, "expected identifier or number, but got `%.*s`\n", t.length, t.buffer);
-      p->status = Error;
-      return NULL;
-    }
-#endif
   }
   assert("something went wrong" && 0);
   return NULL;
@@ -704,6 +688,21 @@ Ast* parse_expr(Parser* p) {
       ast_push(expr, parse_expr(p));
       ast_push(expr, parse_expr(p));
       return expr;
+    }
+    case T_LEFT_P: {
+      lexer_next(&p->l);
+      Ast* expr = parse_expr(p);
+      t = lexer_peek(&p->l);
+      if (t.type != T_RIGHT_P) {
+        parser_error(p, "missing closing `)` parenthesis\n");
+        return NULL;
+      }
+      lexer_next(&p->l); // skip ')'
+      return expr;
+    }
+    case T_RIGHT_P: {
+      lexer_next(&p->l);
+      break;
     }
     default: {
       parser_error(p, "expected ??? but got `%.*s`\n", t.length, t.buffer);
@@ -845,6 +844,14 @@ Token lexer_next(Lexer* l) {
       }
       case ';': {
         l->token.type = T_SEMICOLON;
+        goto done;
+      }
+      case '(': {
+        l->token.type = T_LEFT_P;
+        goto done;
+      }
+      case ')': {
+        l->token.type = T_RIGHT_P;
         goto done;
       }
       case ' ': case '\t': case '\f': case '\v': {
