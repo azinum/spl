@@ -21,6 +21,44 @@ typedef uint8_t u8;
 #define MB(n) (KB(n * 1024))
 #define GB(n) (MB(n * 1024))
 
+#define list_push(list, count, value) do { \
+	if (list == NULL) { list = calloc(sizeof(value), 1); list[0] = value; count = 1; break; } \
+	void* tmp = realloc(list, (1 + count) * (sizeof(value))); \
+	if (tmp) { \
+		list = tmp; \
+		list[(count)++] = value; \
+	} \
+} while (0); \
+
+#define list_realloc(list, count, new_size) { \
+	assert(list != NULL); \
+	void* new_list = realloc(list, (new_size) * (sizeof(*list))); \
+	if (new_list != NULL) { \
+		list = new_list; \
+		count = new_size; \
+	} \
+} \
+
+#define list_shrink(list, count, num) { \
+	assert((count - num) >= 0); \
+	list_realloc(list, count, count - num); \
+}
+ 
+#define list_assign(list, count, index, value) { \
+	assert(list != NULL); \
+	if (index < count) { \
+		list[index] = value; \
+	} \
+} \
+
+#define list_free(list, count) { \
+	if ((list) != NULL) { \
+		free(list); \
+		count = 0; \
+    list = NULL; \
+	}\
+}
+
 #define MAX_ERR_SIZE 512
 #define MAX_PATH_SIZE 512
 
@@ -42,6 +80,8 @@ typedef enum Token_type {
   T_IDENTIFIER,
   T_NUMBER,
   T_ASSIGN,
+  T_ADD,
+  T_SUB,
   T_SEMICOLON,
   T_POP,
 
@@ -63,6 +103,8 @@ static const char* token_type_str[] = {
   "T_IDENTIFIER",
   "T_NUMBER",
   "T_ASSIGN",
+  "T_ADD",
+  "T_SUB",
   "T_SEMICOLON",
   "T_POP",
 };
@@ -79,9 +121,10 @@ typedef struct Lexer {
 typedef enum Ast_type {
   AstNone = 0,
   AstRoot,
-  AstToken,
+  AstValue,
   AstExpression,
   AstStatement,
+  AstBinopExpression,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -89,9 +132,10 @@ typedef enum Ast_type {
 static const char* ast_type_str[] = {
   "AstNone",
   "AstRoot",
-  "AstToken",
+  "AstValue",
   "AstExpression",
   "AstStatement",
+  "AstBinopExpression",
 };
 
 typedef struct Ast {
@@ -100,7 +144,6 @@ typedef struct Ast {
   Ast_type type;
   Token value;
 } Ast;
-
 
 // frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
 // backend: -> code optimization -> code generation (or interpret the intermidiate representation)
@@ -117,6 +160,7 @@ typedef enum Ir_code {
   I_COPY,
   I_PUSH_INT,
   I_ADD,
+  I_SUB,
   I_RET,
 
   MAX_IR_CODE,
@@ -128,6 +172,7 @@ static const char* ir_code_str[] = {
   "I_COPY",
   "I_PUSH_INT",
   "I_ADD",
+  "I_SUB",
   "I_RET",
 };
 
@@ -146,7 +191,7 @@ typedef struct Op {
 
 // compile state
 typedef struct Compile {
-  Op ins[MAX_INS];
+  Op* ins;
   u32 ins_count;
   u8 data[MAX_DATA];
   u32 data_index;
@@ -163,6 +208,7 @@ static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); // NOTE(lucas): these will probably change to something more specific
+static i32 ir_compile_binop(Compile* c, Ast* ast);
 
 static i32 program_typecheck(Ast* ast);
 
@@ -174,6 +220,7 @@ static void parser_error(Parser* p, const char* fmt, ...);
 static i32 parse(Parser* p);
 static i32 parse_statements(Parser* p);
 static Ast* parse_statement(Parser* p);
+static Ast* parse_expr(Parser* p);
 static void lexer_init(Lexer* l, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -244,6 +291,7 @@ i32 main(i32 argc, char** argv) {
       if (program_typecheck(p.ast) == NoError) {
         Compile c;
         if (ir_init(&c) == NoError) {
+          ast_print(p.ast, 0, stdout);
           if (ir_start_compile(&c, p.ast) == NoError) {
             ir_print(&c, stdout);
 
@@ -281,6 +329,7 @@ i32 main(i32 argc, char** argv) {
 }
 
 i32 ir_init(Compile* c) {
+  c->ins = NULL;
   c->ins_count = 0;
   c->data_index = 0;
   c->status = NoError;
@@ -288,7 +337,8 @@ i32 ir_init(Compile* c) {
 }
 
 void ir_free(Compile* c) {
-
+  free(c->ins);
+  c->ins_count = 0;
 }
 
 void ir_print(Compile* c, FILE* fp) {
@@ -299,29 +349,39 @@ void ir_print(Compile* c, FILE* fp) {
   }
 }
 
-// TODO(lucas): location error printing
+// TODO(lucas): location printing
 void ir_compile_error(Compile* c, const char* fmt, ...) {
-  char err_buffer[MAX_ERR_SIZE] = {0};
+  char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
-  vsnprintf(err_buffer, MAX_ERR_SIZE, fmt, args);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
   va_end(args);
 
   FILE* fp = stderr;
-  fprintf(fp, "[ir-compile-error]: %s", err_buffer);
+  fprintf(fp, "[ir-compile-error]: %s", buffer);
   c->status = Error;
 }
 
+// TODO(lucas): location printing
+void ir_compile_warning(Compile* c, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stdout;
+  fprintf(fp, "[ir-compile-warning]: %s", buffer);
+}
+
 i32 ir_push_ins(Compile* c, Op ins, i32* ins_count) {
-  if (c->ins_count < MAX_INS) {
-    c->ins[c->ins_count++] = ins;
-    if (ins_count) {
-      (*ins_count)++;
-    }
-    return NoError;
-  }
-  assert("instruction cap reached" && 0);
-  return Error;
+  list_push(c->ins, c->ins_count, ins);
+  //(int[]){0, *ins_count + 1}[ins_count != NULL];
+  // const u32 increment_count
+  // if (ins_count) {
+  //   (*ins_count)++;
+  // }
+  return NoError;
 }
 
 i32 ir_push_value(Compile* c, void* value, u32 size) {
@@ -356,7 +416,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstStatement: {
       return ir_compile_stmt(c, ast);
     }
-    case AstToken: {
+    case AstValue: {
       switch (ast->value.type) {
         case T_NUMBER: {
           i32 num = 0;
@@ -368,7 +428,10 @@ i32 ir_compile(Compile* c, Ast* ast) {
               .dest = 0,
               .src0 = address,
               .src1 = 0,
-            },  NULL);
+            }, NULL);
+          }
+          else {
+            // TODO(lucas): Handle
           }
           break;
         }
@@ -376,15 +439,41 @@ i32 ir_compile(Compile* c, Ast* ast) {
           ir_push_ins(c, OP(I_POP), NULL);
           break;
         }
+        case T_IDENTIFIER: {
+          assert("not handled yet" && 0);
+          break;
+        }
         default: {
-          assert(0);  /* TODO(lucas): handle */
+          assert(0);
           break;
         }
       }
       break;
     }
+    // op arg0 arg1 -> arg0 arg1 op
+    case AstBinopExpression: {
+      i32 result = ir_compile_binop(c, ast);
+      if (result == NoError) {
+        if (ast->value.type == T_ADD) {
+          ir_push_ins(c, OP(I_ADD), NULL);
+        }
+        else if (ast->value.type == T_ADD) {
+          ir_push_ins(c, OP(I_SUB), NULL);
+        }
+      }
+      else {
+        c->status = result;
+        return c->status;
+      }
+      break;
+    }
+    case AstNone: {
+      ir_compile_warning(c, "unused AST branch type\n");
+      break;
+    
+    }
     default: {
-      ir_compile_error(c, "Invalid AST branch type\n");
+      ir_compile_error(c, "invalid AST branch type\n");
       c->status = Error;
       break;
     }
@@ -405,6 +494,17 @@ i32 ir_compile_expr(Compile* c, Ast* ast) {
   return c->status;
 }
 
+i32 ir_compile_binop(Compile* c, Ast* ast) {
+  for (i32 i = 0; i < ast->count; ++i) {
+    Ast* node = ast->node[i];
+    i32 result = ir_compile(c, node);
+    if (result != NoError) {
+      c->status = result;
+      return c->status;
+    }
+  }
+  return c->status;
+}
 i32 program_typecheck(Ast* ast) {
   return NoError;
 }
@@ -434,6 +534,20 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         i32 value = *(i32*)&c->data[op->src0];
         o("  mov rax, %d\n", value);
         o("  push rax\n");
+        break;
+      }
+      case I_ADD: {
+        o("  pop rax\n");
+        o("  pop rbx\n");
+        o("  add rax, rbx\n");
+        o("  push rbx");
+        break;
+      }
+      case I_SUB: {
+        o("  pop rax\n");
+        o("  pop rbx\n");
+        o("  sub rax, rbx\n");
+        o("  push rbx");
         break;
       }
       default: {
@@ -521,28 +635,27 @@ done:
 }
 
 /*
- stmt : identifier ';'
-      | number ';'
+ stmt : expr ';'
+      | ident '=' expr
       ;
 */
 Ast* parse_statement(Parser* p) {
-  Ast* stmt = ast_create(AstStatement);
-  if (!stmt) {
-    return NULL;
-  }
-
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_IDENTIFIER: {
-      ast_push_node(stmt, AstToken, t);
-      t = lexer_next(&p->l);
-      if (!expect(t, T_SEMICOLON)) {
-        parser_error(p, "expected `;` semicolon, but got `%.*s`\n", t.length, t.buffer);
-        p->status = Error;
-        return NULL;
-      }
+      parser_error(p, "identifier not allowed at here\n");
+      p->status = Error;
+      return NULL;
       break;
     }
+    case T_SEMICOLON: {
+      break;
+    }
+    default: {
+      Ast* expr = parse_expr(p);
+      return expr;
+    }
+#if 0
     case T_POP:
     case T_NUMBER: {
       ast_push_node(stmt, AstToken, t);
@@ -559,9 +672,46 @@ Ast* parse_statement(Parser* p) {
       p->status = Error;
       return NULL;
     }
+#endif
   }
+  assert("something went wrong" && 0);
+  return NULL;
+}
 
-  return stmt;
+/*
+  expr : expr
+       | op expr
+       | op expr expr
+       | number
+       | identifier
+*/
+Ast* parse_expr(Parser* p) {
+  Token t = lexer_peek(&p->l);
+  switch (t.type) {
+    case T_POP:
+    case T_NUMBER:
+    case T_IDENTIFIER: {
+      lexer_next(&p->l);
+      Ast* node = ast_create(AstValue);
+      node->value = t;
+      return node;
+    }
+    case T_ADD:
+    case T_SUB: {
+      lexer_next(&p->l);
+      Ast* expr = ast_create(AstBinopExpression);
+      expr->value = t;
+      ast_push(expr, parse_expr(p));
+      ast_push(expr, parse_expr(p));
+      return expr;
+    }
+    default: {
+      parser_error(p, "expected ??? but got `%.*s`\n", t.length, t.buffer);
+      p->status = Error;
+      return NULL;
+    }
+  }
+  return NULL;
 }
 
 void lexer_init(Lexer* l, char* source) {
@@ -615,7 +765,11 @@ i32 expect(Token t, Token_type type) {
 }
 
 Token lexer_read_symbol(Lexer* l) {
-  while (is_alpha(*l->index) || is_digit(*l->index) || *l->index == '_') {
+  while (
+    is_alpha(*l->index) ||
+    is_digit(*l->index) ||
+    *l->index == '_' ||
+    *l->index == '-') {
     l->index++;
     l->column++;
   }
@@ -679,6 +833,14 @@ Token lexer_next(Lexer* l) {
       }
       case '=': {
         l->token.type = T_ASSIGN;
+        goto done;
+      }
+      case '+': {
+        l->token.type = T_ADD;
+        goto done;
+      }
+      case '-': {
+        l->token.type = T_SUB;
         goto done;
       }
       case ';': {
@@ -790,6 +952,9 @@ Ast* ast_alloc_node() {
 }
 
 Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
+  if (!ast) {
+    return NULL;
+  }
   Ast* node = ast_alloc_node();
   if (!node) {
     return NULL;
@@ -800,6 +965,9 @@ Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
 }
 
 Ast* ast_push(Ast* ast, Ast* node) {
+  if (!ast || !node) {
+    return NULL;
+  }
   if (ast->count == 0) {
     ast->node = malloc(sizeof(Ast*));
   }
