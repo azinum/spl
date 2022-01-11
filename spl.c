@@ -61,6 +61,7 @@ typedef uint8_t u8;
 
 #define MAX_ERR_SIZE 512
 #define MAX_PATH_SIZE 512
+#define USE_EXTENDED_ASCII 1
 
 #define VERBOSE 1
 
@@ -234,6 +235,7 @@ inline Token lexer_read_symbol(Lexer* l);
 inline Token lexer_read_number(Lexer* l);
 inline i32 is_digit(char ch);
 inline i32 is_alpha(char ch);
+inline i32 is_extended_ascii(u8 ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
@@ -767,6 +769,9 @@ Token lexer_read_symbol(Lexer* l) {
   while (
     is_alpha(*l->index) ||
     is_digit(*l->index) ||
+#if USE_EXTENDED_ASCII
+    is_extended_ascii((u8)*l->index) ||
+#endif
     *l->index == '_' ||
     *l->index == '-') {
     l->index++;
@@ -798,6 +803,10 @@ i32 is_digit(char ch) {
 
 i32 is_alpha(char ch) {
   return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+i32 is_extended_ascii(u8 ch) {
+  return (ch >= 128 && ch < 255);
 }
 
 Token lexer_next(Lexer* l) {
@@ -862,7 +871,13 @@ Token lexer_next(Lexer* l) {
         goto done;
       }
       default: {
-        if (is_alpha(ch) || ch == '_') {
+        if (
+          is_alpha(ch) ||
+#if USE_EXTENDED_ASCII
+          is_extended_ascii((u8)ch) ||
+#endif
+          ch == '_'
+        ) {
           lexer_read_symbol(l);
           goto done;
         }

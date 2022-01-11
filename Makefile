@@ -5,7 +5,7 @@ include config.mk
 all: compile
 
 compile:
-	${CC} ${SRC} -o ${PROG} ${FLAGS}
+	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
 
 clean:
 	rm ${PROG} test.spl.asm *.o test
