@@ -3,6 +3,7 @@
 #include <stdio.h>  // puts, printf
 #include <string.h> // strcmp
 #include <stdlib.h> // malloc, fread
+#include <unistd.h> // write
 #include <stdint.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -85,6 +86,7 @@ typedef enum Token_type {
   T_SUB,
   T_SEMICOLON,
   T_POP,
+  T_PRINT,
   T_LEFT_P,
   T_RIGHT_P,
 
@@ -110,6 +112,7 @@ static const char* token_type_str[] = {
   "T_SUB",
   "T_SEMICOLON",
   "T_POP",
+  "T_PRINT",
   "T_LEFT_P",
   "T_RIGHT_P",
 };
@@ -130,6 +133,7 @@ typedef enum Ast_type {
   AstExpression,
   AstStatement,
   AstBinopExpression,
+  AstUopExpression,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -141,6 +145,7 @@ static const char* ast_type_str[] = {
   "AstExpression",
   "AstStatement",
   "AstBinopExpression",
+  "AstUopExpression",
 };
 
 typedef struct Ast {
@@ -167,6 +172,7 @@ typedef enum Ir_code {
   I_ADD,
   I_SUB,
   I_RET,
+  I_PRINT,
 
   MAX_IR_CODE,
 } Ir_code;
@@ -179,6 +185,7 @@ static const char* ir_code_str[] = {
   "I_ADD",
   "I_SUB",
   "I_RET",
+  "I_PRINT",
 };
 
 // intermidiate representation of the instructions which are to be generated or interpreted
@@ -214,6 +221,7 @@ static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
 static i32 ir_compile_expr(Compile* c, Ast* ast); // NOTE(lucas): these will probably change to something more specific
 static i32 ir_compile_binop(Compile* c, Ast* ast);
+static i32 ir_compile_uop(Compile* c, Ast* ast);
 
 static i32 program_typecheck(Ast* ast);
 
@@ -443,8 +451,12 @@ i32 ir_compile(Compile* c, Ast* ast) {
           ir_push_ins(c, OP(I_POP), NULL);
           break;
         }
+        case T_PRINT: {
+          assert("T_PRINT: not handled yet" && 0);
+          break;
+        }
         case T_IDENTIFIER: {
-          assert("not handled yet" && 0);
+          assert("T_IDENTIFIER: not handled yet" && 0);
           break;
         }
         default: {
@@ -464,6 +476,25 @@ i32 ir_compile(Compile* c, Ast* ast) {
         else if (ast->value.type == T_ADD) {
           ir_push_ins(c, OP(I_SUB), NULL);
         }
+        else {
+          // Handle
+        }
+      }
+      else {
+        c->status = result;
+        return c->status;
+      }
+      break;
+    }
+    case AstUopExpression: {
+      i32 result = ir_compile_uop(c, ast);
+      if (result == NoError) {
+        if (ast->value.type == T_PRINT) {
+          ir_push_ins(c, OP(I_PRINT), NULL);
+        }
+        else {
+          // Handle
+        }
       }
       else {
         c->status = result;
@@ -474,7 +505,6 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstNone: {
       ir_compile_warning(c, "unused AST branch type\n");
       break;
-    
     }
     default: {
       ir_compile_error(c, "invalid AST branch type\n");
@@ -509,6 +539,20 @@ i32 ir_compile_binop(Compile* c, Ast* ast) {
   }
   return c->status;
 }
+
+// alias of ir_compile_binop
+i32 ir_compile_uop(Compile* c, Ast* ast) {
+  for (i32 i = 0; i < ast->count; ++i) {
+    Ast* node = ast->node[i];
+    i32 result = ir_compile(c, node);
+    if (result != NoError) {
+      c->status = result;
+      return c->status;
+    }
+  }
+  return c->status;
+}
+
 i32 program_typecheck(Ast* ast) {
   return NoError;
 }
@@ -517,9 +561,43 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 #define o(...) fprintf(fp, __VA_ARGS__)
 #define ENTRY "_start"
 #define MEMORY_CAPACITY KB(512)
-
   o("bits 64\n");
   o("section .text\n");
+  o(
+  "print:\n"
+  "    mov     r9, -3689348814741910323\n"
+  "    sub     rsp, 40\n"
+  "    mov     BYTE [rsp+31], 10\n"
+  "    lea     rcx, [rsp+30]\n"
+  ".L2:\n"
+  "    mov     rax, rdi\n"
+  "    lea     r8, [rsp+32]\n"
+  "    mul     r9\n"
+  "    mov     rax, rdi\n"
+  "    sub     r8, rcx\n"
+  "    shr     rdx, 3\n"
+  "    lea     rsi, [rdx+rdx*4]\n"
+  "    add     rsi, rsi\n"
+  "    sub     rax, rsi\n"
+  "    add     eax, 48\n"
+  "    mov     BYTE [rcx], al\n"
+  "    mov     rax, rdi\n"
+  "    mov     rdi, rdx\n"
+  "    mov     rdx, rcx\n"
+  "    sub     rcx, 1\n"
+  "    cmp     rax, 9\n"
+  "    ja      .L2\n"
+  "    lea     rax, [rsp+32]\n"
+  "    mov     edi, 1\n"
+  "    sub     rdx, rax\n"
+  "    xor     eax, eax\n"
+  "    lea     rsi, [rsp+32+rdx]\n"
+  "    mov     rdx, r8\n"
+  "    mov     rax, 1\n"
+  "    syscall\n"
+  "    add     rsp, 40\n"
+  "    ret\n"
+  );
   o("global %s\n", ENTRY);
   o("%s:\n", ENTRY);
 
@@ -544,14 +622,23 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  pop rax\n");
         o("  pop rbx\n");
         o("  add rax, rbx\n");
-        o("  push rbx\n");
+        o("  push rax\n");
         break;
       }
       case I_SUB: {
-        o("  pop rax\n");
-        o("  pop rbx\n");
-        o("  sub rax, rbx\n");
-        o("  push rbx\n");
+        o(
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  sub rax, rbx\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      case I_PRINT: {
+        o(
+        "  pop rdi\n"
+        "  call print\n"
+        );
         break;
       }
       default: {
@@ -666,10 +753,11 @@ Ast* parse_statement(Parser* p) {
 
 /*
   expr : expr
-       | op expr
-       | op expr expr
-       | number
-       | identifier
+       | OP expr
+       | OP expr expr
+       | NUMBER
+       | IDENTIFIER
+       | PRINT expr
 */
 Ast* parse_expr(Parser* p) {
   Token t = lexer_peek(&p->l);
@@ -691,6 +779,18 @@ Ast* parse_expr(Parser* p) {
       ast_push(expr, parse_expr(p));
       return expr;
     }
+    case T_PRINT: {
+      lexer_next(&p->l); // skip `print`
+      Ast* expr = ast_create(AstUopExpression);
+      expr->value = t;
+      Ast* sub_expr = parse_expr(p);
+      if (sub_expr != NULL) {
+        ast_push(expr, sub_expr);
+        return expr;
+      }
+      parser_error(p, "invalid syntax in unary operator expression\n");
+      return NULL;
+    }
     case T_LEFT_P: {
       lexer_next(&p->l);
       Ast* expr = parse_expr(p);
@@ -699,15 +799,15 @@ Ast* parse_expr(Parser* p) {
         parser_error(p, "missing closing `)` parenthesis\n");
         return NULL;
       }
-      lexer_next(&p->l); // skip ')'
+      lexer_next(&p->l); // skip `)`
       return expr;
     }
     case T_RIGHT_P: {
-      lexer_next(&p->l);
-      break;
+      parser_error(p, "unexpected closing `)` parenthesis in expression\n");
+      return NULL;
     }
     default: {
-      parser_error(p, "expected ??? but got `%.*s`\n", t.length, t.buffer);
+      parser_error(p, "unexpected `%.*s` in expression\n", t.length, t.buffer);
       p->status = Error;
       return NULL;
     }
@@ -780,6 +880,9 @@ Token lexer_read_symbol(Lexer* l) {
   l->token.length = l->index - l->token.buffer;
   if (compare(l->token, "pop")) {
     l->token.type = T_POP;
+  }
+  else if (compare(l->token, "print")) {
+    l->token.type = T_PRINT;
   }
   else {
     l->token.type = T_IDENTIFIER;

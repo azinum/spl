@@ -14,3 +14,7 @@ run:
 	./${PROG} test.spl
 	nasm -f elf64 test.spl.asm
 	ld test.spl.o -o test
+
+test.spl.asm:
+	nasm -f elf64 test.spl.asm
+	ld test.spl.o -o test
