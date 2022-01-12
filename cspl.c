@@ -357,7 +357,7 @@ i32 main(i32 argc, char** argv) {
   }
   free(source);
   REAL_TIMER_END(
-    v_printf("elapsed time = %g s\n", _dt);
+    v_printf("\nelapsed time = %g s\n\n", _dt);
     (void)_dt;
   );
   return exit_status;
@@ -550,6 +550,11 @@ i32 ir_compile_expr(Compile* c, Ast* ast) {
 }
 
 i32 ir_compile_binop(Compile* c, Ast* ast) {
+  if (ast->count < 2) {
+    ir_compile_error(c, "expected 2 arguments in binary operator action\n");
+    c->status = Error;
+    return c->status;
+  }
   for (i32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
     i32 result = ir_compile(c, node);
@@ -718,18 +723,20 @@ i32 parse(Parser* p) {
  
  stmts : stmt
        | stmts stmt
-       | ';' stmt
+       | ';'
        ;
 */
 i32 parse_statements(Parser* p) {
   Ast* statements = p->ast;
+  Token t = lexer_next(&p->l);
   for (;;) {
-    Token t = lexer_next(&p->l);
+    t = lexer_peek(&p->l);
     switch (t.type) {
       case T_EOF: {
         return NoError;
       }
       case T_SEMICOLON: {
+        lexer_next(&p->l);
         break;
       }
       default: {
@@ -748,7 +755,7 @@ done:
 
 /*
  stmt : expr ';'
-      | ident '=' expr
+      | ident '=' expr ';'
       ;
 */
 Ast* parse_statement(Parser* p) {
@@ -758,13 +765,14 @@ Ast* parse_statement(Parser* p) {
       parser_error(p, "identifier not allowed at here\n");
       p->status = Error;
       return NULL;
-      break;
-    }
-    case T_SEMICOLON: {
-      break;
     }
     default: {
       Ast* expr = parse_expr(p);
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "exptected `;` semicolon in statement, but got `%.*s`\n", t.length, t.buffer);
+        p->status = Error;
+      }
       return expr;
     }
   }
