@@ -1,13 +1,14 @@
 //
 // cspl.c - simple programming language (spl)
 //
-// implementation in c
+// original implementation in c
 //
 
 #include <stdio.h>  // puts, printf
 #include <string.h> // strcmp
 #include <stdlib.h> // malloc, fread
 #include <unistd.h> // write
+#include <sys/time.h> // gettimeofday
 #include <stdint.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -25,6 +26,18 @@ typedef uint8_t u8;
 #define KB(n) (n * 1024)
 #define MB(n) (KB(n * 1024))
 #define GB(n) (MB(n * 1024))
+
+#define REAL_TIMER_START(...) \
+	struct timeval _end = {0}; \
+	struct timeval _start = {0}; \
+	gettimeofday(&_start, NULL); \
+	__VA_ARGS__
+
+#define REAL_TIMER_END(...) { \
+	gettimeofday(&_end, NULL); \
+	f64 _dt = ((((_end.tv_sec - _start.tv_sec) * 1000000.0f) + _end.tv_usec) - (_start.tv_usec)) / 1000000.0f; \
+	__VA_ARGS__ \
+}
 
 #define list_push(list, count, value) do { \
 	if (list == NULL) { list = calloc(sizeof(value), 1); list[0] = value; count = 1; break; } \
@@ -263,6 +276,7 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
+  REAL_TIMER_START();
   (void)ast_print; (void)ir_code_str;
   i32 exit_status = EXIT_SUCCESS;
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
@@ -342,6 +356,10 @@ i32 main(i32 argc, char** argv) {
     fclose(fp);
   }
   free(source);
+  REAL_TIMER_END(
+    v_printf("elapsed time = %g s\n", _dt);
+    (void)_dt;
+  );
   return exit_status;
 }
 
