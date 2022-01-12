@@ -18,6 +18,7 @@ ${SPL_SRC}:
 	./${PROG} $@.spl && \
 	nasm -f elf64 $@.spl.asm && \
 	ld $@.spl.o -o $@ && \
+	strip $@ && \
 	./$@
 
 .PHONY: test spl
