@@ -2,19 +2,21 @@
 
 include config.mk
 
+SPL_SRC=${subst .spl,, ${wildcard *.spl}}
+
 all: compile
 
 compile:
 	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
 
 clean:
-	rm ${PROG} test.spl.asm *.o test
+	rm -f ${PROG} test.spl.asm spl.spl.asm *.o test spl cspl
 
-run:
-	./${PROG} test.spl
-	nasm -f elf64 test.spl.asm
-	ld test.spl.o -o test
+run: test
 
-test.spl.asm:
-	nasm -f elf64 test.spl.asm
-	ld test.spl.o -o test
+${SPL_SRC}:
+	./${PROG} $@.spl && \
+	nasm -f elf64 $@.spl.asm && \
+	ld $@.spl.o -o $@
+
+.PHONY: test spl

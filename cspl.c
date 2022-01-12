@@ -1,4 +1,8 @@
-// spl.c - simple programming language
+//
+// cspl.c - simple programming language (spl)
+//
+// implementation in c
+//
 
 #include <stdio.h>  // puts, printf
 #include <string.h> // strcmp
@@ -260,6 +264,7 @@ static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
   (void)ast_print; (void)ir_code_str;
+  i32 exit_status = EXIT_SUCCESS;
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
@@ -289,6 +294,7 @@ i32 main(i32 argc, char** argv) {
       if (!source) {
         fprintf(stderr, "Failed to allocate memory for source file `%s`\n", filename);
         fclose(fp);
+        exit_status = EXIT_FAILURE;
       }
       i32 read_size = fread(source, 1, size, fp);
       assert("something went wrong when reading file" && read_size == size);
@@ -318,28 +324,25 @@ i32 main(i32 argc, char** argv) {
             }
           }
           else {
-            // TODO: Handle
+            exit_status = EXIT_FAILURE;
           }
           ir_free(&c);
         }
         else {
-          // TODO: Handle
+          exit_status = EXIT_FAILURE;
         }
       }
     }
     else {
-      // Handle
+      exit_status = EXIT_FAILURE;
     }
-#if 0
-      ast_print(p.ast, 0, stdout);
-#endif
     parser_free(&p);
   }
   if (fp) {
     fclose(fp);
   }
   free(source);
-  return EXIT_SUCCESS;
+  return exit_status;
 }
 
 i32 ir_init(Compile* c) {
@@ -473,7 +476,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
         if (ast->value.type == T_ADD) {
           ir_push_ins(c, OP(I_ADD), NULL);
         }
-        else if (ast->value.type == T_ADD) {
+        else if (ast->value.type == T_SUB) {
           ir_push_ins(c, OP(I_SUB), NULL);
         }
         else {
@@ -621,16 +624,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_ADD: {
         o("  pop rax\n");
         o("  pop rbx\n");
-        o("  add rax, rbx\n");
-        o("  push rax\n");
+        o("  add rbx, rax\n");
+        o("  push rbx\n");
         break;
       }
       case I_SUB: {
         o(
         "  pop rax\n"
         "  pop rbx\n"
-        "  sub rax, rbx\n"
-        "  push rax\n"
+        "  sub rbx, rax\n"
+        "  push rbx\n"
         );
         break;
       }

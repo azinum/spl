@@ -2,8 +2,8 @@
 
 CC=clang
 
-SRC=spl.c
+SRC=cspl.c
 
-PROG=spl
+PROG=cspl
 
-FLAGS=-Wall -pedantic -std=c99 -O0 -g
+FLAGS=-Wall -pedantic -std=c99 -O3 -g

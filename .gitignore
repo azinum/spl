@@ -2,6 +2,7 @@
 *.swp
 *.o
 .DS_Store
+cspl
 spl
 test.spl.asm
 test
