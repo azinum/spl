@@ -1,3 +1,5 @@
 // test.spl
 
-print + 2 3; pop;
+const a 5;
+
+print + 2 3;

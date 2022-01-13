@@ -40,41 +40,41 @@ typedef uint8_t u8;
 }
 
 #define list_push(list, count, value) do { \
-	if (list == NULL) { list = calloc(sizeof(value), 1); list[0] = value; count = 1; break; } \
-	void* tmp = realloc(list, (1 + count) * (sizeof(value))); \
-	if (tmp) { \
-		list = tmp; \
-		list[(count)++] = value; \
-	} \
+  if (list == NULL) { list = calloc(sizeof(value), 1); list[0] = value; count = 1; break; } \
+  void* tmp = realloc(list, (1 + count) * (sizeof(value))); \
+  if (tmp) { \
+    list = tmp; \
+    list[(count)++] = value; \
+  } \
 } while (0); \
 
 #define list_realloc(list, count, new_size) { \
-	assert(list != NULL); \
-	void* new_list = realloc(list, (new_size) * (sizeof(*list))); \
-	if (new_list != NULL) { \
-		list = new_list; \
-		count = new_size; \
-	} \
+  assert(list != NULL); \
+  void* new_list = realloc(list, (new_size) * (sizeof(*list))); \
+  if (new_list != NULL) { \
+    list = new_list; \
+    count = new_size; \
+  } \
 } \
 
 #define list_shrink(list, count, num) { \
-	assert((count - num) >= 0); \
-	list_realloc(list, count, count - num); \
+  assert((count - num) >= 0); \
+  list_realloc(list, count, count - num); \
 }
  
 #define list_assign(list, count, index, value) { \
-	assert(list != NULL); \
-	if (index < count) { \
-		list[index] = value; \
-	} \
+  assert(list != NULL); \
+  if (index < count) { \
+    list[index] = value; \
+  } \
 } \
 
 #define list_free(list, count) { \
-	if ((list) != NULL) { \
-		free(list); \
-		count = 0; \
+  if ((list) != NULL) { \
+    free(list); \
+    count = 0; \
     list = NULL; \
-	}\
+  }\
 }
 
 #define MAX_ERR_SIZE 512
@@ -103,6 +103,7 @@ typedef enum Token_type {
   T_SUB,
   T_SEMICOLON,
   T_POP,
+  T_CONST,
   T_PRINT,
   T_LEFT_P,
   T_RIGHT_P,
@@ -129,6 +130,7 @@ static const char* token_type_str[] = {
   "T_SUB",
   "T_SEMICOLON",
   "T_POP",
+  "T_CONST",
   "T_PRINT",
   "T_LEFT_P",
   "T_RIGHT_P",
@@ -151,6 +153,7 @@ typedef enum Ast_type {
   AstStatement,
   AstBinopExpression,
   AstUopExpression,
+  AstConstAssignment,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -163,6 +166,7 @@ static const char* ast_type_str[] = {
   "AstStatement",
   "AstBinopExpression",
   "AstUopExpression",
+  "AstConstAssignment",
 };
 
 typedef struct Ast {
@@ -218,12 +222,28 @@ typedef struct Op {
 #define MAX_INS (1024) // temp
 #define MAX_DATA (KB(32)) // temp
 
+#define MAX_NAME_SIZE 64
+#define MAX_SYMBOL 128
+
+typedef struct Symbol {
+  char name[MAX_NAME_SIZE];
+  i32 address;
+  i32 size;
+  i32 type;
+  Token token;
+} Symbol;
+
 // compile state
 typedef struct Compile {
   Op* ins;
   u32 ins_count;
+
   u8 data[MAX_DATA];
   u32 data_index;
+
+  Symbol symbol_table;
+  u32 symbol_count;
+
   i32 status;
 } Compile;
 
@@ -232,6 +252,7 @@ static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
+static i32 ir_define_const(Compile* c, Token token, Symbol* symbol);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
@@ -367,6 +388,7 @@ i32 ir_init(Compile* c) {
   c->ins = NULL;
   c->ins_count = 0;
   c->data_index = 0;
+  c->symbol_count = 0;
   c->status = NoError;
   return NoError;
 }
@@ -439,6 +461,10 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   }
   ir_push_ins(c, OP(I_RET), NULL);
   return c->status;
+}
+
+i32 ir_define_const(Compile* c, Token token, Symbol* symbol) {
+  return NoError;
 }
 
 i32 ir_compile(Compile* c, Ast* ast) {
@@ -525,6 +551,10 @@ i32 ir_compile(Compile* c, Ast* ast) {
     }
     case AstNone: {
       ir_compile_warning(c, "unused AST branch type\n");
+      break;
+    }
+    case AstConstAssignment: {
+      // skip for now
       break;
     }
     default: {
@@ -755,16 +785,34 @@ done:
 
 /*
  stmt : expr ';'
-      | ident '=' expr ';'
+      | const ident expr ';'
       ;
 */
 Ast* parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_IDENTIFIER: {
-      parser_error(p, "identifier not allowed at here\n");
+      parser_error(p, "identifier not allowed here\n");
       p->status = Error;
       return NULL;
+    }
+    case T_CONST: {
+      t = lexer_next(&p->l); // skip `const`
+      if (t.type != T_IDENTIFIER) {
+        parser_error(p, "expected identifier in const assignment, but got `%.*s`\n", t.length, t.buffer);
+        p->status = Error;
+        return NULL;
+      }
+      lexer_next(&p->l);  // skip `identifier`
+      Ast* expr = ast_create(AstConstAssignment);
+      expr->value = t;
+      ast_push(expr, parse_expr(p));
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "exptected `;` semicolon in statement, but got `%.*s`\n", t.length, t.buffer);
+        p->status = Error;
+      }
+      return expr;
     }
     default: {
       Ast* expr = parse_expr(p);
@@ -912,6 +960,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "print")) {
     l->token.type = T_PRINT;
+  }
+  else if (compare(l->token, "const")) {
+    l->token.type = T_CONST;
   }
   else {
     l->token.type = T_IDENTIFIER;
