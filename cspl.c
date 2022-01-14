@@ -104,6 +104,7 @@ typedef enum Token_type {
   T_SEMICOLON,
   T_POP,
   T_CONST,
+  T_LET,
   T_PRINT,
   T_LEFT_P,
   T_RIGHT_P,
@@ -131,6 +132,7 @@ static const char* token_type_str[] = {
   "T_SEMICOLON",
   "T_POP",
   "T_CONST",
+  "T_LET",
   "T_PRINT",
   "T_LEFT_P",
   "T_RIGHT_P",
@@ -154,6 +156,7 @@ typedef enum Ast_type {
   AstBinopExpression,
   AstUopExpression,
   AstConstAssignment,
+  AstLetStatement,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -167,6 +170,7 @@ static const char* ast_type_str[] = {
   "AstBinopExpression",
   "AstUopExpression",
   "AstConstAssignment",
+  "AstLetStatement",
 };
 
 typedef struct Ast {
@@ -241,7 +245,7 @@ typedef struct Compile {
   u8 data[MAX_DATA];
   u32 data_index;
 
-  Symbol symbol_table;
+  Symbol symbol_table[MAX_SYMBOL];
   u32 symbol_count;
 
   i32 status;
@@ -252,14 +256,15 @@ static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
-static i32 ir_define_const(Compile* c, Token token, Symbol* symbol);
+static i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol);
+static i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
 static i32 ir_compile_stmt(Compile* c, Ast* ast);
-static i32 ir_compile_expr(Compile* c, Ast* ast); // NOTE(lucas): these will probably change to something more specific
 static i32 ir_compile_binop(Compile* c, Ast* ast);
 static i32 ir_compile_uop(Compile* c, Ast* ast);
+static i32 ir_compile_let_statement(Compile* c, Ast* ast);
 
 static i32 program_typecheck(Ast* ast);
 
@@ -297,6 +302,9 @@ static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
 i32 main(i32 argc, char** argv) {
+  assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
+  assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
+  assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
   REAL_TIMER_START();
   (void)ast_print; (void)ir_code_str;
   i32 exit_status = EXIT_SUCCESS;
@@ -463,15 +471,51 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 ir_define_const(Compile* c, Token token, Symbol* symbol) {
-  return NoError;
+i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
+  if (MAX_NAME_SIZE < length) {
+    return Error;
+  }
+  if (c->symbol_count < MAX_SYMBOL) {
+    if (ir_lookup_value(c, length, buffer, symbol) == NoError) {
+      return (c->status = Error);
+    }
+    *symbol = &c->symbol_table[c->symbol_count++];
+
+    i32 empty = 0;
+    i32 empty_size = sizeof(empty);
+    i32 address = ir_push_value(c, &empty, empty_size);
+
+    Symbol* s = *symbol;
+    *s = (Symbol) {
+      .address = address,
+      .size = empty_size,
+      .type = -1,
+    };
+    strncpy(s->name, buffer, length);
+    return NoError;
+  }
+  return Error;
+}
+
+i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
+  assert("must pass reference to a symbol to store the return value in" && symbol != NULL);
+  if (MAX_NAME_SIZE < length) {
+    return Error;
+  }
+  char copy[MAX_NAME_SIZE];
+  strncpy(copy, buffer, length);
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* sym = &c->symbol_table[i];
+    if (strncmp(copy, sym->name, length) == 0) {
+      *symbol = sym;
+      return NoError;
+    }
+  }
+  return Error;
 }
 
 i32 ir_compile(Compile* c, Ast* ast) {
   switch (ast->type) {
-    case AstExpression: {
-      return ir_compile_expr(c, ast);
-    }
     case AstStatement: {
       return ir_compile_stmt(c, ast);
     }
@@ -554,7 +598,18 @@ i32 ir_compile(Compile* c, Ast* ast) {
       break;
     }
     case AstConstAssignment: {
-      // skip for now
+      assert("AstConstAssignment not implemented yet" && 0);
+      break;
+    }
+    case AstLetStatement: {
+      Symbol* symbol = NULL;
+      if (ir_declare_value(c, ast->value.length, ast->value.buffer, &symbol) == NoError) {
+        v_printf("New symbol declared: `%s`: address = %i, size = %i, type = %i\n", symbol->name, symbol->address, symbol->size, symbol->type);
+      }
+      else {
+        ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+        c->status = Error;
+      }
       break;
     }
     default: {
@@ -572,10 +627,6 @@ i32 ir_compile_stmt(Compile* c, Ast* ast) {
       break;
     }
   }
-  return c->status;
-}
-
-i32 ir_compile_expr(Compile* c, Ast* ast) {
   return c->status;
 }
 
@@ -606,6 +657,10 @@ i32 ir_compile_uop(Compile* c, Ast* ast) {
       return c->status;
     }
   }
+  return c->status;
+}
+
+i32 ir_compile_let_statement(Compile* c, Ast* ast) {
   return c->status;
 }
 
@@ -797,19 +852,23 @@ Ast* parse_statement(Parser* p) {
       return NULL;
     }
     case T_CONST: {
-      t = lexer_next(&p->l); // skip `const`
+      assert("T_CONST not implemented yet" && 0);
+      break;
+    }
+    case T_LET: {
+      t = lexer_next(&p->l); // skip `let`
       if (t.type != T_IDENTIFIER) {
-        parser_error(p, "expected identifier in const assignment, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "expected identifier in let statement, but got `%.*s`\n", t.length, t.buffer);
         p->status = Error;
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
-      Ast* expr = ast_create(AstConstAssignment);
+      Ast* expr = ast_create(AstLetStatement);
       expr->value = t;
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
-        parser_error(p, "exptected `;` semicolon in statement, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "exptected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
         p->status = Error;
       }
       return expr;
@@ -818,7 +877,7 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = parse_expr(p);
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
-        parser_error(p, "exptected `;` semicolon in statement, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "exptected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
         p->status = Error;
       }
       return expr;
@@ -963,6 +1022,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "const")) {
     l->token.type = T_CONST;
+  }
+  else if (compare(l->token, "let")) {
+    l->token.type = T_LET;
   }
   else {
     l->token.type = T_IDENTIFIER;

@@ -1,5 +1,9 @@
 // test.spl
 
-const a 5;
+let här-borta 5;
+let bbb + 2 3;
+let aa + 2 3;
+let här-borta 5;
+let bbb + 2 3;
 
 print + 2 3;

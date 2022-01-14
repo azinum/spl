@@ -3,6 +3,7 @@
 *.o
 .DS_Store
 cspl
+spl.spl.asm
 spl
 test.spl.asm
 test
