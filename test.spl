@@ -1,9 +1,9 @@
 // test.spl
 
-let här-borta 5;
-let bbb + 2 3;
-let aa + 2 3;
-let här-borta 5;
-let bbb + 2 3;
+let hello-there 0;
+let things 0;
+let a 0;
 
-print + 2 3;
+print hello-there;
+print things;
+print a;

@@ -202,6 +202,13 @@ typedef enum Ir_code {
   MAX_IR_CODE,
 } Ir_code;
 
+typedef enum Compile_type {
+  TypeNone = 0,
+  TypeInt32,
+
+  MaxType,
+} Compile_type;
+
 static const char* ir_code_str[] = {
   "I_NOP",
   "I_POP",
@@ -233,7 +240,7 @@ typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 address;
   i32 size;
-  i32 type;
+  Compile_type type;
   Token token;
 } Symbol;
 
@@ -257,7 +264,7 @@ static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol);
-static i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol);
+static i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
@@ -476,20 +483,15 @@ i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
     return Error;
   }
   if (c->symbol_count < MAX_SYMBOL) {
-    if (ir_lookup_value(c, length, buffer, symbol) == NoError) {
+    if (ir_lookup_value(c, length, buffer, symbol, NULL) == NoError) {
       return (c->status = Error);
     }
     *symbol = &c->symbol_table[c->symbol_count++];
-
-    i32 empty = 0;
-    i32 empty_size = sizeof(empty);
-    i32 address = ir_push_value(c, &empty, empty_size);
-
     Symbol* s = *symbol;
     *s = (Symbol) {
-      .address = address,
-      .size = empty_size,
-      .type = -1,
+      .address = -1,
+      .size = 0,
+      .type = TypeNone,
     };
     strncpy(s->name, buffer, length);
     return NoError;
@@ -497,7 +499,7 @@ i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
   return Error;
 }
 
-i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
+i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index) {
   assert("must pass reference to a symbol to store the return value in" && symbol != NULL);
   if (MAX_NAME_SIZE < length) {
     return Error;
@@ -508,6 +510,9 @@ i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
     Symbol* sym = &c->symbol_table[i];
     if (strncmp(copy, sym->name, length) == 0) {
       *symbol = sym;
+      if (symbol_index) {
+        *symbol_index = i;
+      }
       return NoError;
     }
   }
@@ -528,9 +533,9 @@ i32 ir_compile(Compile* c, Ast* ast) {
           if (address >= 0) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_INT,
-              .dest = 0,
+              .dest = -1,
               .src0 = address,
-              .src1 = 0,
+              .src1 = -1,
             }, NULL);
           }
           else {
@@ -547,7 +552,20 @@ i32 ir_compile(Compile* c, Ast* ast) {
           break;
         }
         case T_IDENTIFIER: {
-          assert("T_IDENTIFIER: not handled yet" && 0);
+          Symbol* symbol = NULL;
+          i32 index = -1;
+          if (ir_lookup_value(c, ast->value.length, ast->value.buffer, &symbol, &index) == NoError) {
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_INT,
+              .dest = 0,
+              .src0 = symbol->address,
+              .src1 = index,
+            }, NULL);
+          }
+          else {
+            ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            return c->status;
+          }
           break;
         }
         default: {
@@ -604,6 +622,12 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstLetStatement: {
       Symbol* symbol = NULL;
       if (ir_declare_value(c, ast->value.length, ast->value.buffer, &symbol) == NoError) {
+        i32 empty = 0;
+        i32 empty_size = sizeof(empty);
+        i32 address = ir_push_value(c, &empty, empty_size);
+        symbol->address = address;
+        symbol->size = sizeof(i32);
+        symbol->type = TypeInt32;
         v_printf("New symbol declared: `%s`: address = %i, size = %i, type = %i\n", symbol->name, symbol->address, symbol->size, symbol->type);
       }
       else {
@@ -724,9 +748,20 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_PUSH_INT: {
-        i32 value = *(i32*)&c->data[op->src0];
-        o("  mov rax, %d\n", value);
-        o("  push rax\n");
+        if (op->src1 >= 0) {
+          if (op->src1 < c->symbol_count) {
+            o("  mov rax, [v%i]\n", op->src1);
+            o("  push rax\n");
+          }
+          else {
+            // TODO: handle
+          }
+        }
+        else {
+          i32 value = *(i32*)&c->data[op->src0];
+          o("  mov rax, %d\n", value);
+          o("  push rax\n");
+        }
         break;
       }
       case I_ADD: {
@@ -763,6 +798,26 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("  mov rdi, 0\n");
   o("  syscall\n");
   o("section .data\n");
+
+  for (i32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbol_table[i];
+    o("v%i: ", i);
+    switch (s->type) {
+      case TypeNone: {
+        break;
+      }
+      case TypeInt32: {
+        o("dw 12");
+        break;
+      }
+      default: {
+        // User-defined type
+        break;
+      }
+    }
+    o("\n");
+  }
+
   o("section .bss\n");
   o("memory: resb %d\n", MEMORY_CAPACITY);
   return NoError;
