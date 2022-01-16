@@ -1,9 +1,7 @@
 // test.spl
 
-let hello-there 0;
-let things 0;
-let a 0;
+const a 1;
+const b 2;
 
-print hello-there;
-print things;
 print a;
+print b;

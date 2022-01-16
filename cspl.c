@@ -192,7 +192,7 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
-  I_COPY,
+  I_COPY, // copy dest, src0, src1
   I_PUSH_INT,
   I_ADD,
   I_SUB,
@@ -228,7 +228,7 @@ typedef struct Op {
   i32 src1;
 } Op;
 
-#define OP(_i) ((Op) {.i = _i, })
+#define OP(_i) ((Op) {.i = _i, .dest = -1, .src0 = -1, .src1 = -1, })
 
 #define MAX_INS (1024) // temp
 #define MAX_DATA (KB(32)) // temp
@@ -263,7 +263,7 @@ static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
-static i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol);
+static i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index);
 static i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
@@ -478,13 +478,16 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol) {
+i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index) {
   if (MAX_NAME_SIZE < length) {
     return Error;
   }
   if (c->symbol_count < MAX_SYMBOL) {
     if (ir_lookup_value(c, length, buffer, symbol, NULL) == NoError) {
       return (c->status = Error);
+    }
+    if (symbol_index) {
+      *symbol_index = c->symbol_count;
     }
     *symbol = &c->symbol_table[c->symbol_count++];
     Symbol* s = *symbol;
@@ -544,6 +547,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
           break;
         }
         case T_POP: {
+          assert("T_POP: not handled yet" && 0);
           ir_push_ins(c, OP(I_POP), NULL);
           break;
         }
@@ -555,6 +559,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
           Symbol* symbol = NULL;
           i32 index = -1;
           if (ir_lookup_value(c, ast->value.length, ast->value.buffer, &symbol, &index) == NoError) {
+            ir_push_ins(c, OP(I_POP), NULL);
             ir_push_ins(c, (Op) {
               .i = I_PUSH_INT,
               .dest = 0,
@@ -616,24 +621,38 @@ i32 ir_compile(Compile* c, Ast* ast) {
       break;
     }
     case AstConstAssignment: {
-      assert("AstConstAssignment not implemented yet" && 0);
-      break;
-    }
-    case AstLetStatement: {
       Symbol* symbol = NULL;
-      if (ir_declare_value(c, ast->value.length, ast->value.buffer, &symbol) == NoError) {
-        i32 empty = 0;
-        i32 empty_size = sizeof(empty);
-        i32 address = ir_push_value(c, &empty, empty_size);
-        symbol->address = address;
-        symbol->size = sizeof(i32);
-        symbol->type = TypeInt32;
-        v_printf("New symbol declared: `%s`: address = %i, size = %i, type = %i\n", symbol->name, symbol->address, symbol->size, symbol->type);
+      i32 symbol_index = -1;
+      if (ir_declare_value(c, ast->value.length, ast->value.buffer, &symbol, &symbol_index) == NoError) {
+        if (ir_compile_stmt(c, ast) == NoError) {
+#if 1 // NOTE(lucas): temp
+          i32 empty = 0;
+          i32 empty_size = sizeof(empty);
+          i32 address = ir_push_value(c, &empty, empty_size);
+          symbol->address = address;
+          symbol->size = sizeof(i32);
+          symbol->type = TypeInt32;
+          // v_printf("New symbol declared: `%s`: address = %i, size = %i, type = %i\n", symbol->name, symbol->address, symbol->size, symbol->type);
+#endif
+          ir_push_ins(c, (Op) { // store contents of rax into [v]
+            .i = I_COPY,
+            .dest = symbol_index,
+            .src0 = -1,
+            .src1 = -1,
+          }, NULL);
+        }
+        else {
+          // TODO: handle
+        }
       }
       else {
         ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
         c->status = Error;
       }
+      break;
+    }
+    case AstLetStatement: {
+      assert("AstLetStatement not implemented yet" && 0);
       break;
     }
     default: {
@@ -747,6 +766,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  pop rax\n");
         break;
       }
+      case I_COPY: {
+        o("  pop rax\n");
+        o("  mov [v%i], rax\n", op->dest);
+        break;
+      }
       case I_PUSH_INT: {
         if (op->src1 >= 0) {
           if (op->src1 < c->symbol_count) {
@@ -754,6 +778,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             o("  push rax\n");
           }
           else {
+            assert("unhandled error" && 0);
             // TODO: handle
           }
         }
@@ -798,7 +823,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("  mov rdi, 0\n");
   o("  syscall\n");
   o("section .data\n");
-
+  o("section .bss\n");
   for (i32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbol_table[i];
     o("v%i: ", i);
@@ -807,7 +832,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case TypeInt32: {
-        o("dw 12");
+        o("resd 4");
         break;
       }
       default: {
@@ -818,7 +843,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
     o("\n");
   }
 
-  o("section .bss\n");
   o("memory: resb %d\n", MEMORY_CAPACITY);
   return NoError;
 }
@@ -907,18 +931,14 @@ Ast* parse_statement(Parser* p) {
       return NULL;
     }
     case T_CONST: {
-      assert("T_CONST not implemented yet" && 0);
-      break;
-    }
-    case T_LET: {
-      t = lexer_next(&p->l); // skip `let`
+      t = lexer_next(&p->l); // skip `const`
       if (t.type != T_IDENTIFIER) {
-        parser_error(p, "expected identifier in let statement, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "expected identifier in const statement, but got `%.*s`\n", t.length, t.buffer);
         p->status = Error;
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
-      Ast* expr = ast_create(AstLetStatement);
+      Ast* expr = ast_create(AstConstAssignment);
       expr->value = t;
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);
@@ -927,6 +947,10 @@ Ast* parse_statement(Parser* p) {
         p->status = Error;
       }
       return expr;
+    }
+    case T_LET: {
+      assert("T_LET not implemented yet" && 0);
+      break;
     }
     default: {
       Ast* expr = parse_expr(p);
