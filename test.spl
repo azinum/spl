@@ -2,6 +2,5 @@
 
 const a 1;
 const b 2;
-
-print a;
-print b;
+const c + a b;
+print c;

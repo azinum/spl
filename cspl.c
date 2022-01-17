@@ -559,7 +559,6 @@ i32 ir_compile(Compile* c, Ast* ast) {
           Symbol* symbol = NULL;
           i32 index = -1;
           if (ir_lookup_value(c, ast->value.length, ast->value.buffer, &symbol, &index) == NoError) {
-            ir_push_ins(c, OP(I_POP), NULL);
             ir_push_ins(c, (Op) {
               .i = I_PUSH_INT,
               .dest = 0,
