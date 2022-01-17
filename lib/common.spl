@@ -1,0 +1,6 @@
+// common.spl
+
+const SYS_read 0;
+const SYS_write 1;
+const SYS_open 2;
+const SYS_close 3;

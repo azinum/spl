@@ -192,7 +192,7 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
-  I_COPY, // copy dest, src0, src1
+  I_COPY,
   I_PUSH_INT,
   I_ADD,
   I_SUB,
@@ -263,8 +263,8 @@ static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
-static i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index);
-static i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index);
+static i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
+static i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
 static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Ast* ast);
@@ -478,12 +478,12 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index) {
-  if (MAX_NAME_SIZE < length) {
+i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index) {
+  if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
   if (c->symbol_count < MAX_SYMBOL) {
-    if (ir_lookup_value(c, length, buffer, symbol, NULL) == NoError) {
+    if (ir_lookup_value(c, token, symbol, NULL) == NoError) {
       return (c->status = Error);
     }
     if (symbol_index) {
@@ -495,23 +495,24 @@ i32 ir_declare_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32*
       .address = -1,
       .size = 0,
       .type = TypeNone,
+      .token = token,
     };
-    strncpy(s->name, buffer, length);
+    strncpy(s->name, token.buffer, token.length);
     return NoError;
   }
   return Error;
 }
 
-i32 ir_lookup_value(Compile* c, i32 length, char* buffer, Symbol** symbol, i32* symbol_index) {
+i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index) {
   assert("must pass reference to a symbol to store the return value in" && symbol != NULL);
-  if (MAX_NAME_SIZE < length) {
+  if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
   char copy[MAX_NAME_SIZE];
-  strncpy(copy, buffer, length);
+  strncpy(copy, token.buffer, token.length);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* sym = &c->symbol_table[i];
-    if (strncmp(copy, sym->name, length) == 0) {
+    if (strncmp(copy, sym->name, token.length) == 0) {
       *symbol = sym;
       if (symbol_index) {
         *symbol_index = i;
@@ -558,7 +559,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
         case T_IDENTIFIER: {
           Symbol* symbol = NULL;
           i32 index = -1;
-          if (ir_lookup_value(c, ast->value.length, ast->value.buffer, &symbol, &index) == NoError) {
+          if (ir_lookup_value(c, ast->value, &symbol, &index) == NoError) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_INT,
               .dest = 0,
@@ -622,17 +623,15 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstConstAssignment: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_declare_value(c, ast->value.length, ast->value.buffer, &symbol, &symbol_index) == NoError) {
+      if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
         if (ir_compile_stmt(c, ast) == NoError) {
-#if 1 // NOTE(lucas): temp
+          // NOTE(lucas): temp
           i32 empty = 0;
           i32 empty_size = sizeof(empty);
-          i32 address = ir_push_value(c, &empty, empty_size);
-          symbol->address = address;
+          symbol->address = ir_push_value(c, &empty, empty_size);
           symbol->size = sizeof(i32);
           symbol->type = TypeInt32;
-          // v_printf("New symbol declared: `%s`: address = %i, size = %i, type = %i\n", symbol->name, symbol->address, symbol->size, symbol->type);
-#endif
+
           ir_push_ins(c, (Op) { // store contents of rax into [v]
             .i = I_COPY,
             .dest = symbol_index,
@@ -831,15 +830,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case TypeInt32: {
-        o("resd 4");
+        o("resq 1");
         break;
       }
       default: {
+        assert("user-defined type not handled yet" && 0);
         // User-defined type
         break;
       }
     }
-    o("\n");
+    o(" ; `%s`\n", s->name);
   }
 
   o("memory: resb %d\n", MEMORY_CAPACITY);
