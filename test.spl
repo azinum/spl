@@ -1,7 +1,6 @@
 // test.spl
 
 fn main {
-  const hello-there 1;
-  const hello 2;
-  print #(+ 8 @hello-there);
+  const hello-there 12;
+  print #@hello-there;
 }

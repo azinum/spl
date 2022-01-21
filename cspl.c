@@ -527,7 +527,7 @@ i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index)
   if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
-  char copy[MAX_NAME_SIZE];
+  char copy[MAX_NAME_SIZE] = {0};
   strncpy(copy, token.buffer, token.length);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* sym = &c->symbol_table[i];
