@@ -106,8 +106,11 @@ typedef enum Token_type {
   T_CONST,
   T_LET,
   T_PRINT,
+  T_FN,
   T_LEFT_P,
   T_RIGHT_P,
+  T_LEFT_CURLY,
+  T_RIGHT_CURLY,
 
   MAX_TOKEN_TYPE,
 } Token_type;
@@ -134,8 +137,11 @@ static const char* token_type_str[] = {
   "T_CONST",
   "T_LET",
   "T_PRINT",
+  "T_FN",
   "T_LEFT_P",
   "T_RIGHT_P",
+  "T_LEFT_CURLY",
+  "T_RIGHT_CURLY",
 };
 
 typedef struct Lexer {
@@ -153,10 +159,12 @@ typedef enum Ast_type {
   AstValue,
   AstExpression,
   AstStatement,
+  AstStatementList,
   AstBinopExpression,
   AstUopExpression,
   AstConstAssignment,
   AstLetStatement,
+  AstFuncDefinition,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -167,10 +175,12 @@ static const char* ast_type_str[] = {
   "AstValue",
   "AstExpression",
   "AstStatement",
+  "AstStatementList",
   "AstBinopExpression",
   "AstUopExpression",
   "AstConstAssignment",
   "AstLetStatement",
+  "AstFuncDefinition",
 };
 
 typedef struct Ast {
@@ -281,9 +291,10 @@ static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
 static void parser_error(Parser* p, const char* fmt, ...);
 static i32 parse(Parser* p);
-static i32 parse_statements(Parser* p);
+static Ast* parse_statements(Parser* p);
 static Ast* parse_statement(Parser* p);
 static Ast* parse_expr(Parser* p);
+static Ast* parse_func_def(Parser* p);
 static void lexer_init(Lexer* l, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -623,9 +634,8 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstConstAssignment: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
-        if (ir_compile_stmt(c, ast) == NoError) {
-          // NOTE(lucas): temp
+      if (ir_compile_stmt(c, ast) == NoError) {
+        if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
           i32 empty = 0;
           i32 empty_size = sizeof(empty);
           symbol->address = ir_push_value(c, &empty, empty_size);
@@ -640,17 +650,25 @@ i32 ir_compile(Compile* c, Ast* ast) {
           }, NULL);
         }
         else {
-          // TODO: handle
+          ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+          c->status = Error;
         }
       }
       else {
-        ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
-        c->status = Error;
+        // TODO: handle
       }
       break;
     }
     case AstLetStatement: {
       assert("AstLetStatement not implemented yet" && 0);
+      break;
+    }
+    case AstFuncDefinition: {
+      ir_compile_stmt(c, ast);
+      break;
+    }
+    case AstStatementList: {
+      ir_compile_stmt(c, ast);
       break;
     }
     default: {
@@ -876,30 +894,44 @@ void parser_error(Parser* p, const char* fmt, ...) {
   fprintf(fp, "[parse-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
   error_printline(fp, l->source, l->index, l->token.length);
   l->token.type = T_EOF;
+  p->status = Error;
 }
 
 i32 parse(Parser* p) {
-  return parse_statements(p);
+  lexer_next(&p->l);
+  ast_push(p->ast, parse_statements(p));
+  return p->status;
 }
 
 /*
  
  stmts : stmt
        | stmts stmt
-       | ';'
+       | fn name `{` stmts `}`
+       | `;`
        ;
 */
-i32 parse_statements(Parser* p) {
-  Ast* statements = p->ast;
-  Token t = lexer_next(&p->l);
+Ast* parse_statements(Parser* p) {
+  Ast* stmts = ast_create(AstStatementList);
   for (;;) {
-    t = lexer_peek(&p->l);
+    Token t = lexer_peek(&p->l);
     switch (t.type) {
       case T_EOF: {
-        return NoError;
+        goto done;
       }
       case T_SEMICOLON: {
         lexer_next(&p->l);
+        break;
+      }
+      case T_RIGHT_CURLY: {
+        return stmts;
+      }
+      case T_FN: {
+        Ast* func_def = parse_func_def(p);
+        if (!func_def) {
+          goto done;
+        }
+        ast_push(p->ast, func_def);
         break;
       }
       default: {
@@ -907,18 +939,19 @@ i32 parse_statements(Parser* p) {
         if (!stmt) {
           goto done;
         }
-        ast_push(statements, stmt);
+        ast_push(stmts, stmt);
         break;
       }
     }
   }
 done:
-  return p->status;
+  return stmts;
 }
 
 /*
- stmt : expr ';'
-      | const ident expr ';'
+ stmt : expr `;`
+      | const ident expr `;`
+      | `{` stmts `}`
       ;
 */
 Ast* parse_statement(Parser* p) {
@@ -926,14 +959,12 @@ Ast* parse_statement(Parser* p) {
   switch (t.type) {
     case T_IDENTIFIER: {
       parser_error(p, "identifier not allowed here\n");
-      p->status = Error;
       return NULL;
     }
     case T_CONST: {
       t = lexer_next(&p->l); // skip `const`
       if (t.type != T_IDENTIFIER) {
         parser_error(p, "expected identifier in const statement, but got `%.*s`\n", t.length, t.buffer);
-        p->status = Error;
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
@@ -942,8 +973,7 @@ Ast* parse_statement(Parser* p) {
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
-        parser_error(p, "exptected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
-        p->status = Error;
+        parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
       }
       return expr;
     }
@@ -951,13 +981,27 @@ Ast* parse_statement(Parser* p) {
       assert("T_LET not implemented yet" && 0);
       break;
     }
+    // `{` stmts `}`
+    case T_LEFT_CURLY: {
+      lexer_next(&p->l); // skip `{`
+      Ast* sub_stmts = parse_statements(p);
+      if (sub_stmts) {
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_CURLY) {
+          parser_error(p, "expected closing `}` curly bracket in, but got `%.*s`\n", t.length, t.buffer);
+        }
+        lexer_next(&p->l);
+        return sub_stmts;
+      }
+      break;
+    }
     default: {
       Ast* expr = parse_expr(p);
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
-        parser_error(p, "exptected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
-        p->status = Error;
+        parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
       }
+      lexer_next(&p->l); // skip `;`
       return expr;
     }
   }
@@ -1026,6 +1070,30 @@ Ast* parse_expr(Parser* p) {
       return NULL;
     }
   }
+  return NULL;
+}
+
+Ast* parse_func_def(Parser* p) {
+  Token t = lexer_next(&p->l); // skip `fn`
+  if (t.type == T_IDENTIFIER) {
+    Ast* func_def = ast_create(AstFuncDefinition);
+    func_def->value = t;
+    t = lexer_next(&p->l); // skip `name`
+    if (t.type == T_LEFT_CURLY) {
+      lexer_next(&p->l); // skip `{`
+      Ast* stmts = parse_statements(p);
+      if (stmts) {
+        ast_push(func_def, stmts);
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_CURLY) {
+          parser_error(p, "expected `}` right curly in function definition, but got `%.*s`\n", t.length, t.buffer);
+        }
+        lexer_next(&p->l); // skip `}`
+      }
+    }
+    return func_def;
+  }
+  parser_error(p, "expected identifier in function definition, but got `%.*s`\n", t.length, t.buffer);
   return NULL;
 }
 
@@ -1103,6 +1171,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "let")) {
     l->token.type = T_LET;
+  }
+  else if (compare(l->token, "fn")) {
+    l->token.type = T_FN;
   }
   else {
     l->token.type = T_IDENTIFIER;
@@ -1184,6 +1255,14 @@ Token lexer_next(Lexer* l) {
       }
       case ')': {
         l->token.type = T_RIGHT_P;
+        goto done;
+      }
+      case '{': {
+        l->token.type = T_LEFT_CURLY;
+        goto done;
+      }
+      case '}': {
+        l->token.type = T_RIGHT_CURLY;
         goto done;
       }
       case ' ': case '\t': case '\f': case '\v': {

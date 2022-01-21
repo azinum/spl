@@ -1,7 +1,6 @@
 // test.spl
 
-const a 1;
-const b 2;
-const c + a b;
-
-print c;
+fn main {
+  const a 2;
+  print a;
+}
