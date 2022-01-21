@@ -15,6 +15,8 @@
 
 typedef float f32;
 typedef double f64;
+typedef int64_t i64;
+typedef uint64_t u64;
 typedef int32_t i32;
 typedef uint32_t u32;
 typedef int16_t i16;
@@ -98,7 +100,7 @@ typedef enum Token_type {
 
   T_IDENTIFIER,
   T_NUMBER,
-  T_EQ,
+  T_ASSIGN,
   T_AT,
   T_DEREF,
   T_ADD,
@@ -107,6 +109,7 @@ typedef enum Token_type {
   T_POP,
   T_CONST,
   T_LET,
+  T_MEMORY,
   T_PRINT,
   T_FN,
   T_LEFT_P,
@@ -131,7 +134,7 @@ static const char* token_type_str[] = {
 
   "T_IDENTIFIER",
   "T_NUMBER",
-  "T_EQ",
+  "T_ASSIGN",
   "T_AT",
   "T_DEREF",
   "T_ADD",
@@ -140,6 +143,7 @@ static const char* token_type_str[] = {
   "T_POP",
   "T_CONST",
   "T_LET",
+  "T_MEMORY",
   "T_PRINT",
   "T_FN",
   "T_LEFT_P",
@@ -169,6 +173,8 @@ typedef enum Ast_type {
   AstConstAssignment,
   AstLetStatement,
   AstFuncDefinition,
+  AstMemoryStatement,
+  AstAssignment,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -185,6 +191,8 @@ static const char* ast_type_str[] = {
   "AstConstAssignment",
   "AstLetStatement",
   "AstFuncDefinition",
+  "AstMemoryStatement",
+  "AstAssignment",
 };
 
 typedef struct Ast {
@@ -207,6 +215,7 @@ typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
   I_COPY,
+  I_STORE64,
   I_PUSH_INT,
   I_PUSH_ADDR_OF,
   I_DEREF,
@@ -229,6 +238,7 @@ static const char* ir_code_str[] = {
   "I_NOP",
   "I_POP",
   "I_COPY",
+  "I_STORE64",
   "I_PUSH_INT",
   "I_PUSH_ADDR_OF",
   "I_DEREF",
@@ -664,10 +674,10 @@ i32 ir_compile(Compile* c, Ast* ast) {
       i32 symbol_index = -1;
       if (ir_compile_stmt(c, ast) == NoError) {
         if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
-          i32 empty = 0;
-          i32 empty_size = sizeof(empty);
+          u64 empty = 0;
+          u32 empty_size = sizeof(empty);
           symbol->address = ir_push_value(c, &empty, empty_size);
-          symbol->size = sizeof(i32);
+          symbol->size = sizeof(empty);
           symbol->type = TypeInt32;
 
           ir_push_ins(c, (Op) { // store contents of rax into [v]
@@ -697,6 +707,34 @@ i32 ir_compile(Compile* c, Ast* ast) {
     }
     case AstStatementList: {
       ir_compile_stmt(c, ast);
+      break;
+    }
+    case AstMemoryStatement: {
+      Symbol* symbol = NULL;
+      i32 symbol_index = -1;
+      if (ir_compile_stmt(c, ast) == NoError) {
+        if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+          assert(ast->count == 1);
+          Token token = ast->node[0]->value;
+          assert(token.type == T_NUMBER);
+          i32 num = -1;
+          str_to_int(token.buffer, token.length, &num);
+          symbol->address = -1;
+          symbol->size = num;
+          symbol->type = TypeInt32;
+        }
+      }
+      break;
+    }
+    case AstAssignment: {
+      i32 result = ir_compile_binop(c, ast);
+      if (result == NoError) {
+        ir_push_ins(c, OP(I_STORE64), NULL);
+      }
+      else {
+        c->status = result;
+        return c->status;
+      }
       break;
     }
     default: {
@@ -815,6 +853,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  mov [v%i], rax\n", op->dest);
         break;
       }
+      case I_STORE64: {
+        o(
+        "  pop rbx\n"
+        "  pop rax\n"
+        "  mov [rax], rbx\n"
+        );
+        break;
+      }
       case I_PUSH_INT: {
         if (op->src1 >= 0) {
           if (op->src1 < c->symbol_count) {
@@ -897,6 +943,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (i32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbol_table[i];
+    o("v%d: resb %d ; `%s`\n", i, s->size, s->name);
+#if 0
     o("v%i: ", i);
     switch (s->type) {
       case TypeNone: {
@@ -913,6 +961,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
     }
     o(" ; `%s`\n", s->name);
+#endif
   }
 
   o("memory: resb %d\n", MEMORY_CAPACITY);
@@ -1006,7 +1055,9 @@ done:
 /*
  stmt : expr `;`
       | const ident expr `;`
+      | memory ident NUMBER `;`
       | `{` stmts `}`
+      | `=` expr expr `;`
       ;
 */
 Ast* parse_statement(Parser* p) {
@@ -1026,8 +1077,7 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = ast_create(AstConstAssignment);
       expr->value = t;
       ast_push(expr, parse_expr(p));
-      t = lexer_peek(&p->l);
-      if (t.type != T_SEMICOLON) {
+      if (lexer_peek(&p->l).type != T_SEMICOLON) {
         parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
       }
       return expr;
@@ -1035,6 +1085,26 @@ Ast* parse_statement(Parser* p) {
     case T_LET: {
       assert("T_LET not implemented yet" && 0);
       break;
+    }
+    case T_MEMORY: {
+      t = lexer_next(&p->l); // skip `memory`
+      if (t.type != T_IDENTIFIER) {
+        parser_error(p, "expected identifier in memory statement, but got `%.*s`\n", t.length, t.buffer);
+        return NULL;
+      }
+      Ast* expr = ast_create(AstMemoryStatement);
+      expr->value = t;
+      t = lexer_next(&p->l);  // skip `identifier`
+      if (t.type != T_NUMBER) {
+        parser_error(p, "expected number in memory statement, but got `%.*s`\n", t.length, t.buffer);
+        return expr;
+      }
+      ast_push_node(expr, AstValue, t);
+      lexer_next(&p->l); // skip NUMBER
+      if (lexer_peek(&p->l).type != T_SEMICOLON) {
+        parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
+      }
+      return expr;
     }
     // `{` stmts `}`
     case T_LEFT_CURLY: {
@@ -1049,6 +1119,14 @@ Ast* parse_statement(Parser* p) {
         return sub_stmts;
       }
       break;
+    }
+    case T_ASSIGN: {
+      lexer_next(&p->l); // skip `=`
+      Ast* assignment = ast_create(AstAssignment);
+      assignment->value = t;
+      ast_push(assignment, parse_expr(p));
+      ast_push(assignment, parse_expr(p));
+      return assignment;
     }
     default: {
       Ast* expr = parse_expr(p);
@@ -1240,6 +1318,9 @@ Token lexer_read_symbol(Lexer* l) {
   else if (compare(l->token, "let")) {
     l->token.type = T_LET;
   }
+  else if (compare(l->token, "memory")) {
+    l->token.type = T_MEMORY;
+  }
   else if (compare(l->token, "fn")) {
     l->token.type = T_FN;
   }
@@ -1302,7 +1383,7 @@ Token lexer_next(Lexer* l) {
         break;
       }
       case '=': {
-        l->token.type = T_EQ;
+        l->token.type = T_ASSIGN;
         goto done;
       }
       case '@': {

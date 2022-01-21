@@ -8,7 +8,7 @@ endif
 syntax keyword Todos TODO NOTE FIXME
 
 " Language keywords
-syntax keyword Keywords print const let fn
+syntax keyword Keywords print const let fn memory
 
 " Comments
 syntax region CommentLine start="//" end="$"   contains=Todos

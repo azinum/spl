@@ -1,6 +1,8 @@
 // test.spl
 
 fn main {
-  const hello-there 12;
-  print #@hello-there;
+  memory data 128;
+  = @data 12;
+  = (+ 8 @data) 24;
+  print #(+ 8 @data);
 }
