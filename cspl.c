@@ -100,6 +100,7 @@ typedef enum Token_type {
   T_NUMBER,
   T_EQ,
   T_AT,
+  T_DEREF,
   T_ADD,
   T_SUB,
   T_SEMICOLON,
@@ -132,6 +133,7 @@ static const char* token_type_str[] = {
   "T_NUMBER",
   "T_EQ",
   "T_AT",
+  "T_DEREF",
   "T_ADD",
   "T_SUB",
   "T_SEMICOLON",
@@ -207,6 +209,7 @@ typedef enum Ir_code {
   I_COPY,
   I_PUSH_INT,
   I_PUSH_ADDR_OF,
+  I_DEREF,
   I_ADD,
   I_SUB,
   I_RET,
@@ -228,6 +231,7 @@ static const char* ir_code_str[] = {
   "I_COPY",
   "I_PUSH_INT",
   "I_PUSH_ADDR_OF",
+  "I_DEREF",
   "I_ADD",
   "I_SUB",
   "I_RET",
@@ -638,6 +642,9 @@ i32 ir_compile(Compile* c, Ast* ast) {
         if (ast->value.type == T_PRINT) {
           ir_push_ins(c, OP(I_PRINT), NULL);
         }
+        else if (ast->value.type == T_DEREF) {
+          ir_push_ins(c, OP(I_DEREF), NULL);
+        }
         else {
           // Handle
         }
@@ -838,6 +845,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           break;
         }
         assert(0);
+        break;
+      }
+      case I_DEREF: {
+        o(
+        "  pop rbx\n"
+        "  mov rax, [rbx]\n"
+        "  push rax\n"
+        );
         break;
       }
       case I_ADD: {
@@ -1089,6 +1104,7 @@ Ast* parse_expr(Parser* p) {
       parser_error(p, "expected identifer after `@` operator, but got `%.*s`\n", t.length, t.buffer);
       return NULL;
     }
+    case T_DEREF:
     case T_PRINT: {
       lexer_next(&p->l); // skip op
       Ast* expr = ast_create(AstUopExpression);
@@ -1291,6 +1307,10 @@ Token lexer_next(Lexer* l) {
       }
       case '@': {
         l->token.type = T_AT;
+        goto done;
+      }
+      case '#': {
+        l->token.type = T_DEREF;
         goto done;
       }
       case '+': {
