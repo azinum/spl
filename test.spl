@@ -1,6 +1,6 @@
 // test.spl
 
 fn main {
-  const a 2;
-  print a;
+  const hello-there + 2 3;
+  print @hello-there;
 }

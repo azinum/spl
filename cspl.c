@@ -98,7 +98,8 @@ typedef enum Token_type {
 
   T_IDENTIFIER,
   T_NUMBER,
-  T_ASSIGN,
+  T_EQ,
+  T_AT,
   T_ADD,
   T_SUB,
   T_SEMICOLON,
@@ -129,7 +130,8 @@ static const char* token_type_str[] = {
 
   "T_IDENTIFIER",
   "T_NUMBER",
-  "T_ASSIGN",
+  "T_EQ",
+  "T_AT",
   "T_ADD",
   "T_SUB",
   "T_SEMICOLON",
@@ -204,6 +206,7 @@ typedef enum Ir_code {
   I_POP,
   I_COPY,
   I_PUSH_INT,
+  I_PUSH_ADDR_OF,
   I_ADD,
   I_SUB,
   I_RET,
@@ -224,6 +227,7 @@ static const char* ir_code_str[] = {
   "I_POP",
   "I_COPY",
   "I_PUSH_INT",
+  "I_PUSH_ADDR_OF",
   "I_ADD",
   "I_SUB",
   "I_RET",
@@ -584,8 +588,25 @@ i32 ir_compile(Compile* c, Ast* ast) {
           }
           break;
         }
+        case T_AT: {
+          Symbol* symbol = NULL;
+          i32 index = -1;
+          if (ir_lookup_value(c, ast->value, &symbol, &index) == NoError) {
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_ADDR_OF,
+              .dest = 0,
+              .src0 = symbol->address,
+              .src1 = index,
+            }, NULL);
+          }
+          else {
+            ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            return c->status;
+          }
+          break;
+        }
         default: {
-          assert(0);
+          assert("value token not implemented" && 0);
           break;
         }
       }
@@ -797,12 +818,26 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             assert("unhandled error" && 0);
             // TODO: handle
           }
+          break;
         }
-        else {
-          i32 value = *(i32*)&c->data[op->src0];
-          o("  mov rax, %d\n", value);
-          o("  push rax\n");
+        i32 value = *(i32*)&c->data[op->src0];
+        o("  mov rax, %d\n", value);
+        o("  push rax\n");
+        break;
+      }
+      case I_PUSH_ADDR_OF: {
+        if (op->src1 >= 0) {
+          if (op->src1 < c->symbol_count) {
+            o("  mov rax, v%i\n", op->src1);
+            o("  push rax\n");
+          }
+          else {
+            assert("unhandled error" && 0);
+            // TODO: handle
+          }
+          break;
         }
+        assert(0);
         break;
       }
       case I_ADD: {
@@ -821,6 +856,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_RET: {
+        break;
+      }
       case I_PRINT: {
         o(
         "  pop rdi\n"
@@ -829,6 +867,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       default: {
+        fprintf(stderr, "instruction `%d` not implemented\n", op->i);
+        assert(0);
         break;
       }
     }
@@ -1037,8 +1077,20 @@ Ast* parse_expr(Parser* p) {
       ast_push(expr, parse_expr(p));
       return expr;
     }
+    case T_AT: {
+      t = lexer_next(&p->l);
+      if (t.type == T_IDENTIFIER) {
+        Ast* expr = ast_create(AstValue);
+        expr->value = t;
+        expr->value.type = T_AT;
+        lexer_next(&p->l);
+        return expr;
+      }
+      parser_error(p, "expected identifer after `@` operator, but got `%.*s`\n", t.length, t.buffer);
+      return NULL;
+    }
     case T_PRINT: {
-      lexer_next(&p->l); // skip `print`
+      lexer_next(&p->l); // skip op
       Ast* expr = ast_create(AstUopExpression);
       expr->value = t;
       Ast* sub_expr = parse_expr(p);
@@ -1234,7 +1286,11 @@ Token lexer_next(Lexer* l) {
         break;
       }
       case '=': {
-        l->token.type = T_ASSIGN;
+        l->token.type = T_EQ;
+        goto done;
+      }
+      case '@': {
+        l->token.type = T_AT;
         goto done;
       }
       case '+': {
@@ -1287,7 +1343,7 @@ Token lexer_next(Lexer* l) {
           lexer_read_number(l);
           goto done;
         }
-        lexer_error(l, "Unrecognized token `%.*s`\n", l->token.length, l->token.buffer);
+        lexer_error(l, "unrecognized token `%.*s`\n", l->token.length, l->token.buffer);
         l->token.type = T_EOF;
         goto done;
       }
