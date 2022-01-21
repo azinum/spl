@@ -527,7 +527,7 @@ i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index)
   strncpy(copy, token.buffer, token.length);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* sym = &c->symbol_table[i];
-    if (strncmp(copy, sym->name, token.length) == 0) {
+    if (strncmp(copy, sym->name, MAX_NAME_SIZE) == 0) {
       *symbol = sym;
       if (symbol_index) {
         *symbol_index = i;
@@ -811,7 +811,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_PUSH_INT: {
         if (op->src1 >= 0) {
           if (op->src1 < c->symbol_count) {
-            o("  mov rax, [v%i]\n", op->src1);
+            o("  mov rax, [v%d]\n", op->src1);
             o("  push rax\n");
           }
           else {
@@ -828,7 +828,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_PUSH_ADDR_OF: {
         if (op->src1 >= 0) {
           if (op->src1 < c->symbol_count) {
-            o("  mov rax, v%i\n", op->src1);
+            o("  mov rax, v%d\n", op->src1);
             o("  push rax\n");
           }
           else {
