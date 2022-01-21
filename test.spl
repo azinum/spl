@@ -1,11 +1,8 @@
 // test.spl
 
+const A 12;
+const B 5;
+
 fn main {
-  memory data 128;
-  const ptr @data;
-  = ptr + 1 #ptr;
-  = ptr + 1 #ptr;
-  = ptr + 1 #ptr;
-  = ptr + 1 #ptr;
-  print #ptr;
+  print A;
 }

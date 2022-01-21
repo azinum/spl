@@ -1011,7 +1011,6 @@ i32 parse(Parser* p) {
  
  stmts : stmt
        | stmts stmt
-       | fn name `{` stmts `}`
        | `;`
        ;
 */
@@ -1035,7 +1034,7 @@ Ast* parse_statements(Parser* p) {
         if (!func_def) {
           goto done;
         }
-        ast_push(p->ast, func_def);
+        ast_push(stmts, func_def);
         break;
       }
       default: {
@@ -1058,6 +1057,7 @@ done:
       | memory ident NUMBER `;`
       | `{` stmts `}`
       | `=` expr expr `;`
+      | fn name `{` stmts `}`
       ;
 */
 Ast* parse_statement(Parser* p) {
