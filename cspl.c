@@ -216,9 +216,9 @@ typedef enum Ir_code {
   I_POP,
   I_COPY,
   I_STORE64,
+  I_LOAD64,
   I_PUSH_INT,
   I_PUSH_ADDR_OF,
-  I_DEREF,
   I_ADD,
   I_SUB,
   I_RET,
@@ -239,9 +239,9 @@ static const char* ir_code_str[] = {
   "I_POP",
   "I_COPY",
   "I_STORE64",
+  "I_LOAD64",
   "I_PUSH_INT",
   "I_PUSH_ADDR_OF",
-  "I_DEREF",
   "I_ADD",
   "I_SUB",
   "I_RET",
@@ -653,7 +653,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
           ir_push_ins(c, OP(I_PRINT), NULL);
         }
         else if (ast->value.type == T_DEREF) {
-          ir_push_ins(c, OP(I_DEREF), NULL);
+          ir_push_ins(c, OP(I_LOAD64), NULL);
         }
         else {
           // Handle
@@ -893,7 +893,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(0);
         break;
       }
-      case I_DEREF: {
+      case I_LOAD64: {
         o(
         "  pop rbx\n"
         "  mov rax, [rbx]\n"

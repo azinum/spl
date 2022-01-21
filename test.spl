@@ -2,7 +2,10 @@
 
 fn main {
   memory data 128;
-  = @data 12;
-  = (+ 8 @data) 24;
-  print #(+ 8 @data);
+  const ptr @data;
+  = ptr + 1 #ptr;
+  = ptr + 1 #ptr;
+  = ptr + 1 #ptr;
+  = ptr + 1 #ptr;
+  print #ptr;
 }
