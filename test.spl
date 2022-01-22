@@ -7,6 +7,6 @@ fn hello-there {
 fn main {
   memory data 128;
   const ptr @data; // store the address of data+0 in ptr
-  = ptr 0;  // set the value of ptr to 0
+  = ptr 12;  // set the value of ptr to 0
   print #ptr; // dereference ptr and print it
 }

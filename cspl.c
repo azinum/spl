@@ -752,6 +752,10 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         symbol->size = num;
         symbol->type = TypeInt32;
       }
+      else {
+        ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+        c->status = Error;
+      }
       break;
     }
     case AstAssignment: {
