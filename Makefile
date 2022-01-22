@@ -4,9 +4,9 @@ include config.mk
 
 SPL_SRC=${subst .spl,, ${wildcard *.spl}}
 
-all: compile
+all: compile_src
 
-compile:
+compile_src:
 	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
 
 clean:

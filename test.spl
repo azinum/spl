@@ -1,8 +1,8 @@
 // test.spl
 
-const A 12;
-const B 5;
-
 fn main {
-  print A;
+  memory data 512;
+  const a + 8 @data;
+  = a 12;
+  print #a;
 }

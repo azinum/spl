@@ -293,13 +293,12 @@ static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
 static i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
-static i32 ir_push_ins(Compile* c, Op ins, i32* ins_count);
+static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
-static i32 ir_compile(Compile* c, Ast* ast);
-static i32 ir_compile_stmt(Compile* c, Ast* ast);
-static i32 ir_compile_binop(Compile* c, Ast* ast);
-static i32 ir_compile_uop(Compile* c, Ast* ast);
-static i32 ir_compile_let_statement(Compile* c, Ast* ast);
+static i32 ir_compile(Compile* c, Ast* ast, u32* ins_count);
+static i32 ir_compile_stmt(Compile* c, Ast* ast, u32* ins_count);
+static i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count);
+static i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count);
 
 static i32 program_typecheck(Ast* ast);
 
@@ -475,7 +474,7 @@ void ir_compile_warning(Compile* c, const char* fmt, ...) {
   fprintf(fp, "[ir-compile-warning]: %s", buffer);
 }
 
-i32 ir_push_ins(Compile* c, Op ins, i32* ins_count) {
+i32 ir_push_ins(Compile* c, Op ins, u32* ins_count) {
   list_push(c->ins, c->ins_count, ins);
   if (ins_count) {
     (*ins_count)++;
@@ -499,7 +498,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   }
   assert("something went very wrong" && ast->type == AstRoot);
   for (i32 i = 0; i < ast->count; ++i) {
-    if (ir_compile(c, ast->node[i]) != NoError) {
+    if (ir_compile(c, ast->node[i], NULL) != NoError) {
       break;
     }
   }
@@ -552,10 +551,10 @@ i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index)
   return Error;
 }
 
-i32 ir_compile(Compile* c, Ast* ast) {
+i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
   switch (ast->type) {
     case AstStatement: {
-      return ir_compile_stmt(c, ast);
+      return ir_compile_stmt(c, ast, ins_count);
     }
     case AstValue: {
       switch (ast->value.type) {
@@ -628,7 +627,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
     }
     // op arg0 arg1 -> arg0 arg1 op
     case AstBinopExpression: {
-      i32 result = ir_compile_binop(c, ast);
+      i32 result = ir_compile_binop(c, ast, ins_count);
       if (result == NoError) {
         if (ast->value.type == T_ADD) {
           ir_push_ins(c, OP(I_ADD), NULL);
@@ -647,7 +646,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
       break;
     }
     case AstUopExpression: {
-      i32 result = ir_compile_uop(c, ast);
+      i32 result = ir_compile_uop(c, ast, ins_count);
       if (result == NoError) {
         if (ast->value.type == T_PRINT) {
           ir_push_ins(c, OP(I_PRINT), NULL);
@@ -672,7 +671,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
     case AstConstAssignment: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_compile_stmt(c, ast) == NoError) {
+      if (ir_compile_stmt(c, ast, ins_count) == NoError) {
         if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
           u64 empty = 0;
           u32 empty_size = sizeof(empty);
@@ -702,17 +701,17 @@ i32 ir_compile(Compile* c, Ast* ast) {
       break;
     }
     case AstFuncDefinition: {
-      ir_compile_stmt(c, ast);
+      ir_compile_stmt(c, ast, ins_count);
       break;
     }
     case AstStatementList: {
-      ir_compile_stmt(c, ast);
+      ir_compile_stmt(c, ast, ins_count);
       break;
     }
     case AstMemoryStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_compile_stmt(c, ast) == NoError) {
+      if (ir_compile_stmt(c, ast, ins_count) == NoError) {
         if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
           assert(ast->count == 1);
           Token token = ast->node[0]->value;
@@ -727,7 +726,7 @@ i32 ir_compile(Compile* c, Ast* ast) {
       break;
     }
     case AstAssignment: {
-      i32 result = ir_compile_binop(c, ast);
+      i32 result = ir_compile_binop(c, ast, ins_count);
       if (result == NoError) {
         ir_push_ins(c, OP(I_STORE64), NULL);
       }
@@ -746,16 +745,16 @@ i32 ir_compile(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 ir_compile_stmt(Compile* c, Ast* ast) {
+i32 ir_compile_stmt(Compile* c, Ast* ast, u32* ins_count) {
   for (i32 i = 0; i < ast->count; ++i) {
-    if (ir_compile(c, ast->node[i]) != NoError) {
+    if (ir_compile(c, ast->node[i], ins_count) != NoError) {
       break;
     }
   }
   return c->status;
 }
 
-i32 ir_compile_binop(Compile* c, Ast* ast) {
+i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
     ir_compile_error(c, "expected 2 arguments in binary operator action\n");
     c->status = Error;
@@ -763,7 +762,7 @@ i32 ir_compile_binop(Compile* c, Ast* ast) {
   }
   for (i32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
-    i32 result = ir_compile(c, node);
+    i32 result = ir_compile(c, node, ins_count);
     if (result != NoError) {
       c->status = result;
       return c->status;
@@ -773,19 +772,15 @@ i32 ir_compile_binop(Compile* c, Ast* ast) {
 }
 
 // alias of ir_compile_binop
-i32 ir_compile_uop(Compile* c, Ast* ast) {
+i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count) {
   for (i32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
-    i32 result = ir_compile(c, node);
+    i32 result = ir_compile(c, node, ins_count);
     if (result != NoError) {
       c->status = result;
       return c->status;
     }
   }
-  return c->status;
-}
-
-i32 ir_compile_let_statement(Compile* c, Ast* ast) {
   return c->status;
 }
 
