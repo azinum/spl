@@ -1,8 +1,9 @@
 // test.spl
 
+fn hello {
+  print + 2 3;
+}
+
 fn main {
-  memory data 512;
-  const a + 8 @data;
-  = a 12;
-  print #a;
+  print @hello;
 }
