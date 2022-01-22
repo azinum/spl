@@ -742,17 +742,15 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
     case AstMemoryStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_compile_stmts(c, ast, ins_count) == NoError) {
-        if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
-          assert(ast->count == 1);
-          Token token = ast->node[0]->value;
-          assert(token.type == T_NUMBER);
-          i32 num = -1;
-          str_to_int(token.buffer, token.length, &num);
-          symbol->address = -1;
-          symbol->size = num;
-          symbol->type = TypeInt32;
-        }
+      if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+        assert(ast->count == 1);
+        Token token = ast->node[0]->value;
+        assert(token.type == T_NUMBER);
+        i32 num = -1;
+        str_to_int(token.buffer, token.length, &num);
+        symbol->address = -1;
+        symbol->size = num;
+        symbol->type = TypeInt32;
       }
       break;
     }
