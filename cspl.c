@@ -217,7 +217,7 @@ typedef enum Ir_code {
   I_COPY,
   I_STORE64,
   I_LOAD64,
-  I_PUSH_INT,
+  I_PUSH_INT64,
   I_PUSH_ADDR_OF,
   I_ADD,
   I_SUB,
@@ -243,7 +243,7 @@ static const char* ir_code_str[] = {
   "I_COPY",
   "I_STORE64",
   "I_LOAD64",
-  "I_PUSH_INT",
+  "I_PUSH_INT64",
   "I_PUSH_ADDR_OF",
   "I_ADD",
   "I_SUB",
@@ -256,6 +256,7 @@ static const char* ir_code_str[] = {
 typedef struct Function {
   i32 id;
   i32 address;
+  i32 argc;
 } Function;
 
 // intermidiate representation of the instructions which are to be generated or interpreted
@@ -578,7 +579,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
           i32 address = ir_push_value(c, &num, sizeof(num));
           if (address >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_INT,
+              .i = I_PUSH_INT64,
               .dest = -1,
               .src0 = address,
               .src1 = -1,
@@ -605,7 +606,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
             switch (symbol->type) {
               case TypeInt32: {
                 ir_push_ins(c, (Op) {
-                  .i = I_PUSH_INT,
+                  .i = I_PUSH_INT64,
                   .dest = 0,
                   .src0 = symbol->address,
                   .src1 = symbol_index,
@@ -831,6 +832,7 @@ i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count) {
       }, ins_count);
       func.address = c->ins_count;
       func.id = c->func_count;
+      func.argc = 0;
       c->funcs[c->func_count++] = func;
       symbol->address = func.id;
       symbol->size = 0;
@@ -921,7 +923,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
-      case I_PUSH_INT: {
+      case I_PUSH_INT64: {
         if (op->src1 >= 0) {
           if (op->src1 < c->symbol_count) {
             o("  mov rax, [v%d]\n", op->src1);
@@ -978,6 +980,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_RET: {
+        o("  pop rax\n");
         o("  ret\n");
         break;
       }
@@ -1000,7 +1003,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
-        o("  call v%d\n", op->dest);
+        assert(op->dest < c->symbol_count);
+        Symbol* symbol = &c->symbol_table[op->dest];
+        o("  call v%d ; `%s`\n", op->dest, symbol->name);
+        o("  push rax ; push result of function\n");
         break;
       }
       default: {

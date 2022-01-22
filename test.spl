@@ -1,12 +1,17 @@
 // test.spl
 
 fn hello-there {
-  print 12;
+  + 2 3;
+}
+
+fn test {
+  memory data 128; // initialize 128 bytes of memory
+  const ptr @data; // store the address of data+0 in ptr
+  = ptr 12;  // set the value of ptr to 0
+  print #ptr; // load 64-bits from the address of ptr and print it
 }
 
 fn main {
-  memory data 128;
-  const ptr @data; // store the address of data+0 in ptr
-  = ptr 12;  // set the value of ptr to 0
-  print #ptr; // dereference ptr and print it
+  print hello-there;
+  0;
 }
