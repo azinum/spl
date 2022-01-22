@@ -590,7 +590,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
           break;
         }
         case T_POP: {
-          assert("T_POP: not handled yet" && 0);
+          // assert("T_POP: not handled yet" && 0);
           ir_push_ins(c, OP(I_POP), ins_count);
           break;
         }
@@ -600,14 +600,31 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         }
         case T_IDENTIFIER: {
           Symbol* symbol = NULL;
-          i32 index = -1;
-          if (ir_lookup_value(c, ast->value, &symbol, &index) == NoError) {
-            ir_push_ins(c, (Op) {
-              .i = I_PUSH_INT,
-              .dest = 0,
-              .src0 = symbol->address,
-              .src1 = index,
-            }, ins_count);
+          i32 symbol_index = -1;
+          if (ir_lookup_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+            switch (symbol->type) {
+              case TypeInt32: {
+                ir_push_ins(c, (Op) {
+                  .i = I_PUSH_INT,
+                  .dest = 0,
+                  .src0 = symbol->address,
+                  .src1 = symbol_index,
+                }, ins_count);
+                break;
+              }
+              case TypeFunc: {
+                ir_push_ins(c, (Op) {
+                  .i = I_CALL,
+                  .dest = symbol_index,
+                  .src0 = -1,
+                  .src1 = -1,
+                }, ins_count);
+                break;
+              }
+              default: {
+                break;
+              }
+            }
           }
           else {
             ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -981,7 +998,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
-        assert("I_CALL not implemented" && 0);
+        o("  call v%d\n", op->dest);
         break;
       }
       default: {
@@ -1117,10 +1134,6 @@ done:
 Ast* parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
-    case T_IDENTIFIER: {
-      parser_error(p, "identifier not allowed here\n");
-      return NULL;
-    }
     case T_CONST: {
       t = lexer_next(&p->l); // skip `const`
       if (t.type != T_IDENTIFIER) {

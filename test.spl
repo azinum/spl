@@ -5,5 +5,5 @@ fn hello {
 }
 
 fn main {
-  print @hello;
+  hello;
 }
