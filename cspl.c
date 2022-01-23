@@ -105,6 +105,7 @@ typedef enum Token_type {
   T_DEREF,
   T_ADD,
   T_SUB,
+  T_LT,
   T_SEMICOLON,
   T_POP,
   T_CONST,
@@ -139,6 +140,7 @@ static const char* token_type_str[] = {
   "T_DEREF",
   "T_ADD",
   "T_SUB",
+  "T_LT",
   "T_SEMICOLON",
   "T_POP",
   "T_CONST",
@@ -221,6 +223,7 @@ typedef enum Ir_code {
   I_PUSH_ADDR_OF,
   I_ADD,
   I_SUB,
+  I_LT,
   I_RET,
   I_PRINT,
   I_LABEL,
@@ -247,6 +250,7 @@ static const char* ir_code_str[] = {
   "I_PUSH_ADDR_OF",
   "I_ADD",
   "I_SUB",
+  "I_LT",
   "I_RET",
   "I_PRINT",
   "I_LABEL",
@@ -667,6 +671,9 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         else if (ast->value.type == T_SUB) {
           ir_push_ins(c, OP(I_SUB), ins_count);
         }
+        else if (ast->value.type == T_LT) {
+          ir_push_ins(c, OP(I_LT), ins_count);
+        }
         else {
           // Handle
         }
@@ -979,6 +986,18 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_LT: {
+        o(
+        "  mov rcx, 0\n"
+        "  mov rdx, 1\n"
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  cmp rax, rbx\n"
+        "  cmovl rcx, rdx\n"
+        "  push rcx\n"
+        );
+        break;
+      }
       case I_RET: {
         o("  pop rax\n");
         o("  ret\n");
@@ -1237,7 +1256,8 @@ Ast* parse_expr(Parser* p) {
       return node;
     }
     case T_ADD:
-    case T_SUB: {
+    case T_SUB:
+    case T_LT: {
       lexer_next(&p->l);
       Ast* expr = ast_create(AstBinopExpression);
       expr->value = t;
@@ -1475,6 +1495,10 @@ Token lexer_next(Lexer* l) {
       }
       case '-': {
         l->token.type = T_SUB;
+        goto done;
+      }
+      case '<': {
+        l->token.type = T_LT;
         goto done;
       }
       case ';': {

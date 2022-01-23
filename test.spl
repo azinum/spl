@@ -1,17 +1,14 @@
 // test.spl
 
-fn hello-there {
-  + 2 3;
-}
-
-fn test {
-  memory data 128; // initialize 128 bytes of memory
-  const ptr @data; // store the address of data+0 in ptr
-  = ptr 12;  // set the value of ptr to 0
-  print #ptr; // load 64-bits from the address of ptr and print it
+fn while-loop-test {
+  memory local-data 64;
+  const i @local-data;
+  const count 10;
+  = i + 1 #i;
+  print < #i count;
 }
 
 fn main {
-  print hello-there;
+  while-loop-test;
   0;
 }
