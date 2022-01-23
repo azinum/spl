@@ -113,6 +113,7 @@ typedef enum Token_type {
   T_MEMORY,
   T_PRINT,
   T_FN,
+  T_WHILE,
   T_LEFT_P,
   T_RIGHT_P,
   T_LEFT_CURLY,
@@ -148,6 +149,7 @@ static const char* token_type_str[] = {
   "T_MEMORY",
   "T_PRINT",
   "T_FN",
+  "T_WHILE",
   "T_LEFT_P",
   "T_RIGHT_P",
   "T_LEFT_CURLY",
@@ -177,6 +179,7 @@ typedef enum Ast_type {
   AstFuncDefinition,
   AstMemoryStatement,
   AstAssignment,
+  AstWhileStatement,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -195,6 +198,7 @@ static const char* ast_type_str[] = {
   "AstFuncDefinition",
   "AstMemoryStatement",
   "AstAssignment",
+  "AstWhileStatement",
 };
 
 typedef struct Ast {
@@ -228,6 +232,9 @@ typedef enum Ir_code {
   I_PRINT,
   I_LABEL,
   I_CALL,
+  I_JMP,
+  I_JZ,
+  I_LOOP_LABEL,
 
   MAX_IR_CODE,
 } Ir_code;
@@ -255,6 +262,9 @@ static const char* ir_code_str[] = {
   "I_PRINT",
   "I_LABEL",
   "I_CALL",
+  "I_JMP",
+  "I_JZ",
+  "I_LOOP_LABEL",
 };
 
 typedef struct Function {
@@ -312,6 +322,8 @@ typedef struct Compile {
 
   Symbol symbol_table[MAX_SYMBOL];
   u32 symbol_count;
+
+  i32 label_count;  // labels that are used for branching
 
   i32 status;
   i32 entry_point;
@@ -434,6 +446,7 @@ i32 main(i32 argc, char** argv) {
         Compile c;
         if (ir_init(&c) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
+#if 1
             char path[MAX_PATH_SIZE] = {0};
             snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
             FILE* fp = fopen(path, "w");
@@ -441,7 +454,8 @@ i32 main(i32 argc, char** argv) {
               compile(&c, TARGET_LINUX_NASM_X86_64, fp);
               fclose(fp);
             }
-#if 0
+#endif
+#if 1
             ast_print(p.ast, 0, stdout);
             ir_print(&c, stdout);
 #endif
@@ -486,6 +500,7 @@ i32 ir_init(Compile* c) {
   c->ins_count = 0;
   c->data_index = 0;
   c->symbol_count = 0;
+  c->label_count = 0;
   c->status = NoError;
   c->entry_point = 0;
   return NoError;
@@ -611,6 +626,7 @@ i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index)
 
 i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
   switch (ast->type) {
+    case AstExpression:
     case AstStatement: {
       return ir_compile_stmts(c, ast, ins_count);
     }
@@ -813,6 +829,46 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
       else {
         c->status = result;
         return c->status;
+      }
+      break;
+    }
+    // TODO(lucas): implement
+    case AstWhileStatement: {
+      assert("invalid while statement construction" && ast->count == 2);
+      i32 loop_label = c->label_count++;
+      u32 cond_size = 0;
+      u32 body_size = 0;
+      ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_label, .src0 = -1, .src1 = -1, }, &cond_size);
+
+      Ast* cond = ast->node[0];
+      Ast* body = ast->node[1];
+
+      if (ir_compile_stmts(c, cond, &cond_size) == NoError) {
+        i32 body_start_address = c->ins_count;
+        i32 loop_end_label = c->label_count++;
+        // conditional jump
+        ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
+        if (ir_compile_stmts(c, body, &body_size) == NoError) {
+          ir_push_ins(c, OP(I_POP), &body_size);
+          ir_push_ins(c, (Op) {
+            .i = I_JMP,
+            .dest = loop_label,
+            .src0 = -(i32)(cond_size + body_size),
+            .src1 = -1,
+          }, &body_size);
+          ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
+          Op* jz = &c->ins[body_start_address];
+          jz->src0 = body_size;
+        }
+        else {
+          // TODO: handle
+        }
+      }
+      else {
+        // TODO: handle
+      }
+      if (ins_count) {
+        *ins_count += cond_size + body_size;
       }
       break;
     }
@@ -1079,6 +1135,18 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  push rax ; function result\n");
         break;
       }
+      case I_JMP: {
+        o("  jmp L%d\n", op->dest);
+        break;
+      }
+      case I_JZ: { // jump if zero
+        o("  jz L%d\n", op->dest);
+        break;
+      }
+      case I_LOOP_LABEL: {
+        o("L%d:\n", op->dest);
+        break;
+      }
       default: {
         fprintf(stderr, "instruction `%d` not implemented\n", op->i);
         assert(0);
@@ -1212,6 +1280,7 @@ done:
       | `{` stmts `}`
       | `=` expr expr `;`
       | fn name `{` stmts `}`
+      | while expr `{` stmts `}`
       ;
 */
 Ast* parse_statement(Parser* p) {
@@ -1277,6 +1346,15 @@ Ast* parse_statement(Parser* p) {
       ast_push(assignment, parse_expr(p));
       ast_push(assignment, parse_expr(p));
       return assignment;
+    }
+    case T_WHILE: {
+      lexer_next(&p->l); // skip `while`
+      Ast* while_stmt = ast_create(AstWhileStatement);
+      Ast* cond = ast_create(AstExpression);
+      ast_push(cond, parse_expr(p));
+      ast_push(while_stmt, cond);
+      ast_push(while_stmt, parse_statements(p));
+      return while_stmt;
     }
     default: {
       Ast* expr = parse_expr(p);
@@ -1474,6 +1552,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "fn")) {
     l->token.type = T_FN;
+  }
+  else if (compare(l->token, "while")) {
+    l->token.type = T_WHILE;
   }
   else {
     l->token.type = T_IDENTIFIER;

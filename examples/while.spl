@@ -1,4 +1,4 @@
-// test.spl
+// while.spl
 
 fn main {
   memory local-data 64;
