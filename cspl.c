@@ -303,6 +303,7 @@ typedef struct Compile {
   u32 func_count;
 
   i32 status;
+  i32 entry_point;
 } Compile;
 
 static i32 ir_init(Compile* c);
@@ -453,6 +454,7 @@ i32 ir_init(Compile* c) {
   c->data_index = 0;
   c->symbol_count = 0;
   c->status = NoError;
+  c->entry_point = 0;
   return NoError;
 }
 
@@ -521,6 +523,9 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     if (ir_compile(c, ast->node[i], NULL) != NoError) {
       break;
     }
+  }
+  if (c->entry_point != 1) {
+    ir_compile_error(c, "missing entry point `main`\n");
   }
   return c->status;
 }
@@ -848,13 +853,17 @@ i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count) {
       u32 func_size = 0;
       ir_compile_stmts(c, ast, &func_size);
       ir_push_ins(c, OP(I_RET), ins_count);
+
+      if (!strcmp(symbol->name, "main")) {
+        c->entry_point = 1;
+      }
     }
     else {
-      // TODO: handle
+      ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
     }
   }
   else {
-    // TODO: handle
+    ir_compile_error(c, "number of functions has reached the limit of %d\n", MAX_FUNC);
   }
   return c->status;
 }
@@ -1063,7 +1072,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   }
 
   o("memory: resb %d\n", MEMORY_CAPACITY);
-  return NoError;
+  return c->status;
 }
 #undef o
 
