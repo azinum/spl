@@ -280,6 +280,15 @@ typedef struct Op {
 #define MAX_SYMBOL 256
 #define MAX_FUNC 256
 
+typedef enum Compile_target {
+  TARGET_LINUX_NASM_X86_64,
+  MAX_COMPILE_TARGET,
+} Compile_target;
+
+static const char* compile_target_str[MAX_COMPILE_TARGET] = {
+  "compile_linux_nasm_x86_64"
+};
+
 typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 address;
@@ -323,7 +332,14 @@ static i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count);
 
 static i32 program_typecheck(Ast* ast);
 
+static i32 compile(Compile* c, Compile_target target, FILE* fp);
 static i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp);
+
+typedef i32 (*compile_target)(Compile*, FILE*);
+
+static compile_target compile_targets[MAX_COMPILE_TARGET] = {
+  compile_linux_nasm_x86_64,
+};
 
 static i32 parser_init(Parser* p, char* source);
 static void parser_free(Parser* p);
@@ -347,6 +363,7 @@ static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
+static void print_info(const char* fmt, ...);
 static i32 str_to_int(char* str, i32 length, i32* out);
 
 static Ast* ast_create(Ast_type type);
@@ -410,17 +427,18 @@ i32 main(i32 argc, char** argv) {
       if (program_typecheck(p.ast) == NoError) {
         Compile c;
         if (ir_init(&c) == NoError) {
-          ast_print(p.ast, 0, stdout);
           if (ir_start_compile(&c, p.ast) == NoError) {
-            ir_print(&c, stdout);
-
             char path[MAX_PATH_SIZE] = {0};
             snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
             FILE* fp = fopen(path, "w");
             if (fp) {
-              compile_linux_nasm_x86_64(&c, fp);
+              compile(&c, TARGET_LINUX_NASM_X86_64, fp);
               fclose(fp);
             }
+#if 0
+            ast_print(p.ast, 0, stdout);
+            ir_print(&c, stdout);
+#endif
           }
           else {
             exit_status = EXIT_FAILURE;
@@ -442,7 +460,7 @@ i32 main(i32 argc, char** argv) {
   }
   free(source);
   REAL_TIMER_END(
-    v_printf("\nelapsed time = %g s\n\n", _dt);
+    print_info("%s: %g s\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return exit_status;
@@ -515,6 +533,7 @@ i32 ir_push_value(Compile* c, void* value, u32 size) {
 }
 
 i32 ir_start_compile(Compile* c, Ast* ast) {
+  REAL_TIMER_START();
   if (!ast) {
     return c->status;
   }
@@ -527,6 +546,10 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   if (c->entry_point != 1) {
     ir_compile_error(c, "missing entry point `main`\n");
   }
+  REAL_TIMER_END(
+    print_info("%s: %g s\n", __FUNCTION__, _dt);
+    (void)_dt;
+  );
   return c->status;
 }
 
@@ -872,6 +895,21 @@ i32 program_typecheck(Ast* ast) {
   return NoError;
 }
 
+i32 compile(Compile* c, Compile_target target, FILE* fp) {
+  if (target >= 0 && target < MAX_COMPILE_TARGET) {
+    REAL_TIMER_START();
+    compile_targets[target](c, fp);
+    REAL_TIMER_END(
+      print_info("%s: %g s (%s)\n", __FUNCTION__, _dt, compile_target_str[target]);
+      (void)_dt;
+    );
+  }
+  else {
+    assert("invalid compile target" && 0);
+  }
+  return c->status;
+}
+
 i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 #define o(...) fprintf(fp, __VA_ARGS__)
 #define ENTRY "_start"
@@ -1109,8 +1147,13 @@ void parser_error(Parser* p, const char* fmt, ...) {
 }
 
 i32 parse(Parser* p) {
+  REAL_TIMER_START();
   lexer_next(&p->l);
   ast_push(p->ast, parse_statements(p));
+  REAL_TIMER_END(
+    print_info("%s: %g s\n", __FUNCTION__, _dt);
+    (void)_dt;
+  );
   return p->status;
 }
 
@@ -1598,6 +1641,19 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
     fprintf(fp, "-");
   }
   fprintf(fp, "^\n");
+}
+
+void print_info(const char* fmt, ...) {
+#if VERBOSE
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stdout;
+  fprintf(fp, "[info]: %s", buffer);
+#endif
 }
 
 i32 str_to_int(char* str, i32 length, i32* out) {
