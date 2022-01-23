@@ -382,6 +382,8 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
+  assert(ARR_SIZE(compile_target_str) == MAX_COMPILE_TARGET);
+  assert(ARR_SIZE(compile_targets) == MAX_COMPILE_TARGET);
   REAL_TIMER_START();
   (void)ast_print; (void)ir_code_str;
   i32 exit_status = EXIT_SUCCESS;
