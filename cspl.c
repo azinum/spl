@@ -234,7 +234,7 @@ typedef enum Ir_code {
 
 typedef enum Compile_type {
   TypeNone = 0,
-  TypeInt32,
+  TypeUnsigned64,
   TypeFunc,
 
   MaxType,
@@ -368,7 +368,7 @@ static Token lexer_peek(Lexer* l);
 
 static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
 static void print_info(const char* fmt, ...);
-static i32 str_to_int(char* str, i32 length, i32* out);
+static i32 str_to_int(char* str, i32 length, u64* out);
 
 static Ast* ast_create(Ast_type type);
 static void ast_init_node(Ast* node);
@@ -615,7 +615,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
     case AstValue: {
       switch (ast->value.type) {
         case T_NUMBER: {
-          i32 num = 0;
+          u64 num = 0;
           str_to_int(ast->value.buffer, ast->value.length, &num);
           i32 address = ir_push_value(c, &num, sizeof(num));
           if (address >= 0) {
@@ -645,7 +645,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
           i32 symbol_index = -1;
           if (ir_lookup_value(c, ast->value, &symbol, &symbol_index) == NoError) {
             switch (symbol->type) {
-              case TypeInt32: {
+              case TypeUnsigned64: {
                 ir_push_ins(c, (Op) {
                   .i = I_PUSH_INT64,
                   .dest = 0,
@@ -753,7 +753,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
           u32 empty_size = sizeof(empty);
           symbol->address = ir_push_value(c, &empty, empty_size);
           symbol->size = sizeof(empty);
-          symbol->type = TypeInt32;
+          symbol->type = TypeUnsigned64;
 
           ir_push_ins(c, (Op) { // store contents of rax into [v]
             .i = I_COPY,
@@ -791,11 +791,11 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         assert(ast->count == 1);
         Token token = ast->node[0]->value;
         assert(token.type == T_NUMBER);
-        i32 num = -1;
-        str_to_int(token.buffer, token.length, &num);
+        u64 storage_size = 0;
+        str_to_int(token.buffer, token.length, &storage_size);
         symbol->address = -1;
-        symbol->size = num;
-        symbol->type = TypeInt32;
+        symbol->size = storage_size;
+        symbol->type = TypeUnsigned64;
       }
       else {
         ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
@@ -1074,7 +1074,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(op->dest < c->symbol_count);
         Symbol* symbol = &c->symbol_table[op->dest];
         o("  call v%d ; `%s`\n", op->dest, symbol->name);
-        o("  push rax ; push result of function\n");
+        o("  push rax ; function result\n");
         break;
       }
       default: {
@@ -1096,8 +1096,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   for (i32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbol_table[i];
     switch (s->type) {
-      case TypeInt32: {
-        o("v%d: resb %d ; `%s`\n", i, s->size, s->name);
+      case TypeUnsigned64: {
+        o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
         break;
       }
       case TypeFunc: {
@@ -1658,7 +1658,7 @@ void print_info(const char* fmt, ...) {
 #endif
 }
 
-i32 str_to_int(char* str, i32 length, i32* out) {
+i32 str_to_int(char* str, i32 length, u64* out) {
   *out = 0;
   for (i32 i = 0; i < length; ++i) {
     char ch = str[i];
@@ -1666,7 +1666,7 @@ i32 str_to_int(char* str, i32 length, i32* out) {
       *out = *out * 10 + (str[i] - '0');
       continue;
     }
-    *out = -1;
+    *out = 0;
     return Error;
   }
   return NoError;
