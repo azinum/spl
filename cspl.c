@@ -258,7 +258,6 @@ static const char* ir_code_str[] = {
 };
 
 typedef struct Function {
-  i32 id;
   i32 address;
   i32 argc;
 } Function;
@@ -289,12 +288,18 @@ static const char* compile_target_str[MAX_COMPILE_TARGET] = {
   "compile_linux_nasm_x86_64"
 };
 
+typedef union Value {
+  Function func;
+  u64 num;
+} Value;
+
 typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 address;
   i32 size;
   Compile_type type;
   Token token;
+  Value value;
 } Symbol;
 
 // compile state
@@ -308,12 +313,11 @@ typedef struct Compile {
   Symbol symbol_table[MAX_SYMBOL];
   u32 symbol_count;
 
-  Function funcs[MAX_FUNC];
-  u32 func_count;
-
   i32 status;
   i32 entry_point;
 } Compile;
+
+static void symbol_init(Symbol* symbol);
 
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
@@ -466,6 +470,15 @@ i32 main(i32 argc, char** argv) {
   return exit_status;
 }
 
+void symbol_init(Symbol* s) {
+  memset(s->name, 0, ARR_SIZE(s->name));
+  s->address = -1;
+  s->size = 0;
+  s->type = TypeNone;
+  s->token = (Token) {0};
+  s->value = (Value) { .num = 0, };
+}
+
 i32 ir_init(Compile* c) {
   c->ins = NULL;
   c->ins_count = 0;
@@ -566,12 +579,8 @@ i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index
     }
     *symbol = &c->symbol_table[c->symbol_count++];
     Symbol* s = *symbol;
-    *s = (Symbol) {
-      .address = -1,
-      .size = 0,
-      .type = TypeNone,
-      .token = token,
-    };
+    symbol_init(s);
+    s->token = token;
     strncpy(s->name, token.buffer, token.length);
     return NoError;
   }
@@ -854,39 +863,32 @@ i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count) {
 }
 
 i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count) {
-  Function func;
-  if (c->func_count < MAX_FUNC) {
-    Symbol* symbol = NULL;
-    i32 symbol_index = -1;
-    if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
-      ir_push_ins(c, (Op) {
-        .i = I_LABEL,
-        .dest = symbol_index,
-        .src0 = -1,
-        .src1 = -1,
-      }, ins_count);
-      func.address = c->ins_count;
-      func.id = c->func_count;
-      func.argc = 0;
-      c->funcs[c->func_count++] = func;
-      symbol->address = func.id;
-      symbol->size = 0;
-      symbol->type = TypeFunc;
+  Symbol* symbol = NULL;
+  i32 symbol_index = -1;
+  if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+    ir_push_ins(c, (Op) {
+      .i = I_LABEL,
+      .dest = symbol_index,
+      .src0 = -1,
+      .src1 = -1,
+    }, ins_count);
+    symbol->size = 0;
+    symbol->type = TypeFunc;
+    symbol->value.func = (Function) {
+      .address = c->ins_count,
+      .argc = 0,
+    };
 
-      u32 func_size = 0;
-      ir_compile_stmts(c, ast, &func_size);
-      ir_push_ins(c, OP(I_RET), ins_count);
+    u32 func_size = 0;
+    ir_compile_stmts(c, ast, &func_size);
+    ir_push_ins(c, OP(I_RET), ins_count);
 
-      if (!strcmp(symbol->name, "main")) {
-        c->entry_point = 1;
-      }
-    }
-    else {
-      ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+    if (!strcmp(symbol->name, "main")) {
+      c->entry_point = 1;
     }
   }
   else {
-    ir_compile_error(c, "number of functions has reached the limit of %d\n", MAX_FUNC);
+    ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
   }
   return c->status;
 }
