@@ -1005,7 +1005,7 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     ir_compile_stmts(c, &local_block, ast, &func_size);
     ir_push_ins(c, OP(I_RET), ins_count);
 
-    if (!strcmp(symbol->name, "main")) {
+    if (!strncmp(symbol->name, "main", MAX_NAME_SIZE)) {
       ++c->entry_point;
     }
   }

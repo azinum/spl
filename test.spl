@@ -16,9 +16,7 @@ fn main {
   memory local-data 64;
   const ptr @local-data;
   = ptr 12;
-  {
-    print local-data;
-    print #ptr;
-  }
+  const dptr @ptr;
+  print ##dptr;
   0;
 }
