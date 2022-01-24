@@ -351,7 +351,7 @@ static void block_init(Block* block, Block* parent);
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
-static void ir_print_symbol_info(Compile* c, char* source, FILE* fp);
+static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_declare_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index);
@@ -474,10 +474,12 @@ i32 main(i32 argc, char** argv) {
               fclose(fp);
             }
 #endif
-#if 1
+#if 0
             ast_print(p.ast, 0, stdout);
             ir_print(&c, stdout);
-            ir_print_symbol_info(&c, (char*)source, stdout);
+            ir_print_symbol_info(&c, filename, (char*)source, stdout);
+#else
+            ir_print_symbol_info(&c, filename, (char*)source, stdout);
 #endif
           }
           else {
@@ -545,11 +547,12 @@ void ir_print(Compile* c, FILE* fp) {
   }
 }
 
-void ir_print_symbol_info(Compile* c, char* source, FILE* fp) {
+void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
-    fprintf(fp, "%3u: `%s` (type = %s, size = %u)\n", i, symbol->name, compile_type_str[symbol->type], symbol->size);
+    fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
+    // printline(fp, source, symbol->token.buffer, symbol->token.length, 1);
   }
 }
 
