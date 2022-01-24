@@ -2,6 +2,16 @@
 
 fn hello + 2 3;
 
+fn hello-there {
+  memory local-data 64;
+  const i @local-data;
+  const count 10;
+  while < #i count {
+    print #i;
+    = i + 1 #i;
+  }
+}
+
 fn main {
   memory local-data 64;
   const ptr @local-data;
@@ -9,7 +19,6 @@ fn main {
   {
     print local-data;
     print #ptr;
-    { print ptr; }
   }
   0;
 }

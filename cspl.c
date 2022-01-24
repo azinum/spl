@@ -850,8 +850,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncDefinition: {
-      // Block local_block;
-      // block_init(&local_block, block);
       ir_compile_func(c, block, ast, ins_count);
       break;
     }
@@ -1002,7 +1000,9 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     };
 
     u32 func_size = 0;
-    ir_compile_stmts(c, block, ast, &func_size);
+    Block local_block;
+    block_init(&local_block, block);
+    ir_compile_stmts(c, &local_block, ast, &func_size);
     ir_push_ins(c, OP(I_RET), ins_count);
 
     if (!strcmp(symbol->name, "main")) {
