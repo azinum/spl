@@ -1,11 +1,15 @@
 // test.spl
 
+fn hello + 2 3;
+
 fn main {
   memory local-data 64;
-  const i @local-data;
-  const count 10;
-  while < #i count {
-    print #i;
-    = i + 1 #i;
+  const ptr @local-data;
+  = ptr 12;
+  {
+    print local-data;
+    print #ptr;
+    { print ptr; }
   }
+  0;
 }

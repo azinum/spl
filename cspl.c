@@ -172,6 +172,7 @@ typedef enum Ast_type {
   AstExpression,
   AstStatement,
   AstStatementList,
+  AstBlockStatement,
   AstBinopExpression,
   AstUopExpression,
   AstConstAssignment,
@@ -191,6 +192,7 @@ static const char* ast_type_str[] = {
   "AstExpression",
   "AstStatement",
   "AstStatementList",
+  "AstBlockStatement",
   "AstBinopExpression",
   "AstUopExpression",
   "AstConstAssignment",
@@ -239,14 +241,6 @@ typedef enum Ir_code {
   MAX_IR_CODE,
 } Ir_code;
 
-typedef enum Compile_type {
-  TypeNone = 0,
-  TypeUnsigned64,
-  TypeFunc,
-
-  MaxType,
-} Compile_type;
-
 static const char* ir_code_str[] = {
   "I_NOP",
   "I_POP",
@@ -267,10 +261,19 @@ static const char* ir_code_str[] = {
   "I_LOOP_LABEL",
 };
 
-typedef struct Function {
-  i32 address;
-  i32 argc;
-} Function;
+typedef enum Compile_type {
+  TypeNone = 0,
+  TypeUnsigned64,
+  TypeFunc,
+
+  MAX_COMPILE_TYPE,
+} Compile_type;
+
+static const char* compile_type_str[] = {
+  "TypeNone",
+  "TypeUnsigned64",
+  "TypeFunc",
+};
 
 // intermidiate representation of the instructions which are to be generated or interpreted
 typedef struct Op {
@@ -298,6 +301,11 @@ static const char* compile_target_str[MAX_COMPILE_TARGET] = {
   "compile_linux_nasm_x86_64"
 };
 
+typedef struct Function {
+  i32 address;
+  i32 argc;
+} Function;
+
 typedef union Value {
   Function func;
   u64 num;
@@ -312,6 +320,12 @@ typedef struct Symbol {
   Value value;
 } Symbol;
 
+typedef struct Block {
+  u32 symbols[MAX_SYMBOL]; // index into compile state symbols
+  u32 symbol_count;
+  struct Block* parent;
+} Block;
+
 // compile state
 typedef struct Compile {
   Op* ins;
@@ -320,8 +334,10 @@ typedef struct Compile {
   u8 data[MAX_DATA];
   u32 data_index;
 
-  Symbol symbol_table[MAX_SYMBOL];
+  Symbol symbols[MAX_SYMBOL];
   u32 symbol_count;
+
+  Block global;
 
   i32 label_count;  // labels that are used for branching
 
@@ -330,21 +346,23 @@ typedef struct Compile {
 } Compile;
 
 static void symbol_init(Symbol* symbol);
+static void block_init(Block* block, Block* parent);
 
 static i32 ir_init(Compile* c);
 static void ir_free(Compile* c);
 static void ir_print(Compile* c, FILE* fp);
+static void ir_print_symbol_info(Compile* c, char* source, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
-static i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
-static i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index);
+static i32 ir_declare_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index);
+static i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
-static i32 ir_compile(Compile* c, Ast* ast, u32* ins_count);
-static i32 ir_compile_stmts(Compile* c, Ast* ast, u32* ins_count);
-static i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count);
-static i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count);
-static i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count);
+static i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count);
+static i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count);
+static i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count);
+static i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count);
+static i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count);
 
 static i32 program_typecheck(Ast* ast);
 
@@ -378,7 +396,7 @@ inline i32 is_extended_ascii(u8 ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
-static void error_printline(FILE* fp, char* source, char* index, i32 token_length);
+static void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow);
 static void print_info(const char* fmt, ...);
 static i32 str_to_int(char* str, i32 length, u64* out);
 
@@ -396,12 +414,13 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
   assert(ARR_SIZE(compile_target_str) == MAX_COMPILE_TARGET);
   assert(ARR_SIZE(compile_targets) == MAX_COMPILE_TARGET);
-  REAL_TIMER_START();
-  (void)ast_print; (void)ir_code_str;
-  i32 exit_status = EXIT_SUCCESS;
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
+  assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
+  REAL_TIMER_START();
+  (void)ast_print; (void)ir_code_str;
+  i32 exit_status = EXIT_SUCCESS;
 
   char* filename = NULL;
   char* source = NULL;
@@ -458,6 +477,7 @@ i32 main(i32 argc, char** argv) {
 #if 1
             ast_print(p.ast, 0, stdout);
             ir_print(&c, stdout);
+            ir_print_symbol_info(&c, (char*)source, stdout);
 #endif
           }
           else {
@@ -495,11 +515,17 @@ void symbol_init(Symbol* s) {
   s->value = (Value) { .num = 0, };
 }
 
+void block_init(Block* block, Block* parent) {
+  block->symbol_count = 0;
+  block->parent = parent;
+}
+
 i32 ir_init(Compile* c) {
   c->ins = NULL;
   c->ins_count = 0;
   c->data_index = 0;
   c->symbol_count = 0;
+  block_init(&c->global, NULL);
   c->label_count = 0;
   c->status = NoError;
   c->entry_point = 0;
@@ -512,10 +538,18 @@ void ir_free(Compile* c) {
 }
 
 void ir_print(Compile* c, FILE* fp) {
-  fprintf(fp, "ins_count: %u\n", c->ins_count);
+  fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
     fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
+  }
+}
+
+void ir_print_symbol_info(Compile* c, char* source, FILE* fp) {
+  fprintf(fp, "%s:\n", __FUNCTION__);
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* symbol = &c->symbols[i];
+    fprintf(fp, "%3u: `%s` (type = %s, size = %u)\n", i, symbol->name, compile_type_str[symbol->type], symbol->size);
   }
 }
 
@@ -568,13 +602,14 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     return c->status;
   }
   assert("something went very wrong" && ast->type == AstRoot);
+  Block* block = &c->global;
   for (i32 i = 0; i < ast->count; ++i) {
-    if (ir_compile(c, ast->node[i], NULL) != NoError) {
+    if (ir_compile(c, block, ast->node[i], NULL) != NoError) {
       break;
     }
   }
   if (c->entry_point != 1) {
-    ir_compile_error(c, "missing entry point `main`\n");
+    ir_compile_error(c, "missing/duplicate entry point `main`\n");
   }
   REAL_TIMER_END(
     print_info("%s: %g s\n", __FUNCTION__, _dt);
@@ -583,18 +618,26 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
   return c->status;
 }
 
-i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index) {
+i32 ir_declare_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index) {
   if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
-  if (c->symbol_count < MAX_SYMBOL) {
-    if (ir_lookup_value(c, token, symbol, NULL) == NoError) {
-      return (c->status = Error);
+  if (block->symbol_count < MAX_SYMBOL) {
+    u32 levels_descent = 0; // how many levels did we descent before we found a symbol
+    i32 lookup_result = ir_lookup_value(c, block, token, symbol, NULL, &levels_descent);
+    if (lookup_result == NoError && levels_descent == 0) { // we are only allowed to create a new symbol if none was found in the current block
+      return c->status = Error;
     }
+    i32 index = c->symbol_count;
     if (symbol_index) {
-      *symbol_index = c->symbol_count;
+      *symbol_index = index;
     }
-    *symbol = &c->symbol_table[c->symbol_count++];
+    block->symbols[block->symbol_count] = index;
+    *symbol = &c->symbols[index];
+
+    c->symbol_count++;
+    block->symbol_count++;
+
     Symbol* s = *symbol;
     symbol_init(s);
     s->token = token;
@@ -604,31 +647,40 @@ i32 ir_declare_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index
   return Error;
 }
 
-i32 ir_lookup_value(Compile* c, Token token, Symbol** symbol, i32* symbol_index) {
+i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent) {
   assert("must pass reference to a symbol to store the return value in" && symbol != NULL);
   if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
+  if (!block) {
+    return Error;
+  }
   char copy[MAX_NAME_SIZE] = {0};
   strncpy(copy, token.buffer, token.length);
-  for (u32 i = 0; i < c->symbol_count; ++i) {
-    Symbol* sym = &c->symbol_table[i];
+  for (u32 i = 0; i < block->symbol_count; ++i) {
+    i32 index = block->symbols[i];
+    Symbol* sym = &c->symbols[index];
     if (strncmp(copy, sym->name, MAX_NAME_SIZE) == 0) {
       *symbol = sym;
       if (symbol_index) {
-        *symbol_index = i;
+        *symbol_index = index;
       }
       return NoError;
     }
   }
-  return Error;
+  // descent into lower level, and increment counter, becase we did not find the symbol in this block
+  if (levels_descent) {
+    (*levels_descent)++;
+  }
+  // do lookup in the parent block, until global block is reached
+  return ir_lookup_value(c, block->parent, token, symbol, symbol_index, levels_descent);
 }
 
-i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
+i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   switch (ast->type) {
     case AstExpression:
     case AstStatement: {
-      return ir_compile_stmts(c, ast, ins_count);
+      return ir_compile_stmts(c, block, ast, ins_count);
     }
     case AstValue: {
       switch (ast->value.type) {
@@ -661,7 +713,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         case T_IDENTIFIER: {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
-          if (ir_lookup_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+          if (ir_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
             switch (symbol->type) {
               case TypeUnsigned64: {
                 ir_push_ins(c, (Op) {
@@ -695,7 +747,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
         case T_AT: {
           Symbol* symbol = NULL;
           i32 index = -1;
-          if (ir_lookup_value(c, ast->value, &symbol, &index) == NoError) {
+          if (ir_lookup_value(c, block, ast->value, &symbol, &index, NULL) == NoError) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_ADDR_OF,
               .dest = 0,
@@ -718,7 +770,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
     }
     // op arg0 arg1 -> arg0 arg1 op
     case AstBinopExpression: {
-      i32 result = ir_compile_binop(c, ast, ins_count);
+      i32 result = ir_compile_binop(c, block, ast, ins_count);
       if (result == NoError) {
         if (ast->value.type == T_ADD) {
           ir_push_ins(c, OP(I_ADD), ins_count);
@@ -740,7 +792,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
       break;
     }
     case AstUopExpression: {
-      i32 result = ir_compile_uop(c, ast, ins_count);
+      i32 result = ir_compile_uop(c, block, ast, ins_count);
       if (result == NoError) {
         if (ast->value.type == T_PRINT) {
           ir_push_ins(c, OP(I_PRINT), ins_count);
@@ -765,8 +817,8 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
     case AstConstAssignment: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_compile_stmts(c, ast, ins_count) == NoError) {
-        if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+      if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
+        if (ir_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
           u64 empty = 0;
           u32 empty_size = sizeof(empty);
           symbol->address = ir_push_value(c, &empty, empty_size);
@@ -795,17 +847,26 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncDefinition: {
-      ir_compile_func(c, ast, ins_count);
+      // Block local_block;
+      // block_init(&local_block, block);
+      ir_compile_func(c, block, ast, ins_count);
       break;
     }
     case AstStatementList: {
-      ir_compile_stmts(c, ast, ins_count);
+      ir_compile_stmts(c, block, ast, ins_count);
+      break;
+    }
+    case AstBlockStatement: {
+      Block local_block;
+      block_init(&local_block, block); // uses current block as parent
+      ir_compile_stmts(c, &local_block, ast, ins_count);
+      // free local data when that will be nessesary
       break;
     }
     case AstMemoryStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+      if (ir_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
         assert(ast->count == 1);
         Token token = ast->node[0]->value;
         assert(token.type == T_NUMBER);
@@ -822,7 +883,7 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
       break;
     }
     case AstAssignment: {
-      i32 result = ir_compile_binop(c, ast, ins_count);
+      i32 result = ir_compile_binop(c, block, ast, ins_count);
       if (result == NoError) {
         ir_push_ins(c, OP(I_STORE64), ins_count);
       }
@@ -843,12 +904,12 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
       Ast* cond = ast->node[0];
       Ast* body = ast->node[1];
 
-      if (ir_compile_stmts(c, cond, &cond_size) == NoError) {
+      if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
         i32 body_start_address = c->ins_count;
         i32 loop_end_label = c->label_count++;
         // conditional jump
         ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
-        if (ir_compile_stmts(c, body, &body_size) == NoError) {
+        if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
           ir_push_ins(c, OP(I_POP), &body_size);
           ir_push_ins(c, (Op) {
             .i = I_JMP,
@@ -881,16 +942,16 @@ i32 ir_compile(Compile* c, Ast* ast, u32* ins_count) {
   return c->status;
 }
 
-i32 ir_compile_stmts(Compile* c, Ast* ast, u32* ins_count) {
+i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   for (i32 i = 0; i < ast->count; ++i) {
-    if (ir_compile(c, ast->node[i], ins_count) != NoError) {
+    if (ir_compile(c, block, ast->node[i], ins_count) != NoError) {
       break;
     }
   }
   return c->status;
 }
 
-i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count) {
+i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
     ir_compile_error(c, "expected 2 arguments in binary operator action\n");
     c->status = Error;
@@ -898,7 +959,7 @@ i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count) {
   }
   for (i32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
-    i32 result = ir_compile(c, node, ins_count);
+    i32 result = ir_compile(c, block, node, ins_count);
     if (result != NoError) {
       c->status = result;
       return c->status;
@@ -908,10 +969,10 @@ i32 ir_compile_binop(Compile* c, Ast* ast, u32* ins_count) {
 }
 
 // alias of ir_compile_binop
-i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count) {
+i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   for (i32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
-    i32 result = ir_compile(c, node, ins_count);
+    i32 result = ir_compile(c, block, node, ins_count);
     if (result != NoError) {
       c->status = result;
       return c->status;
@@ -920,10 +981,10 @@ i32 ir_compile_uop(Compile* c, Ast* ast, u32* ins_count) {
   return c->status;
 }
 
-i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count) {
+i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   Symbol* symbol = NULL;
   i32 symbol_index = -1;
-  if (ir_declare_value(c, ast->value, &symbol, &symbol_index) == NoError) {
+  if (ir_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
     ir_push_ins(c, (Op) {
       .i = I_LABEL,
       .dest = symbol_index,
@@ -938,11 +999,11 @@ i32 ir_compile_func(Compile* c, Ast* ast, u32* ins_count) {
     };
 
     u32 func_size = 0;
-    ir_compile_stmts(c, ast, &func_size);
+    ir_compile_stmts(c, block, ast, &func_size);
     ir_push_ins(c, OP(I_RET), ins_count);
 
     if (!strcmp(symbol->name, "main")) {
-      c->entry_point = 1;
+      ++c->entry_point;
     }
   }
   else {
@@ -1119,7 +1180,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_LABEL: {
         assert(op->dest < c->symbol_count);
-        Symbol* symbol = &c->symbol_table[op->dest];
+        Symbol* symbol = &c->symbols[op->dest];
         if (strcmp(symbol->name, "main") == 0) {
           o("%s:\n", symbol->name);
         }
@@ -1130,7 +1191,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_CALL: {
         assert(op->dest < c->symbol_count);
-        Symbol* symbol = &c->symbol_table[op->dest];
+        Symbol* symbol = &c->symbols[op->dest];
         o("  call v%d ; `%s`\n", op->dest, symbol->name);
         o("  push rax ; function result\n");
         break;
@@ -1164,7 +1225,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .data\n");
   o("section .bss\n");
   for (i32 i = 0; i < c->symbol_count; ++i) {
-    Symbol* s = &c->symbol_table[i];
+    Symbol* s = &c->symbols[i];
     switch (s->type) {
       case TypeUnsigned64: {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
@@ -1213,7 +1274,7 @@ void parser_error(Parser* p, const char* fmt, ...) {
 
   FILE* fp = stderr;
   fprintf(fp, "[parse-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
-  error_printline(fp, l->source, l->index, l->token.length);
+  printline(fp, l->source, l->index, l->token.length, 1);
   l->token.type = T_EOF;
   p->status = Error;
 }
@@ -1328,16 +1389,17 @@ Ast* parse_statement(Parser* p) {
     // `{` stmts `}`
     case T_LEFT_CURLY: {
       lexer_next(&p->l); // skip `{`
+      Ast* block = ast_create(AstBlockStatement);
       Ast* sub_stmts = parse_statements(p);
       if (sub_stmts) {
+        ast_push(block, sub_stmts);
         t = lexer_peek(&p->l);
         if (t.type != T_RIGHT_CURLY) {
           parser_error(p, "expected closing `}` curly bracket in, but got `%.*s`\n", t.length, t.buffer);
         }
         lexer_next(&p->l);
-        return sub_stmts;
       }
-      break;
+      return block;
     }
     case T_ASSIGN: {
       lexer_next(&p->l); // skip `=`
@@ -1448,6 +1510,9 @@ Ast* parse_expr(Parser* p) {
   return NULL;
 }
 
+// func :
+//      | fn name `{` stmts `}`
+//      | fn name stmt `;`
 Ast* parse_func_def(Parser* p) {
   Token t = lexer_next(&p->l); // skip `fn`
   if (t.type == T_IDENTIFIER) {
@@ -1465,6 +1530,15 @@ Ast* parse_func_def(Parser* p) {
         }
         lexer_next(&p->l); // skip `}`
       }
+    }
+    else {
+      Ast* expr = parse_expr(p);
+      ast_push(func_def, expr);
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "expected `;` after function definition expression, but got `%.*s`\n", t.length, t.buffer);
+      }
+      lexer_next(&p->l); // skip `;`
     }
     return func_def;
   }
@@ -1496,7 +1570,7 @@ void lexer_error(Lexer* l, const char* fmt, ...) {
 
   FILE* fp = stderr;
   fprintf(fp, "[lex-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
-  error_printline(fp, l->source, l->index, l->token.length);
+  printline(fp, l->source, l->index, l->token.length, 1);
   l->token.type = T_EOF;
   l->status = Error;
 }
@@ -1696,7 +1770,7 @@ Token lexer_peek(Lexer* l) {
   return l->token;
 }
 
-void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
+void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow) {
   assert(source);
   index -= token_length;
   i32 offset = index - source;
@@ -1722,10 +1796,12 @@ void error_printline(FILE* fp, char* source, char* index, i32 token_length) {
   } while (1);
   i32 line_length = end_offset + start_offset - 1;
   fprintf(fp, "%.*s\n", line_length, at - start_offset + 1);
-  for (i32 i = 0; i < start_offset - 1; ++i) {
-    fprintf(fp, "-");
+  if (print_arrow) {
+    for (i32 i = 0; i < start_offset - 1; ++i) {
+      fprintf(fp, "-");
+    }
+    fprintf(fp, "^\n");
   }
-  fprintf(fp, "^\n");
 }
 
 void print_info(const char* fmt, ...) {
