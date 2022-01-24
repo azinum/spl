@@ -479,7 +479,8 @@ i32 main(i32 argc, char** argv) {
             ir_print(&c, stdout);
             ir_print_symbol_info(&c, filename, (char*)source, stdout);
 #else
-            ir_print_symbol_info(&c, filename, (char*)source, stdout);
+            ast_print(p.ast, 0, stdout);
+            ir_print(&c, stdout);
 #endif
           }
           else {
@@ -541,10 +542,59 @@ void ir_free(Compile* c) {
 
 void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
+  struct {
+    u32 push;
+    u32 pop;
+    u32 load;
+    u32 store;
+    i32 balance;  // balance between pushing and popping operations on the stack; should be zero at the end of the program
+  } info = {
+    0,
+  };
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
+    switch (op->i) {
+      case I_PUSH_INT64:
+      case I_PUSH_ADDR_OF:
+        info.push++;
+        info.balance++;
+        break;
+      case I_POP:
+        info.pop++;
+        info.balance--;
+        break;
+      case I_COPY:
+        info.balance--;
+        break;
+      case I_LOAD64:
+        info.load++;
+        break;
+      case I_STORE64:
+        info.store++;
+        info.balance -= 2;
+        break;
+      case I_ADD:
+      case I_SUB:
+        info.balance--;
+        break;
+      case I_LT:
+        info.balance--;
+        break;
+      case I_RET:
+        info.balance--;
+        break;
+      case I_PRINT:
+        info.balance--;
+        break;
+      case I_CALL:
+        info.balance++;
+        break;
+      default:
+        break;
+    }
     fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
   }
+  fprintf(fp, "statistics: push = %u, pop = %u, load = %u, store = %u, balance = %i\n", info.push, info.pop, info.load, info.store, info.balance);
 }
 
 void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
@@ -894,7 +944,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       }
       break;
     }
-    // TODO(lucas): implement
     case AstWhileStatement: {
       assert("invalid while statement construction" && ast->count == 2);
       i32 loop_label = c->label_count++;
@@ -908,10 +957,11 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
         i32 body_start_address = c->ins_count;
         i32 loop_end_label = c->label_count++;
+        ir_push_ins(c, OP(I_POP), &body_size); // pop result of condition (result is stored in another register for the branching operation)
         // conditional jump
         ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
         if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
-          ir_push_ins(c, OP(I_POP), &body_size);
+          // ir_push_ins(c, OP(I_POP), &body_size);
           ir_push_ins(c, (Op) {
             .i = I_JMP,
             .dest = loop_label,
@@ -919,6 +969,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .src1 = -1,
           }, &body_size);
           ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
+          // ir_push_ins(c, OP(I_POP), &body_size); // pop result of condition
           Op* jz = &c->ins[body_start_address];
           jz->src0 = body_size;
         }
@@ -1398,7 +1449,7 @@ Ast* parse_statement(Parser* p) {
         ast_push(block, sub_stmts);
         t = lexer_peek(&p->l);
         if (t.type != T_RIGHT_CURLY) {
-          parser_error(p, "expected closing `}` curly bracket in, but got `%.*s`\n", t.length, t.buffer);
+          parser_error(p, "expected closing `}` curly bracket in block, but got `%.*s`\n", t.length, t.buffer);
         }
         lexer_next(&p->l);
       }
@@ -1418,7 +1469,20 @@ Ast* parse_statement(Parser* p) {
       Ast* cond = ast_create(AstExpression);
       ast_push(cond, parse_expr(p));
       ast_push(while_stmt, cond);
-      ast_push(while_stmt, parse_statements(p));
+      t = lexer_peek(&p->l);
+      if (t.type == T_LEFT_CURLY) {
+        lexer_next(&p->l); // skip `{`
+        ast_push(while_stmt, parse_statements(p));
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_CURLY) {
+          parser_error(p, "expected closing `}` curly bracket in while statement, but got `%.*s`\n", t.length, t.buffer);
+          return while_stmt;
+        }
+        lexer_next(&p->l); // skip `}`
+      }
+      else {
+        ast_push(while_stmt, parse_statement(p));
+      }
       return while_stmt;
     }
     default: {
