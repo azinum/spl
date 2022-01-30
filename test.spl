@@ -12,5 +12,6 @@ fn hello-there {
 }
 
 fn main {
-  hello-there;
+  hello-there();
+  print @hello-there;
 }

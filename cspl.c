@@ -101,6 +101,7 @@ typedef enum Token_type {
   T_IDENTIFIER,
   T_NUMBER,
   T_ASSIGN,
+  T_COMMA,
   T_AT,
   T_DEREF,
   T_ADD,
@@ -137,6 +138,7 @@ static const char* token_type_str[] = {
   "T_IDENTIFIER",
   "T_NUMBER",
   "T_ASSIGN",
+  "T_COMMA",
   "T_AT",
   "T_DEREF",
   "T_ADD",
@@ -170,6 +172,7 @@ typedef enum Ast_type {
   AstRoot,
   AstValue,
   AstExpression,
+  AstExprList,
   AstStatement,
   AstStatementList,
   AstBlockStatement,
@@ -178,6 +181,7 @@ typedef enum Ast_type {
   AstConstAssignment,
   AstLetStatement,
   AstFuncDefinition,
+  AstFuncCall,
   AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
@@ -190,6 +194,7 @@ static const char* ast_type_str[] = {
   "AstRoot",
   "AstValue",
   "AstExpression",
+  "AstExprList",
   "AstStatement",
   "AstStatementList",
   "AstBlockStatement",
@@ -198,6 +203,7 @@ static const char* ast_type_str[] = {
   "AstConstAssignment",
   "AstLetStatement",
   "AstFuncDefinition",
+  "AstFuncCall",
   "AstMemoryStatement",
   "AstAssignment",
   "AstWhileStatement",
@@ -383,6 +389,7 @@ static Ast* parse_statements(Parser* p);
 static Ast* parse_statement(Parser* p);
 static Ast* parse_expr(Parser* p);
 static Ast* parse_func_def(Parser* p);
+static Ast* parse_expr_list(Parser* p);
 static void lexer_init(Lexer* l, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -778,11 +785,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
                 break;
               }
               case TypeFunc: {
+                // NOTE(lucas): temporary behaviour
                 ir_push_ins(c, (Op) {
-                  .i = I_CALL,
-                  .dest = symbol_index,
-                  .src0 = -1,
-                  .src1 = -1,
+                  .i = I_PUSH_ADDR_OF,
+                  .dest = 0,
+                  .src0 = symbol->address,
+                  .src1 = symbol_index,
                 }, ins_count);
                 break;
               }
@@ -901,6 +909,33 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     }
     case AstFuncDefinition: {
       ir_compile_func(c, block, ast, ins_count);
+      break;
+    }
+    case AstFuncCall: {
+      puts("AstFuncCall");
+      Symbol* symbol = NULL;
+      i32 symbol_index = -1;
+      if (ir_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+        switch (symbol->type) {
+          case TypeFunc: {
+            ir_push_ins(c, (Op) {
+              .i = I_CALL,
+              .dest = symbol_index,
+              .src0 = -1,
+              .src1 = -1,
+            }, ins_count);
+            break;
+          }
+          default: {
+            ir_compile_error(c, "value `%s` is not a function, and can not be called\n", symbol->name);
+            break;
+          }
+        }
+      }
+      else {
+        ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+        return c->status;
+      }
       break;
     }
     case AstStatementList: {
@@ -1511,9 +1546,26 @@ Ast* parse_expr(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_POP:
-    case T_NUMBER:
+    case T_NUMBER: {
+      lexer_next(&p->l);
+      Ast* node = ast_create(AstValue);
+      node->value = t;
+      return node;
+    }
     case T_IDENTIFIER: {
       lexer_next(&p->l);
+      if (lexer_peek(&p->l).type == T_LEFT_P) { // function call
+        lexer_next(&p->l);
+        Ast* node = ast_create(AstFuncCall);
+        node->value = t;
+        ast_push(node, parse_expr_list(p));
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_P) {
+          parser_error(p, "expected closing `)` parenthesis, but got `%.*s`\n", t.length, t.buffer);
+        }
+        lexer_next(&p->l); // skip `)`
+        return node;
+      }
       Ast* node = ast_create(AstValue);
       node->value = t;
       return node;
@@ -1611,6 +1663,24 @@ Ast* parse_func_def(Parser* p) {
   }
   parser_error(p, "expected identifier in function definition, but got `%.*s`\n", t.length, t.buffer);
   return NULL;
+}
+
+// L : `(` expr `,` ... `)`
+//   | `(` empty `)`
+Ast* parse_expr_list(Parser* p) {
+  Ast* expr_list = ast_create(AstExprList);
+  if (lexer_peek(&p->l).type == T_RIGHT_P) {
+    return expr_list;
+  }
+  for (;;) {
+    ast_push(expr_list, parse_expr(p));
+    if (lexer_peek(&p->l).type == T_COMMA) {
+      lexer_next(&p->l);
+      continue;
+    }
+    break;
+  }
+  return expr_list;
 }
 
 void lexer_init(Lexer* l, char* source) {
@@ -1757,6 +1827,10 @@ Token lexer_next(Lexer* l) {
       }
       case '=': {
         l->token.type = T_ASSIGN;
+        goto done;
+      }
+      case ',': {
+        l->token.type = T_COMMA;
         goto done;
       }
       case '@': {
