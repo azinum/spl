@@ -1,17 +1,23 @@
 // test.spl
 
-fn hello-there {
-  memory local-data 64;
-  const i @local-data;
-  const count 10;
+fn foo 12;
+fn bar 17;
+fn baz + 2 3;
+
+fn main {
+  memory tmp 8;
+  memory funcs 16;
+  = (+0 @funcs) @foo;
+  = (+8 @funcs) @bar;
+  = (+16 @funcs) @baz;
+  const count 3;
+  const i @tmp;
+  const ptr @funcs;
   while < #i count {
-    print #i;
+    const func #ptr;
+    print func();
+    = ptr + 8 #ptr;
     = i + 1 #i;
   }
   0;
-}
-
-fn main {
-  hello-there();
-  print @hello-there;
 }

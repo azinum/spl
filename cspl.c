@@ -481,13 +481,14 @@ i32 main(i32 argc, char** argv) {
               fclose(fp);
             }
 #endif
-#if 0
-            ast_print(p.ast, 0, stdout);
-            ir_print(&c, stdout);
-            ir_print_symbol_info(&c, filename, (char*)source, stdout);
-#else
-            ast_print(p.ast, 0, stdout);
-            ir_print(&c, stdout);
+#if 1
+            FILE* debug = fopen("debug.txt", "w");
+            if (debug) {
+              ast_print(p.ast, 0, debug);
+              ir_print(&c, debug);
+              ir_print_symbol_info(&c, filename, (char*)source, debug);
+              fclose(debug);
+            }
 #endif
           }
           else {
@@ -912,7 +913,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncCall: {
-      puts("AstFuncCall");
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (ir_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
@@ -922,6 +922,15 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               .i = I_CALL,
               .dest = symbol_index,
               .src0 = -1,
+              .src1 = -1,
+            }, ins_count);
+            break;
+          }
+          case TypeUnsigned64: {
+            ir_push_ins(c, (Op) {
+              .i = I_CALL,
+              .dest = -1,
+              .src0 = symbol_index,
               .src1 = -1,
             }, ins_count);
             break;
@@ -1279,10 +1288,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
-        assert(op->dest < c->symbol_count);
-        Symbol* symbol = &c->symbols[op->dest];
-        o("  call v%d ; `%s`\n", op->dest, symbol->name);
-        o("  push rax ; function result\n");
+        if (op->dest >= 0) {
+          Symbol* symbol = &c->symbols[op->dest];
+          o("  call v%d ; `%s`\n", op->dest, symbol->name);
+          o("  push rax ; function result\n");
+        }
+        else if (op->src0 >= 0) {
+          Symbol* symbol = &c->symbols[op->src0];
+          o("  call [v%d] ; `%s`\n", op->src0, symbol->name);
+          o("  push rax ; function result\n");
+        }
         break;
       }
       case I_JMP: {
