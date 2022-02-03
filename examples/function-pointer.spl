@@ -1,0 +1,22 @@
+// function-pointer.spl
+
+fn foo 12;
+fn bar 17;
+fn baz + 2 3;
+
+fn main {
+  memory funcs 16;
+  = (+0 @funcs) @foo;
+  = (+8 @funcs) @bar;
+  = (+16 @funcs) @baz;
+  let count 3;
+  let i 0;
+  let ptr @funcs;
+  while < i count {
+    let func #ptr;
+    print func();
+    = ptr + 8 #ptr;
+    = @i + 1 i;
+  }
+  0;
+}

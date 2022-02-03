@@ -182,6 +182,7 @@ typedef enum Ast_type {
   AstLetStatement,
   AstFuncDefinition,
   AstFuncCall,
+  AstParamList,
   AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
@@ -204,6 +205,7 @@ static const char* ast_type_str[] = {
   "AstLetStatement",
   "AstFuncDefinition",
   "AstFuncCall",
+  "AstParamList",
   "AstMemoryStatement",
   "AstAssignment",
   "AstWhileStatement",
@@ -390,6 +392,7 @@ static Ast* parse_statement(Parser* p);
 static Ast* parse_expr(Parser* p);
 static Ast* parse_func_def(Parser* p);
 static Ast* parse_expr_list(Parser* p);
+static Ast* parse_param_list(Parser* p);
 static void lexer_init(Lexer* l, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -729,7 +732,7 @@ i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32*
       return NoError;
     }
   }
-  // descent into lower level, and increment counter, becase we did not find the symbol in this block
+  // descent into lower level, and increment counter, because we did not find the symbol in this block
   if (levels_descent) {
     (*levels_descent)++;
   }
@@ -909,13 +912,23 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncDefinition: {
+      assert(ast->count == 2);
       ir_compile_func(c, block, ast, ins_count);
+      break;
+    }
+    case AstParamList: {
       break;
     }
     case AstFuncCall: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (ir_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+        Ast* arg_list = ast->node[0];
+        Function* func = &symbol->value.func;
+        if (arg_list->count != func->argc) {
+          ir_compile_error(c, "argument count mismatch in function call `%s`, expected %d but got %d\n", symbol->name, func->argc, arg_list->count);
+          return c->status;
+        }
         switch (symbol->type) {
           case TypeFunc: {
             ir_push_ins(c, (Op) {
@@ -1078,6 +1091,9 @@ i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 }
 
 i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
+  Ast* params = ast->node[0];
+  Ast* body = ast->node[1];
+
   Symbol* symbol = NULL;
   i32 symbol_index = -1;
   if (ir_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
@@ -1087,17 +1103,18 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       .src0 = -1,
       .src1 = -1,
     }, ins_count);
+
     symbol->size = 0;
     symbol->type = TypeFunc;
     symbol->value.func = (Function) {
       .address = c->ins_count,
-      .argc = 0,
+      .argc = params->count,
     };
 
     u32 func_size = 0;
     Block local_block;
     block_init(&local_block, block);
-    ir_compile_stmts(c, &local_block, ast, &func_size);
+    ir_compile_stmts(c, &local_block, body, &func_size);
     ir_push_ins(c, OP(I_RET), ins_count);
 
     if (!strncmp(symbol->name, "main", MAX_NAME_SIZE)) {
@@ -1452,9 +1469,13 @@ Ast* parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_CONST: {
-      t = lexer_next(&p->l); // skip `const`
+      assert("T_CONST not implemented yet" && 0);
+      break;
+    }
+    case T_LET: {
+      t = lexer_next(&p->l); // skip `let`
       if (t.type != T_IDENTIFIER) {
-        parser_error(p, "expected identifier in const statement, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "expected identifier in let statement, but got `%.*s`\n", t.length, t.buffer);
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
@@ -1465,10 +1486,6 @@ Ast* parse_statement(Parser* p) {
         parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
       }
       return expr;
-    }
-    case T_LET: {
-      assert("T_LET not implemented yet" && 0);
-      break;
     }
     case T_MEMORY: {
       t = lexer_next(&p->l); // skip `memory`
@@ -1647,12 +1664,31 @@ Ast* parse_expr(Parser* p) {
 // func :
 //      | fn name `{` stmts `}`
 //      | fn name stmt `;`
+//      | fn name `(` params `)` stmt `;`
+//      | fn name `(` params `)` `{` stmts `}` `;`
 Ast* parse_func_def(Parser* p) {
   Token t = lexer_next(&p->l); // skip `fn`
   if (t.type == T_IDENTIFIER) {
     Ast* func_def = ast_create(AstFuncDefinition);
     func_def->value = t;
     t = lexer_next(&p->l); // skip `name`
+    if (t.type == T_LEFT_P) {
+      lexer_next(&p->l); // skip `(`
+      ast_push(func_def, parse_param_list(p));
+      if (p->status == Error) {
+        return func_def;
+      }
+      t = lexer_peek(&p->l);
+      if (t.type != T_RIGHT_P) {
+        parser_error(p, "expected `)` right parenthesis in function parameter list, but got `%.*s`\n", t.length, t.buffer);
+        return func_def;
+      }
+      lexer_next(&p->l); // skip `)`
+    }
+    else {
+      ast_push(func_def, ast_create(AstParamList)); // push an empty parameter list
+    }
+    t = lexer_peek(&p->l);
     if (t.type == T_LEFT_CURLY) {
       lexer_next(&p->l); // skip `{`
       Ast* stmts = parse_statements(p);
@@ -1666,8 +1702,12 @@ Ast* parse_func_def(Parser* p) {
       }
     }
     else {
-      Ast* expr = parse_expr(p);
-      ast_push(func_def, expr);
+      Ast* stmts = ast_create(AstStatementList);
+      ast_push(func_def,
+        ast_push(stmts,
+          parse_expr(p)
+        )
+      );
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
         parser_error(p, "expected `;` after function definition expression, but got `%.*s`\n", t.length, t.buffer);
@@ -1696,6 +1736,26 @@ Ast* parse_expr_list(Parser* p) {
     break;
   }
   return expr_list;
+}
+
+Ast* parse_param_list(Parser* p) {
+  Ast* param_list = ast_create(AstParamList);
+  if (lexer_peek(&p->l).type == T_RIGHT_P) {
+    return param_list;
+  }
+  for (;;) {
+    Token t = lexer_peek(&p->l);
+    if (t.type == T_IDENTIFIER) {
+      ast_push_node(param_list, AstValue, t);
+      t = lexer_next(&p->l);
+      if (t.type == T_COMMA) {
+        lexer_next(&p->l);
+        continue;
+      }
+    }
+    break;
+  }
+  return param_list;
 }
 
 void lexer_init(Lexer* l, char* source) {
@@ -2027,8 +2087,12 @@ Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
 }
 
 Ast* ast_push(Ast* ast, Ast* node) {
-  if (!ast || !node) {
+  if (!ast) {
+    assert(0);
     return NULL;
+  }
+  if (!node) {
+    return ast;
   }
   if (ast->count == 0) {
     ast->node = malloc(sizeof(Ast*));
@@ -2042,7 +2106,7 @@ Ast* ast_push(Ast* ast, Ast* node) {
     ast->node = tmp;
   }
   ast->node[ast->count++] = node;
-  return node;
+  return ast;
 }
 
 void ast_print(const Ast* ast, i32 level, FILE* fp) {

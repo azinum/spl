@@ -2,8 +2,8 @@
 
 fn main {
   memory local-data 64;
-  const i @local-data;
-  const count 10;
+  let i @local-data;
+  let count 10;
   while < #i count {
     print #i;
     = i + 1 #i;

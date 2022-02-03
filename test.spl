@@ -1,23 +1,29 @@
 // test.spl
 
-fn foo 12;
-fn bar 17;
-fn baz + 2 3;
+// fn foo 2;
+// fn bar 5;
+// fn baz + foo() bar();
 
-fn main {
-  memory tmp 8;
-  memory funcs 16;
-  = (+0 @funcs) @foo;
-  = (+8 @funcs) @bar;
-  = (+16 @funcs) @baz;
-  const count 3;
-  const i @tmp;
-  const ptr @funcs;
-  while < #i count {
-    const func #ptr;
-    print func();
-    = ptr + 8 #ptr;
-    = i + 1 #i;
-  }
+// fn thing {
+//   memory funcs 16;
+//   = (+0 @funcs) @foo;
+//   = (+8 @funcs) @bar;
+//   = (+16 @funcs) @baz;
+//   let count 3;
+//   let i 0;
+//   let ptr @funcs;
+//   while < i count {
+//     let func #ptr;
+//     print func();
+//     = ptr + 8 #ptr;
+//     = @i + 1 i;
+//   }
+//   0;
+// }
+
+fn add(a, b) + 2 3;
+
+fn main() {
+  print add(7, 8);
   0;
 }
