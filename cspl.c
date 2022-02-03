@@ -82,7 +82,7 @@ typedef uint8_t u8;
 #define MAX_ERR_SIZE 512
 #define MAX_PATH_SIZE 512
 #define USE_EXTENDED_ASCII 1
-#define NUM_LINES_TO_PRINT 3
+#define NUM_LINES_TO_PRINT 2
 
 #define VERBOSE 1
 
@@ -635,9 +635,6 @@ void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
 }
 
 void ir_compile_error(Compile* c, const char* fmt, ...) {
-  if (c->status == Error) {
-    return;
-  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -650,9 +647,6 @@ void ir_compile_error(Compile* c, const char* fmt, ...) {
 }
 
 void ir_compile_error_at(Compile* c, Token token, const char* fmt, ...) {
-  if (c->status == Error) {
-    return;
-  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -707,7 +701,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     }
   }
   if (c->entry_point != 1) {
-    ir_compile_error(c, "missing/duplicate entry point `main`\n");
+    ir_compile_error(c, "missing entry point `main`\n");
   }
   REAL_TIMER_END(
     print_info("%s: %lf s\n", __FUNCTION__, _dt);
@@ -796,6 +790,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           }
           else {
             // TODO(lucas): Handle
+            assert(0);
           }
           break;
         }
@@ -900,7 +895,8 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           ir_push_ins(c, OP(I_LOAD64), ins_count);
         }
         else {
-          // Handle
+          // TODO: handle
+          assert(0);
         }
       }
       else {
@@ -936,12 +932,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           }, ins_count);
         }
         else {
-          ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+          ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
           c->status = Error;
         }
       }
       else {
         // TODO: handle
+        assert(0);
       }
       break;
     }
@@ -960,7 +957,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (arg_list->count != func->argc) {
-          ir_compile_error(c, "argument count mismatch in function call `%s`, expected %d but got %d\n", symbol->name, func->argc, arg_list->count);
+          ir_compile_error_at(c, ast->value, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
           return c->status;
         }
         ir_compile_stmts(c, block, arg_list, ins_count);
@@ -984,13 +981,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             break;
           }
           default: {
-            ir_compile_error(c, "value `%s` is not a function, and can not be called\n", symbol->name);
-            break;
+            ir_compile_error_at(c, ast->value, "value `%s` is not a function, and can not be called\n", symbol->name);
+            return c->status;
           }
         }
       }
       else {
-        ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+        ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
         return c->status;
       }
       break;
@@ -1003,7 +1000,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       Block local_block;
       block_init(&local_block, block); // uses current block as parent
       ir_compile_stmts(c, &local_block, ast, ins_count);
-      // free local data when that will be nessesary
+      // free local data from the block data structure when that will be nessesary
       break;
     }
     case AstMemoryStatement: {
@@ -1020,7 +1017,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         symbol->type = TypeUnsigned64;
       }
       else {
-        ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+        ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
         c->status = Error;
       }
       break;
@@ -1053,7 +1050,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         // conditional jump
         ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
         if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
-          // ir_push_ins(c, OP(I_POP), &body_size);
           ir_push_ins(c, (Op) {
             .i = I_JMP,
             .dest = loop_label,
@@ -1061,16 +1057,17 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .src1 = -1,
           }, &body_size);
           ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
-          // ir_push_ins(c, OP(I_POP), &body_size); // pop result of condition
           Op* jz = &c->ins[body_start_address];
           jz->src0 = body_size;
         }
         else {
           // TODO: handle
+          assert(0);
         }
       }
       else {
         // TODO: handle
+          assert(0);
       }
       if (ins_count) {
         *ins_count += cond_size + body_size;
@@ -1097,8 +1094,7 @@ i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
-    ir_compile_error(c, "expected 2 arguments in binary operator action\n");
-    c->status = Error;
+    ir_compile_error_at(c, ast->value, "expected 2 arguments in binary operator action\n");
     return c->status;
   }
   for (i32 i = 0; i < ast->count; ++i) {
@@ -1157,7 +1153,7 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     }
   }
   else {
-    ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+    ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
   }
   return c->status;
 }

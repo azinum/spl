@@ -3,6 +3,5 @@
 fn add(a, b) + 2 3;
 
 fn main() {
-  print add(5, 6);
-  0;
+  add(5, 6);
 }
