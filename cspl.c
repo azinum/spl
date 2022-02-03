@@ -364,7 +364,7 @@ typedef struct Compile {
   i32 entry_point;
 
   Compile_type ts[MAX_TYPE_STACK];
-  u32 ts_count;
+  i32 ts_count; // signed integer to be able to detect stack underflows
 } Compile;
 
 static void symbol_init(Symbol* symbol);
@@ -588,7 +588,7 @@ i32 typecheck_program(Compile* c, Ast* ast) {
     }
   }
   if (c->ts_count != 0) {
-    typecheck_error(c, "unhandled data on the stack\n");
+    typecheck_error(c, "unhandled data on the stack (%d)\n", c->ts_count);
   }
   if (c->status != NoError) {
     typecheck_error(c, "type checking failed\n");
@@ -610,14 +610,12 @@ Compile_type typecheck(Compile* c, Ast* ast) {
         case T_POP: {
           return ts_pop(c);
         }
-        case T_PRINT: {
-          break;
-        }
         case T_IDENTIFIER: {
-          break;
+          // TODO(lucas): symbol lookup
+          return ts_push(c, TypeNone);
         }
         case T_AT: {
-          break;
+          return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
         }
         default:
           // TODO: handle
@@ -715,18 +713,18 @@ void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
 }
 
 Compile_type ts_push(Compile* c, Compile_type type) {
-  if (c->ts_count < MAX_TYPE_STACK) {
+  if (c->ts_count >= 0 && c->ts_count < MAX_TYPE_STACK) {
     c->ts[c->ts_count++] = type;
     return type;
   }
-  assert(0); // TODO: handle
-  return type;
+  return TypeNone;
 }
 
 Compile_type ts_pop(Compile* c) {
   if (c->ts_count > 0) {
     return c->ts[--c->ts_count];
   }
+  --c->ts_count;
   return TypeNone;
 }
 
@@ -959,10 +957,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_POP: {
           // assert("T_POP: not handled yet" && 0);
           ir_push_ins(c, OP(I_POP), ins_count);
-          break;
-        }
-        case T_PRINT: {
-          assert("T_PRINT: not handled yet" && 0);
           break;
         }
         case T_IDENTIFIER: {

@@ -1,9 +1,10 @@
 // test.spl
 
 fn hello {
-  + 2 3;
+  let a + 2 3;
+  a;
 }
 
 fn main() {
-  print + 2 3;
+  0;
 }
