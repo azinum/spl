@@ -82,6 +82,7 @@ typedef uint8_t u8;
 #define MAX_ERR_SIZE 512
 #define MAX_PATH_SIZE 512
 #define USE_EXTENDED_ASCII 1
+#define NUM_LINES_TO_PRINT 3
 
 #define VERBOSE 1
 
@@ -370,6 +371,7 @@ static void typecheck_error(Compile* c, const char* fmt, ...);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
+static void ir_compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_declare_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index);
 static i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
@@ -413,7 +415,7 @@ inline i32 is_extended_ascii(u8 ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
 
-static void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow);
+static void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow, u32 num_lines_to_print);
 static void print_info(const char* fmt, ...);
 static i32 str_to_int(char* str, i32 length, u64* out);
 
@@ -521,7 +523,7 @@ i32 main(i32 argc, char** argv) {
   }
   free(source);
   REAL_TIMER_END(
-    print_info("%s: %g s\n", __FUNCTION__, _dt);
+    print_info("%s: %lf s\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return exit_status;
@@ -629,12 +631,13 @@ void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
-    // printline(fp, source, symbol->token.buffer, symbol->token.length, 1);
   }
 }
 
-// TODO(lucas): location printing
 void ir_compile_error(Compile* c, const char* fmt, ...) {
+  if (c->status == Error) {
+    return;
+  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -646,7 +649,22 @@ void ir_compile_error(Compile* c, const char* fmt, ...) {
   c->status = Error;
 }
 
-// TODO(lucas): location printing
+void ir_compile_error_at(Compile* c, Token token, const char* fmt, ...) {
+  if (c->status == Error) {
+    return;
+  }
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stderr;
+  fprintf(fp, "[ir-compile-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
+  printline(fp, token.source, token.buffer + token.length, token.length, 1, NUM_LINES_TO_PRINT);
+  c->status = Error;
+}
+
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
@@ -692,7 +710,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     ir_compile_error(c, "missing/duplicate entry point `main`\n");
   }
   REAL_TIMER_END(
-    print_info("%s: %g s\n", __FUNCTION__, _dt);
+    print_info("%s: %lf s\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return c->status;
@@ -820,7 +838,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }
           }
           else {
-            ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
             return c->status;
           }
           break;
@@ -837,7 +855,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }, ins_count);
           }
           else {
-            ir_compile_error(c, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
             return c->status;
           }
           break;
@@ -1149,7 +1167,7 @@ i32 compile(Compile* c, Compile_target target, FILE* fp) {
     REAL_TIMER_START();
     compile_targets[target](c, fp);
     REAL_TIMER_END(
-      print_info("%s: %g s (%s)\n", __FUNCTION__, _dt, compile_target_str[target]);
+      print_info("%s: %lf s (%s)\n", __FUNCTION__, _dt, compile_target_str[target]);
       (void)_dt;
     );
   }
@@ -1418,17 +1436,17 @@ void parser_error(Parser* p, const char* fmt, ...) {
   if (p->status == Error) {
     return;
   }
-  char err_buffer[MAX_ERR_SIZE] = {0};
+  char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
-  vsnprintf(err_buffer, MAX_ERR_SIZE, fmt, args);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
   va_end(args);
 
   Lexer* l = &p->l;
 
   FILE* fp = stderr;
-  fprintf(fp, "[parse-error]: %s:%d:%d: %s", l->token.filename, l->token.line, l->token.column, err_buffer);
-  printline(fp, l->source, l->index, l->token.length, 1);
+  fprintf(fp, "[parse-error]: %s:%d:%d: %s", l->token.filename, l->token.line, l->token.column, buffer);
+  printline(fp, l->source, l->index, l->token.length, 1, NUM_LINES_TO_PRINT);
   l->token.type = T_EOF;
   p->status = Error;
 }
@@ -1438,7 +1456,7 @@ i32 parse(Parser* p) {
   lexer_next(&p->l);
   ast_push(p->ast, parse_statements(p));
   REAL_TIMER_END(
-    print_info("%s: %g s\n", __FUNCTION__, _dt);
+    print_info("%s: %lf s\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return p->status;
@@ -1809,15 +1827,15 @@ void lexer_init(Lexer* l, char* filename, char* source) {
 }
 
 void lexer_error(Lexer* l, const char* fmt, ...) {
-  char err_buffer[MAX_ERR_SIZE] = {0};
+  char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
-  vsnprintf(err_buffer, MAX_ERR_SIZE, fmt, args);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
   va_end(args);
 
   FILE* fp = stderr;
-  fprintf(fp, "[lex-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
-  printline(fp, l->source, l->index, l->token.length, 1);
+  fprintf(fp, "[lex-error]: %d:%d: %s", l->token.line, l->token.column, buffer);
+  printline(fp, l->source, l->index, l->token.length, 1, NUM_LINES_TO_PRINT);
   l->token.type = T_EOF;
   l->status = Error;
 }
@@ -2023,23 +2041,34 @@ Token lexer_peek(Lexer* l) {
   return l->token;
 }
 
-void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow) {
+// NOTE(lucas): index points to the end of the token, maybe change this.
+void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow, u32 num_lines_to_print) {
   assert(source);
+  assert(num_lines_to_print != 0);
   index -= token_length;
-  i32 offset = index - source;
+  i32 offset = index - source + 1; // NOTE(lucas): + 1 because the first character of the file was not printed
   i32 start_offset = 0;
+  i32 cur_line_offset = 0;
   i32 end_offset = 0;
+  const u32 num_lines = num_lines_to_print;
 
   // scan to the beginning of the line
   char* at = index;
   while (start_offset < offset) {
     start_offset++;
+    if (num_lines_to_print == num_lines) {
+      cur_line_offset++;
+    }
     char ch = *(at - start_offset);
     if (ch == '\n' || ch == '\r') {
-      break;
+      num_lines_to_print--;
+      if (num_lines_to_print == 0) {
+        break;
+      }
     }
   }
   // and then we scan to the end of the line
+  // TODO(lucas): handle carriage returns
   do {
     char ch = *(at + end_offset);
     if (ch == '\n' || ch == '\r' || ch == '\0') {
@@ -2050,11 +2079,12 @@ void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_
   i32 line_length = end_offset + start_offset - 1;
   fprintf(fp, "%.*s\n", line_length, at - start_offset + 1);
   if (print_arrow) {
-    for (i32 i = 0; i < start_offset - 1; ++i) {
+    for (i32 i = 0; i < cur_line_offset - 1; ++i) {
       fprintf(fp, "-");
     }
     fprintf(fp, "^\n");
   }
+  fprintf(fp, "\n");
 }
 
 void print_info(const char* fmt, ...) {
