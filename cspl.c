@@ -230,7 +230,7 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
-  I_COPY,
+  I_MOVE,
   I_STORE64,
   I_LOAD64,
   I_PUSH_INT64,
@@ -252,7 +252,7 @@ typedef enum Ir_code {
 static const char* ir_code_str[] = {
   "I_NOP",
   "I_POP",
-  "I_COPY",
+  "I_MOVE",
   "I_STORE64",
   "I_LOAD64",
   "I_PUSH_INT64",
@@ -558,7 +558,8 @@ void ir_print(Compile* c, FILE* fp) {
     u32 pop;
     u32 load;
     u32 store;
-    i32 balance;  // balance between pushing and popping operations on the stack; should be zero at the end of the program
+    // there is unhandled data on the stack when balance is not zero.
+    i32 balance;
   } info = {
     0,
   };
@@ -574,7 +575,7 @@ void ir_print(Compile* c, FILE* fp) {
         info.pop++;
         info.balance--;
         break;
-      case I_COPY:
+      case I_MOVE:
         info.balance--;
         break;
       case I_LOAD64:
@@ -880,6 +881,10 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstConstAssignment: {
+      assert("AstConstAssignment not implemented yet" && 0);
+      break;
+    }
+    case AstLetStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
@@ -891,7 +896,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           symbol->type = TypeUnsigned64;
 
           ir_push_ins(c, (Op) { // store contents of rax into [v]
-            .i = I_COPY,
+            .i = I_MOVE,
             .dest = symbol_index,
             .src0 = -1,
             .src1 = -1,
@@ -905,10 +910,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       else {
         // TODO: handle
       }
-      break;
-    }
-    case AstLetStatement: {
-      assert("AstLetStatement not implemented yet" && 0);
       break;
     }
     case AstFuncDefinition: {
@@ -929,6 +930,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           ir_compile_error(c, "argument count mismatch in function call `%s`, expected %d but got %d\n", symbol->name, func->argc, arg_list->count);
           return c->status;
         }
+        ir_compile_stmts(c, block, arg_list, ins_count);
         switch (symbol->type) {
           case TypeFunc: {
             ir_push_ins(c, (Op) {
@@ -1200,7 +1202,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  pop rax\n");
         break;
       }
-      case I_COPY: {
+      case I_MOVE: {
         o("  pop rax\n");
         o("  mov [v%i], rax\n", op->dest);
         break;
@@ -1305,13 +1307,30 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
+        // https://www.cs.uaf.edu/2017/fall/cs301/reference/x86_64.html
+        const char* func_call_regs[] = {
+          "rdi",
+          "rsi",
+          "rdx",
+          "rcx",
+          "r8",
+          "r9",
+        };
         if (op->dest >= 0) {
           Symbol* symbol = &c->symbols[op->dest];
+          Function* func = &symbol->value.func;
+          for (i32 arg = 0; arg < func->argc; ++arg) {
+            o("  pop %s\n", func_call_regs[arg]);
+          }
           o("  call v%d ; `%s`\n", op->dest, symbol->name);
           o("  push rax ; function result\n");
         }
         else if (op->src0 >= 0) {
           Symbol* symbol = &c->symbols[op->src0];
+          Function* func = &symbol->value.func;
+          for (i32 arg = 0; arg < func->argc; ++arg) {
+            o("  pop %s\n", func_call_regs[arg]);
+          }
           o("  call [v%d] ; `%s`\n", op->src0, symbol->name);
           o("  push rax ; function result\n");
         }
@@ -1479,7 +1498,7 @@ Ast* parse_statement(Parser* p) {
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
-      Ast* expr = ast_create(AstConstAssignment);
+      Ast* expr = ast_create(AstLetStatement);
       expr->value = t;
       ast_push(expr, parse_expr(p));
       if (lexer_peek(&p->l).type != T_SEMICOLON) {
