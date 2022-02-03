@@ -356,8 +356,11 @@ typedef struct Compile {
 static void symbol_init(Symbol* symbol);
 static void block_init(Block* block, Block* parent);
 
-static i32 ir_init(Compile* c);
-static void ir_free(Compile* c);
+static i32 compile_state_init(Compile* c);
+static void compile_state_free(Compile* c);
+
+static i32 typecheck_program(Compile* c, Ast* ast);
+
 static void ir_print(Compile* c, FILE* fp);
 static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 static void ir_compile_error(Compile* c, const char* fmt, ...);
@@ -371,8 +374,6 @@ static i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count);
-
-static i32 program_typecheck(Ast* ast);
 
 static i32 compile(Compile* c, Compile_target target, FILE* fp);
 static i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp);
@@ -471,9 +472,9 @@ i32 main(i32 argc, char** argv) {
   if (parser_init(&p, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-      if (program_typecheck(p.ast) == NoError) {
-        Compile c;
-        if (ir_init(&c) == NoError) {
+      Compile c;
+      if (compile_state_init(&c) == NoError) {
+        if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
 #if 1
             char path[MAX_PATH_SIZE] = {0};
@@ -497,7 +498,7 @@ i32 main(i32 argc, char** argv) {
           else {
             exit_status = EXIT_FAILURE;
           }
-          ir_free(&c);
+          compile_state_free(&c);
         }
         else {
           exit_status = EXIT_FAILURE;
@@ -534,7 +535,7 @@ void block_init(Block* block, Block* parent) {
   block->parent = parent;
 }
 
-i32 ir_init(Compile* c) {
+i32 compile_state_init(Compile* c) {
   c->ins = NULL;
   c->ins_count = 0;
   c->data_index = 0;
@@ -546,9 +547,13 @@ i32 ir_init(Compile* c) {
   return NoError;
 }
 
-void ir_free(Compile* c) {
+void compile_state_free(Compile* c) {
   free(c->ins);
   c->ins_count = 0;
+}
+
+i32 typecheck_program(Compile* c, Ast* ast) {
+  return NoError;
 }
 
 void ir_print(Compile* c, FILE* fp) {
@@ -1127,10 +1132,6 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     ir_compile_error(c, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
   }
   return c->status;
-}
-
-i32 program_typecheck(Ast* ast) {
-  return NoError;
 }
 
 i32 compile(Compile* c, Compile_target target, FILE* fp) {
