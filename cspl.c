@@ -127,6 +127,10 @@ typedef struct Token {
   char* buffer;
   i32 length;
   Token_type type;
+
+  char* filename;
+  char* source;
+
   i32 line;
   i32 column;
 } Token;
@@ -160,6 +164,7 @@ static const char* token_type_str[] = {
 
 typedef struct Lexer {
   Token token;
+  char* filename;
   char* source; // null terminated input string
   char* index;  // pointer alias of source
   i32 line;
@@ -360,6 +365,7 @@ static i32 compile_state_init(Compile* c);
 static void compile_state_free(Compile* c);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
+static void typecheck_error(Compile* c, const char* fmt, ...);
 
 static void ir_print(Compile* c, FILE* fp);
 static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
@@ -384,7 +390,7 @@ static compile_target compile_targets[MAX_COMPILE_TARGET] = {
   compile_linux_nasm_x86_64,
 };
 
-static i32 parser_init(Parser* p, char* source);
+static i32 parser_init(Parser* p, char* filename, char* source);
 static void parser_free(Parser* p);
 static void parser_error(Parser* p, const char* fmt, ...);
 static i32 parse(Parser* p);
@@ -394,7 +400,7 @@ static Ast* parse_expr(Parser* p);
 static Ast* parse_func_def(Parser* p);
 static Ast* parse_expr_list(Parser* p);
 static Ast* parse_param_list(Parser* p);
-static void lexer_init(Lexer* l, char* source);
+static void lexer_init(Lexer* l, char* filename, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
 inline i32 compare(Token t, const char* b);
@@ -469,7 +475,7 @@ i32 main(i32 argc, char** argv) {
   assert(filename != NULL);
 
   Parser p;
-  if (parser_init(&p, (char*)source) == NoError) {
+  if (parser_init(&p, filename, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
       Compile c;
@@ -554,6 +560,10 @@ void compile_state_free(Compile* c) {
 
 i32 typecheck_program(Compile* c, Ast* ast) {
   return NoError;
+}
+
+void typecheck_error(Compile* c, const char* fmt, ...) {
+
 }
 
 void ir_print(Compile* c, FILE* fp) {
@@ -1388,11 +1398,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 }
 #undef o
 
-i32 parser_init(Parser* p, char* source) {
+i32 parser_init(Parser* p, char* filename, char* source) {
   if (!source) {
     return Error;
   }
-  lexer_init(&p->l, source);
+  lexer_init(&p->l, filename, source);
   p->ast = ast_create(AstRoot);
   p->current = NULL;
   p->status = NoError;
@@ -1405,6 +1415,9 @@ void parser_free(Parser* p) {
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
+  if (p->status == Error) {
+    return;
+  }
   char err_buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -1414,7 +1427,7 @@ void parser_error(Parser* p, const char* fmt, ...) {
   Lexer* l = &p->l;
 
   FILE* fp = stderr;
-  fprintf(fp, "[parse-error]: %d:%d: %s", l->token.line, l->token.column, err_buffer);
+  fprintf(fp, "[parse-error]: %s:%d:%d: %s", l->token.filename, l->token.line, l->token.column, err_buffer);
   printline(fp, l->source, l->index, l->token.length, 1);
   l->token.type = T_EOF;
   p->status = Error;
@@ -1527,6 +1540,7 @@ Ast* parse_statement(Parser* p) {
       }
       return expr;
     }
+    // TODO(lucas): fix parsing bug where there is a mismatch of curly brackets
     // `{` stmts `}`
     case T_LEFT_CURLY: {
       lexer_next(&p->l); // skip `{`
@@ -1778,7 +1792,7 @@ Ast* parse_param_list(Parser* p) {
   return param_list;
 }
 
-void lexer_init(Lexer* l, char* source) {
+void lexer_init(Lexer* l, char* filename, char* source) {
   l->token = (Token) {
     .buffer = source,
     .length = 1,
@@ -1786,6 +1800,7 @@ void lexer_init(Lexer* l, char* source) {
     .line = 1,
     .column = 1,
   };
+  l->filename = filename;
   l->source = source;
   l->index = source;
   l->line = 1;
@@ -1894,6 +1909,8 @@ Token lexer_next(Lexer* l) {
   for (;;) {
     next(l);
     char ch = *l->token.buffer;
+    l->token.filename = l->filename;
+    l->token.source = l->source;
     l->token.column = l->column;
     l->index++;
     l->column++;
