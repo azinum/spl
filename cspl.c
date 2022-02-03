@@ -3,6 +3,8 @@
 //
 // original implementation in c
 //
+// TODO(lucas): fix all warnings, some day...
+//
 
 #include <stdio.h>  // puts, printf
 #include <string.h> // strcmp
@@ -83,6 +85,7 @@ typedef uint8_t u8;
 #define MAX_PATH_SIZE 512
 #define USE_EXTENDED_ASCII 1
 #define NUM_LINES_TO_PRINT 2
+#define NO_TYPECHECKING 0
 
 #define VERBOSE 1
 
@@ -340,6 +343,8 @@ typedef struct Block {
   struct Block* parent;
 } Block;
 
+#define MAX_TYPE_STACK 256
+
 // compile state
 typedef struct Compile {
   Op* ins;
@@ -357,6 +362,9 @@ typedef struct Compile {
 
   i32 status;
   i32 entry_point;
+
+  Compile_type ts[MAX_TYPE_STACK];
+  u32 ts_count;
 } Compile;
 
 static void symbol_init(Symbol* symbol);
@@ -366,7 +374,13 @@ static i32 compile_state_init(Compile* c);
 static void compile_state_free(Compile* c);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
+static Compile_type typecheck(Compile* c, Ast* ast);
+static Compile_type typecheck_stmts(Compile* c, Ast* ast);
 static void typecheck_error(Compile* c, const char* fmt, ...);
+static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
+static Compile_type ts_push(Compile* c, Compile_type type);
+static Compile_type ts_pop(Compile* c);
+static Compile_type ts_top(Compile* c);
 
 static void ir_print(Compile* c, FILE* fp);
 static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
@@ -509,6 +523,7 @@ i32 main(i32 argc, char** argv) {
           compile_state_free(&c);
         }
         else {
+          ast_print(p.ast, 0, stdout);
           exit_status = EXIT_FAILURE;
         }
       }
@@ -552,6 +567,7 @@ i32 compile_state_init(Compile* c) {
   c->label_count = 0;
   c->status = NoError;
   c->entry_point = 0;
+  c->ts_count = 0;
   return NoError;
 }
 
@@ -561,11 +577,164 @@ void compile_state_free(Compile* c) {
 }
 
 i32 typecheck_program(Compile* c, Ast* ast) {
-  return NoError;
+#if NO_TYPECHECKING // NOTE(lucas): this is only temporary
+  return c->status;
+#endif
+  REAL_TIMER_START();
+  assert("something went very wrong" && ast->type == AstRoot && ast);
+  for (u32 i = 0; i < ast->count; ++i) {
+    if (typecheck(c, ast->node[i]) != NoError) {
+      break;
+    }
+  }
+  if (c->ts_count != 0) {
+    typecheck_error(c, "unhandled data on the stack\n");
+  }
+  if (c->status != NoError) {
+    typecheck_error(c, "type checking failed\n");
+  }
+  REAL_TIMER_END(
+    print_info("%s: %lf s\n", __FUNCTION__, _dt);
+    (void)_dt;
+  );
+  return c->status;
+}
+
+Compile_type typecheck(Compile* c, Ast* ast) {
+  switch (ast->type) {
+    case AstValue: {
+      switch (ast->value.type) {
+        case T_NUMBER: {
+          return ts_push(c, TypeUnsigned64);
+        }
+        case T_POP: {
+          return ts_pop(c);
+        }
+        case T_PRINT: {
+          break;
+        }
+        case T_IDENTIFIER: {
+          break;
+        }
+        case T_AT: {
+          break;
+        }
+        default:
+          // TODO: handle
+          assert(0);
+          break;
+      }
+      return TypeNone;
+    }
+    case AstExpression:
+    case AstStatement:
+    case AstStatementList: {
+      return typecheck_stmts(c, ast);
+    }
+    case AstBinopExpression: {
+      typecheck_stmts(c, ast);
+      Compile_type a = ts_pop(c);
+      Compile_type b = ts_pop(c);
+      if (a == TypeUnsigned64 && b == TypeUnsigned64) {
+        ts_push(c, a);
+        return a;
+      }
+      typecheck_error_at(c, ast->value, "type mismatch in binary operator expression\n");
+      return TypeNone;
+    }
+    case AstUopExpression: {
+      typecheck_stmts(c, ast);
+      if (ast->value.type == T_PRINT) {
+        ts_pop(c);
+        return TypeNone;
+      }
+      return ts_top(c);
+    }
+    case AstBlockStatement: {
+      return typecheck_stmts(c, ast);
+    }
+    case AstFuncDefinition: {
+      Ast* params = ast->node[0];
+      Ast* body = ast->node[1];
+      (void)params;
+      typecheck_stmts(c, body);
+      return ts_pop(c); // pop return type
+    }
+    // AstExpression,
+    // AstExprList,
+    // AstStatement,
+    // AstStatementList,
+    // AstBlockStatement,
+    // AstBinopExpression,
+    // AstUopExpression,
+    // AstConstAssignment,
+    // AstLetStatement,
+    // AstFuncDefinition,
+    // AstFuncCall,
+    // AstParamList,
+    // AstMemoryStatement,
+    // AstAssignment,
+    // AstWhileStatement,
+    default:
+      break;
+  }
+  return TypeNone;
+}
+
+// TODO(lucas): change name to be more fitting with respect to how it's used
+Compile_type typecheck_stmts(Compile* c, Ast* ast) {
+  for (u32 i = 0; i < ast->count; ++i) {
+    typecheck(c, ast->node[i]);
+  }
+  return TypeNone;
 }
 
 void typecheck_error(Compile* c, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
 
+  FILE* fp = stderr;
+  fprintf(fp, "[type-check-error]: %s", buffer);
+  c->status = Error;
+}
+
+void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stderr;
+  fprintf(fp, "[type-check-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
+  printline(fp, token.source, token.buffer + token.length, token.length, 1, NUM_LINES_TO_PRINT);
+  c->status = Error;
+}
+
+Compile_type ts_push(Compile* c, Compile_type type) {
+  if (c->ts_count < MAX_TYPE_STACK) {
+    c->ts[c->ts_count++] = type;
+    return type;
+  }
+  assert(0); // TODO: handle
+  return type;
+}
+
+Compile_type ts_pop(Compile* c) {
+  if (c->ts_count > 0) {
+    return c->ts[--c->ts_count];
+  }
+  return TypeNone;
+}
+
+Compile_type ts_top(Compile* c) {
+  if (c->ts_count > 0) {
+    return c->ts[c->ts_count - 1];
+  }
+  return c->ts[0];
 }
 
 void ir_print(Compile* c, FILE* fp) {
@@ -690,12 +859,9 @@ i32 ir_push_value(Compile* c, void* value, u32 size) {
 
 i32 ir_start_compile(Compile* c, Ast* ast) {
   REAL_TIMER_START();
-  if (!ast) {
-    return c->status;
-  }
-  assert("something went very wrong" && ast->type == AstRoot);
+  assert("something went very wrong" && ast->type == AstRoot && ast);
   Block* block = &c->global;
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     if (ir_compile(c, block, ast->node[i], NULL) != NoError) {
       break;
     }
@@ -770,10 +936,6 @@ i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32*
 
 i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   switch (ast->type) {
-    case AstExpression:
-    case AstStatement: {
-      return ir_compile_stmts(c, block, ast, ins_count);
-    }
     case AstValue: {
       switch (ast->value.type) {
         case T_NUMBER: {
@@ -861,6 +1023,11 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         }
       }
       break;
+    }
+    case AstExpression:
+    case AstStatement:
+    case AstStatementList: {
+      return ir_compile_stmts(c, block, ast, ins_count);
     }
     // op arg0 arg1 -> arg0 arg1 op
     case AstBinopExpression: {
@@ -992,10 +1159,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       }
       break;
     }
-    case AstStatementList: {
-      ir_compile_stmts(c, block, ast, ins_count);
-      break;
-    }
     case AstBlockStatement: {
       Block local_block;
       block_init(&local_block, block); // uses current block as parent
@@ -1075,7 +1238,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     default: {
-      ir_compile_error(c, "invalid AST branch type\n");
+      ir_compile_error(c, "invalid or unhandled AST branch type\n");
       c->status = Error;
       break;
     }
