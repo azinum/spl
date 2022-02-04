@@ -1,11 +1,11 @@
 // test.spl
 
 fn hello {
+  let a 12;
   0;
 }
 
 fn main {
-  let a 3;
-  let b 4;
+  let a 2;
   0;
 }

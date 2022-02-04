@@ -817,7 +817,9 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
       return TypeNone;
     }
     case AstBlockStatement: {
-      return typecheck_node_list(c, block, ast);
+      Block local_block;
+      block_init(&local_block, block);
+      return typecheck_node_list(c, &local_block, ast);
     }
     case AstFuncDefinition: {
       Ast* params = ast->node[0]; (void)params;
@@ -825,10 +827,12 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
 
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
+      Block local_block;
+      block_init(&local_block, block);
+      if (compile_declare_value(c, &local_block, ast->value, &symbol, &symbol_index) == NoError) {
         i32 ts_count = c->ts_count;
         i32 ts_delta = ts_count;
-        typecheck_node_list(c, block, body);
+        typecheck_node_list(c, &local_block, body);
         Compile_type rtype = ts_pop(c);
         ts_delta -= c->ts_count;
         if (ts_delta != 0) {
@@ -899,23 +903,10 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
       assert("type checking AstAssignment not implemented yet" && 0);
       return TypeNone;
     }
-    // AstExpression,
-    // AstExprList,
-    // AstStatement,
-    // AstStatementList,
-    // AstBlockStatement,
-    // AstBinopExpression,
-    // AstUopExpression,
-    // AstConstAssignment,
-    // AstLetStatement,
-    // AstFuncDefinition,
-    // AstFuncCall,
-    // AstParamList,
-    // AstMemoryStatement,
-    // AstAssignment,
-    // AstWhileStatement,
-    default:
+    default: {
+      assert(0);
       break;
+    }
   }
   return TypeNone;
 }
