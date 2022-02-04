@@ -375,7 +375,7 @@ static void compile_state_free(Compile* c);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
 static Compile_type typecheck(Compile* c, Ast* ast);
-static Compile_type typecheck_stmts(Compile* c, Ast* ast);
+static Compile_type typecheck_node_list(Compile* c, Ast* ast);
 static void typecheck_error(Compile* c, const char* fmt, ...);
 static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
 static Compile_type ts_push(Compile* c, Compile_type type);
@@ -490,14 +490,13 @@ i32 main(i32 argc, char** argv) {
   assert(filename != NULL);
 
   Parser p;
+  Compile c;
   if (parser_init(&p, filename, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
-      Compile c;
       if (compile_state_init(&c) == NoError) {
         if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
-#if 1
             char path[MAX_PATH_SIZE] = {0};
             snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
             FILE* fp = fopen(path, "w");
@@ -505,21 +504,10 @@ i32 main(i32 argc, char** argv) {
               compile(&c, TARGET_LINUX_NASM_X86_64, fp);
               fclose(fp);
             }
-#endif
-#if 1
-            FILE* debug = fopen("debug.txt", "w");
-            if (debug) {
-              ast_print(p.ast, 0, debug);
-              ir_print(&c, debug);
-              ir_print_symbol_info(&c, filename, (char*)source, debug);
-              fclose(debug);
-            }
-#endif
           }
           else {
             exit_status = EXIT_FAILURE;
           }
-          compile_state_free(&c);
         }
         else {
           ast_print(p.ast, 0, stdout);
@@ -530,6 +518,16 @@ i32 main(i32 argc, char** argv) {
     else {
       exit_status = EXIT_FAILURE;
     }
+#if 1
+    FILE* debug = fopen("debug.txt", "w");
+    if (debug) {
+      ast_print(p.ast, 0, debug);
+      ir_print(&c, debug);
+      ir_print_symbol_info(&c, filename, (char*)source, debug);
+      fclose(debug);
+    }
+#endif
+    compile_state_free(&c);
     parser_free(&p);
   }
   if (fp) {
@@ -628,10 +626,10 @@ Compile_type typecheck(Compile* c, Ast* ast) {
     }
     case AstStatement:
     case AstStatementList: {
-      return typecheck_stmts(c, ast);
+      return typecheck_node_list(c, ast);
     }
     case AstBinopExpression: {
-      typecheck_stmts(c, ast);
+      typecheck_node_list(c, ast);
       Compile_type a = ts_pop(c);
       Compile_type b = ts_pop(c);
       if (a == TypeUnsigned64 && b == TypeUnsigned64) {
@@ -642,7 +640,7 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       return TypeNone;
     }
     case AstUopExpression: {
-      typecheck_stmts(c, ast);
+      typecheck_node_list(c, ast);
       if (ast->value.type == T_PRINT) {
         ts_pop(c);
         return TypeNone;
@@ -657,13 +655,13 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       return TypeNone;
     }
     case AstBlockStatement: {
-      return typecheck_stmts(c, ast);
+      return typecheck_node_list(c, ast);
     }
     case AstFuncDefinition: {
       Ast* params = ast->node[0];
       Ast* body = ast->node[1];
       (void)params;
-      typecheck_stmts(c, body);
+      typecheck_node_list(c, body);
       return ts_pop(c); // pop return type
     }
     case AstFuncCall: {
@@ -678,13 +676,25 @@ Compile_type typecheck(Compile* c, Ast* ast) {
     case AstWhileStatement: {
       Ast* cond = ast->node[0];
       Ast* body = ast->node[1];
-      Compile_type cond_type = typecheck(c, cond);
+      Compile_type type = typecheck(c, cond);
       ts_pop(c); // pop condition result
-      if (cond_type == TypeUnsigned64) {
+      if (type == TypeUnsigned64) {
         typecheck(c, body);
         return TypeNone;
       }
       typecheck_error(c, "invalid type in while statement condition\n");
+      return TypeNone;
+    }
+    case AstMemoryStatement: {
+      if (typecheck(c, ast->node[0]) == TypeUnsigned64) {
+        ts_pop(c);
+        return TypeNone;
+      }
+      typecheck_error_at(c, ast->value, "invalid type in memory statement\n");
+      return TypeNone;
+    }
+    case AstAssignment: {
+      assert("type checking AstAssignment not implemented yet" && 0);
       return TypeNone;
     }
     // AstExpression,
@@ -708,8 +718,7 @@ Compile_type typecheck(Compile* c, Ast* ast) {
   return TypeNone;
 }
 
-// TODO(lucas): change name to be more fitting with respect to how it's used
-Compile_type typecheck_stmts(Compile* c, Ast* ast) {
+Compile_type typecheck_node_list(Compile* c, Ast* ast) {
   for (u32 i = 0; i < ast->count; ++i) {
     typecheck(c, ast->node[i]);
   }
