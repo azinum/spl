@@ -624,7 +624,9 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       }
       return TypeNone;
     }
-    case AstExpression:
+    case AstExpression: {
+      return typecheck(c, ast->node[0]);
+    }
     case AstStatement:
     case AstStatementList: {
       return typecheck_stmts(c, ast);
@@ -657,6 +659,27 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       (void)params;
       typecheck_stmts(c, body);
       return ts_pop(c); // pop return type
+    }
+    case AstFuncCall: {
+      Ast* arg_list = ast->node[0];
+      for (u32 i = 0; i < arg_list->count; ++i) {
+        Compile_type arg_type = typecheck(c, arg_list->node[i]);
+        (void)arg_type;
+        ts_pop(c);
+      }
+      return ts_push(c, TypeUnsigned64); // NOTE: return type
+    }
+    case AstWhileStatement: {
+      Ast* cond = ast->node[0];
+      Ast* body = ast->node[1];
+      Compile_type cond_type = typecheck(c, cond);
+      printf("cond_type: %s\n", compile_type_str[cond_type]);
+      if (cond_type == TypeUnsigned64) {
+        typecheck(c, body);
+        return ts_pop(c);
+      }
+      typecheck_error(c, "invalid type in while statement condition\n");
+      return TypeNone;
     }
     // AstExpression,
     // AstExprList,
@@ -1218,13 +1241,11 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           jz->src0 = body_size;
         }
         else {
-          // TODO: handle
-          assert(0);
+          return c->status;
         }
       }
       else {
-        // TODO: handle
-          assert(0);
+        return c->status;
       }
       if (ins_count) {
         *ins_count += cond_size + body_size;
@@ -2196,7 +2217,9 @@ Token lexer_peek(Lexer* l) {
 
 // NOTE(lucas): index points to the end of the token, maybe change this.
 void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow, u32 num_lines_to_print) {
-  assert(source);
+  if (!source) {
+    return;
+  }
   assert(num_lines_to_print != 0);
   index -= token_length;
   i32 offset = index - source + 1; // NOTE(lucas): + 1 because the first character of the file was not printed

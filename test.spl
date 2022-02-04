@@ -1,10 +1,5 @@
 // test.spl
 
-fn hello {
-  let a + 2 3;
-  a;
-}
-
 fn main() {
   0;
 }
