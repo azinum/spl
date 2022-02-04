@@ -452,7 +452,6 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   REAL_TIMER_START();
-  (void)ast_print; (void)ir_code_str;
   i32 exit_status = EXIT_SUCCESS;
 
   char* filename = NULL;
@@ -650,6 +649,13 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       }
       return ts_top(c);
     }
+    case AstConstAssignment: {
+      assert("AstConstAssignment not implemented yet" && 0);
+      return TypeNone;
+    }
+    case AstLetStatement: {
+      return TypeNone;
+    }
     case AstBlockStatement: {
       return typecheck_stmts(c, ast);
     }
@@ -673,10 +679,10 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       Ast* cond = ast->node[0];
       Ast* body = ast->node[1];
       Compile_type cond_type = typecheck(c, cond);
-      printf("cond_type: %s\n", compile_type_str[cond_type]);
+      ts_pop(c); // pop condition result
       if (cond_type == TypeUnsigned64) {
         typecheck(c, body);
-        return ts_pop(c);
+        return TypeNone;
       }
       typecheck_error(c, "invalid type in while statement condition\n");
       return TypeNone;

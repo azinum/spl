@@ -1,5 +1,7 @@
 // test.spl
 
 fn main() {
+  let a + 2 3;
+  print a;
   0;
 }
