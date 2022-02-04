@@ -127,10 +127,16 @@ typedef enum Token_type {
   MAX_TOKEN_TYPE,
 } Token_type;
 
+typedef union Tvalue {
+  u64 num;
+} Tvalue;
+
 typedef struct Token {
   char* buffer;
   i32 length;
   Token_type type;
+
+  Tvalue v;
 
   char* filename;
   char* source;
@@ -372,6 +378,8 @@ static void block_init(Block* block, Block* parent);
 
 static i32 compile_state_init(Compile* c);
 static void compile_state_free(Compile* c);
+static void compile_error(Compile* c, const char* fmt, ...);
+static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
 static Compile_type typecheck(Compile* c, Ast* ast);
@@ -384,8 +392,6 @@ static Compile_type ts_top(Compile* c);
 
 static void ir_print(Compile* c, FILE* fp);
 static void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
-static void ir_compile_error(Compile* c, const char* fmt, ...);
-static void ir_compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_declare_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index);
 static i32 ir_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
@@ -504,6 +510,15 @@ i32 main(i32 argc, char** argv) {
               compile(&c, TARGET_LINUX_NASM_X86_64, fp);
               fclose(fp);
             }
+#if 1
+            FILE* debug = fopen("debug.txt", "w");
+            if (debug) {
+              ast_print(p.ast, 0, debug);
+              ir_print(&c, debug);
+              ir_print_symbol_info(&c, filename, (char*)source, debug);
+              fclose(debug);
+            }
+#endif
           }
           else {
             exit_status = EXIT_FAILURE;
@@ -518,15 +533,6 @@ i32 main(i32 argc, char** argv) {
     else {
       exit_status = EXIT_FAILURE;
     }
-#if 1
-    FILE* debug = fopen("debug.txt", "w");
-    if (debug) {
-      ast_print(p.ast, 0, debug);
-      ir_print(&c, debug);
-      ir_print_symbol_info(&c, filename, (char*)source, debug);
-      fclose(debug);
-    }
-#endif
     compile_state_free(&c);
     parser_free(&p);
   }
@@ -573,22 +579,42 @@ void compile_state_free(Compile* c) {
   c->ins_count = 0;
 }
 
+void compile_error(Compile* c, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stderr;
+  fprintf(fp, "[compile-error]: %s", buffer);
+  c->status = Error;
+}
+
+void compile_error_at(Compile* c, Token token, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stderr;
+  fprintf(fp, "[compile-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
+  printline(fp, token.source, token.buffer + token.length, token.length, 1, NUM_LINES_TO_PRINT);
+  c->status = Error;
+}
+
 i32 typecheck_program(Compile* c, Ast* ast) {
 #if NO_TYPECHECKING // NOTE(lucas): this is only temporary
   return c->status;
 #endif
   REAL_TIMER_START();
   assert("something went very wrong" && ast->type == AstRoot && ast);
-  for (u32 i = 0; i < ast->count; ++i) {
-    if (typecheck(c, ast->node[i]) != NoError) {
-      break;
-    }
+  for (u32 i = 0; i < ast->count && c->status == NoError; ++i) {
+    typecheck(c, ast->node[i]);
   }
   if (c->ts_count != 0) {
     typecheck_error(c, "unhandled data on the stack (%d)\n", c->ts_count);
-  }
-  if (c->status != NoError) {
-    typecheck_error(c, "type checking failed\n");
   }
   REAL_TIMER_END(
     print_info("%s: %lf s\n", __FUNCTION__, _dt);
@@ -662,7 +688,12 @@ Compile_type typecheck(Compile* c, Ast* ast) {
       Ast* body = ast->node[1];
       (void)params;
       typecheck_node_list(c, body);
-      return ts_pop(c); // pop return type
+      Compile_type return_type = ts_pop(c);
+      if (return_type == TypeUnsigned64) {
+        return return_type;
+      }
+      typecheck_error_at(c, ast->value, "missing return value in function definition\n");
+      return TypeNone;
     }
     case AstFuncCall: {
       Ast* arg_list = ast->node[0];
@@ -726,6 +757,9 @@ Compile_type typecheck_node_list(Compile* c, Ast* ast) {
 }
 
 void typecheck_error(Compile* c, const char* fmt, ...) {
+  if (c->status == Error) {
+    return;
+  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -738,6 +772,9 @@ void typecheck_error(Compile* c, const char* fmt, ...) {
 }
 
 void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
+  if (c->status == Error) {
+    return;
+  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -839,31 +876,6 @@ void ir_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
   }
 }
 
-void ir_compile_error(Compile* c, const char* fmt, ...) {
-  char buffer[MAX_ERR_SIZE] = {0};
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
-  va_end(args);
-
-  FILE* fp = stderr;
-  fprintf(fp, "[ir-compile-error]: %s", buffer);
-  c->status = Error;
-}
-
-void ir_compile_error_at(Compile* c, Token token, const char* fmt, ...) {
-  char buffer[MAX_ERR_SIZE] = {0};
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
-  va_end(args);
-
-  FILE* fp = stderr;
-  fprintf(fp, "[ir-compile-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
-  printline(fp, token.source, token.buffer + token.length, token.length, 1, NUM_LINES_TO_PRINT);
-  c->status = Error;
-}
-
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
@@ -903,7 +915,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     }
   }
   if (c->entry_point != 1) {
-    ir_compile_error(c, "missing entry point `main`\n");
+    compile_error(c, "missing entry point `main`\n");
   }
   REAL_TIMER_END(
     print_info("%s: %lf s\n", __FUNCTION__, _dt);
@@ -975,9 +987,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstValue: {
       switch (ast->value.type) {
         case T_NUMBER: {
-          u64 num = 0;
-          str_to_int(ast->value.buffer, ast->value.length, &num);
-          i32 address = ir_push_value(c, &num, sizeof(num));
+          i32 address = ir_push_value(c, &ast->value.v.num, sizeof(ast->value.v.num));
           if (address >= 0) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_INT64,
@@ -1027,7 +1037,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }
           }
           else {
-            ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
             return c->status;
           }
           break;
@@ -1044,7 +1054,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }, ins_count);
           }
           else {
-            ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+            compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
             return c->status;
           }
           break;
@@ -1131,7 +1141,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           }, ins_count);
         }
         else {
-          ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+          compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
           c->status = Error;
         }
       }
@@ -1156,7 +1166,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (arg_list->count != func->argc) {
-          ir_compile_error_at(c, ast->value, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
+          compile_error_at(c, ast->value, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
           return c->status;
         }
         ir_compile_stmts(c, block, arg_list, ins_count);
@@ -1180,13 +1190,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             break;
           }
           default: {
-            ir_compile_error_at(c, ast->value, "value `%s` is not a function, and can not be called\n", symbol->name);
+            compile_error_at(c, ast->value, "value `%s` is not a function, and can not be called\n", symbol->name);
             return c->status;
           }
         }
       }
       else {
-        ir_compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+        compile_error_at(c, ast->value, "value `%.*s` not defined\n", ast->value.length, ast->value.buffer);
         return c->status;
       }
       break;
@@ -1212,7 +1222,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         symbol->type = TypeUnsigned64;
       }
       else {
-        ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+        compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
         c->status = Error;
       }
       break;
@@ -1268,7 +1278,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     default: {
-      ir_compile_error(c, "invalid or unhandled AST branch type\n");
+      compile_error(c, "invalid or unhandled AST branch type\n");
       c->status = Error;
       break;
     }
@@ -1287,7 +1297,7 @@ i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
-    ir_compile_error_at(c, ast->value, "expected 2 arguments in binary operator action\n");
+    compile_error_at(c, ast->value, "expected 2 arguments in binary operator action\n");
     return c->status;
   }
   for (i32 i = 0; i < ast->count; ++i) {
@@ -1346,7 +1356,7 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     }
   }
   else {
-    ir_compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+    compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
   }
   return c->status;
 }
@@ -2212,6 +2222,7 @@ Token lexer_next(Lexer* l) {
         }
         else if (is_digit(ch)) {
           lexer_read_number(l);
+          str_to_int(l->token.buffer, l->token.length, &l->token.v.num);
           goto done;
         }
         lexer_error(l, "unrecognized token `%.*s`\n", l->token.length, l->token.buffer);

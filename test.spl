@@ -2,5 +2,9 @@
 
 fn main() {
   memory local 128;
+  let a + + 2 3 12;
+  let b + 100 177;
+  print a;
+  print b;
   0;
 }
