@@ -1,10 +1,11 @@
 // test.spl
 
-fn main() {
-  memory local 128;
-  let a + + 2 3 12;
-  let b + 100 177;
-  print a;
-  print b;
+fn hello {
+  0;
+}
+
+fn main {
+  let a 3;
+  let b 4;
   0;
 }
