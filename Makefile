@@ -3,7 +3,7 @@
 include config.mk
 
 SPL_SRC=${subst .spl,, ${wildcard *.spl}}
-ONLY_COMP=1
+ONLY_COMP=0
 
 all: compile_src
 
