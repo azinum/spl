@@ -30,6 +30,6 @@ highlight default link Keywords Keyword
 highlight default link CommentLine Comment
 highlight default link String String
 highlight default link Types Type
-highlight default link Numbers Number
+" highlight default link Numbers Number
 
 let b:current_syntax = "spl"

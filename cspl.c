@@ -264,6 +264,14 @@ typedef enum Ir_code {
   I_JZ,
   I_LOOP_LABEL,
 
+  I_SYSCALL0,
+  I_SYSCALL1,
+  I_SYSCALL2,
+  I_SYSCALL3,
+  I_SYSCALL4,
+  I_SYSCALL5,
+  I_SYSCALL6,
+
   MAX_IR_CODE,
 } Ir_code;
 
@@ -285,6 +293,14 @@ static const char* ir_code_str[] = {
   "I_JMP",
   "I_JZ",
   "I_LOOP_LABEL",
+
+  "I_SYSCALL0",
+  "I_SYSCALL1",
+  "I_SYSCALL2",
+  "I_SYSCALL3",
+  "I_SYSCALL4",
+  "I_SYSCALL5",
+  "I_SYSCALL6",
 };
 
 // https://www.cs.uaf.edu/2017/fall/cs301/reference/x86_64.html
@@ -301,6 +317,7 @@ typedef enum Compile_type {
   TypeNone = 0,
   TypeUnsigned64,
   TypeFunc,
+  TypeSyscallFunc,
 
   MAX_COMPILE_TYPE,
 } Compile_type;
@@ -309,10 +326,12 @@ static const char* compile_type_str[] = {
   "TypeNone",
   "TypeUnsigned64",
   "TypeFunc",
+  "TypeSyscallFunc",
 };
 
 static u64 compile_type_size[] = {
   0,
+  sizeof(u64),
   sizeof(u64),
   sizeof(u64),
 };
@@ -403,6 +422,7 @@ static void compile_state_free(Compile* c);
 static void compile_error(Compile* c, const char* fmt, ...);
 static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index);
+static i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 
@@ -421,6 +441,7 @@ static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count);
+static i32 ir_compile_func_args(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count);
@@ -594,6 +615,15 @@ i32 compile_state_init(Compile* c) {
   c->status = NoError;
   c->entry_point = 0;
   c->ts_count = 0;
+
+  compile_declare_syscall(c, &c->global, "syscall0", 1);
+  compile_declare_syscall(c, &c->global, "syscall1", 2);
+  compile_declare_syscall(c, &c->global, "syscall2", 3);
+  compile_declare_syscall(c, &c->global, "syscall3", 4);
+  compile_declare_syscall(c, &c->global, "syscall4", 5);
+  compile_declare_syscall(c, &c->global, "syscall5", 6);
+  compile_declare_syscall(c, &c->global, "syscall6", 7);
+
   return NoError;
 }
 
@@ -654,6 +684,31 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
     return NoError;
   }
   return Error;
+}
+
+i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc) {
+  Token token = (Token) {
+    .buffer = (char*)name,
+    .length = strlen(name),
+    .type = T_IDENTIFIER,
+
+    .filename = NULL,
+    .source = NULL,
+    .line = 0,
+    .column = 0,
+  };
+  Symbol* symbol = NULL;
+  i32 symbol_index = -1;
+  compile_declare_value(c, block, NULL, token, &symbol, &symbol_index);
+  symbol->imm = -1;
+  symbol->size = compile_type_size[TypeSyscallFunc];
+  symbol->type = TypeSyscallFunc;
+  symbol->token = token; // duplicated in compile_declare_value
+  symbol->token.v.i = symbol_index;
+  Function* func = &symbol->value.func;
+  func->address = -1;
+  func->argc = argc;
+  return NoError;
 }
 
 i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent) {
@@ -921,12 +976,20 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           return TypeNone;
         }
         ast->value.v.i = symbol_index;
-        for (u32 i = 0; i < arg_list->count; ++i) {
+        for (i32 i = arg_list->count - 1; i >= 0; --i) {
           Compile_type arg_type = typecheck(c, block, fs, arg_list->node[i]);
-          Symbol* arg = &c->symbols[func->args[i]];
-          if (arg->type != arg_type) {
-            typecheck_error_at(c, arg->token, "type mismatch in function call\n");
-            return TypeNone;
+          if (symbol->type == TypeSyscallFunc) {
+            if (arg_type != TypeUnsigned64) {
+              typecheck_error_at(c, symbol->token, "type mismatch in syscall\n");
+              return TypeNone;
+            }
+          }
+          else {
+            Symbol* arg = &c->symbols[func->args[i]];
+            if (arg->type != arg_type) {
+              typecheck_error_at(c, arg->token, "type mismatch in function call\n");
+              return TypeNone;
+            }
           }
           ts_pop(c);
         }
@@ -1209,6 +1272,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_AT: {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
+          (void)symbol;
           ir_push_ins(c, (Op) {
             .i = I_PUSH_ADDR_OF,
             .dest = -1,
@@ -1307,7 +1371,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       Symbol* symbol = &c->symbols[id];
       Function* func = &symbol->value.func;
       (void)func; // unused
-      ir_compile_stmts(c, block, ast->node[0], ins_count);
+      ir_compile_func_args(c, block, ast->node[0], ins_count); // compile function args in reverse order
       switch (symbol->type) {
         case TypeFunc: {
           ir_push_ins(c, (Op) {
@@ -1325,6 +1389,19 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .src0 = id,
             .src1 = -1,
           }, ins_count);
+          break;
+        }
+        case TypeSyscallFunc: {
+          i32 syscall_map[] = {
+            I_SYSCALL0,
+            I_SYSCALL1,
+            I_SYSCALL2,
+            I_SYSCALL3,
+            I_SYSCALL4,
+            I_SYSCALL5,
+            I_SYSCALL6,
+          };
+          ir_push_ins(c, OP(syscall_map[func->argc - 1]), ins_count);
           break;
         }
         default: {
@@ -1403,6 +1480,15 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   for (u32 i = 0; i < ast->count; ++i) {
+    if (ir_compile(c, block, ast->node[i], ins_count) != NoError) {
+      break;
+    }
+  }
+  return c->status;
+}
+
+i32 ir_compile_func_args(Compile* c, Block* block, Ast* ast, u32* ins_count) {
+  for (i32 i = ast->count - 1; i >= 0; --i) {
     if (ir_compile(c, block, ast->node[i], ins_count) != NoError) {
       break;
     }
@@ -1663,6 +1749,53 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("L%d:\n", op->dest);
         break;
       }
+      case I_SYSCALL0: {
+        o(
+        "  pop rax\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      case I_SYSCALL1: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      case I_SYSCALL2: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  pop rsi\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      case I_SYSCALL3: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  pop rsi\n"
+        "  pop rdx\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      case I_SYSCALL4: {
+        break;
+      }
+      case I_SYSCALL5: {
+        break;
+      }
+      case I_SYSCALL6: {
+        break;
+      }
       default: {
         fprintf(stderr, "instruction `%d` not implemented\n", op->i);
         assert(0);
@@ -1686,10 +1819,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
         break;
       }
-      case TypeFunc: {
-        // do nothing
+      case TypeFunc:
+      case TypeSyscallFunc:
         break;
-      }
       default: {
         assert("type not implemented yet" && 0);
         break;
