@@ -752,6 +752,9 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
             ast->value.v.i = symbol_index;
+            if (symbol->type == TypeFunc) {
+              return ts_push(c, TypeUnsigned64);
+            }
             return ts_push(c, symbol->type);
           }
           compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -1099,7 +1102,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             case TypeUnsigned64: {
               ir_push_ins(c, (Op) {
                 .i = I_PUSH_INT64,
-                .dest = 0,
+                .dest = -1,
                 .src0 = symbol->address,
                 .src1 = id,
               }, ins_count);
@@ -1109,7 +1112,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               // NOTE(lucas): temporary behaviour
               ir_push_ins(c, (Op) {
                 .i = I_PUSH_ADDR_OF,
-                .dest = 0,
+                .dest = -1,
                 .src0 = symbol->address,
                 .src1 = id,
               }, ins_count);
@@ -1127,7 +1130,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           Symbol* symbol = &c->symbols[id];
           ir_push_ins(c, (Op) {
             .i = I_PUSH_ADDR_OF,
-            .dest = 0,
+            .dest = -1,
             .src0 = symbol->address,
             .src1 = id,
           }, ins_count);
