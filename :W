@@ -1019,7 +1019,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Token value = ast->node[0]->value;
         if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
           symbol->imm = -1;
-          symbol->size = value.v.num;
+          symbol->size = value.v.num * compile_type_size[type];
           symbol->type = type;
           symbol->token = ast->value; // duplicated in compile_declare_value
           ast->value.v.i = symbol_index;
@@ -1392,7 +1392,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           break;
         }
         case TypeSyscallFunc: {
-          const i32 syscall_map[] = {
+          i32 syscall_map[] = {
             I_SYSCALL0,
             I_SYSCALL1,
             I_SYSCALL2,

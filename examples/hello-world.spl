@@ -1,4 +1,4 @@
-// test.spl
+// hello-world.spl
 
 fn write(fd, buf, count) {
   syscall3(1, fd, buf, count);
