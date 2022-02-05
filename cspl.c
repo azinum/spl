@@ -1558,9 +1558,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_PUSH_ADDR_OF: {
         if (op->src1 >= 0) {
-          assert((u32)op->src1 < c->symbol_count);
-          o("  mov rax, v%d\n", op->src1);
-          o("  push rax\n");
+          Symbol* symbol = &c->symbols[op->src1];
+          if (symbol->local) {
+            assert((u32)op->src1 < c->symbol_count);
+            o("  mov rax, v%d\n", op->src1);
+            o("  push rax\n");
+            break;
+          }
+          assert("taking address of function argument is not implemented yet" && 0); // TODO: handle
           break;
         }
         assert(0);

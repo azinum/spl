@@ -1,8 +1,8 @@
 // test.spl
 
-fn hello(a, b) + + 1 a b;
+fn add(a, b) + a b;
 
 fn main {
-  print hello(2, 3);
+  print add(2, 3);
   0;
 }
