@@ -767,6 +767,7 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
             ast->value.v.i = symbol_index;
             return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
           }
+          compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
           return TypeNone;
         }
         default: {
@@ -800,6 +801,9 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
       if (ast->value.type == T_PRINT) {
         ts_pop(c);
         return TypeNone;
+      }
+      else if (ast->value.type == T_DEREF) {
+        // dereference to a specific type
       }
       return ts_top(c);
     }
@@ -842,7 +846,9 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
       if (compile_declare_value(c, block, ast->value, &symbol, &symbol_index) == NoError) {
         i32 ts_count = c->ts_count;
         i32 ts_delta = ts_count;
-        typecheck_node_list(c, block, body);
+        Block local_block;
+        block_init(&local_block, block);
+        typecheck_node_list(c, &local_block, body);
         Compile_type rtype = ts_pop(c);
         ts_delta -= c->ts_count;
         if (ts_delta != 0) {
@@ -922,8 +928,14 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
       return TypeNone;
     }
     case AstAssignment: {
-      assert("type checking AstAssignment not implemented yet" && 0);
-      return TypeNone;
+      Compile_type a = typecheck(c, block, ast->node[0]);
+      Compile_type b = typecheck(c, block, ast->node[1]);
+      if (a != b && a != TypeUnsigned64) {
+        typecheck_error_at(c, ast->value, "type mismatch in assignment expression\n");
+        return TypeNone;
+      }
+      ts_pop(c);
+      return ts_pop(c);
     }
     default: {
       assert(0);

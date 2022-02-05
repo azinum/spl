@@ -3,7 +3,14 @@
 fn hello(a, b) + 2 3;
 
 fn main {
-  let a hello;
-  print a();
+  memory data 4;
+  = (+ 0 @data) 0;
+  = (+ 8 @data) 1;
+  = (+ 16 @data) 2;
+  = (+ 24 @data) 3;
+  print #(+0 @data);
+  print #(+8 @data);
+  print #(+16 @data);
+  print #(+24 @data);
   0;
 }

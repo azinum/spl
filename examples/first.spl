@@ -2,7 +2,7 @@
 
 fn main {
   memory data 128;
-  const ptr @data;
+  let ptr @data;
   = ptr + 1 #ptr;
   = ptr + 1 #ptr;
   = ptr + 1 #ptr;
