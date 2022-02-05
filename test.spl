@@ -1,6 +1,6 @@
 // test.spl
 
-fn hello(a, b) + a b;
+fn hello(a, b) + + 1 a b;
 
 fn main {
   print hello(2, 3);

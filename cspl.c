@@ -287,6 +287,16 @@ static const char* ir_code_str[] = {
   "I_LOOP_LABEL",
 };
 
+// https://www.cs.uaf.edu/2017/fall/cs301/reference/x86_64.html
+static const char* func_call_regs[] = {
+  "rdi",
+  "rsi",
+  "rdx",
+  "rcx",
+  "r8",
+  "r9",
+};
+
 typedef enum Compile_type {
   TypeNone = 0,
   TypeUnsigned64,
@@ -872,6 +882,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             arg_symbol->local = 0;
             arg_symbol->type = TypeUnsigned64;
             arg_symbol->token = arg;
+            arg_symbol->token.v.i = i; // TODO(lucas): storing the argument id here seems a bit strange
           }
           else {
             compile_error_at(c, arg, "duplicate function argument `%.*s`\n", arg.length, arg.buffer);
@@ -912,7 +923,11 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ast->value.v.i = symbol_index;
         for (u32 i = 0; i < arg_list->count; ++i) {
           Compile_type arg_type = typecheck(c, block, fs, arg_list->node[i]);
-          (void)arg_type;
+          Symbol* arg = &c->symbols[func->args[i]];
+          if (arg->type != arg_type) {
+            typecheck_error_at(c, arg->token, "type mismatch in function call\n");
+            return TypeNone;
+          }
           ts_pop(c);
         }
         return ts_push(c, func->rtype);
@@ -1129,7 +1144,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           break;
         }
         case T_POP: {
-          // assert("T_POP: not handled yet" && 0);
           ir_push_ins(c, OP(I_POP), ins_count);
           break;
         }
@@ -1527,9 +1541,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_PUSH_INT64: {
         if (op->src1 >= 0) {
-          assert((u32)op->src1 < c->symbol_count);
-          o("  mov rax, [v%d]\n", op->src1);
-          o("  push rax\n");
+          Symbol* symbol = &c->symbols[op->src1];
+          if (symbol->local) {
+            assert((u32)op->src1 < c->symbol_count);
+            o("  mov rax, [v%d]\n", op->src1);
+            o("  push rax\n");
+            break;
+          }
+          o("  push %s\n", func_call_regs[symbol->token.v.i]);
           break;
         }
         i64 value = *(i64*)&c->data[op->src0];
@@ -1607,15 +1626,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
-        // https://www.cs.uaf.edu/2017/fall/cs301/reference/x86_64.html
-        const char* func_call_regs[] = {
-          "rdi",
-          "rsi",
-          "rdx",
-          "rcx",
-          "r8",
-          "r9",
-        };
         if (op->dest >= 0) {
           Symbol* symbol = &c->symbols[op->dest];
           Function* func = &symbol->value.func;
