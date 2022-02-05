@@ -1,6 +1,6 @@
 // test.spl
 
-fn a(a, b) + 5 6;
+fn a(a, b) + 2 3;
 
 fn main {
   print a(1, 2);

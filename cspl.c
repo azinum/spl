@@ -317,13 +317,12 @@ typedef struct Op {
 
 #define OP(_i) ((Op) {.i = _i, .dest = -1, .src0 = -1, .src1 = -1, })
 
-#define MAX_INS (1024) // temp
 #define MAX_DATA (KB(32)) // temp
 
 #define MAX_NAME_SIZE 64
 #define MAX_SYMBOL 256
 #define MAX_FUNC 256
-#define MAX_FUNC_ARGC 6
+#define MAX_FUNC_ARGC 6 // temp
 
 typedef enum Compile_target {
   TARGET_LINUX_NASM_X86_64,
@@ -336,7 +335,7 @@ static const char* compile_target_str[MAX_COMPILE_TARGET] = {
 
 typedef struct Function {
   i32 address;
-  i32 argc;
+  u32 argc;
   Compile_type rtype;
 } Function;
 
@@ -674,6 +673,7 @@ i32 compile_lookup_value(Compile* c, Block* block, Token token, Symbol** symbol,
 }
 
 void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
+  (void)source; // unused
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
@@ -1013,6 +1013,7 @@ void ir_print(Compile* c, FILE* fp) {
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
+  (void)c; // unused
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -1215,6 +1216,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       i32 id = ast->value.v.i;
       Symbol* symbol = &c->symbols[id];
       Function* func = &symbol->value.func;
+      (void)func; // unused
       ir_compile_stmts(c, block, ast->node[0], ins_count);
       switch (symbol->type) {
         case TypeFunc: {
@@ -1310,7 +1312,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 }
 
 i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count) {
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     if (ir_compile(c, block, ast->node[i], ins_count) != NoError) {
       break;
     }
@@ -1323,7 +1325,7 @@ i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     compile_error_at(c, ast->value, "expected 2 arguments in binary operator action\n");
     return c->status;
   }
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
     i32 result = ir_compile(c, block, node, ins_count);
     if (result != NoError) {
@@ -1336,7 +1338,7 @@ i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 // alias of ir_compile_binop
 i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     Ast* node = ast->node[i];
     i32 result = ir_compile(c, block, node, ins_count);
     if (result != NoError) {
@@ -1423,7 +1425,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   );
   o("global %s\n", ENTRY);
 
-  for (i32 i = 0; i < c->ins_count; ++i) {
+  for (u32 i = 0; i < c->ins_count; ++i) {
     const Op* op = &c->ins[i];
     switch (op->i) {
       case I_NOP: {
@@ -1449,31 +1451,21 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_PUSH_INT64: {
         if (op->src1 >= 0) {
-          if (op->src1 < c->symbol_count) {
-            o("  mov rax, [v%d]\n", op->src1);
-            o("  push rax\n");
-          }
-          else {
-            assert("unhandled error" && 0);
-            // TODO: handle
-          }
+          assert((u32)op->src1 < c->symbol_count);
+          o("  mov rax, [v%d]\n", op->src1);
+          o("  push rax\n");
           break;
         }
-        i32 value = *(i32*)&c->data[op->src0];
-        o("  mov rax, %d\n", value);
+        i64 value = *(i64*)&c->data[op->src0];
+        o("  mov rax, %ld\n", value);
         o("  push rax\n");
         break;
       }
       case I_PUSH_ADDR_OF: {
         if (op->src1 >= 0) {
-          if (op->src1 < c->symbol_count) {
-            o("  mov rax, v%d\n", op->src1);
-            o("  push rax\n");
-          }
-          else {
-            assert("unhandled error" && 0);
-            // TODO: handle
-          }
+          assert((u32)op->src1 < c->symbol_count);
+          o("  mov rax, v%d\n", op->src1);
+          o("  push rax\n");
           break;
         }
         assert(0);
@@ -1528,7 +1520,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LABEL: {
-        assert(op->dest < c->symbol_count);
+        assert((u32)op->dest < c->symbol_count);
         Symbol* symbol = &c->symbols[op->dest];
         if (strcmp(symbol->name, "main") == 0) {
           o("%s:\n", symbol->name);
@@ -1551,7 +1543,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         if (op->dest >= 0) {
           Symbol* symbol = &c->symbols[op->dest];
           Function* func = &symbol->value.func;
-          for (i32 arg = 0; arg < func->argc; ++arg) {
+          for (u32 arg = 0; arg < func->argc; ++arg) {
             o("  pop %s\n", func_call_regs[arg]);
           }
           o("  call v%d ; `%s`\n", op->dest, symbol->name);
@@ -1560,7 +1552,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         else if (op->src0 >= 0) {
           Symbol* symbol = &c->symbols[op->src0];
           Function* func = &symbol->value.func;
-          for (i32 arg = 0; arg < func->argc; ++arg) {
+          for (u32 arg = 0; arg < func->argc; ++arg) {
             o("  pop %s\n", func_call_regs[arg]);
           }
           o("  call [v%d] ; `%s`\n", op->src0, symbol->name);
@@ -1596,7 +1588,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("  syscall\n");
   o("section .data\n");
   o("section .bss\n");
-  for (i32 i = 0; i < c->symbol_count; ++i) {
+  for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
     switch (s->type) {
       case TypeUnsigned64: {
@@ -2389,7 +2381,7 @@ void ast_print(const Ast* ast, i32 level, FILE* fp) {
   for (i32 i = 0; i < level; ++i, fprintf(fp, "    "));
   assert("something went very wrong" && ast->type < MAX_AST_TYPE && ast->value.type < MAX_TOKEN_TYPE);
   fprintf(fp, "<%s, %s>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->value.type],  ast->value.length, ast->value.buffer);
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     ast_print(ast->node[i], level + 1, fp);
   }
 }
@@ -2398,7 +2390,7 @@ void ast_free(Ast* ast) {
   if (!ast) {
     return;
   }
-  for (i32 i = 0; i < ast->count; ++i) {
+  for (u32 i = 0; i < ast->count; ++i) {
     ast_free(ast->node[i]);
   }
   if (ast->node) {
