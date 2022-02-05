@@ -4,5 +4,6 @@ fn a(a, b) + 2 3;
 
 fn main {
   print a(1, 2);
+  print @a;
   0;
 }

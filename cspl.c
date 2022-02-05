@@ -758,7 +758,13 @@ Compile_type typecheck(Compile* c, Block* block, Ast* ast) {
           return TypeNone;
         }
         case T_AT: {
-          return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
+          Symbol* symbol = NULL;
+          i32 symbol_index = -1;
+          if (compile_lookup_value(c, block, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+            ast->value.v.i = symbol_index;
+            return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
+          }
+          return TypeNone;
         }
         default: {
           // TODO: handle
