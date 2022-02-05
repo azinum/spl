@@ -125,28 +125,13 @@ typedef enum Token_type {
   T_RIGHT_P,
   T_LEFT_CURLY,
   T_RIGHT_CURLY,
+  T_STORE64,
+  T_STORE32,
+  T_STORE16,
+  T_STORE8,
 
   MAX_TOKEN_TYPE,
 } Token_type;
-
-typedef union Tvalue {
-  u64 num;
-  i64 i;
-} Tvalue;
-
-typedef struct Token {
-  char* buffer;
-  i32 length;
-  Token_type type;
-
-  Tvalue v;
-
-  char* filename;
-  char* source;
-
-  i32 line;
-  i32 column;
-} Token;
 
 static const char* token_type_str[] = {
   "T_NONE",
@@ -173,7 +158,30 @@ static const char* token_type_str[] = {
   "T_RIGHT_P",
   "T_LEFT_CURLY",
   "T_RIGHT_CURLY",
+  "T_STORE64",
+  "T_STORE32",
+  "T_STORE16",
+  "T_STORE8",
 };
+
+typedef union Tvalue {
+  u64 num;
+  i64 i;
+} Tvalue;
+
+typedef struct Token {
+  char* buffer;
+  i32 length;
+  Token_type type;
+
+  Tvalue v;
+
+  char* filename;
+  char* source;
+
+  i32 line;
+  i32 column;
+} Token;
 
 typedef struct Lexer {
   Token token;
@@ -250,6 +258,9 @@ typedef enum Ir_code {
   I_POP,
   I_MOVE,
   I_STORE64,
+  I_STORE32,
+  I_STORE16,
+  I_STORE8,
   I_LOAD64,
   I_PUSH_INT64,
   I_PUSH_ADDR_OF,
@@ -280,6 +291,9 @@ static const char* ir_code_str[] = {
   "I_POP",
   "I_MOVE",
   "I_STORE64",
+  "I_STORE32",
+  "I_STORE16",
+  "I_STORE8",
   "I_LOAD64",
   "I_PUSH_INT64",
   "I_PUSH_ADDR_OF",
@@ -501,6 +515,7 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
+
   REAL_TIMER_START();
   i32 exit_status = EXIT_SUCCESS;
 
@@ -697,6 +712,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
     .line = 0,
     .column = 0,
   };
+
   Symbol* symbol = NULL;
   i32 symbol_index = -1;
   compile_declare_value(c, block, NULL, token, &symbol, &symbol_index);
@@ -708,6 +724,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   Function* func = &symbol->value.func;
   func->address = -1;
   func->argc = argc;
+  func->rtype = TypeUnsigned64;
   return NoError;
 }
 
@@ -1081,60 +1098,10 @@ Compile_type ts_top(Compile* c) {
 
 void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
-  struct {
-    u32 push;
-    u32 pop;
-    u32 load;
-    u32 store;
-    // there is unhandled data on the stack when balance is not zero.
-    i32 balance;
-  } info = {
-    0,
-  };
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
-    switch (op->i) {
-      case I_PUSH_INT64:
-      case I_PUSH_ADDR_OF:
-        info.push++;
-        info.balance++;
-        break;
-      case I_POP:
-        info.pop++;
-        info.balance--;
-        break;
-      case I_MOVE:
-        info.balance--;
-        break;
-      case I_LOAD64:
-        info.load++;
-        break;
-      case I_STORE64:
-        info.store++;
-        info.balance -= 2;
-        break;
-      case I_ADD:
-      case I_SUB:
-        info.balance--;
-        break;
-      case I_LT:
-        info.balance--;
-        break;
-      case I_RET:
-        info.balance--;
-        break;
-      case I_PRINT:
-        info.balance--;
-        break;
-      case I_CALL:
-        info.balance++;
-        break;
-      default:
-        break;
-    }
     fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
   }
-  fprintf(fp, "statistics: push = %u, pop = %u, load = %u, store = %u, balance = %i\n", info.push, info.pop, info.load, info.store, info.balance);
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
@@ -1422,7 +1389,24 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstAssignment: {
       i32 result = ir_compile_binop(c, block, ast, ins_count);
       if (result == NoError) {
-        ir_push_ins(c, OP(I_STORE64), ins_count);
+        switch (ast->value.type) {
+          case T_ASSIGN:
+          case T_STORE64:
+            ir_push_ins(c, OP(I_STORE64), ins_count);
+            break;
+          case T_STORE32:
+            ir_push_ins(c, OP(I_STORE32), ins_count);
+            break;
+          case T_STORE16:
+            ir_push_ins(c, OP(I_STORE16), ins_count);
+            break;
+          case T_STORE8:
+            ir_push_ins(c, OP(I_STORE8), ins_count);
+            break;
+          default:
+            assert(0);
+            break;
+        }
       }
       else {
         c->status = result;
@@ -1625,6 +1609,38 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_STORE32: {
+        o(
+        "  pop rbx\n"
+        "  pop rax\n"
+        "  mov [rax], ebx\n"
+        );
+        break;
+      }
+      case I_STORE16: {
+        o(
+        "  pop rbx\n"
+        "  pop rax\n"
+        "  mov [rax], bx\n"
+        );
+        break;
+      }
+      case I_STORE8: {
+        o(
+        "  pop rbx\n"
+        "  pop rax\n"
+        "  mov [rax], bl\n"
+        );
+        break;
+      }
+      case I_LOAD64: {
+        o(
+        "  pop rbx\n"
+        "  mov rax, [rbx]\n"
+        "  push rax\n"
+        );
+        break;
+      }
       case I_PUSH_INT64: {
         if (op->src1 >= 0) {
           Symbol* symbol = &c->symbols[op->src1];
@@ -1655,14 +1671,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           break;
         }
         assert(0);
-        break;
-      }
-      case I_LOAD64: {
-        o(
-        "  pop rbx\n"
-        "  mov rax, [rbx]\n"
-        "  push rax\n"
-        );
         break;
       }
       case I_ADD: {
@@ -1819,6 +1827,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
         break;
       }
+      case TypeNone:
       case TypeFunc:
       case TypeSyscallFunc:
         break;
@@ -1992,7 +2001,12 @@ Ast* parse_statement(Parser* p) {
       }
       return block;
     }
-    case T_ASSIGN: {
+    case T_ASSIGN:
+    case T_STORE64:
+    case T_STORE32:
+    case T_STORE16:
+    case T_STORE8:
+    {
       lexer_next(&p->l); // skip `=`
       Ast* assignment = ast_create(AstAssignment);
       assignment->value = t;
@@ -2313,6 +2327,18 @@ Token lexer_read_symbol(Lexer* l) {
   else if (compare(l->token, "while")) {
     l->token.type = T_WHILE;
   }
+  else if (compare(l->token, "store64")) {
+    l->token.type = T_STORE64;
+  }
+  else if (compare(l->token, "store32")) {
+    l->token.type = T_STORE32;
+  }
+  else if (compare(l->token, "store16")) {
+    l->token.type = T_STORE16;
+  }
+  else if (compare(l->token, "store8")) {
+    l->token.type = T_STORE8;
+  }
   else {
     l->token.type = T_IDENTIFIER;
   }
@@ -2426,6 +2452,22 @@ Token lexer_next(Lexer* l) {
       }
       case '\0': {
         l->token.type = T_EOF;
+        goto done;
+      }
+      case '\'': {
+        char ch = *l->index;
+        l->index++;
+        l->column++;
+        if (*l->index != '\'') {
+          l->token.type = T_EOF;
+          lexer_error(l, "missing closing `'`\n");
+          goto done;
+        }
+        l->index++;
+        l->column++;
+        l->token.v.num = ch;
+        l->token.type = T_NUMBER;
+        l->token.length = 1;
         goto done;
       }
       default: {
