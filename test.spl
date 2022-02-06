@@ -11,8 +11,8 @@ fn putc(_fd, _ch) {
 fn puts(_fd, _str) {
   let fd _fd;
   let str _str;
-  while < #str 0 {
-    let p putc(fd, load8 str);
+  while < 0 load8 str {
+    let _ putc(fd, load8 str);
     = @str +1 str;
   }
   0;
@@ -28,7 +28,18 @@ fn strlen(_str) {
   length;
 }
 
+fn str(_str) {
+  let str _str;
+  let length 0;
+  while < 0 load8 str {
+    = @length +1 length;
+    = @str +1 str;
+  }
+  length;
+}
+
 fn main {
-  print strlen("Hello, World\n");
+  print str("Hello there");
+  // print strlen("Hello, World\n");
   0;
 }

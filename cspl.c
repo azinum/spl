@@ -114,6 +114,8 @@ typedef enum Token_type {
   T_ADD,
   T_SUB,
   T_LT,
+  T_AND,
+  T_OR,
   T_SEMICOLON,
   T_POP,
   T_CONST,
@@ -152,6 +154,8 @@ static const char* token_type_str[] = {
   "T_ADD",
   "T_SUB",
   "T_LT",
+  "T_AND",
+  "T_OR",
   "T_SEMICOLON",
   "T_POP",
   "T_CONST",
@@ -281,6 +285,8 @@ typedef enum Ir_code {
   I_ADD,
   I_SUB,
   I_LT,
+  I_AND,
+  I_OR,
   I_RET,
   I_PRINT,
   I_LABEL,
@@ -318,6 +324,8 @@ static const char* ir_code_str[] = {
   "I_ADD",
   "I_SUB",
   "I_LT",
+  "I_AND",
+  "I_OR",
   "I_RET",
   "I_PRINT",
   "I_LABEL",
@@ -1331,6 +1339,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         else if (ast->value.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
         }
+        else if (ast->value.type == T_AND) {
+          ir_push_ins(c, OP(I_AND), ins_count);
+        }
+        else if (ast->value.type == T_OR) {
+          ir_push_ins(c, OP(I_OR), ins_count);
+        }
         else {
           // Handle
         }
@@ -1802,6 +1816,24 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_AND: {
+        o(
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  and rbx, rax\n"
+        "  push rbx\n"
+        );
+        break;
+      }
+      case I_OR: {
+        o(
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  or rbx, rax\n"
+        "  push rbx\n"
+        );
+        break;
+      }
       case I_RET: {
         o("  pop rax\n");
         o("  ret\n");
@@ -2213,7 +2245,9 @@ Ast* parse_expr(Parser* p) {
     }
     case T_ADD:
     case T_SUB:
-    case T_LT: {
+    case T_LT:
+    case T_AND:
+    case T_OR: {
       lexer_next(&p->l);
       Ast* expr = ast_create(AstBinopExpression);
       expr->value = t;
@@ -2480,6 +2514,12 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "load8")) {
     l->token.type = T_LOAD8;
+  }
+  else if (compare(l->token, "and")) {
+    l->token.type = T_AND;
+  }
+  else if (compare(l->token, "or")) {
+    l->token.type = T_OR;
   }
   else {
     l->token.type = T_IDENTIFIER;
