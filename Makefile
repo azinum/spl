@@ -11,7 +11,7 @@ compile_src:
 	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
 
 clean:
-	rm -f ${PROG} test.spl.asm spl.spl.asm *.o test spl cspl
+	rm -f ${PROG} test.spl.asm spl.spl.asm *.o test spl cspl debug.txt
 
 run: test
 

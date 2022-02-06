@@ -11,7 +11,7 @@ fn putc(_fd, _ch) {
 fn puts(_fd, _str) {
   let fd _fd;
   let str _str;
-  while < 0 #str {
+  while < #str 0 {
     let p putc(fd, load8 str);
     = @str +1 str;
   }

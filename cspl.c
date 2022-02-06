@@ -1497,7 +1497,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
         i32 body_start_address = c->ins_count;
         i32 loop_end_label = c->label_count++;
-        ir_push_ins(c, OP(I_POP), &body_size); // pop result of condition (result is stored in another register for the branching operation)
         // conditional jump if zero
         ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
         if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
@@ -1798,7 +1797,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "  mov rdx, 1\n"
         "  pop rax\n"
         "  pop rbx\n"
-        "  cmp rax, rbx\n"
+        "  cmp rbx, rax\n"
         "  cmovl rcx, rdx\n"
         "  push rcx\n"
         );
@@ -1853,6 +1852,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_JZ: { // jump if zero
+        o(
+        "  pop rax\n"
+        "  test rax, rax\n"
+        );
         o("  jz L%d\n", op->dest);
         break;
       }
