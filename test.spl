@@ -1,7 +1,10 @@
 // test.spl
 
-fn write(fd, buf, count) {
-  syscall3(1, fd, buf, count);
+fn write(fd, buf, count) syscall3(1, fd, buf, count);
+
+fn putc(fd, ch) {
+  let c ch;
+  syscall3(1, fd, load8 @c, 1);
 }
 
 fn main {
@@ -22,5 +25,6 @@ fn main {
   store8 str '!'; = @str +1 str;
   store8 str 10 ; = @str +1 str;
   let count - str @hello-world;
-  write(1, @hello-world, count);
+  let value load8 @hello-world;
+  putc(1, value);
 }

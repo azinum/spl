@@ -129,6 +129,10 @@ typedef enum Token_type {
   T_STORE32,
   T_STORE16,
   T_STORE8,
+  T_LOAD64,
+  T_LOAD32,
+  T_LOAD16,
+  T_LOAD8,
 
   MAX_TOKEN_TYPE,
 } Token_type;
@@ -162,6 +166,10 @@ static const char* token_type_str[] = {
   "T_STORE32",
   "T_STORE16",
   "T_STORE8",
+  "T_LOAD64",
+  "T_LOAD32",
+  "T_LOAD16",
+  "T_LOAD8",
 };
 
 typedef union Tvalue {
@@ -262,6 +270,9 @@ typedef enum Ir_code {
   I_STORE16,
   I_STORE8,
   I_LOAD64,
+  I_LOAD32,
+  I_LOAD16,
+  I_LOAD8,
   I_PUSH_INT64,
   I_PUSH_ADDR_OF,
   I_ADD,
@@ -295,6 +306,9 @@ static const char* ir_code_str[] = {
   "I_STORE16",
   "I_STORE8",
   "I_LOAD64",
+  "I_LOAD32",
+  "I_LOAD16",
+  "I_LOAD8",
   "I_PUSH_INT64",
   "I_PUSH_ADDR_OF",
   "I_ADD",
@@ -1292,6 +1306,18 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         else if (ast->value.type == T_DEREF) {
           ir_push_ins(c, OP(I_LOAD64), ins_count);
         }
+        else if (ast->value.type == T_LOAD64) {
+          ir_push_ins(c, OP(I_LOAD64), ins_count);
+        }
+        else if (ast->value.type == T_LOAD32) {
+          ir_push_ins(c, OP(I_LOAD32), ins_count);
+        }
+        else if (ast->value.type == T_LOAD16) {
+          ir_push_ins(c, OP(I_LOAD16), ins_count);
+        }
+        else if (ast->value.type == T_LOAD8) {
+          ir_push_ins(c, OP(I_LOAD8), ins_count);
+        }
         else {
           // TODO: handle
           assert(0);
@@ -1638,6 +1664,33 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "  pop rbx\n"
         "  mov rax, [rbx]\n"
         "  push rax\n"
+        );
+        break;
+      }
+      case I_LOAD32: {
+        o(
+        "  pop rbx\n"
+        "  xor rbx, rbx\n"
+        "  mov ebx, [rax]\n"
+        "  push rbx\n"
+        );
+        break;
+      }
+      case I_LOAD16: {
+        o(
+        "  pop rbx\n"
+        "  xor rbx, rbx\n"
+        "  mov bx, [rax]\n"
+        "  push rbx\n"
+        );
+        break;
+      }
+      case I_LOAD8: {
+        o(
+        "  pop rbx\n"
+        "  xor rbx, rbx\n"
+        "  mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
+        "  push rbx\n"
         );
         break;
       }
@@ -2109,6 +2162,10 @@ Ast* parse_expr(Parser* p) {
       return NULL;
     }
     case T_DEREF:
+    case T_LOAD64:
+    case T_LOAD32:
+    case T_LOAD16:
+    case T_LOAD8:
     case T_PRINT: {
       lexer_next(&p->l); // skip op
       Ast* expr = ast_create(AstUopExpression);
@@ -2338,6 +2395,18 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "store8")) {
     l->token.type = T_STORE8;
+  }
+  else if (compare(l->token, "load64")) {
+    l->token.type = T_LOAD64;
+  }
+  else if (compare(l->token, "load32")) {
+    l->token.type = T_LOAD32;
+  }
+  else if (compare(l->token, "load16")) {
+    l->token.type = T_LOAD16;
+  }
+  else if (compare(l->token, "load8")) {
+    l->token.type = T_LOAD8;
   }
   else {
     l->token.type = T_IDENTIFIER;
