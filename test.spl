@@ -4,27 +4,10 @@ fn write(fd, buf, count) syscall3(1, fd, buf, count);
 
 fn putc(fd, ch) {
   let c ch;
-  syscall3(1, fd, load8 @c, 1);
+  syscall3(1, fd, @c, 1);
 }
 
 fn main {
-  memory hello-world 14;
-  let str @hello-world;
-  store8 str 'H'; = @str +1 str;
-  store8 str 'e'; = @str +1 str;
-  store8 str 'l'; = @str +1 str;
-  store8 str 'l'; = @str +1 str;
-  store8 str 'o'; = @str +1 str;
-  store8 str ','; = @str +1 str;
-  store8 str ' '; = @str +1 str;
-  store8 str 'W'; = @str +1 str;
-  store8 str 'o'; = @str +1 str;
-  store8 str 'r'; = @str +1 str;
-  store8 str 'l'; = @str +1 str;
-  store8 str 'd'; = @str +1 str;
-  store8 str '!'; = @str +1 str;
-  store8 str 10 ; = @str +1 str;
-  let count - str @hello-world;
-  let value load8 @hello-world;
-  putc(1, value);
+  let str "Hello, World\n";
+  write(1, str, 15);
 }

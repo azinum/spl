@@ -106,6 +106,7 @@ typedef enum Token_type {
 
   T_IDENTIFIER,
   T_NUMBER,
+  T_CSTRING,
   T_ASSIGN,
   T_COMMA,
   T_AT,
@@ -143,6 +144,7 @@ static const char* token_type_str[] = {
 
   "T_IDENTIFIER",
   "T_NUMBER",
+  "T_CSTRING",
   "T_ASSIGN",
   "T_COMMA",
   "T_AT",
@@ -274,6 +276,7 @@ typedef enum Ir_code {
   I_LOAD16,
   I_LOAD8,
   I_PUSH_INT64,
+  I_PUSH_CSTRING,
   I_PUSH_ADDR_OF,
   I_ADD,
   I_SUB,
@@ -310,6 +313,7 @@ static const char* ir_code_str[] = {
   "I_LOAD16",
   "I_LOAD8",
   "I_PUSH_INT64",
+  "I_PUSH_CSTRING",
   "I_PUSH_ADDR_OF",
   "I_ADD",
   "I_SUB",
@@ -344,6 +348,7 @@ static const char* func_call_regs[] = {
 typedef enum Compile_type {
   TypeNone = 0,
   TypeUnsigned64,
+  TypeCString,
   TypeFunc,
   TypeSyscallFunc,
 
@@ -353,12 +358,14 @@ typedef enum Compile_type {
 static const char* compile_type_str[] = {
   "TypeNone",
   "TypeUnsigned64",
+  "TypeCString",
   "TypeFunc",
   "TypeSyscallFunc",
 };
 
 static u64 compile_type_size[] = {
   0,
+  sizeof(u64),
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
@@ -419,6 +426,7 @@ typedef struct Block {
 } Block;
 
 #define MAX_TYPE_STACK 256
+#define MAX_CSTRING 256
 
 // compile state
 typedef struct Compile {
@@ -430,6 +438,9 @@ typedef struct Compile {
 
   Symbol symbols[MAX_SYMBOL];
   u32 symbol_count;
+
+  u32 cstrings[MAX_CSTRING];
+  u32 cstring_count;
 
   Block global;
 
@@ -467,6 +478,7 @@ static void ir_print(Compile* c, FILE* fp);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
+static i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index);
 static i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_stmts(Compile* c, Block* block, Ast* ast, u32* ins_count);
 static i32 ir_compile_func_args(Compile* c, Block* block, Ast* ast, u32* ins_count);
@@ -639,6 +651,7 @@ i32 compile_state_init(Compile* c) {
   c->ins_count = 0;
   c->data_index = 0;
   c->symbol_count = 0;
+  c->cstring_count = 0;
   block_init(&c->global, NULL);
   c->label_count = 0;
   c->status = NoError;
@@ -843,6 +856,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         case T_NUMBER: {
           return ts_push(c, TypeUnsigned64);
         }
+        case T_CSTRING: {
+          return ts_push(c, TypeUnsigned64); // ts_push(c, TypeCString);
+        }
         case T_POP: {
           return ts_pop(c);
         }
@@ -870,8 +886,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           return TypeNone;
         }
         default: {
-          // TODO: handle
-          assert(0);
+          assert(0); // TODO: handle
           break;
         }
       }
@@ -1148,6 +1163,20 @@ i32 ir_push_value(Compile* c, void* value, u32 size) {
   return -1;
 }
 
+i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index) {
+  i32 cstring_address = ir_push_value(c, &length, sizeof(length));
+  i32 value_address = ir_push_value(c, buffer, length);
+  if (cstring_address >= 0 && value_address > cstring_address) {
+    if (c->cstring_count < MAX_CSTRING) {
+      *cstring_index = c->cstring_count;
+      c->cstrings[c->cstring_count++] = cstring_address;
+      return cstring_address;
+    }
+    return -1;
+  }
+  return -1;
+}
+
 i32 ir_start_compile(Compile* c, Ast* ast) {
   REAL_TIMER_START();
   assert("something went very wrong" && ast->type == AstRoot && ast);
@@ -1182,9 +1211,23 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }, ins_count);
           }
           else {
-            // TODO(lucas): Handle
-            assert(0);
+            assert("out of memory" && 0); // TODO(lucas): Handle
           }
+          break;
+        }
+        case T_CSTRING: {
+          u32 cstring_index = 0;
+          i32 cstring_address = ir_push_cstring(c, ast->value.buffer, ast->value.length, &cstring_index);
+          if (cstring_address >= 0) {
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_CSTRING,
+              .dest = -1,
+              .src0 = cstring_index,
+              .src1 = -1,
+            }, ins_count);
+            break;
+          }
+          assert("out of memory" && 0); // TODO(lucas): Handle
           break;
         }
         case T_POP: {
@@ -1205,6 +1248,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
                 }, ins_count);
                 break;
               }
+              case TypeCString:
               case TypeFunc: {
                 // NOTE(lucas): temporary behaviour
                 ir_push_ins(c, (Op) {
@@ -1711,6 +1755,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  push rax\n");
         break;
       }
+      case I_PUSH_CSTRING: {
+        assert(op->src0 >= 0);
+        o("  mov rax, str%d\n", op->src0);
+        o("  push rax\n");
+        break;
+      }
       case I_PUSH_ADDR_OF: {
         if (op->src1 >= 0) {
           Symbol* symbol = &c->symbols[op->src1];
@@ -1872,12 +1922,31 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("  mov rdi, 0\n");
   o("  syscall\n");
   o("section .data\n");
+  for (u32 i = 0; i < c->cstring_count; ++i) {
+    u8* cstring_address = &c->data[c->cstrings[i]];
+    u32 length = *(u32*)cstring_address;
+    cstring_address += sizeof(length);
+    char* buffer = (char*)cstring_address;
+    o("str%u: db ", i);
+    for (u32 str_index = 0; str_index < length; ++str_index) {
+      char ch = buffer[str_index];
+      o("%d, ", ch);
+      if (ch == '\n') {
+        str_index++;
+      }
+    }
+    o("%d\n", length);
+  }
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
     switch (s->type) {
       case TypeUnsigned64: {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
+        break;
+      }
+      case TypeCString: {
+        o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
         break;
       }
       case TypeNone:
@@ -2115,7 +2184,8 @@ Ast* parse_expr(Parser* p) {
   Token t = lexer_peek(&p->l);
   switch (t.type) {
     case T_POP:
-    case T_NUMBER: {
+    case T_NUMBER:
+    case T_CSTRING: {
       lexer_next(&p->l);
       Ast* node = ast_create(AstValue);
       node->value = t;
@@ -2467,6 +2537,35 @@ Token lexer_next(Lexer* l) {
           }
         }
         break;
+      }
+      case '"': {
+        char delimiter = ch;
+        for (;;) {
+          if (*l->index == '\0') {
+            lexer_error(l, "unfinished string\n");
+            l->token.type = T_EOF;
+            return l->token;
+          }
+          else if (*l->index == '\\') {
+            if (*(l->index + 1) == '0') {
+              *l->index++ = '\0';
+            }
+            else if (*(l->index + 1) == 'n') {
+              *l->index++ = '\n';
+            }
+          }
+          else if (*l->index == delimiter) {
+            break;
+          }
+          l->index++;
+          l->column++;
+        }
+        l->token.buffer++;
+        l->column++;
+        l->token.type = T_CSTRING;
+        l->token.length = l->index - l->token.buffer;
+        l->index++;
+        goto done;
       }
       case '=': {
         l->token.type = T_ASSIGN;
