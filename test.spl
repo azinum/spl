@@ -2,12 +2,33 @@
 
 fn write(fd, buf, count) syscall3(1, fd, buf, count);
 
-fn putc(fd, ch) {
-  let c ch;
-  syscall3(1, fd, @c, 1);
+fn putc(_fd, _ch) {
+  let fd _fd;
+  let ch _ch;
+  syscall3(1, fd, @ch, 1);
+}
+
+fn puts(_fd, _str) {
+  let fd _fd;
+  let str _str;
+  while < 0 #str {
+    let p putc(fd, load8 str);
+    = @str +1 str;
+  }
+  0;
+}
+
+fn strlen(_str) {
+  let str _str;
+  let length 0;
+  while < 0 load8 str {
+    = @length +1 length;
+    = @str +1 str;
+  }
+  length;
 }
 
 fn main {
-  let str "Hello, World\n";
-  write(1, str, 15);
+  print strlen("Hello, World\n");
+  0;
 }

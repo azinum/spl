@@ -1935,7 +1935,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         str_index++;
       }
     }
-    o("%d\n", length);
+    o("0, %d\n", length);
   }
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
