@@ -1497,8 +1497,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
         i32 body_start_address = c->ins_count;
         i32 loop_end_label = c->label_count++;
-        // conditional jump if zero
-        ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
+        ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size); // conditional jump if zero
         if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
           ir_push_ins(c, (Op) {
             .i = I_JMP,
@@ -2431,7 +2430,8 @@ Token lexer_read_symbol(Lexer* l) {
     is_extended_ascii((u8)*l->index) ||
 #endif
     *l->index == '_' ||
-    *l->index == '-') {
+    *l->index == '-' ||
+    *l->index == '.') {
     l->index++;
     l->column++;
   }
