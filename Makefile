@@ -16,14 +16,6 @@ clean:
 run: test
 
 ${SPL_SRC}:
-	@if [ ${ONLY_COMP} -eq 1 ]; then \
-		./${PROG} $@.spl; \
-	else \
-		./${PROG} $@.spl && \
-		nasm -f elf64 $@.spl.asm && \
-		ld $@.spl.o -o $@ && \
-		strip $@ && \
-		./$@; \
-	fi
+	./${PROG} $@.spl
 
 .PHONY: test spl

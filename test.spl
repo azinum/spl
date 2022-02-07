@@ -28,18 +28,20 @@ fn strlen(_str) {
   length;
 }
 
-fn str(_str) {
-  let str _str;
-  let length 0;
-  while < 0 load8 str {
-    = @length +1 length;
-    = @str +1 str;
+fn memset(_ptr, _c, _n) {
+  let ptr _ptr;
+  let c _c;
+  let n _n;
+  let count 0;
+  while < count n {
+    store8 ptr _c; = @ptr +1 ptr;
+    = @count +1 count;
   }
-  length;
+  0;
 }
 
+fn add(a, b) + a b;
+
 fn main {
-  print str("Hello there");
-  // print strlen("Hello, World\n");
   0;
 }

@@ -6,4 +6,4 @@ SRC=cspl.c
 
 PROG=cspl
 
-FLAGS=-Wall -Wextra -pedantic -std=c99 -g -O0
+FLAGS=-Wall -Wextra -pedantic -g -O0

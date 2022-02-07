@@ -116,6 +116,8 @@ typedef enum Token_type {
   T_LT,
   T_AND,
   T_OR,
+  T_EQ,
+  T_NEQ,
   T_SEMICOLON,
   T_POP,
   T_CONST,
@@ -156,6 +158,8 @@ static const char* token_type_str[] = {
   "T_LT",
   "T_AND",
   "T_OR",
+  "T_EQ",
+  "T_NEQ",
   "T_SEMICOLON",
   "T_POP",
   "T_CONST",
@@ -287,6 +291,8 @@ typedef enum Ir_code {
   I_LT,
   I_AND,
   I_OR,
+  I_EQ,
+  I_NEQ,
   I_RET,
   I_PRINT,
   I_LABEL,
@@ -326,6 +332,8 @@ static const char* ir_code_str[] = {
   "I_LT",
   "I_AND",
   "I_OR",
+  "I_EQ",
+  "I_NEQ",
   "I_RET",
   "I_PRINT",
   "I_LABEL",
@@ -538,6 +546,9 @@ static Ast* ast_push(Ast* ast, Ast* node);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
+void exec_command(const char* fmt, ...);
+u32 first_dot(const char* s);
+
 i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
@@ -612,6 +623,22 @@ i32 main(i32 argc, char** argv) {
               fclose(debug);
             }
 #endif
+            REAL_TIMER_END(
+              print_info("%s: %lf s\n", __FUNCTION__, _dt);
+              (void)_dt;
+            );
+            exec_command(
+              "nasm -f elf64 %s.asm &&\n"
+              "ld %s.o -o %.*s &&\n"
+              "./%.*s"
+              ,
+              filename,
+              filename,
+              first_dot(filename),
+              filename,
+              first_dot(filename),
+              filename
+            );
           }
           else {
             exit_status = EXIT_FAILURE;
@@ -632,10 +659,6 @@ i32 main(i32 argc, char** argv) {
     fclose(fp);
   }
   free(source);
-  REAL_TIMER_END(
-    print_info("%s: %lf s\n", __FUNCTION__, _dt);
-    (void)_dt;
-  );
   return exit_status;
 }
 
@@ -1345,6 +1368,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         else if (ast->value.type == T_OR) {
           ir_push_ins(c, OP(I_OR), ins_count);
         }
+        else if (ast->value.type == T_EQ) {
+          ir_push_ins(c, OP(I_EQ), ins_count);
+        }
+        else if (ast->value.type == T_NEQ) {
+          ir_push_ins(c, OP(I_NEQ), ins_count);
+        }
         else {
           // Handle
         }
@@ -1834,6 +1863,30 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_EQ: {
+        o(
+        "  mov rcx, 0\n"
+        "  mov rdx, 1\n"
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  cmp rbx, rax\n"
+        "  cmove rcx, rdx\n"
+        "  push rcx\n"
+        );
+        break;
+      }
+      case I_NEQ: {
+        o(
+        "  mov rcx, 0\n"
+        "  mov rdx, 1\n"
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  cmp rbx, rax\n"
+        "  cmovne rcx, rdx\n"
+        "  push rcx\n"
+        );
+        break;
+      }
       case I_RET: {
         o("  pop rax\n");
         o("  ret\n");
@@ -2247,7 +2300,9 @@ Ast* parse_expr(Parser* p) {
     case T_SUB:
     case T_LT:
     case T_AND:
-    case T_OR: {
+    case T_OR:
+    case T_EQ:
+    case T_NEQ: {
       lexer_next(&p->l);
       Ast* expr = ast_create(AstBinopExpression);
       expr->value = t;
@@ -2520,6 +2575,12 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "or")) {
     l->token.type = T_OR;
+  }
+  else if (compare(l->token, "eq")) {
+    l->token.type = T_EQ;
+  }
+  else if (compare(l->token, "neq")) {
+    l->token.type = T_NEQ;
   }
   else {
     l->token.type = T_IDENTIFIER;
@@ -2877,4 +2938,27 @@ void ast_free(Ast* ast) {
     free(ast);
     ast = NULL;
   }
+}
+
+#define MAX_COMMAND_SIZE 512
+
+void exec_command(const char* fmt, ...) {
+  char command[MAX_COMMAND_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(command, MAX_COMMAND_SIZE, fmt, args);
+  va_end(args);
+
+  fprintf(stdout, "+ %s\n", command); // to simulate 'set -xe'
+  FILE* fp = popen(command, "w");
+  fclose(fp);
+}
+
+u32 first_dot(const char* s) {
+  u32 index = 0;
+  while (*s != '.' && *s != '\0') {
+    ++index;
+    s++;
+  }
+  return index;
 }
