@@ -296,7 +296,8 @@ typedef enum Ir_code {
   I_RET,
   I_PRINT,
   I_LABEL,
-  I_CALL,
+  I_CALL, // <label, argc, rtype>
+  I_ADDR_CALL, // <rax, argc, rtype>
   I_JMP,
   I_JZ,
   I_LOOP_LABEL,
@@ -338,6 +339,7 @@ static const char* ir_code_str[] = {
   "I_PRINT",
   "I_LABEL",
   "I_CALL",
+  "I_ADDR_CALL",
   "I_JMP",
   "I_JZ",
   "I_LOOP_LABEL",
@@ -415,6 +417,7 @@ static const char* compile_target_str[MAX_COMPILE_TARGET] = {
 
 typedef struct Function {
   i32 address;
+  i32 label;
   u32 argc;
   Compile_type rtype;
   u32 args[MAX_FUNC_ARGC]; // arguments pointing to some symbol in the function block/symbol table
@@ -442,6 +445,7 @@ typedef struct Block {
 } Block;
 
 #define MAX_TYPE_STACK 256
+#define MAX_VALUE_STACK 256 // temporary
 #define MAX_CSTRING 256
 
 // compile state
@@ -465,8 +469,11 @@ typedef struct Compile {
   i32 status;
   i32 entry_point;
 
-  Compile_type ts[MAX_TYPE_STACK];
+  Compile_type ts[MAX_TYPE_STACK]; // type stack
   i32 ts_count; // signed integer to be able to detect stack underflows
+
+  Value vs[MAX_VALUE_STACK];  // sometimes we need to grab values in the type checking phase, therefore we also have a value stack. this will probably be changed later
+  i32 vs_count;
 } Compile;
 
 static void symbol_init(Symbol* symbol);
@@ -489,6 +496,8 @@ static Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, 
 static Compile_type ts_push(Compile* c, Compile_type type);
 static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
+static i32 vs_push(Compile* c, Value v);
+static i32 vs_pop(Compile* c, Value* v);
 
 static void ir_print(Compile* c, FILE* fp);
 static i32 ir_start_compile(Compile* c, Ast* ast);
@@ -688,6 +697,7 @@ i32 compile_state_init(Compile* c) {
   c->status = NoError;
   c->entry_point = 0;
   c->ts_count = 0;
+  c->vs_count = 0;
 
   compile_declare_syscall(c, &c->global, "syscall0", 1);
   compile_declare_syscall(c, &c->global, "syscall1", 2);
@@ -781,6 +791,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   symbol->token.v.i = symbol_index;
   Function* func = &symbol->value.func;
   func->address = -1;
+  func->label = -1;
   func->argc = argc;
   func->rtype = TypeUnsigned64;
   return NoError;
@@ -820,9 +831,12 @@ void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
+    if (symbol->type == TypeSyscallFunc) {
+      continue;
+    }
     if (symbol->type == TypeFunc) {
       Function* func = &symbol->value.func;
-      fprintf(fp, "%3u: `%s` (type = %s, address = %i, argc = %i, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
+      fprintf(fp, "%3u: `%s` (type = %s, label = %d, address = %d, argc = %d, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->label, func->address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
@@ -899,7 +913,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
             ast->value.v.i = symbol_index;
             if (symbol->type == TypeFunc) {
-              return ts_push(c, TypeUnsigned64);
+              vs_push(c, symbol->value);
+              return ts_push(c, TypeFunc);
             }
             return ts_push(c, symbol->type);
           }
@@ -910,6 +925,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+            if (symbol->type == TypeFunc || symbol->type == TypeNone) {
+              typecheck_error_at(c, ast->value, "can not take the address of the type `%s`\n", compile_type_str[symbol->type]);
+              return TypeNone;
+            }
             ast->value.v.i = symbol_index;
             return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
           }
@@ -935,8 +954,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type a = ts_pop(c);
       Compile_type b = ts_pop(c);
       if (a == TypeUnsigned64 && b == TypeUnsigned64) {
-        ts_push(c, a);
-        return a;
+        return ts_push(c, a);
       }
       typecheck_error_at(c, ast->value, "type mismatch in binary operator expression\n");
       return TypeNone;
@@ -966,6 +984,15 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         symbol->size = compile_type_size[type];
         symbol->type = type;
         symbol->token = ast->value; // duplicated in compile_declare_value
+        if (type == TypeFunc) {
+          Value func_value;
+          if (vs_pop(c, &func_value) == NoError) {
+            symbol->value = func_value;
+          }
+          else {
+            assert(0); // TODO: handle
+          }
+        }
         ast->value.v.i = symbol_index;
         return type;
       }
@@ -999,6 +1026,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ast->value.v.i = symbol_index;
         Function* func = &symbol->value.func;
         func->address = -1;
+        func->label = symbol_index;
         func->argc = params->count;
 
         for (u32 i = 0; i < func->argc; ++i) {
@@ -1156,6 +1184,23 @@ Compile_type ts_top(Compile* c) {
   return c->ts[0];
 }
 
+i32 vs_push(Compile* c, Value v) {
+  if (c->vs_count >= 0 && c->vs_count < MAX_VALUE_STACK) {
+    c->vs[c->vs_count++] = v;
+    return NoError;
+  }
+  return Error;
+}
+
+i32 vs_pop(Compile* c, Value* v) {
+  if (c->vs_count > 0) {
+    *v = c->vs[--c->vs_count];
+    return NoError;
+  }
+  --c->vs_count;
+  return Error;
+}
+
 void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->ins_count; ++i) {
@@ -1281,12 +1326,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               }
               case TypeCString:
               case TypeFunc: {
+                Function* func = &symbol->value.func;
                 // NOTE(lucas): temporary behaviour
                 ir_push_ins(c, (Op) {
                   .i = I_PUSH_ADDR_OF,
                   .dest = -1,
                   .src0 = -1,
-                  .src1 = id,
+                  .src1 = func->label,
                 }, ins_count);
                 break;
               }
@@ -1426,7 +1472,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     }
     case AstLetStatement: {
       i32 id = ast->value.v.i;
+      Symbol* symbol = &c->symbols[id];
       if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
+        if (symbol->type == TypeFunc) {
+          // label has already been found at this point
+          break;
+        }
         // store contents of rax into [v]
         ir_push_ins(c, (Op) {
           .i = I_MOVE,
@@ -1450,27 +1501,27 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       i32 id = ast->value.v.i;
       Symbol* symbol = &c->symbols[id];
       Function* func = &symbol->value.func;
-      (void)func; // unused
       ir_compile_func_args(c, block, ast->node[0], ins_count); // compile function args in reverse order
       switch (symbol->type) {
         case TypeFunc: {
           ir_push_ins(c, (Op) {
             .i = I_CALL,
-            .dest = id, 
-            .src0 = -1,
-            .src1 = -1,
+            .dest = func->label, 
+            .src0 = func->argc,
+            .src1 = func->rtype,
           }, ins_count);
           break;
         }
-        case TypeUnsigned64: {
-          ir_push_ins(c, (Op) {
-            .i = I_CALL,
-            .dest = -1,
-            .src0 = id,
-            .src1 = -1,
-          }, ins_count);
-          break;
-        }
+        // case TypeUnsigned64: {
+        //   assert(0);
+        //   ir_push_ins(c, (Op) {
+        //     .i = I_CALL,
+        //     .dest = -1,
+        //     .src0 = id,
+        //     .src1 = -1,
+        //   }, ins_count);
+        //   break;
+        // }
         case TypeSyscallFunc: {
           const i32 syscall_map[] = {
             I_SYSCALL0,
@@ -1911,6 +1962,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
+        assert(op->dest >= 0);
+        i32 argc = op->src0;
+        for (i32 arg = 0; arg < argc; ++arg) {
+          o("  pop %s\n", func_call_regs[arg]);
+        }
+        o("  call v%d\n", op->dest);
+        o("  push rax\n");
+#if 0
         if (op->dest >= 0) {
           Symbol* symbol = &c->symbols[op->dest];
           Function* func = &symbol->value.func;
@@ -1929,6 +1988,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o("  call [v%d] ; `%s`\n", op->src0, symbol->name);
           o("  push rax ; function result\n");
         }
+#endif
         break;
       }
       case I_JMP: {

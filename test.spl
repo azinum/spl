@@ -40,8 +40,12 @@ fn memset(_ptr, _c, _n) {
   0;
 }
 
-fn add(a, b) + a b;
+fn foo(a, b) + a b;
+fn bar(a, b, c) + + a b c;
+fn baz foo;
 
 fn main {
+  let f baz();
+  print f(2, 3);
   0;
 }
