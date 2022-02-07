@@ -416,7 +416,7 @@ static const char* compile_target_str[MAX_COMPILE_TARGET] = {
 };
 
 typedef struct Function {
-  i32 address;
+  i32 ir_address;
   i32 label;
   u32 argc;
   Compile_type rtype;
@@ -790,7 +790,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   symbol->token = token; // duplicated in compile_declare_value
   symbol->token.v.i = symbol_index;
   Function* func = &symbol->value.func;
-  func->address = -1;
+  func->ir_address = -1;
   func->label = -1;
   func->argc = argc;
   func->rtype = TypeUnsigned64;
@@ -836,7 +836,7 @@ void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
     }
     if (symbol->type == TypeFunc) {
       Function* func = &symbol->value.func;
-      fprintf(fp, "%3u: `%s` (type = %s, label = %d, address = %d, argc = %d, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->label, func->address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
+      fprintf(fp, "%3u: `%s` (type = %s, label = %d, ir_address = %d, argc = %d, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->label, func->ir_address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
@@ -1025,7 +1025,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         symbol->token = ast->value; // duplicated in compile_declare_value
         ast->value.v.i = symbol_index;
         Function* func = &symbol->value.func;
-        func->address = -1;
+        func->ir_address = -1;
         func->label = symbol_index;
         func->argc = params->count;
 
@@ -1053,11 +1053,14 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         i32 ts_count = c->ts_count;
         i32 ts_delta = ts_count;
         typecheck_node_list(c, &local_block, fs, body);
-        Compile_type rtype = ts_pop(c);
-        ts_delta -= c->ts_count;
-        if (ts_delta != 0) {
-          typecheck_error_at(c, ast->value, "missing function return value\n");
+        Compile_type rtype = TypeNone;
+        ts_delta = c->ts_count - ts_delta;
+        if (ts_delta > 1) {
+          typecheck_error_at(c, ast->value, "too many values produced by function `%s`\n", symbol->name);
           return TypeNone;
+        }
+        if (ts_delta != 0) {
+          rtype = ts_pop(c);
         }
 
         func->rtype = rtype;
@@ -1097,6 +1100,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             }
           }
           ts_pop(c);
+        }
+        if (func->rtype == TypeNone) {
+          return TypeNone;
         }
         return ts_push(c, func->rtype);
       }
@@ -1508,20 +1514,10 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .i = I_CALL,
             .dest = func->label, 
             .src0 = func->argc,
-            .src1 = func->rtype,
+            .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
           }, ins_count);
           break;
         }
-        // case TypeUnsigned64: {
-        //   assert(0);
-        //   ir_push_ins(c, (Op) {
-        //     .i = I_CALL,
-        //     .dest = -1,
-        //     .src0 = id,
-        //     .src1 = -1,
-        //   }, ins_count);
-        //   break;
-        // }
         case TypeSyscallFunc: {
           const i32 syscall_map[] = {
             I_SYSCALL0,
@@ -1682,7 +1678,7 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     .src1 = -1,
   }, ins_count);
   Function* func = &symbol->value.func;
-  func->address = c->ins_count;
+  func->ir_address = c->ins_count;
   u32 func_size = 0;
   ir_compile_stmts(c, block, body, &func_size);
   ir_push_ins(c, OP(I_RET), ins_count);
@@ -1968,27 +1964,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o("  pop %s\n", func_call_regs[arg]);
         }
         o("  call v%d\n", op->dest);
-        o("  push rax\n");
-#if 0
-        if (op->dest >= 0) {
-          Symbol* symbol = &c->symbols[op->dest];
-          Function* func = &symbol->value.func;
-          for (u32 arg = 0; arg < func->argc; ++arg) {
-            o("  pop %s\n", func_call_regs[arg]);
-          }
-          o("  call v%d ; `%s`\n", op->dest, symbol->name);
-          o("  push rax ; function result\n");
+        if (op->src1 >= 0) {
+          o("  push rax\n");
         }
-        else if (op->src0 >= 0) {
-          Symbol* symbol = &c->symbols[op->src0];
-          Function* func = &symbol->value.func;
-          for (u32 arg = 0; arg < func->argc; ++arg) {
-            o("  pop %s\n", func_call_regs[arg]);
-          }
-          o("  call [v%d] ; `%s`\n", op->src0, symbol->name);
-          o("  push rax ; function result\n");
-        }
-#endif
         break;
       }
       case I_JMP: {

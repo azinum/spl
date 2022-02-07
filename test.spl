@@ -1,21 +1,22 @@
 // test.spl
 
-fn write(fd, buf, count) syscall3(1, fd, buf, count);
+// invalidate assigning TypeNone values
+
+fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); } // fix single line statement
 
 fn putc(_fd, _ch) {
   let fd _fd;
   let ch _ch;
-  syscall3(1, fd, @ch, 1);
+  write(fd, @ch, 1);
 }
 
 fn puts(_fd, _str) {
   let fd _fd;
   let str _str;
   while < 0 load8 str {
-    let _ putc(fd, load8 str);
+    putc(fd, load8 str);
     = @str +1 str;
   }
-  0;
 }
 
 fn strlen(_str) {
@@ -37,15 +38,11 @@ fn memset(_ptr, _c, _n) {
     store8 ptr _c; = @ptr +1 ptr;
     = @count +1 count;
   }
-  0;
 }
 
-fn foo(a, b) + a b;
-fn bar(a, b, c) + + a b c;
-fn baz foo;
+fn add(a, b) + a b;
 
 fn main {
-  let f baz();
-  print f(2, 3);
+  puts(1, "Hello World\n");
   0;
 }
