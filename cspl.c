@@ -2029,12 +2029,42 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL4: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  pop rsi\n"
+        "  pop rdx\n"
+        "  pop r10\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
         break;
       }
       case I_SYSCALL5: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  pop rsi\n"
+        "  pop rdx\n"
+        "  pop r10\n"
+        "  pop r8\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
         break;
       }
       case I_SYSCALL6: {
+        o(
+        "  pop rax\n"
+        "  pop rdi\n"
+        "  pop rsi\n"
+        "  pop rdx\n"
+        "  pop r10\n"
+        "  pop r8\n"
+        "  pop r9\n"
+        "  syscall\n"
+        "  push rax\n"
+        );
         break;
       }
       default: {

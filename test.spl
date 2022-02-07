@@ -1,8 +1,8 @@
 // test.spl
 
-// invalidate assigning TypeNone values
+memory g 1024;
 
-fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); } // fix single line statement
+fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
 
 fn putc(_fd, _ch) {
   let fd _fd;
