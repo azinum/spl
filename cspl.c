@@ -977,7 +977,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstLetStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
+      i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
+      i32 ts_delta = c->ts_count - ts_count;
+      if (ts_delta == 0) {
+        typecheck_error_at(c, ast->value, "no value was produced in the rhs of the let statement\n");
+        return TypeNone;
+      }
       Compile_type type = ts_pop(c);
       if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
@@ -1051,10 +1057,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
 
         i32 ts_count = c->ts_count;
-        i32 ts_delta = ts_count;
         typecheck_node_list(c, &local_block, fs, body);
         Compile_type rtype = TypeNone;
-        ts_delta = c->ts_count - ts_delta;
+        i32 ts_delta = c->ts_count - ts_count;
         if (ts_delta > 1) {
           typecheck_error_at(c, ast->value, "too many values produced by function `%s`\n", symbol->name);
           return TypeNone;
