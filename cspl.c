@@ -86,6 +86,7 @@ typedef uint8_t u8;
 #define USE_EXTENDED_ASCII 1
 #define NUM_LINES_TO_PRINT 2
 #define NO_TYPECHECKING 0
+#define VERBOSE_ASSEMBLY 1
 
 #define HERE printf("%s:%d: HERE\n", __FUNCTION__, __LINE__)
 
@@ -262,8 +263,6 @@ typedef struct Ast {
   Token value;
 } Ast;
 
-// frontend: input -> lexer -> parser -> ast/other data structure -> intermidiate representation ->
-// backend: -> code optimization -> code generation (or interpret the intermidiate representation)
 typedef struct Parser {
   Lexer l;
   Ast* ast;
@@ -283,9 +282,10 @@ typedef enum Ir_code {
   I_LOAD32,
   I_LOAD16,
   I_LOAD8,
-  I_PUSH_INT64,
-  I_PUSH_CSTRING,
-  I_PUSH_ADDR_OF,
+  I_PUSH_ADDR_OF, // <type, id, x>
+  I_PUSH_LOCAL_ADDR_OF, // <type, id, x>
+  I_PUSH, // <type, id, x> -- push argument value
+  I_PUSH_LOCAL, // <type, id, imm>
   I_ADD,
   I_SUB,
   I_LT,
@@ -293,13 +293,15 @@ typedef enum Ir_code {
   I_OR,
   I_EQ,
   I_NEQ,
-  I_RET,
+  I_RET, // <x, argc, x>
+  I_NORET, // <x, argc, x>
   I_PRINT,
   I_LABEL,
   I_CALL, // <label, argc, rtype>
   I_ADDR_CALL, // <rax, argc, rtype>
   I_JMP,
   I_JZ,
+  I_BEGIN_FUNC, // <x, argc, x>
   I_LOOP_LABEL,
 
   I_SYSCALL0,
@@ -325,9 +327,10 @@ static const char* ir_code_str[] = {
   "I_LOAD32",
   "I_LOAD16",
   "I_LOAD8",
-  "I_PUSH_INT64",
-  "I_PUSH_CSTRING",
   "I_PUSH_ADDR_OF",
+  "I_PUSH_LOCAL_ADDR_OF",
+  "I_PUSH",
+  "I_PUSH_LOCAL",
   "I_ADD",
   "I_SUB",
   "I_LT",
@@ -336,12 +339,14 @@ static const char* ir_code_str[] = {
   "I_EQ",
   "I_NEQ",
   "I_RET",
+  "I_NORET",
   "I_PRINT",
   "I_LABEL",
   "I_CALL",
   "I_ADDR_CALL",
   "I_JMP",
   "I_JZ",
+  "I_BEGIN_FUNC",
   "I_LOOP_LABEL",
 
   "I_SYSCALL0",
@@ -502,6 +507,7 @@ static i32 vs_pop(Compile* c, Value* v);
 static void ir_print(Compile* c, FILE* fp);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
+static i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index);
 static i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count);
@@ -637,8 +643,8 @@ i32 main(i32 argc, char** argv) {
               (void)_dt;
             );
             exec_command(
-              "nasm -f elf64 %s.asm &&\n"
-              "ld %s.o -o %.*s &&\n"
+              "nasm -f elf64 %s.asm && "
+              "ld %s.o -o %.*s && "
               "./%.*s"
               ,
               filename,
@@ -960,7 +966,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return TypeNone;
     }
     case AstUopExpression: {
+      i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
+      i32 ts_delta = c->ts_count - ts_count;
+      if (ts_delta == 0) {
+        typecheck_error_at(c, ast->value, "no value was produced in the rhs of the unary operator expression\n");
+        return TypeNone;
+      }
       if (ast->value.type == T_PRINT) {
         ts_pop(c);
         return TypeNone;
@@ -1011,7 +1023,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return typecheck_node_list(c, &local_block, fs, ast);
     }
     case AstFuncDefinition: {
-      Ast* params = ast->node[0]; (void)params;
+      Ast* params = ast->node[0];
       Ast* body = ast->node[1];
 
       if (params->count > MAX_FUNC_ARGC) {
@@ -1027,6 +1039,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         symbol->imm = -1;
         symbol->size = compile_type_size[TypeFunc];
+        symbol->local = 1;
         symbol->type = TypeFunc;
         symbol->token = ast->value; // duplicated in compile_declare_value
         ast->value.v.i = symbol_index;
@@ -1048,7 +1061,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             arg_symbol->local = 0;
             arg_symbol->type = TypeUnsigned64;
             arg_symbol->token = arg;
-            arg_symbol->token.v.i = i; // TODO(lucas): storing the argument id here seems a bit strange
+            arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id
           }
           else {
             compile_error_at(c, arg, "duplicate function argument `%.*s`\n", arg.length, arg.buffer);
@@ -1240,6 +1253,18 @@ i32 ir_push_ins(Compile* c, Op ins, u32* ins_count) {
   return NoError;
 }
 
+i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count) {
+  if (c->ins_count > 0) {
+    list_shrink(c->ins, c->ins_count, 1);
+    if (ins_count) {
+      (*ins_count)--;
+    }
+    *ins = c->ins[c->ins_count];
+    return NoError;
+  }
+  return Error;
+}
+
 i32 ir_push_value(Compile* c, void* value, u32 size) {
   i32 address = c->data_index;
   if (address + size < MAX_DATA) {
@@ -1291,10 +1316,10 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           i32 imm = ir_push_value(c, &ast->value.v.num, sizeof(ast->value.v.num));
           if (imm >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_INT64,
-              .dest = -1,
-              .src0 = imm,
-              .src1 = -1,
+              .i = I_PUSH_LOCAL,
+              .dest = TypeUnsigned64,
+              .src0 = -1,
+              .src1 = imm,
             }, ins_count);
           }
           else {
@@ -1307,8 +1332,8 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           i32 cstring_address = ir_push_cstring(c, ast->value.buffer, ast->value.length, &cstring_index);
           if (cstring_address >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_CSTRING,
-              .dest = -1,
+              .i = I_PUSH_LOCAL,
+              .dest = TypeCString,
               .src0 = cstring_index,
               .src1 = -1,
             }, ins_count);
@@ -1325,73 +1350,60 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
           if (symbol->local) {
-            switch (symbol->type) {
-              case TypeUnsigned64: {
-                ir_push_ins(c, (Op) {
-                  .i = I_PUSH_INT64,
-                  .dest = -1,
-                  .src0 = -1,
-                  .src1 = id,
-                }, ins_count);
-                break;
-              }
-              case TypeCString:
-              case TypeFunc: {
-                Function* func = &symbol->value.func;
-                // NOTE(lucas): temporary behaviour
-                ir_push_ins(c, (Op) {
-                  .i = I_PUSH_ADDR_OF,
-                  .dest = -1,
-                  .src0 = -1,
-                  .src1 = func->label,
-                }, ins_count);
-                break;
-              }
-              default: {
-                assert(0);
-                break;
-              }
+            if (symbol->type == TypeFunc) {
+              Function* func = &symbol->value.func;
+              ir_push_ins(c, (Op) {
+                .i = I_PUSH_LOCAL,
+                .dest = symbol->type,
+                .src0 = func->label,
+                .src1 = -1,
+              }, ins_count);
+            }
+            else if (symbol->type == TypeCString) {
+              // for now c strings are handled using pointers (64-bit unsigned integers)
+              // therefore we do nothing here
+              assert(0); // just in case
+            }
+            else {
+              ir_push_ins(c, (Op) {
+                .i = I_PUSH_LOCAL,
+                .dest = symbol->type,
+                .src0 = id,
+                .src1 = -1,
+              }, ins_count);
             }
           }
           else {
-            switch (symbol->type) {
-              case TypeUnsigned64: {
-                ir_push_ins(c, (Op) {
-                  .i = I_PUSH_INT64,
-                  .dest = -1,
-                  .src0 = -1,
-                  .src1 = id,
-                }, ins_count);
-                break;
-              }
-              case TypeFunc: {
-                // NOTE(lucas): temporary behaviour
-                ir_push_ins(c, (Op) {
-                  .i = I_PUSH_ADDR_OF,
-                  .dest = -1,
-                  .src0 = -1,
-                  .src1 = id,
-                }, ins_count);
-                break;
-              }
-              default: {
-                assert(0);
-                break;
-              }
-            }
+            i32 arg = symbol->token.v.i;
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH,
+              .dest = symbol->type,
+              .src0 = arg,
+              .src1 = -1,
+            }, ins_count);
           }
           break;
         }
         case T_AT: {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
-          (void)symbol;
-          ir_push_ins(c, (Op) {
-            .i = I_PUSH_ADDR_OF,
-            .dest = -1,
-            .src0 = -1,
-            .src1 = id,
-          }, ins_count);
+          if (symbol->local) {
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_LOCAL_ADDR_OF,
+              .dest = symbol->type,
+              .src0 = id,
+              .src1 = -1,
+            }, ins_count);
+          }
+          else {
+            id = symbol->token.v.i;
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_ADDR_OF,
+              .dest = symbol->type,
+              .src0 = id,
+              .src1 = -1,
+            }, ins_count);
+          }
           break;
         }
         default: {
@@ -1432,7 +1444,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           ir_push_ins(c, OP(I_NEQ), ins_count);
         }
         else {
-          // Handle
+          assert("operation not implemented yet" && 0); // TODO: handle
         }
       }
       else {
@@ -1463,8 +1475,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           ir_push_ins(c, OP(I_LOAD8), ins_count);
         }
         else {
-          // TODO: handle
-          assert(0);
+          assert("operation not implemented yet" && 0); // TODO: handle
         }
       }
       else {
@@ -1486,7 +1497,10 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       Symbol* symbol = &c->symbols[id];
       if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
         if (symbol->type == TypeFunc) {
-          // label has already been found at this point
+          // label has already been found and stored at this point
+          Op op; // unused for now, but we might want to check to see that we popped the correct instruction
+          ir_pop_ins(c, &op, ins_count);
+          (void)op;
           break;
         }
         // store contents of rax into [v]
@@ -1676,17 +1690,30 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   Ast* body = ast->node[1];
   i32 id = ast->value.v.i;
   Symbol* symbol = &c->symbols[id];
+  Function* func = &symbol->value.func;
   ir_push_ins(c, (Op) {
     .i = I_LABEL,
     .dest = id,
     .src0 = -1,
     .src1 = -1,
   }, ins_count);
-  Function* func = &symbol->value.func;
   func->ir_address = c->ins_count;
+
+  ir_push_ins(c, (Op) {
+    .i = I_BEGIN_FUNC,
+    .dest = -1,
+    .src0 = func->argc,
+    .src1 = -1,
+  }, ins_count);
   u32 func_size = 0;
   ir_compile_stmts(c, block, body, &func_size);
-  ir_push_ins(c, OP(I_RET), ins_count);
+  Op op = (Op) {
+    .i = ((i32[]){I_RET, I_NORET})[func->rtype == TypeNone],
+    .dest = -1,
+    .src0 = func->argc,
+    .src1 = -1,
+  };
+  ir_push_ins(c, op, ins_count);
   return c->status;
 }
 
@@ -1706,7 +1733,13 @@ i32 compile(Compile* c, Compile_target target, FILE* fp) {
 }
 
 i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
-#define o(...) fprintf(fp, __VA_ARGS__)
+  #define o(...) fprintf(fp, __VA_ARGS__)
+#if VERBOSE_ASSEMBLY
+  #define vo(...) fprintf(fp, __VA_ARGS__)
+#else
+  #define vo(...)
+#endif
+
 #define ENTRY "_start"
 #define MEMORY_CAPACITY KB(512)
   o("bits 64\n");
@@ -1760,11 +1793,13 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_MOVE: {
+        vo("; I_MOVE\n");
         o("  pop rax\n");
         o("  mov [v%i], rax\n", op->dest);
         break;
       }
       case I_STORE64: {
+        vo("; I_STORE64\n");
         o(
         "  pop rbx\n"
         "  pop rax\n"
@@ -1773,6 +1808,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_STORE32: {
+        vo("; I_STORE32\n");
         o(
         "  pop rbx\n"
         "  pop rax\n"
@@ -1781,6 +1817,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_STORE16: {
+        vo("; I_STORE16\n");
         o(
         "  pop rbx\n"
         "  pop rax\n"
@@ -1789,6 +1826,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_STORE8: {
+        vo("; I_STORE8\n");
         o(
         "  pop rbx\n"
         "  pop rax\n"
@@ -1797,16 +1835,18 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LOAD64: {
+        vo("; I_LOAD64\n");
         o(
-        "  pop rbx\n"
+        "  pop rax\n"
         "  mov rax, [rbx]\n"
         "  push rax\n"
         );
         break;
       }
       case I_LOAD32: {
+        vo("; I_LOAD32\n");
         o(
-        "  pop rbx\n"
+        "  pop rax\n"
         "  xor rbx, rbx\n"
         "  mov ebx, [rax]\n"
         "  push rbx\n"
@@ -1814,8 +1854,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LOAD16: {
+        vo("; I_LOAD16\n");
         o(
-        "  pop rbx\n"
+        "  pop rax\n"
         "  xor rbx, rbx\n"
         "  mov bx, [rax]\n"
         "  push rbx\n"
@@ -1823,53 +1864,89 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LOAD8: {
+        vo("; I_LOAD8\n");
         o(
-        "  pop rbx\n"
-        "  xor rbx, rbx\n"
+        "  pop rax\n"
+        // "  xor rbx, rbx\n"
+        "  mov rbx, 0\n"
         "  mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
         "  push rbx\n"
         );
         break;
       }
-      case I_PUSH_INT64: {
-        if (op->src1 >= 0) {
-          Symbol* symbol = &c->symbols[op->src1];
-          if (symbol->local) {
-            assert((u32)op->src1 < c->symbol_count);
-            o("  mov rax, [v%d]\n", op->src1);
-            o("  push rax\n");
-            break;
-          }
-          o("  push %s\n", func_call_regs[symbol->token.v.i]);
-          break;
-        }
-        i64 value = *(i64*)&c->data[op->src0];
-        o("  mov rax, %ld\n", value);
-        o("  push rax\n");
-        break;
-      }
-      case I_PUSH_CSTRING: {
-        assert(op->src0 >= 0);
-        o("  mov rax, str%d\n", op->src0);
-        o("  push rax\n");
-        break;
-      }
       case I_PUSH_ADDR_OF: {
-        if (op->src1 >= 0) {
-          Symbol* symbol = &c->symbols[op->src1];
-          if (symbol->local) {
-            assert((u32)op->src1 < c->symbol_count);
-            o("  mov rax, v%d\n", op->src1);
+        vo("; I_PUSH_ADDR_OF\n");
+        switch (op->dest) {
+          case TypeUnsigned64: {
+            o("  lea rax, [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             o("  push rax\n");
             break;
           }
-          assert("taking address of function argument is not implemented yet" && 0); // TODO: handle
-          break;
+          default: {
+            assert("I_PUSH_ADDR_OF: type not implemented yet" && 0);
+          }
         }
-        assert(0);
+        break;
+      }
+      case I_PUSH_LOCAL_ADDR_OF: {
+        vo("; I_PUSH_LOCAL_ADDR_OF\n");
+        o("  mov rax, v%d\n", op->src0);
+        o("  push rax\n");
+        break;
+      }
+      case I_PUSH: {
+        vo("; I_PUSH\n");
+        switch (op->dest) {
+          case TypeUnsigned64: {
+            o("  push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
+            break;
+          }
+          default:
+            assert("I_PUSH: type not implemented yet" && 0);
+            break;
+        }
+        break;
+      }
+      case I_PUSH_LOCAL: {
+        vo("; I_PUSH_LOCAL\n");
+        if (op->src0 >= 0) {
+          switch (op->dest) {
+            case TypeUnsigned64: {
+              o("  mov rax, [v%d]\n", op->src0);
+              o("  push rax\n");
+              break;
+            }
+            case TypeCString: {
+              o("  mov rax, str%d\n", op->src0);
+              o("  push rax\n");
+              break;
+            }
+            case TypeFunc: {
+              o("  mov rax, v%d\n", op->src0);
+              o("  push rax\n");
+              break;
+            }
+            default:
+              break;
+          }
+        }
+        else if (op->src1 >= 0) { // immediate value
+          switch (op->dest) {
+            case TypeUnsigned64: {
+              i64 value = *(i64*)&c->data[op->src1];
+              o("  mov rax, %ld\n", value);
+              o("  push rax\n");
+              break;
+            }
+            default:
+              assert("I_PUSH_LOCAL: imm type not implemented yet" && 0);
+              break;
+          }
+        }
         break;
       }
       case I_ADD: {
+        vo("; I_ADD\n");
         o("  pop rax\n");
         o("  pop rbx\n");
         o("  add rbx, rax\n");
@@ -1877,6 +1954,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SUB: {
+        vo("; I_SUB\n");
         o(
         "  pop rax\n"
         "  pop rbx\n"
@@ -1886,6 +1964,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LT: {
+        vo("; I_LT\n");
         o(
         "  mov rcx, 0\n"
         "  mov rdx, 1\n"
@@ -1898,6 +1977,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_AND: {
+        vo("; I_AND\n");
         o(
         "  pop rax\n"
         "  pop rbx\n"
@@ -1907,6 +1987,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_OR: {
+        vo("; I_OR\n");
         o(
         "  pop rax\n"
         "  pop rbx\n"
@@ -1916,6 +1997,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_EQ: {
+        vo("; I_EQ\n");
         o(
         "  mov rcx, 0\n"
         "  mov rdx, 1\n"
@@ -1928,6 +2010,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_NEQ: {
+        vo("; I_NEQ\n");
         o(
         "  mov rcx, 0\n"
         "  mov rdx, 1\n"
@@ -1940,11 +2023,28 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_RET: {
+        vo("; I_RET\n");
+        i32 argc = op->src0;
         o("  pop rax\n");
+        o("  pop rbp\n");
+        if (argc > 0) {
+          o("  add rsp, 0x%x\n", argc * 0x8);
+        }
+        o("  ret\n");
+        break;
+      }
+      case I_NORET: {
+        vo("; I_NORET\n");
+        i32 argc = op->src0;
+        o("  pop rbp\n");
+        if (argc > 0) {
+          o("  add rsp, 0x%x\n", argc * 0x8);
+        }
         o("  ret\n");
         break;
       }
       case I_PRINT: {
+        vo("; I_PRINT\n");
         o(
         "  pop rdi\n"
         "  call print\n"
@@ -1963,15 +2063,23 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_CALL: {
+        vo("; I_CALL\n");
         assert(op->dest >= 0);
         i32 argc = op->src0;
         for (i32 arg = 0; arg < argc; ++arg) {
           o("  pop %s\n", func_call_regs[arg]);
         }
+        // TODO: restore stack pointer in a more optimal way
+        o("  push rbp\n");
         o("  call v%d\n", op->dest);
+        o("  pop rbp\n");
         if (op->src1 >= 0) {
           o("  push rax\n");
         }
+        break;
+      }
+      case I_ADDR_CALL: {
+        assert("instruction not implemented yet" && 0);
         break;
       }
       case I_JMP: {
@@ -1979,6 +2087,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_JZ: { // jump if zero
+        vo("; I_JZ\n");
         o(
         "  pop rax\n"
         "  test rax, rax\n"
@@ -1986,11 +2095,26 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("  jz L%d\n", op->dest);
         break;
       }
+      case I_BEGIN_FUNC: {
+        o(
+        "  push rbp\n"
+        "  mov rbp, rsp\n"
+        );
+        i32 argc = op->src0;
+        if (argc > 0) {
+          o("  sub rsp, 0x%x\n", argc * 0x8);
+        }
+        for (i32 arg = 0; arg < argc; ++arg) {
+          o("  mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs[arg]); // +1 because we have pushed rbp onto stack
+        }
+        break;
+      }
       case I_LOOP_LABEL: {
         o("L%d:\n", op->dest);
         break;
       }
       case I_SYSCALL0: {
+        vo("; I_SYSCALL0\n");
         o(
         "  pop rax\n"
         "  syscall\n"
@@ -1999,6 +2123,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL1: {
+        vo("; I_SYSCALL1\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2008,6 +2133,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL2: {
+        vo("; I_SYSCALL2\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2018,6 +2144,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL3: {
+        vo("; I_SYSCALL3\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2029,6 +2156,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL4: {
+        vo("; I_SYSCALL4\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2041,6 +2169,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL5: {
+        vo("; I_SYSCALL5\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2054,6 +2183,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_SYSCALL6: {
+        vo("; I_SYSCALL6\n");
         o(
         "  pop rax\n"
         "  pop rdi\n"
@@ -2122,8 +2252,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 
   o("memory: resb %d\n", MEMORY_CAPACITY);
   return c->status;
-}
 #undef o
+#undef vo
+}
 
 i32 parser_init(Parser* p, char* filename, char* source) {
   if (!source) {

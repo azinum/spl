@@ -1,26 +1,27 @@
 // test.spl
 
-memory g 1024;
-
 fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
 
-fn putc(_fd, _ch) {
-  let fd _fd;
-  let ch _ch;
+fn putc(fd, ch) {
   write(fd, @ch, 1);
 }
 
-fn puts(_fd, _str) {
-  let fd _fd;
-  let str _str;
-  while < 0 load8 str {
+fn puts(fd, str) {
+  while neq 0 load8 str {
     putc(fd, load8 str);
     = @str +1 str;
   }
 }
 
-fn strlen(_str) {
-  let str _str;
+fn memset(ptr, c, n) {
+  let count 0;
+  while < count n {
+    store8 ptr c; = @ptr +1 ptr;
+    = @count +1 count;
+  }
+}
+
+fn strlen(str) {
   let length 0;
   while < 0 load8 str {
     = @length +1 length;
@@ -29,20 +30,13 @@ fn strlen(_str) {
   length;
 }
 
-fn memset(_ptr, _c, _n) {
-  let ptr _ptr;
-  let c _c;
-  let n _n;
-  let count 0;
-  while < count n {
-    store8 ptr _c; = @ptr +1 ptr;
-    = @count +1 count;
-  }
-}
-
 fn add(a, b) + a b;
 
 fn main {
-  puts(1, "Hello World\n");
-  0;
+  let str "Hello, World\n";
+  let stdout 1;
+  let length strlen(str);
+  print length;
+  memset(str, 97, - length 1);
+  puts(stdout, str);
 }
