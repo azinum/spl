@@ -127,6 +127,7 @@ typedef enum Token_type {
   T_PRINT,
   T_FN,
   T_WHILE,
+  T_IF,
   T_LEFT_P,
   T_RIGHT_P,
   T_LEFT_CURLY,
@@ -169,6 +170,7 @@ static const char* token_type_str[] = {
   "T_PRINT",
   "T_FN",
   "T_WHILE",
+  "T_IF",
   "T_LEFT_P",
   "T_RIGHT_P",
   "T_LEFT_CURLY",
@@ -231,6 +233,7 @@ typedef enum Ast_type {
   AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
+  AstIfStatement,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -254,6 +257,7 @@ static const char* ast_type_str[] = {
   "AstMemoryStatement",
   "AstAssignment",
   "AstWhileStatement",
+  "AstIfStatement",
 };
 
 typedef struct Ast {
@@ -1139,6 +1143,18 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_error(c, "invalid type in while statement condition\n");
       return TypeNone;
     }
+    case AstIfStatement: {
+      Ast* cond = ast->node[0];
+      Ast* body = ast->node[1];
+      Compile_type type = typecheck(c, block, fs, cond);
+      ts_pop(c); // pop condition result
+      if (type == TypeUnsigned64) {
+        typecheck(c, block, fs, body);
+        return TypeNone;
+      }
+      typecheck_error(c, "invalid type in if statement condition\n");
+      return TypeNone;
+    }
     case AstMemoryStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
@@ -1614,6 +1630,37 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .src0 = -(i32)(cond_size + body_size),
             .src1 = -1,
           }, &body_size);
+          ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
+          Op* jz = &c->ins[body_start_address]; // NOTE(lucas): this is not really nessesary because we are using label jumps. but we are keeping this in case we are adding support for other code generators.
+          jz->src0 = body_size;
+        }
+        else {
+          return c->status;
+        }
+      }
+      else {
+        return c->status;
+      }
+      if (ins_count) {
+        *ins_count += cond_size + body_size;
+      }
+      break;
+    }
+    case AstIfStatement: {
+      assert("invalid while statement construction" && ast->count == 2);
+      i32 loop_label = c->label_count++;
+      u32 cond_size = 0;
+      u32 body_size = 0;
+      ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_label, .src0 = -1, .src1 = -1, }, &cond_size);
+
+      Ast* cond = ast->node[0];
+      Ast* body = ast->node[1];
+
+      if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
+        i32 body_start_address = c->ins_count;
+        i32 loop_end_label = c->label_count++;
+        ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
+        if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
           ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
           Op* jz = &c->ins[body_start_address];
           jz->src0 = body_size;
@@ -2225,7 +2272,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         str_index++;
       }
     }
-    o("0, %d\n", length);
+    o("0\n");
   }
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
@@ -2373,7 +2420,8 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = ast_create(AstLetStatement);
       expr->value = t;
       ast_push(expr, parse_expr(p));
-      if (lexer_peek(&p->l).type != T_SEMICOLON) {
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
         parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
       }
       return expr;
@@ -2392,8 +2440,8 @@ Ast* parse_statement(Parser* p) {
         return expr;
       }
       ast_push_node(expr, AstValue, t);
-      lexer_next(&p->l); // skip NUMBER
-      if (lexer_peek(&p->l).type != T_SEMICOLON) {
+      t = lexer_next(&p->l); // skip NUMBER
+      if (t.type != T_SEMICOLON) {
         parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
       }
       return expr;
@@ -2448,6 +2496,29 @@ Ast* parse_statement(Parser* p) {
         ast_push(while_stmt, parse_statement(p));
       }
       return while_stmt;
+    }
+    // TODO: rework, shares a lot of code with parsing of while statements
+    case T_IF: {
+      lexer_next(&p->l); // skip `if`
+      Ast* if_stmt = ast_create(AstIfStatement);
+      Ast* cond = ast_create(AstExpression);
+      ast_push(cond, parse_expr(p));
+      ast_push(if_stmt, cond);
+      t = lexer_peek(&p->l);
+      if (t.type == T_LEFT_CURLY) {
+        lexer_next(&p->l); // skip `{`
+        ast_push(if_stmt, parse_statements(p));
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_CURLY) {
+          parser_error(p, "expected closing `}` curly bracket in if statement, but got `%.*s`\n", t.length, t.buffer);
+          return if_stmt;
+        }
+        lexer_next(&p->l); // skip `}`
+      }
+      else {
+        ast_push(if_stmt, parse_statement(p));
+      }
+      return if_stmt;
     }
     default: {
       Ast* expr = parse_expr(p);
@@ -2749,6 +2820,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "while")) {
     l->token.type = T_WHILE;
+  }
+  else if (compare(l->token, "if")) {
+    l->token.type = T_IF;
   }
   else if (compare(l->token, "store64")) {
     l->token.type = T_STORE64;

@@ -1,16 +1,12 @@
 // test.spl
 
-fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
-
-fn putc(fd, ch) {
-  write(fd, @ch, 1);
-}
-
-fn puts(fd, str) {
-  while neq 0 load8 str {
-    putc(fd, load8 str);
+fn strlen(str) {
+  let length 0;
+  while < 0 load8 str {
+    = @length +1 length;
     = @str +1 str;
   }
+  length;
 }
 
 fn memset(ptr, c, n) {
@@ -21,22 +17,37 @@ fn memset(ptr, c, n) {
   }
 }
 
-fn strlen(str) {
-  let length 0;
-  while < 0 load8 str {
-    = @length +1 length;
+fn puts(str) {
+  while neq 0 load8 str {
+    let ch load8 str;
+    let _ syscall3(1, 1, @ch, 1);
     = @str +1 str;
   }
-  length;
 }
 
-fn add(a, b) + a b;
+fn read(fd, buf, count)    syscall3(0, fd, buf, count);
+fn open(path, flags, mode) syscall3(2, path, flags, mode);
+fn close(fd) { let _ syscall1(3, fd); }
+fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
+
+fn read_file_into_buffer(fd, buf) {
+  let n 0;
+  while neq 0 read(fd, buf, 1) {
+    = @buf +1 buf;
+    = @n   +1 n;
+  }
+  n;
+}
 
 fn main {
-  let str "Hello, World\n";
-  let stdout 1;
-  let length strlen(str);
-  print length;
-  memset(str, 97, - length 1);
-  puts(stdout, str);
+  memory tmp 8192;
+  let ERROR - 0 2; // -1
+  let O_RDONLY 0;
+  let fd open("test.spl", 0, O_RDONLY);
+  if neq fd ERROR {
+    let n read_file_into_buffer(fd, @tmp);
+    puts(@tmp);
+    close(fd);
+  }
+  0;
 }

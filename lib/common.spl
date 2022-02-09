@@ -1,6 +1,10 @@
 // common.spl
 
-const SYS_read 0;
-const SYS_write 1;
-const SYS_open 2;
-const SYS_close 3;
+let STDIN_FILENO 0;
+let STDOUT_FILENO 1;
+let STDERR_FILENO 2;
+
+let SYS_read 0;
+let SYS_write 1;
+let SYS_open 2;
+let SYS_close 3;
