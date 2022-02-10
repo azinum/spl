@@ -8,3 +8,4 @@ spl
 test.spl.asm
 test
 debug.txt
+examples/*.asm

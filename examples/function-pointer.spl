@@ -6,15 +6,16 @@ fn baz + 2 3;
 
 fn main {
   memory funcs 16;
-  = (+0 @funcs) @foo;
-  = (+8 @funcs) @bar;
-  = (+16 @funcs) @baz;
+  = (+0 @funcs) foo;
+  = (+8 @funcs) bar;
+  = (+16 @funcs) baz;
   let count 3;
   let i 0;
   let ptr @funcs;
+  // TODO: implement casting to specific function pointer
   while < i count {
-    let func #ptr;
-    print func();
+    let func ptr;
+    // print func();
     = ptr + 8 #ptr;
     = @i + 1 i;
   }

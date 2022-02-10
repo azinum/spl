@@ -19,4 +19,4 @@ run: test
 ${SPL_SRC}:
 	./${PROG} $@.spl
 
-.PHONY: test spl cspl
+.PHONY: test spl cspl examples/*

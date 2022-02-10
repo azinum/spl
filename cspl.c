@@ -439,7 +439,7 @@ typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 imm; // address to immediate value
   i32 size;
-  i32 local; // local variable, or function argument
+  i32 local; // (0) function argument, (1) local variable, (2) function (need to change the name of this)
   Compile_type type;
   Token token;
   Value value;
@@ -963,9 +963,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
             ast->value.v.i = symbol_index;
             vs_push(c, symbol->value);
-            // if (symbol->type == TypeFunc) {
-            //   return ts_push(c, TypeFunc);
-            // }
             return ts_push(c, symbol->type);
           }
           compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -975,7 +972,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
-            if (symbol->type == TypeFunc || symbol->type == TypeNone) {
+            if (symbol->type == TypeNone) {
               typecheck_error_at(c, ast->value, "can not take the address of the type `%s`\n", compile_type_str[symbol->type]);
               return TypeNone;
             }
@@ -1073,15 +1070,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         return TypeNone;
       }
       Compile_type type = ts_pop(c);
+      Value value;
+      vs_pop(c, &value);
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
         symbol->size = compile_type_size[type];
+        symbol->local = 1;
         symbol->type = type;
         symbol->token = ast->value; // duplicated in compile_declare_value
-        Value value;
-        vs_pop(c, &value);
         symbol->value = value;
         ast->value.v.i = symbol_index;
         return type;
@@ -1111,7 +1109,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         symbol->imm = -1;
         symbol->size = compile_type_size[TypeFunc];
-        symbol->local = 1;
+        symbol->local = 2; // TODO: hack, fix
         symbol->type = TypeFunc;
         symbol->token = ast->value; // duplicated in compile_declare_value
         ast->value.v.i = symbol_index;
@@ -1447,7 +1445,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_IDENTIFIER: {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->local) {
+          if (symbol->local >= 1) {
             if (symbol->type == TypeFunc) {
               Function* func = &symbol->value.func;
               ir_push_ins(c, (Op) {
@@ -1485,7 +1483,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_AT: {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->local) {
+          if (symbol->local >= 1) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_LOCAL_ADDR_OF,
               .dest = symbol->type,
@@ -1972,8 +1970,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_LOAD64\n");
         o(
         "  pop rax\n"
-        "  mov rax, [rbx]\n"
-        "  push rax\n"
+        "  xor rbx, rbx\n"
+        "  mov rbx, [rax]\n"
+        "  push rbx\n"
         );
         break;
       }
@@ -2001,8 +2000,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_LOAD8\n");
         o(
         "  pop rax\n"
-        // "  xor rbx, rbx\n"
-        "  mov rbx, 0\n"
+        "  xor rbx, rbx\n"
         "  mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
         "  push rbx\n"
         );
@@ -2364,6 +2362,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
+    if (s->local != 1) {
+      continue;
+    }
     switch (s->type) {
       case TypeUnsigned64: {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
@@ -2373,8 +2374,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
         break;
       }
+      case TypeFunc: {
+        o("v%d: resb %d ; `%s` : TypeFunc\n", i, s->size, s->name);
+        break;
+      }
       case TypeNone:
-      case TypeFunc:
       case TypeSyscallFunc:
         break;
       default: {
@@ -2522,15 +2526,7 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = ast_create(AstMemoryStatement);
       expr->value = t;
       t = lexer_next(&p->l);  // skip `identifier`
-      if (t.type == T_NUMBER || t.type == T_IDENTIFIER) {
-        ast_push_node(expr, AstValue, t);
-        t = lexer_next(&p->l); // skip rhs value
-        if (t.type != T_SEMICOLON) {
-          parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
-        }
-        return expr;
-      }
-      parser_error(p, "expected number or identifier in memory statement, but got `%.*s`\n", t.length, t.buffer);
+      ast_push(expr, parse_expr(p));
       return expr;
     }
     // TODO(lucas): fix parsing bug where there is a mismatch of curly brackets
