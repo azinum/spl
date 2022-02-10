@@ -454,6 +454,7 @@ typedef struct Block {
 #define MAX_TYPE_STACK 256
 #define MAX_VALUE_STACK 256 // temporary
 #define MAX_CSTRING 256
+#define MAX_CONSTANT 256
 
 // compile state
 typedef struct Compile {
@@ -468,6 +469,9 @@ typedef struct Compile {
 
   u32 cstrings[MAX_CSTRING];
   u32 cstring_count;
+
+  Symbol constants[MAX_CONSTANT];
+  u32 constant_count;
 
   Block global;
 
@@ -493,6 +497,7 @@ static void compile_error(Compile* c, const char* fmt, ...);
 static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index);
 static i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc);
+static i32 compile_define_constant(Compile* c, Block* block, const char* name, u64 num, i32 size);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 
@@ -736,6 +741,7 @@ i32 compile_state_init(Compile* c) {
   c->data_index = 0;
   c->symbol_count = 0;
   c->cstring_count = 0;
+  c->constant_count = 0;
   block_init(&c->global, NULL);
   c->label_count = 0;
   c->status = NoError;
@@ -750,6 +756,15 @@ i32 compile_state_init(Compile* c) {
   compile_declare_syscall(c, &c->global, "syscall4", 5);
   compile_declare_syscall(c, &c->global, "syscall5", 6);
   compile_declare_syscall(c, &c->global, "syscall6", 7);
+
+  compile_define_constant(c, &c->global, "u64.size", sizeof(u64), sizeof(u64));
+  compile_define_constant(c, &c->global, "i64.size", sizeof(i64), sizeof(u64));
+  compile_define_constant(c, &c->global, "u32.size", sizeof(u32), sizeof(u64));
+  compile_define_constant(c, &c->global, "i32.size", sizeof(i32), sizeof(u64));
+  compile_define_constant(c, &c->global, "u16.size", sizeof(u16), sizeof(u64));
+  compile_define_constant(c, &c->global, "i16.size", sizeof(i16), sizeof(u64));
+  compile_define_constant(c, &c->global, "u8.size", sizeof(u8), sizeof(u64));
+  compile_define_constant(c, &c->global, "i8.size", sizeof(i8), sizeof(u64));
 
   return NoError;
 }
@@ -816,7 +831,7 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
 i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc) {
   Token token = (Token) {
     .buffer = (char*)name,
-    .length = strlen(name),
+    .length = strnlen(name, MAX_NAME_SIZE),
     .type = T_IDENTIFIER,
 
     .filename = NULL,
@@ -828,8 +843,10 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   Symbol* symbol = NULL;
   i32 symbol_index = -1;
   compile_declare_value(c, block, NULL, token, &symbol, &symbol_index);
+  assert(symbol_index != -1);
   symbol->imm = -1;
   symbol->size = compile_type_size[TypeSyscallFunc];
+  symbol->local = 2;
   symbol->type = TypeSyscallFunc;
   symbol->token = token; // duplicated in compile_declare_value
   symbol->token.v.i = symbol_index;
@@ -838,6 +855,31 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   func->label = -1;
   func->argc = argc;
   func->rtype = TypeUnsigned64;
+  return NoError;
+}
+
+i32 compile_define_constant(Compile* c, Block* block, const char* name, u64 num, i32 size) {
+  Token token = (Token) {
+    .buffer = (char*)name,
+    .length = strnlen(name, MAX_NAME_SIZE),
+    .type = T_NUMBER,
+
+    .filename = NULL,
+    .source = NULL,
+    .line = 0,
+    .column = 0,
+  };
+  Symbol* symbol = NULL;
+  i32 symbol_index = -1;
+  compile_declare_value(c, block, NULL, token, &symbol, &symbol_index);
+  assert(symbol_index != -1);
+  symbol->imm = -1;
+  symbol->size = size;
+  symbol->local = 1;
+  symbol->type = TypeUnsigned64;
+  symbol->token = token; // duplicated in compile_declare_value
+  symbol->token.v.i = symbol_index;
+  symbol->value.num = num;
   return NoError;
 }
 
@@ -1445,7 +1487,21 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_IDENTIFIER: {
           i32 id = ast->value.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->local >= 1) {
+          if (symbol->token.type == T_NUMBER) { // FIXME: hackish way to implement compile-time constants
+            i32 imm = ir_push_value(c, &symbol->value.num, sizeof(symbol->value.num));
+            if (imm >= 0) {
+              ir_push_ins(c, (Op) {
+                .i = I_PUSH_LOCAL,
+                .dest = symbol->type,
+                .src0 = -1,
+                .src1 = imm,
+              }, ins_count);
+            }
+            else {
+              assert("out of memory" && 0); // TODO(lucas): Handle
+            }
+          }
+          else if (symbol->local >= 1) {
             if (symbol->type == TypeFunc) {
               Function* func = &symbol->value.func;
               ir_push_ins(c, (Op) {
