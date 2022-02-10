@@ -1612,13 +1612,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         if (count == 1) {
           symbol->token = node->token;
         }
-        if (symbol->type == TypeFunc) {
-          // label has already been found and stored at this point
-          Op op; // unused for now, but we might want to check to see that we popped the correct instruction
-          ir_pop_ins(c, &op, ins_count);
-          (void)op;
-          break;
-        }
+        // if (symbol->type == TypeFunc) {
+        //   // label has already been found and stored at this point
+        //   Op op; // unused for now, but we might want to check to see that we popped the correct instruction
+        //   ir_pop_ins(c, &op, ins_count);
+        //   (void)op;
+        //   break;
+        // }
         // store contents of rax into [v]
         ir_push_ins(c, (Op) {
           .i = I_MOVE,
@@ -1648,7 +1648,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           if (symbol->local == 1) {
             ir_push_ins(c, (Op) {
               .i = I_ADDR_CALL,
-              .dest = id, 
+              .dest = id,
               .src0 = func->argc,
               .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
             }, ins_count);

@@ -1,23 +1,24 @@
 // function-pointer.spl
 
-fn foo 12;
-fn bar 17;
-fn baz + 2 3;
+fn foo(x) + x 7;
+fn bar(x) * x x;
+fn baz(x) + x x;
 
 fn main {
-  memory funcs 16;
-  = (+0 @funcs) foo;
-  = (+8 @funcs) bar;
-  = (+16 @funcs) baz;
   let count 3;
+  memory funcs * u64.size count;
+  = (+0 @funcs)  foo;
+  = (+8 @funcs)  bar;
+  = (+16 @funcs) baz;
+
   let i 0;
-  let ptr @funcs;
-  // TODO: implement casting to specific function pointer
+  let index 0;
+  let func foo;
   while < i count {
-    let func ptr;
-    // print func();
-    = ptr + 8 #ptr;
+    = @func load64 + index @funcs;
+    print func(i);
     = @i + 1 i;
+    = @index +u64.size index;
   }
   0;
 }
