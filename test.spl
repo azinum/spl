@@ -39,9 +39,6 @@ fn read_file_into_buffer(fd, buf) {
   n;
 }
 
-fn f(x) + x 1;
-fn g(x) + x x;
-
 fn main {
   let TMP_SIZE * 4 1024;
   memory tmp TMP_SIZE;

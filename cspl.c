@@ -264,7 +264,7 @@ typedef struct Ast {
   struct Ast** node;
   u32 count;
   Ast_type type;
-  Token value;
+  Token token;
 } Ast;
 
 typedef struct Parser {
@@ -377,6 +377,7 @@ static const char* func_call_regs[] = {
 typedef enum Compile_type {
   TypeNone = 0,
   TypeUnsigned64,
+  TypePointer,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
@@ -387,6 +388,7 @@ typedef enum Compile_type {
 static const char* compile_type_str[] = {
   "TypeNone",
   "TypeUnsigned64",
+  "TypePointer",
   "TypeCString",
   "TypeFunc",
   "TypeSyscallFunc",
@@ -394,6 +396,7 @@ static const char* compile_type_str[] = {
 
 static u64 compile_type_size[] = {
   0,
+  sizeof(u64),
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
@@ -564,7 +567,7 @@ static i32 str_to_int(char* str, i32 length, u64* out);
 static Ast* ast_create(Ast_type type);
 static void ast_init_node(Ast* node);
 static Ast* ast_alloc_node();
-static Ast* ast_push_node(Ast* ast, Ast_type type, Token value);
+static Ast* ast_push_node(Ast* ast, Ast_type type, Token token);
 static Ast* ast_push(Ast* ast, Ast* node);
 static u32 ast_count(Ast* ast);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
@@ -950,9 +953,9 @@ void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
 Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
   switch (ast->type) {
     case AstValue: {
-      switch (ast->value.type) {
+      switch (ast->token.type) {
         case T_NUMBER: {
-          vs_push(c, (Value) { .num = ast->value.v.num, });
+          vs_push(c, (Value) { .num = ast->token.v.num, });
           return ts_push(c, TypeUnsigned64);
         }
         case T_CSTRING: {
@@ -966,27 +969,27 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         case T_IDENTIFIER: {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
-          if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
-            ast->value.v.i = symbol_index;
+          if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
+            ast->token.v.i = symbol_index;
             vs_push(c, symbol->value);
             return ts_push(c, symbol->type);
           }
-          compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+          compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
           return TypeNone;
         }
         case T_AT: {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
-          if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+          if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
             if (symbol->type == TypeNone) {
-              typecheck_error_at(c, ast->value, "can not take the address of the type `%s`\n", compile_type_str[symbol->type]);
+              typecheck_error_at(c, ast->token, "can not take the address of the type `%s`\n", compile_type_str[symbol->type]);
               return TypeNone;
             }
-            ast->value.v.i = symbol_index;
+            ast->token.v.i = symbol_index;
             vs_push(c, symbol->value);
             return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
           }
-          compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+          compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
           return TypeNone;
         }
         default: {
@@ -1007,13 +1010,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type a = ts_pop(c);
       Compile_type b = ts_pop(c);
-      Value va;
-      Value vb;
-      vs_pop(c, &va);
-      vs_pop(c, &vb);
       if (a == TypeUnsigned64 && b == TypeUnsigned64) {
+        Value va;
+        Value vb;
+        vs_pop(c, &va);
+        vs_pop(c, &vb);
         u64 num = 0;
-        switch (ast->value.type) {
+        switch (ast->token.type) {
           case T_ADD:
             num = va.num + vb.num;
             break;
@@ -1045,7 +1048,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         vs_push(c, (Value) { .num = num, });
         return ts_push(c, a);
       }
-      typecheck_error_at(c, ast->value, "type mismatch in binary operator expression\n");
+      typecheck_error_at(c, ast->token, "type mismatch in binary operator expression\n");
       return TypeNone;
     }
     case AstUopExpression: {
@@ -1053,15 +1056,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
-        typecheck_error_at(c, ast->value, "no value was produced in the rhs of the unary operator expression\n");
+        typecheck_error_at(c, ast->token, "no value was produced in the rhs of the unary operator expression\n");
         return TypeNone;
       }
-      if (ast->value.type == T_PRINT) {
-        vs_pop(c, NULL);
+      if (ast->token.type == T_PRINT) {
+        Value value;
+        vs_pop(c, &value);
         ts_pop(c);
         return TypeNone;
       }
-      else if (ast->value.type == T_DEREF) {
+      else if (ast->token.type == T_DEREF) {
         // dereference to a specific type
       }
       return ts_top(c);
@@ -1075,7 +1079,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
-        typecheck_error_at(c, ast->value, "no value was produced in the rhs of the let statement\n");
+        typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
         return TypeNone;
       }
       Compile_type type = ts_pop(c);
@@ -1083,17 +1087,17 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       vs_pop(c, &value);
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
+      if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
         symbol->size = compile_type_size[type];
         symbol->local = 1;
         symbol->type = type;
-        symbol->token = ast->value; // duplicated in compile_declare_value
+        symbol->token = ast->token; // duplicated in compile_declare_value
         symbol->value = value;
-        ast->value.v.i = symbol_index;
+        ast->token.v.i = symbol_index;
         return type;
       }
-      compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+      compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
       return TypeNone;
     }
     case AstBlockStatement: {
@@ -1106,13 +1110,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* body = ast->node[1];
 
       if (params->count > MAX_FUNC_ARGC) {
-        compile_error_at(c, ast->value, "reached function parameter count limit of %d\n", MAX_FUNC_ARGC);
+        compile_error_at(c, ast->token, "reached function parameter count limit of %d\n", MAX_FUNC_ARGC);
         return TypeNone;
       }
 
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
+      if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
         Block local_block;
         block_init(&local_block, block);
 
@@ -1120,8 +1124,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         symbol->size = compile_type_size[TypeFunc];
         symbol->local = 2; // TODO: hack, fix
         symbol->type = TypeFunc;
-        symbol->token = ast->value; // duplicated in compile_declare_value
-        ast->value.v.i = symbol_index;
+        symbol->token = ast->token; // duplicated in compile_declare_value
+        ast->token.v.i = symbol_index;
         Function* func = &symbol->value.func;
         func->ir_address = -1;
         func->label = symbol_index;
@@ -1129,7 +1133,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         for (u32 i = 0; i < func->argc; ++i) {
           Symbol* arg_symbol = NULL;
-          Token arg = params->node[i]->value;
+          Token arg = params->node[i]->token;
           i32 arg_symbol_index = -1;
           if (compile_declare_value(c, &local_block, func, arg, &arg_symbol, &arg_symbol_index) == NoError) {
             u32* arg_id = &func->args[i];
@@ -1153,7 +1157,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Compile_type rtype = TypeNone;
         i32 ts_delta = c->ts_count - ts_count;
         if (ts_delta > 1) {
-          typecheck_error_at(c, ast->value, "too many values produced by function `%s`\n", symbol->name);
+          typecheck_error_at(c, ast->token, "too many values produced by function `%s`\n", symbol->name);
           return TypeNone;
         }
         if (ts_delta != 0) {
@@ -1168,27 +1172,24 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
         return TypeFunc;
       }
-      compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+      compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
       return TypeNone;
     }
     case AstFuncCall: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
+      if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (func->argc != arg_list->count) {
-          compile_error_at(c, ast->value, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
+          compile_error_at(c, ast->token, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
           return TypeNone;
         }
-        ast->value.v.i = symbol_index;
+        ast->token.v.i = symbol_index;
         for (i32 i = arg_list->count - 1; i >= 0; --i) {
           Compile_type arg_type = typecheck(c, block, fs, arg_list->node[i]);
           if (symbol->type == TypeSyscallFunc) {
-            if (arg_type != TypeUnsigned64) {
-              typecheck_error_at(c, symbol->token, "type mismatch in syscall\n");
-              return TypeNone;
-            }
+            // any type is allowed here
           }
           else {
             Symbol* arg = &c->symbols[func->args[i]];
@@ -1206,7 +1207,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         vs_push(c, symbol->value);
         return ts_push(c, func->rtype);
       }
-      compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
+      compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
       return TypeNone;
     }
     case AstWhileStatement: {
@@ -1244,26 +1245,26 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ts_pop(c);
         Value value;
         vs_pop(c, &value);
-        if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
+        if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
           symbol->imm = -1;
           symbol->size = value.num;
           symbol->type = type;
-          symbol->token = ast->value; // duplicated in compile_declare_value
+          symbol->token = ast->token; // duplicated in compile_declare_value
           symbol->value = value;
-          ast->value.v.i = symbol_index;
+          ast->token.v.i = symbol_index;
           return type;
         }
-        compile_error_at(c, ast->value, "symbol `%.*s` has already been declared\n", ast->value.length, ast->value.buffer);
+        compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
         return TypeNone;
       }
-      typecheck_error_at(c, ast->value, "invalid type in memory statement\n");
+      typecheck_error_at(c, ast->token, "invalid type in memory statement\n");
       return TypeNone;
     }
     case AstAssignment: {
       Compile_type a = typecheck(c, block, fs, ast->node[0]);
       Compile_type b = typecheck(c, block, fs, ast->node[1]);
       if (a != b && a != TypeUnsigned64) {
-        typecheck_error_at(c, ast->value, "type mismatch in assignment expression\n");
+        typecheck_error_at(c, ast->token, "type mismatch in assignment expression\n");
         return TypeNone;
       }
       vs_pop(c, NULL);
@@ -1315,6 +1316,7 @@ i32 vs_push(Compile* c, Value v) {
     c->vs[c->vs_count++] = v;
     return NoError;
   }
+  typecheck_error(c, "type stack underflow\n");
   return Error;
 }
 
@@ -1326,6 +1328,7 @@ i32 vs_pop(Compile* c, Value* v) {
     }
     return NoError;
   }
+  typecheck_error(c, "value type stack underflow (current type stack = %d)\n", c->ts_count);
   --c->vs_count;
   return Error;
 }
@@ -1416,9 +1419,9 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
 i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   switch (ast->type) {
     case AstValue: {
-      switch (ast->value.type) {
+      switch (ast->token.type) {
         case T_NUMBER: {
-          i32 imm = ir_push_value(c, &ast->value.v.num, sizeof(ast->value.v.num));
+          i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
           if (imm >= 0) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_LOCAL,
@@ -1434,7 +1437,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         }
         case T_CSTRING: {
           u32 cstring_index = 0;
-          i32 cstring_address = ir_push_cstring(c, ast->value.buffer, ast->value.length, &cstring_index);
+          i32 cstring_address = ir_push_cstring(c, ast->token.buffer, ast->token.length, &cstring_index);
           if (cstring_address >= 0) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_LOCAL,
@@ -1452,7 +1455,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           break;
         }
         case T_IDENTIFIER: {
-          i32 id = ast->value.v.i;
+          i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
           if (symbol->local >= 1) {
             if (symbol->type == TypeFunc) {
@@ -1490,7 +1493,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           break;
         }
         case T_AT: {
-          i32 id = ast->value.v.i;
+          i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
           if (symbol->local >= 1) {
             ir_push_ins(c, (Op) {
@@ -1527,28 +1530,28 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstBinopExpression: {
       i32 result = ir_compile_binop(c, block, ast, ins_count);
       if (result == NoError) {
-        if (ast->value.type == T_ADD) {
+        if (ast->token.type == T_ADD) {
           ir_push_ins(c, OP(I_ADD), ins_count);
         }
-        else if (ast->value.type == T_SUB) {
+        else if (ast->token.type == T_SUB) {
           ir_push_ins(c, OP(I_SUB), ins_count);
         }
-        else if (ast->value.type == T_MUL) {
+        else if (ast->token.type == T_MUL) {
           ir_push_ins(c, OP(I_MUL), ins_count);
         }
-        else if (ast->value.type == T_LT) {
+        else if (ast->token.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
         }
-        else if (ast->value.type == T_AND) {
+        else if (ast->token.type == T_AND) {
           ir_push_ins(c, OP(I_AND), ins_count);
         }
-        else if (ast->value.type == T_OR) {
+        else if (ast->token.type == T_OR) {
           ir_push_ins(c, OP(I_OR), ins_count);
         }
-        else if (ast->value.type == T_EQ) {
+        else if (ast->token.type == T_EQ) {
           ir_push_ins(c, OP(I_EQ), ins_count);
         }
-        else if (ast->value.type == T_NEQ) {
+        else if (ast->token.type == T_NEQ) {
           ir_push_ins(c, OP(I_NEQ), ins_count);
         }
         else {
@@ -1564,22 +1567,22 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstUopExpression: {
       i32 result = ir_compile_uop(c, block, ast, ins_count);
       if (result == NoError) {
-        if (ast->value.type == T_PRINT) {
+        if (ast->token.type == T_PRINT) {
           ir_push_ins(c, OP(I_PRINT), ins_count);
         }
-        else if (ast->value.type == T_DEREF) {
+        else if (ast->token.type == T_DEREF) {
           ir_push_ins(c, OP(I_LOAD64), ins_count);
         }
-        else if (ast->value.type == T_LOAD64) {
+        else if (ast->token.type == T_LOAD64) {
           ir_push_ins(c, OP(I_LOAD64), ins_count);
         }
-        else if (ast->value.type == T_LOAD32) {
+        else if (ast->token.type == T_LOAD32) {
           ir_push_ins(c, OP(I_LOAD32), ins_count);
         }
-        else if (ast->value.type == T_LOAD16) {
+        else if (ast->token.type == T_LOAD16) {
           ir_push_ins(c, OP(I_LOAD16), ins_count);
         }
-        else if (ast->value.type == T_LOAD8) {
+        else if (ast->token.type == T_LOAD8) {
           ir_push_ins(c, OP(I_LOAD8), ins_count);
         }
         else {
@@ -1601,13 +1604,13 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstLetStatement: {
-      i32 id = ast->value.v.i;
+      i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
       Ast* node = ast->node[0];
       u32 count = ast_count(node);
       if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
         if (count == 1) {
-          symbol->token = node->value;
+          symbol->token = node->token;
         }
         if (symbol->type == TypeFunc) {
           // label has already been found and stored at this point
@@ -1636,12 +1639,21 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncCall: {
-      i32 id = ast->value.v.i;
+      i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
       Function* func = &symbol->value.func;
       ir_compile_func_args(c, block, ast->node[0], ins_count); // compile function args in reverse order
       switch (symbol->type) {
         case TypeFunc: {
+          if (symbol->local == 1) {
+            ir_push_ins(c, (Op) {
+              .i = I_ADDR_CALL,
+              .dest = id, 
+              .src0 = func->argc,
+              .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
+            }, ins_count);
+            break;
+          }
           ir_push_ins(c, (Op) {
             .i = I_CALL,
             .dest = func->label, 
@@ -1664,7 +1676,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           break;
         }
         default: {
-          compile_error_at(c, ast->value, "symbol `%s` is not a function, and can not be called\n", symbol->name);
+          compile_error_at(c, ast->token, "symbol `%s` is not a function, and can not be called\n", symbol->name);
           return c->status;
         }
       }
@@ -1681,7 +1693,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstAssignment: {
       i32 result = ir_compile_binop(c, block, ast, ins_count);
       if (result == NoError) {
-        switch (ast->value.type) {
+        switch (ast->token.type) {
           case T_ASSIGN:
           case T_STORE64:
             ir_push_ins(c, OP(I_STORE64), ins_count);
@@ -1803,7 +1815,7 @@ i32 ir_compile_func_args(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_binop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
-    compile_error_at(c, ast->value, "expected 2 arguments in binary operator action\n");
+    compile_error_at(c, ast->token, "expected 2 arguments in binary operator action\n");
     return c->status;
   }
   for (u32 i = 0; i < ast->count; ++i) {
@@ -1832,7 +1844,7 @@ i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   Ast* body = ast->node[1];
-  i32 id = ast->value.v.i;
+  i32 id = ast->token.v.i;
   Symbol* symbol = &c->symbols[id];
   Function* func = &symbol->value.func;
   ir_push_ins(c, (Op) {
@@ -2233,7 +2245,19 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_ADDR_CALL: {
-        assert("instruction not implemented yet" && 0);
+        vo("; I_ADDR_CALL\n");
+        assert(op->dest >= 0);
+        i32 argc = op->src0;
+        for (i32 arg = 0; arg < argc; ++arg) {
+          o("  pop %s\n", func_call_regs[arg]);
+        }
+        o("  push rbp\n");
+        o("  mov rbx, [v%d]\n", op->dest);
+        o("  call rbx\n");
+        o("  pop rbp\n");
+        if (op->src1 >= 0) {
+          o("  push rax\n");
+        }
         break;
       }
       case I_JMP: {
@@ -2392,6 +2416,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
         break;
       }
+      case TypePointer: {
+        o("v%d: resb %d ; `%s` : TypePointer\n", i, s->size, s->name);
+        break;
+      }
       case TypeCString: {
         o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
         break;
@@ -2531,7 +2559,7 @@ Ast* parse_statement(Parser* p) {
       }
       lexer_next(&p->l);  // skip `identifier`
       Ast* expr = ast_create(AstLetStatement);
-      expr->value = t;
+      expr->token = t;
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
@@ -2546,7 +2574,7 @@ Ast* parse_statement(Parser* p) {
         return NULL;
       }
       Ast* expr = ast_create(AstMemoryStatement);
-      expr->value = t;
+      expr->token = t;
       t = lexer_next(&p->l);  // skip `identifier`
       ast_push(expr, parse_expr(p));
       return expr;
@@ -2571,11 +2599,10 @@ Ast* parse_statement(Parser* p) {
     case T_STORE64:
     case T_STORE32:
     case T_STORE16:
-    case T_STORE8:
-    {
+    case T_STORE8: {
       lexer_next(&p->l); // skip `=`
       Ast* assignment = ast_create(AstAssignment);
-      assignment->value = t;
+      assignment->token = t;
       ast_push(assignment, parse_expr(p));
       ast_push(assignment, parse_expr(p));
       return assignment;
@@ -2655,7 +2682,7 @@ Ast* parse_expr(Parser* p) {
     case T_CSTRING: {
       lexer_next(&p->l);
       Ast* node = ast_create(AstValue);
-      node->value = t;
+      node->token = t;
       return node;
     }
     case T_IDENTIFIER: {
@@ -2663,7 +2690,7 @@ Ast* parse_expr(Parser* p) {
       if (lexer_peek(&p->l).type == T_LEFT_P) { // function call
         lexer_next(&p->l);
         Ast* node = ast_create(AstFuncCall);
-        node->value = t;
+        node->token = t;
         ast_push(node, parse_expr_list(p));
         t = lexer_peek(&p->l);
         if (t.type != T_RIGHT_P) {
@@ -2673,7 +2700,7 @@ Ast* parse_expr(Parser* p) {
         return node;
       }
       Ast* node = ast_create(AstValue);
-      node->value = t;
+      node->token = t;
       return node;
     }
     case T_ADD:
@@ -2686,7 +2713,7 @@ Ast* parse_expr(Parser* p) {
     case T_NEQ: {
       lexer_next(&p->l);
       Ast* expr = ast_create(AstBinopExpression);
-      expr->value = t;
+      expr->token = t;
       ast_push(expr, parse_expr(p));
       ast_push(expr, parse_expr(p));
       return expr;
@@ -2695,8 +2722,8 @@ Ast* parse_expr(Parser* p) {
       t = lexer_next(&p->l);
       if (t.type == T_IDENTIFIER) {
         Ast* expr = ast_create(AstValue);
-        expr->value = t;
-        expr->value.type = T_AT;
+        expr->token = t;
+        expr->token.type = T_AT;
         lexer_next(&p->l);
         return expr;
       }
@@ -2711,7 +2738,7 @@ Ast* parse_expr(Parser* p) {
     case T_PRINT: {
       lexer_next(&p->l); // skip op
       Ast* expr = ast_create(AstUopExpression);
-      expr->value = t;
+      expr->token = t;
       Ast* sub_expr = parse_expr(p);
       if (sub_expr != NULL) {
         ast_push(expr, sub_expr);
@@ -2753,7 +2780,7 @@ Ast* parse_func_def(Parser* p) {
   Token t = lexer_next(&p->l); // skip `fn`
   if (t.type == T_IDENTIFIER) {
     Ast* func_def = ast_create(AstFuncDefinition);
-    func_def->value = t;
+    func_def->token = t;
     t = lexer_next(&p->l); // skip `name`
     if (t.type == T_LEFT_P) {
       lexer_next(&p->l); // skip `(`
@@ -3281,7 +3308,7 @@ void ast_init_node(Ast* node) {
     .node = NULL,
     .count = 0,
     .type = AstNone,
-    .value = {0},
+    .token = {0},
   };
 }
 
@@ -3295,7 +3322,7 @@ Ast* ast_alloc_node() {
   return node;
 }
 
-Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
+Ast* ast_push_node(Ast* ast, Ast_type type, Token token) {
   if (!ast) {
     return NULL;
   }
@@ -3304,7 +3331,7 @@ Ast* ast_push_node(Ast* ast, Ast_type type, Token value) {
     return NULL;
   }
   node->type = type;
-  node->value = value;
+  node->token = token;
   return ast_push(ast, node);
 }
 
@@ -3346,8 +3373,8 @@ void ast_print(const Ast* ast, i32 level, FILE* fp) {
     return;
   }
   for (i32 i = 0; i < level; ++i, fprintf(fp, "    "));
-  assert("something went very wrong" && ast->type < MAX_AST_TYPE && ast->value.type < MAX_TOKEN_TYPE);
-  fprintf(fp, "<%s, %s>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->value.type],  ast->value.length, ast->value.buffer);
+  assert("something went very wrong" && ast->type < MAX_AST_TYPE && ast->token.type < MAX_TOKEN_TYPE);
+  fprintf(fp, "<%s, %s>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->token.type],  ast->token.length, ast->token.buffer);
   for (u32 i = 0; i < ast->count; ++i) {
     ast_print(ast->node[i], level + 1, fp);
   }
