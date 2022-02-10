@@ -112,6 +112,7 @@ typedef enum Token_type {
   T_DEREF,
   T_ADD,
   T_SUB,
+  T_MUL,
   T_LT,
   T_AND,
   T_OR,
@@ -155,6 +156,7 @@ static const char* token_type_str[] = {
   "T_DEREF",
   "T_ADD",
   "T_SUB",
+  "T_MUL",
   "T_LT",
   "T_AND",
   "T_OR",
@@ -290,6 +292,7 @@ typedef enum Ir_code {
   I_PUSH_LOCAL, // <type, id, imm>
   I_ADD,
   I_SUB,
+  I_MUL,
   I_LT,
   I_AND,
   I_OR,
@@ -335,6 +338,7 @@ static const char* ir_code_str[] = {
   "I_PUSH_LOCAL",
   "I_ADD",
   "I_SUB",
+  "I_MUL",
   "I_LT",
   "I_AND",
   "I_OR",
@@ -1016,6 +1020,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_SUB:
             num = va.num - vb.num;
             break;
+          case T_MUL:
+            num = va.num * vb.num;
+            break;
           case T_LT:
             num = va.num < vb.num;
             break;
@@ -1525,6 +1532,9 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         }
         else if (ast->value.type == T_SUB) {
           ir_push_ins(c, OP(I_SUB), ins_count);
+        }
+        else if (ast->value.type == T_MUL) {
+          ir_push_ins(c, OP(I_MUL), ins_count);
         }
         else if (ast->value.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
@@ -2097,6 +2107,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_MUL: {
+        vo("; I_MUL\n");
+        o(
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  mul rbx\n"
+        "  push rax\n"
+        );
+        break;
+      }
       case I_LT: {
         vo("; I_LT\n");
         o(
@@ -2658,6 +2678,7 @@ Ast* parse_expr(Parser* p) {
     }
     case T_ADD:
     case T_SUB:
+    case T_MUL:
     case T_LT:
     case T_AND:
     case T_OR:
@@ -3088,6 +3109,10 @@ Token lexer_next(Lexer* l) {
       }
       case '-': {
         l->token.type = T_SUB;
+        goto done;
+      }
+      case '*': {
+        l->token.type = T_MUL;
         goto done;
       }
       case '<': {
