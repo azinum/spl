@@ -39,15 +39,20 @@ fn read_file_into_buffer(fd, buf) {
   n;
 }
 
+fn f(x) + 1 x;
+
 fn main {
-  memory tmp 8192;
-  let ERROR - 0 2; // -1
-  let O_RDONLY 0;
-  let fd open("test.spl", 0, O_RDONLY);
-  if neq fd ERROR {
-    let n read_file_into_buffer(fd, @tmp);
-    puts(@tmp);
-    close(fd);
-  }
+  let a f;
+  print a(12);
+  // let TMP_SIZE 8192;
+  // memory tmp TMP_SIZE;
+  // let ERROR - 0 2; // -1
+  // let O_RDONLY 0;
+  // let fd open("test.spl", 0, O_RDONLY);
+  // if neq fd ERROR {
+  //   let n read_file_into_buffer(fd, @tmp);
+  //   puts(@tmp);
+  //   close(fd);
+  // }
   0;
 }

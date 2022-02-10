@@ -3,8 +3,6 @@
 //
 // original implementation in c
 //
-// TODO(lucas): fix all warnings, some day...
-//
 
 #include <stdio.h>  // puts, printf
 #include <string.h> // strcmp
@@ -485,7 +483,8 @@ typedef struct Compile {
   i32 vs_count;
 } Compile;
 
-static void symbol_init(Symbol* symbol);
+static void symbol_init(Symbol* s);
+static void symbol_print(Symbol* s, FILE* fp);
 static void block_init(Block* block, Block* parent);
 
 static i32 compile_state_init(Compile* c);
@@ -562,6 +561,7 @@ static void ast_init_node(Ast* node);
 static Ast* ast_alloc_node();
 static Ast* ast_push_node(Ast* ast, Ast_type type, Token value);
 static Ast* ast_push(Ast* ast, Ast* node);
+static u32 ast_count(Ast* ast);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
@@ -580,7 +580,6 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
 
-  REAL_TIMER_START();
   i32 exit_status = EXIT_SUCCESS;
 
   char* filename = NULL;
@@ -618,6 +617,7 @@ i32 main(i32 argc, char** argv) {
   }
   assert(filename != NULL);
 
+  REAL_TIMER_START();
   Parser p;
   Compile c;
   if (parser_init(&p, filename, (char*)source) == NoError) {
@@ -643,12 +643,12 @@ i32 main(i32 argc, char** argv) {
             }
 #endif
             REAL_TIMER_END(
-              print_info("%s: %lf s\n", __FUNCTION__, _dt);
+              print_info("compilation took %lf seconds\n", _dt);
               (void)_dt;
             );
             exec_command(
               "nasm -f elf64 %s.asm && "
-              "ld %s.o -o %.*s && "
+              "ld -arch x86_64 %s.o -o %.*s && "
               "./%.*s"
               ,
               filename,
@@ -689,6 +689,40 @@ void symbol_init(Symbol* s) {
   s->type = TypeNone;
   s->token = (Token) {0};
   s->value = (Value) { .num = 0, };
+}
+
+void symbol_print(Symbol* s, FILE* fp) {
+  fprintf(fp,
+    "Symbol {\n"
+    "  name = %s,\n"
+    "  imm = %d,\n"
+    "  size = %d,\n"
+    "  local = %d,\n"
+    "  type = %s,\n"
+    "  token = { %.*s, %d, },\n"
+    "  value = {\n"
+    "    func = {\n"
+    "      ir_address = %d,\n"
+    "      label = %d,\n"
+    "      argc = %d,\n"
+    "      rtype = %s,\n"
+    "    },\n"
+    "    num = %ld,\n"
+    "  },\n"
+    "}\n"
+    ,
+    s->name,
+    s->imm,
+    s->size,
+    s->local,
+    compile_type_str[s->type],
+    s->token.length, s->token.buffer, s->token.type,
+    s->value.func.ir_address,
+    s->value.func.label,
+    s->value.func.argc,
+    compile_type_str[s->value.func.rtype],
+    s->value.num
+  );
 }
 
 void block_init(Block* block, Block* parent) {
@@ -828,7 +862,7 @@ i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, 
       return NoError;
     }
   }
-  // descent into lower level, and increment counter, because we did not find the symbol in this block
+  // descend into lower level, and increment counter, because we did not find the symbol in this block
   if (levels_descent) {
     (*levels_descent)++;
   }
@@ -862,12 +896,15 @@ i32 typecheck_program(Compile* c, Ast* ast) {
   for (u32 i = 0; i < ast->count && c->status == NoError; ++i) {
     typecheck(c, &c->global, NULL /* function state */, ast->node[i]);
   }
+  if (c->vs_count != 0) {
+    typecheck_error(c, "unhandled data on the value stack (%d)\n", c->vs_count);
+  }
   if (c->ts_count != 0 && c->status != NoError) {
     // only print this error if nothing else failed
     typecheck_error(c, "unhandled data on the stack (%d)\n", c->ts_count);
   }
   REAL_TIMER_END(
-    print_info("%s: %lf s\n", __FUNCTION__, _dt);
+    print_info("type checking took %lf seconds\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return c->status;
@@ -909,12 +946,15 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstValue: {
       switch (ast->value.type) {
         case T_NUMBER: {
+          vs_push(c, (Value) { .num = ast->value.v.num, });
           return ts_push(c, TypeUnsigned64);
         }
         case T_CSTRING: {
+          vs_push(c, (Value) { .num = 0, });
           return ts_push(c, TypeUnsigned64); // ts_push(c, TypeCString);
         }
         case T_POP: {
+          vs_pop(c, NULL);
           return ts_pop(c);
         }
         case T_IDENTIFIER: {
@@ -922,10 +962,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, fs, ast->value, &symbol, &symbol_index, NULL) == NoError) {
             ast->value.v.i = symbol_index;
-            if (symbol->type == TypeFunc) {
-              vs_push(c, symbol->value);
-              return ts_push(c, TypeFunc);
-            }
+            vs_push(c, symbol->value);
+            // if (symbol->type == TypeFunc) {
+            //   return ts_push(c, TypeFunc);
+            // }
             return ts_push(c, symbol->type);
           }
           compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -940,6 +980,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
               return TypeNone;
             }
             ast->value.v.i = symbol_index;
+            vs_push(c, symbol->value);
             return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
           }
           compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -963,7 +1004,39 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type a = ts_pop(c);
       Compile_type b = ts_pop(c);
+      Value va;
+      Value vb;
+      vs_pop(c, &va);
+      vs_pop(c, &vb);
       if (a == TypeUnsigned64 && b == TypeUnsigned64) {
+        u64 num = 0;
+        switch (ast->value.type) {
+          case T_ADD:
+            num = va.num + vb.num;
+            break;
+          case T_SUB:
+            num = va.num - vb.num;
+            break;
+          case T_LT:
+            num = va.num < vb.num;
+            break;
+          case T_AND:
+            num = va.num && vb.num;
+            break;
+          case T_OR:
+            num = va.num || vb.num;
+            break;
+          case T_EQ:
+            num = va.num == vb.num;
+            break;
+          case T_NEQ:
+            num = va.num != vb.num;
+            break;
+          default:
+            assert("unhandled operation" && 0);
+            break;
+        }
+        vs_push(c, (Value) { .num = num, });
         return ts_push(c, a);
       }
       typecheck_error_at(c, ast->value, "type mismatch in binary operator expression\n");
@@ -978,6 +1051,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         return TypeNone;
       }
       if (ast->value.type == T_PRINT) {
+        vs_pop(c, NULL);
         ts_pop(c);
         return TypeNone;
       }
@@ -991,8 +1065,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return TypeNone;
     }
     case AstLetStatement: {
-      Symbol* symbol = NULL;
-      i32 symbol_index = -1;
       i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
       i32 ts_delta = c->ts_count - ts_count;
@@ -1001,20 +1073,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         return TypeNone;
       }
       Compile_type type = ts_pop(c);
+      Symbol* symbol = NULL;
+      i32 symbol_index = -1;
       if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
         symbol->size = compile_type_size[type];
         symbol->type = type;
         symbol->token = ast->value; // duplicated in compile_declare_value
-        if (type == TypeFunc) {
-          Value func_value;
-          if (vs_pop(c, &func_value) == NoError) {
-            symbol->value = func_value;
-          }
-          else {
-            assert(0); // TODO: handle
-          }
-        }
+        Value value;
+        vs_pop(c, &value);
+        symbol->value = value;
         ast->value.v.i = symbol_index;
         return type;
       }
@@ -1082,6 +1150,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           return TypeNone;
         }
         if (ts_delta != 0) {
+          vs_pop(c, NULL);
           rtype = ts_pop(c);
         }
 
@@ -1121,11 +1190,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
               return TypeNone;
             }
           }
+          vs_pop(c, NULL);
           ts_pop(c);
         }
         if (func->rtype == TypeNone) {
           return TypeNone;
         }
+        vs_push(c, symbol->value);
         return ts_push(c, func->rtype);
       }
       compile_error_at(c, ast->value, "symbol `%.*s` not defined\n", ast->value.length, ast->value.buffer);
@@ -1136,6 +1207,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* body = ast->node[1];
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
+      vs_pop(c, NULL);
       if (type == TypeUnsigned64) {
         typecheck(c, block, fs, body);
         return TypeNone;
@@ -1148,6 +1220,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* body = ast->node[1];
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
+      vs_pop(c, NULL);
       if (type == TypeUnsigned64) {
         typecheck(c, block, fs, body);
         return TypeNone;
@@ -1158,15 +1231,18 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstMemoryStatement: {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      Compile_type type = typecheck(c, block, fs, ast->node[0]);
+      Ast* node = ast->node[0];
+      Compile_type type = typecheck(c, block, fs, node);
       if (type == TypeUnsigned64) {
         ts_pop(c);
-        Token value = ast->node[0]->value;
+        Value value;
+        vs_pop(c, &value);
         if (compile_declare_value(c, block, fs, ast->value, &symbol, &symbol_index) == NoError) {
           symbol->imm = -1;
-          symbol->size = value.v.num;
+          symbol->size = value.num;
           symbol->type = type;
           symbol->token = ast->value; // duplicated in compile_declare_value
+          symbol->value = value;
           ast->value.v.i = symbol_index;
           return type;
         }
@@ -1183,6 +1259,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         typecheck_error_at(c, ast->value, "type mismatch in assignment expression\n");
         return TypeNone;
       }
+      vs_pop(c, NULL);
+      vs_pop(c, NULL);
       ts_pop(c);
       return ts_pop(c);
     }
@@ -1206,6 +1284,7 @@ Compile_type ts_push(Compile* c, Compile_type type) {
     c->ts[c->ts_count++] = type;
     return type;
   }
+  assert("type stack list capacity exceeded" && 0);
   return TypeNone;
 }
 
@@ -1234,7 +1313,10 @@ i32 vs_push(Compile* c, Value v) {
 
 i32 vs_pop(Compile* c, Value* v) {
   if (c->vs_count > 0) {
-    *v = c->vs[--c->vs_count];
+    --c->vs_count;
+    if (v) {
+      *v = c->vs[c->vs_count];
+    }
     return NoError;
   }
   --c->vs_count;
@@ -1318,7 +1400,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     compile_error(c, "missing entry point `main`\n");
   }
   REAL_TIMER_END(
-    print_info("%s: %lf s\n", __FUNCTION__, _dt);
+    print_info("ir code generation took %lf seconds\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return c->status;
@@ -1511,7 +1593,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     case AstLetStatement: {
       i32 id = ast->value.v.i;
       Symbol* symbol = &c->symbols[id];
+      Ast* node = ast->node[0];
+      u32 count = ast_count(node);
       if (ir_compile_stmts(c, block, ast, ins_count) == NoError) {
+        if (count == 1) {
+          symbol->token = node->value;
+        }
         if (symbol->type == TypeFunc) {
           // label has already been found and stored at this point
           Op op; // unused for now, but we might want to check to see that we popped the correct instruction
@@ -1578,7 +1665,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstMemoryStatement: {
-      // this is handled in the type checking phase
+      // NOTE(lucas): this is handled in the type checking phase
       break;
     }
     case AstAssignment: {
@@ -1769,7 +1856,7 @@ i32 compile(Compile* c, Compile_target target, FILE* fp) {
     REAL_TIMER_START();
     compile_targets[target](c, fp);
     REAL_TIMER_END(
-      print_info("%s: %lf s (%s)\n", __FUNCTION__, _dt, compile_target_str[target]);
+      print_info("code generation for `%s` took %lf seconds\n", compile_target_str[target], _dt);
       (void)_dt;
     );
   }
@@ -2343,7 +2430,7 @@ i32 parse(Parser* p) {
   lexer_next(&p->l);
   ast_push(p->ast, parse_statements(p));
   REAL_TIMER_END(
-    print_info("%s: %lf s\n", __FUNCTION__, _dt);
+    print_info("parsing took %lf seconds\n", __FUNCTION__, _dt);
     (void)_dt;
   );
   return p->status;
@@ -2435,15 +2522,15 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = ast_create(AstMemoryStatement);
       expr->value = t;
       t = lexer_next(&p->l);  // skip `identifier`
-      if (t.type != T_NUMBER) {
-        parser_error(p, "expected number in memory statement, but got `%.*s`\n", t.length, t.buffer);
+      if (t.type == T_NUMBER || t.type == T_IDENTIFIER) {
+        ast_push_node(expr, AstValue, t);
+        t = lexer_next(&p->l); // skip rhs value
+        if (t.type != T_SEMICOLON) {
+          parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
+        }
         return expr;
       }
-      ast_push_node(expr, AstValue, t);
-      t = lexer_next(&p->l); // skip NUMBER
-      if (t.type != T_SEMICOLON) {
-        parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
-      }
+      parser_error(p, "expected number or identifier in memory statement, but got `%.*s`\n", t.length, t.buffer);
       return expr;
     }
     // TODO(lucas): fix parsing bug where there is a mismatch of curly brackets
@@ -3187,6 +3274,16 @@ Ast* ast_push(Ast* ast, Ast* node) {
   }
   ast->node[ast->count++] = node;
   return ast;
+}
+
+u32 ast_count(Ast* ast) {
+  u32 count = 1;
+  if (ast->count > 0) {
+    for (u32 i = 0; i < ast->count; i++) {
+      count += ast_count(ast->node[i]);
+    }
+  }
+  return count;
 }
 
 void ast_print(const Ast* ast, i32 level, FILE* fp) {
