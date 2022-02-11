@@ -113,6 +113,7 @@ typedef enum Token_type {
   T_ADD,
   T_SUB,
   T_MUL,
+  T_DIVMOD,
   T_LT,
   T_AND,
   T_OR,
@@ -157,6 +158,7 @@ static const char* token_type_str[] = {
   "T_ADD",
   "T_SUB",
   "T_MUL",
+  "T_DIVMOD",
   "T_LT",
   "T_AND",
   "T_OR",
@@ -293,6 +295,7 @@ typedef enum Ir_code {
   I_ADD,
   I_SUB,
   I_MUL,
+  I_DIVMOD,
   I_LT,
   I_AND,
   I_OR,
@@ -339,6 +342,7 @@ static const char* ir_code_str[] = {
   "I_ADD",
   "I_SUB",
   "I_MUL",
+  "I_DIVMOD",
   "I_LT",
   "I_AND",
   "I_OR",
@@ -642,7 +646,8 @@ i32 main(i32 argc, char** argv) {
               fclose(fp);
             }
 #if 1
-            FILE* debug = fopen("debug.txt", "w");
+            snprintf(path, MAX_PATH_SIZE, "%s.debug", filename);
+            FILE* debug = fopen(path, "w");
             if (debug) {
               ast_print(p.ast, 0, debug);
               ir_print(&c, debug);
@@ -1025,6 +1030,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             break;
           case T_MUL:
             num = va.num * vb.num;
+            break;
+          case T_DIVMOD:
+            num = va.num % vb.num;
             break;
           case T_LT:
             num = va.num < vb.num;
@@ -1538,6 +1546,9 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         }
         else if (ast->token.type == T_MUL) {
           ir_push_ins(c, OP(I_MUL), ins_count);
+        }
+        else if (ast->token.type == T_DIVMOD) {
+          ir_push_ins(c, OP(I_DIVMOD), ins_count);
         }
         else if (ast->token.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
@@ -2129,6 +2140,17 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_DIVMOD: {
+        vo("; I_DIVMOD\n");
+        o(
+        "  xor rdx, rdx\n"
+        "  pop rbx\n"
+        "  pop rax\n"
+        "  div rbx\n"
+        "  push rdx\n"
+        );
+        break;
+      }
       case I_LT: {
         vo("; I_LT\n");
         o(
@@ -2706,6 +2728,7 @@ Ast* parse_expr(Parser* p) {
     case T_ADD:
     case T_SUB:
     case T_MUL:
+    case T_DIVMOD:
     case T_LT:
     case T_AND:
     case T_OR:
@@ -3140,6 +3163,10 @@ Token lexer_next(Lexer* l) {
       }
       case '*': {
         l->token.type = T_MUL;
+        goto done;
+      }
+      case '%': {
+        l->token.type = T_DIVMOD;
         goto done;
       }
       case '<': {
