@@ -1,0 +1,196 @@
+// cellular-automata.spl
+
+fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
+
+fn puts(str) {
+  while neq 0 load8 str {
+    let ch load8 str;
+    let _ syscall3(1, 1, @ch, 1);
+    = @str +1 str;
+  }
+}
+
+fn strlen(str) {
+  let length 0;
+  while < 0 load8 str {
+    = @length +1 length;
+    = @str +1 str;
+  }
+  length;
+}
+
+fn memset(ptr, c, n) {
+  let count 0;
+  while < count n {
+    store8 ptr c; = @ptr +1 ptr;
+    = @count +1 count;
+  }
+}
+
+fn memcpy(dest, src, n) {
+  let count 0;
+  while < count n {
+    store8 dest load8 src;
+    = @dest +1 dest;
+    = @src  +1 src;
+    = @count +1 count;
+  }
+}
+fn memset8(ptr, c, n) {
+  let count 0;
+  while < count n {
+    store64 ptr c; = @ptr +u64.size ptr;
+    = @count +u64.size count;
+  }
+}
+
+fn time {
+  let SYS_time 201;
+  syscall1(SYS_time, 0);
+}
+
+fn nanosleep(ts) {
+  let SYS_nanosleep 35;
+  let _ syscall2(SYS_nanosleep, ts, 0);
+}
+
+fn lc_random(cur_seed) {
+  = cur_seed % + (* (#cur_seed) 16807) 13 2147483647;
+  #cur_seed;
+}
+
+fn ca_init(codep, map, map.w, map.h) {
+  // fancy initialization of clear code: \x1b[2J\x1b[H
+  store8 codep 27; = @codep +1 codep;
+  store8 codep 91; = @codep +1 codep;
+  store8 codep 50; = @codep +1 codep;
+  store8 codep 74; = @codep +1 codep;
+  store8 codep 27; = @codep +1 codep;
+  store8 codep 91; = @codep +1 codep;
+  store8 codep 72; = @codep +1 codep;
+  // randomize map
+  memory value_map 2;
+  = @value_map ' ';
+  = +1 @value_map 'x';
+  let seed time();
+  let x 0;
+  let y 0;
+  while < y map.h {
+    while < x map.w {
+      let r % lc_random(@seed) 128;
+      let v load8 + @value_map < r 7;
+      store8 map v;
+      = @map +1 map;
+      = @x +1 x;
+    }
+    = @y +1 y;
+    = @x 0;
+  }
+}
+
+fn ca_draw_map(map, map.w, map.h) {
+  let y 0;
+  let linebreak 10;
+  while < y map.h {
+    write(1, map, map.w);
+    write(1, @linebreak, 1);
+    = @map + map.w map;
+    = @y +1 y;
+  }
+}
+
+fn ca_get_entity_state(map, map.w, map.h, x, y) {
+  let state 0;
+
+  if or (or (or (< x 0) (< y 0)) (or (< map.w x) (< map.h y))) 1 {
+    // y*w+x
+    let position + x * y map.w;
+    let entity load8 + map position;
+    = @state eq entity 'x';
+  }
+  state;
+}
+
+fn clear(codep, code.size) {
+  write(1, codep, code.size);
+}
+
+fn main {
+  // initialize map
+  let code.size 7;
+  memory code code.size;
+  let map.w 64;
+  let map.h 32;
+  let map.size * map.w map.h;
+  memory map map.size;
+  memory map_next map.size;
+  memset8(@map, 0, map.size);
+  memset8(@map_next, 0, map.size);
+
+  // initialize map and clear code string
+  let codep @code;
+  ca_init(codep, @map, map.w, map.h);
+
+  // initialize random number generator
+  let cur_seed time();
+
+  memory timespec * 2 u64.size;
+  let ts @timespec;
+  = ts 0;
+  = + u64.size ts 800000000;
+
+  let running 1;
+  let index 0;
+
+  let cur @map;
+  let next @map_next;
+  while running {
+    memcpy(next, cur, map.size);
+    let x 0;
+    let y 0;
+    while < y map.h {
+      while < x map.w {
+        let entity load8 cur;
+        let num_neighbors +++++++
+          ca_get_entity_state(next, map.w, map.h, - x 1, - y 1)
+          ca_get_entity_state(next, map.w, map.h, x,     - y 1)
+          ca_get_entity_state(next, map.w, map.h, + x 1, - y 1)
+
+          ca_get_entity_state(next, map.w, map.h, - x 1, y)
+          ca_get_entity_state(next, map.w, map.h, + x 1, y)
+
+          ca_get_entity_state(next, map.w, map.h, - x 1, + y 1)
+          ca_get_entity_state(next, map.w, map.h, x,     + y 1)
+          ca_get_entity_state(next, map.w, map.h, + x 1, + y 1)
+        ;
+        let new_state 0;
+        if < num_neighbors 2 {
+          = @new_state ' ';
+        }
+        if or (eq num_neighbors 2) (eq num_neighbors 3) {
+          = @new_state 'x';
+        }
+        if eq num_neighbors 3 {
+          = @new_state load8 + (eq ' ' load8 cur) " x";
+        }
+        if < 3 num_neighbors {
+          = @new_state ' ';
+        }
+
+        store8 cur new_state;
+
+        = @cur  +1 cur;
+        = @next +1 next;
+        = @x    +1 x;
+      }
+      = @y +1 y;
+      = @x 0;
+    }
+    = @cur - cur map.size;
+    = @next - next map.size;
+    clear(codep, code.size);
+    ca_draw_map(cur, map.w, map.h);
+    nanosleep(ts);
+  }
+  0;
+}
