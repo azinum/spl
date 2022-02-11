@@ -1,0 +1,18 @@
+<AstRoot, T_NONE>: ``
+    <AstStatementList, T_NONE>: ``
+        <AstFuncDefinition, T_IDENTIFIER>: `main`
+            <AstParamList, T_NONE>: ``
+            <AstStatementList, T_NONE>: ``
+                <AstLetStatement, T_IDENTIFIER>: `hello`
+                    <AstValue, T_NUMBER>: `0`
+                <AstValue, T_NUMBER>: `0`
+ir_print:
+  0: <I_LABEL, 7, -1, -1>
+  1: <I_BEGIN_FUNC, -1, 0, -1>
+  2: <I_PUSH_LOCAL, 1, -1, 0>
+  3: <I_MOVE, 8, -1, -1>
+  4: <I_PUSH_LOCAL, 1, -1, 8>
+  5: <I_RET, -1, 0, -1>
+compile_print_symbol_info:
+  7: `main` (type = TypeFunc, label = 7, ir_address = 1, argc = 0, rtype = TypeUnsigned64, size = 8) - test.spl:42:4
+  8: `hello` (type = TypeUnsigned64, size = 8) - test.spl:43:13

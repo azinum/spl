@@ -659,6 +659,20 @@ i32 main(i32 argc, char** argv) {
               print_info("compilation took %lf seconds\n", _dt);
               (void)_dt;
             );
+#if __APPLE__
+            exec_command(
+              "nasm -f macho64 %s.asm && "
+              "ld -arch x86_64 -e _start -no_pie -lc %s.o -o %.*s -lSystem && "
+              "./%.*s"
+              ,
+              filename,
+              filename,
+              first_dot(filename),
+              filename,
+              first_dot(filename),
+              filename
+            );
+#else
             exec_command(
               "nasm -f elf64 %s.asm && "
               "ld -arch x86_64 %s.o -o %.*s && "
@@ -671,6 +685,7 @@ i32 main(i32 argc, char** argv) {
               first_dot(filename),
               filename
             );
+#endif
           }
           else {
             exit_status = EXIT_FAILURE;
@@ -1906,11 +1921,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 #else
   #define vo(...)
 #endif
-
 #define ENTRY "_start"
 #define MEMORY_CAPACITY KB(512)
   o("bits 64\n");
   o("section .text\n");
+  o("global %s\n", ENTRY);
   o(
   "print:\n"
   "    mov     r9, -3689348814741910323\n"
@@ -1946,7 +1961,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   "    add     rsp, 40\n"
   "    ret\n"
   );
-  o("global %s\n", ENTRY);
 
   for (u32 i = 0; i < c->ins_count; ++i) {
     const Op* op = &c->ins[i];
@@ -2408,9 +2422,17 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("\n");
   o("%s:\n", ENTRY);
   o("  call main\n");
+#if __APPLE__
+  // macos uses different system call codes, which can be found here: https://sigsegv.pl/osx-bsd-syscalls/
+  o("  mov rax, 1 ; exit syscall\n");
+  o("  mov rdi, 0\n");
+  o("  syscall\n");
+  o("  ret\n");
+#else
   o("  mov rax, 60 ; exit syscall\n");
   o("  mov rdi, 0\n");
   o("  syscall\n");
+#endif
   o("section .data\n");
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* cstring_address = &c->data[c->cstrings[i]];
