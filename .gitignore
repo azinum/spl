@@ -11,4 +11,4 @@ debug.txt
 examples/*spl.asm
 cspl.dSYM
 *.spl.asm
-*.asm.debug
+*.spl.debug
