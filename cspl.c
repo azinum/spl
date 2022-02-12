@@ -2217,7 +2217,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "  pop rax\n"
         "  cmp rax, 0\n"
         "  sete al\n"
-        "  movzx rax, al\n"
+        "  movzx rax, al\n" // TODO(lucas): i might not have to zero-extend here, investigate
         "  push rax\n"
         );
         break;
