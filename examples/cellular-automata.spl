@@ -102,7 +102,7 @@ fn ca_draw_map(map, map.w, map.h) {
 fn ca_get_entity_state(map, map.w, map.h, x, y) {
   let state 0;
 
-  if or (or (or (< x 0) (< y 0)) (or (< map.w x) (< map.h y))) 1 {
+  if or (or (or (< x 0) (< y 0)) (or (> x map.w) (> y map.h))) 1 {
     // y*w+x
     let position + x * y map.w;
     let entity load8 + map position;

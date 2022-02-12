@@ -117,6 +117,7 @@ typedef enum Token_type {
   T_LT,
   T_GT,
   T_AND,
+  T_LOGICAL_NOT,
   T_OR,
   T_EQ,
   T_NEQ,
@@ -163,6 +164,7 @@ static const char* token_type_str[] = {
   "T_LT",
   "T_GT",
   "T_AND",
+  "T_LOGICAL_NOT",
   "T_OR",
   "T_EQ",
   "T_NEQ",
@@ -301,6 +303,7 @@ typedef enum Ir_code {
   I_LT,
   I_GT,
   I_AND,
+  I_LOGICAL_NOT,
   I_OR,
   I_EQ,
   I_NEQ,
@@ -349,6 +352,7 @@ static const char* ir_code_str[] = {
   "I_LT",
   "I_GT",
   "I_AND",
+  "I_LOGICAL_NOT",
   "I_OR",
   "I_EQ",
   "I_NEQ",
@@ -1621,6 +1625,9 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         else if (ast->token.type == T_LOAD8) {
           ir_push_ins(c, OP(I_LOAD8), ins_count);
         }
+        else if (ast->token.type == T_LOGICAL_NOT) {
+          ir_push_ins(c, OP(I_LOGICAL_NOT), ins_count);
+        }
         else {
           assert("operation not implemented yet" && 0); // TODO: handle
         }
@@ -1648,13 +1655,6 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         if (count == 1) {
           symbol->token = node->token;
         }
-        // if (symbol->type == TypeFunc) {
-        //   // label has already been found and stored at this point
-        //   Op op; // unused for now, but we might want to check to see that we popped the correct instruction
-        //   ir_pop_ins(c, &op, ins_count);
-        //   (void)op;
-        //   break;
-        // }
         // store contents of rax into [v]
         ir_push_ins(c, (Op) {
           .i = I_MOVE,
@@ -2208,6 +2208,17 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "  pop rbx\n"
         "  and rbx, rax\n"
         "  push rbx\n"
+        );
+        break;
+      }
+      case I_LOGICAL_NOT: {
+        vo("; I_LOGICAL_NOT\n");
+        o(
+        "  pop rax\n"
+        "  cmp rax, 0\n"
+        "  sete al\n"
+        "  movzx rax, al\n"
+        "  push rax\n"
         );
         break;
       }
@@ -2804,7 +2815,8 @@ Ast* parse_expr(Parser* p) {
     case T_LOAD32:
     case T_LOAD16:
     case T_LOAD8:
-    case T_PRINT: {
+    case T_PRINT:
+    case T_LOGICAL_NOT: {
       lexer_next(&p->l); // skip op
       Ast* expr = ast_create(AstUopExpression);
       expr->token = t;
@@ -3052,6 +3064,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "and")) {
     l->token.type = T_AND;
+  }
+  else if (compare(l->token, "not")) {
+    l->token.type = T_LOGICAL_NOT;
   }
   else if (compare(l->token, "or")) {
     l->token.type = T_OR;
