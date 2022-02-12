@@ -164,18 +164,19 @@ fn main {
           ca_get_entity_state(next, map.w, map.h, + x 1, + y 1)
         ;
         let new_state 0;
-        if < num_neighbors 2 {
-          = @new_state ' ';
-        }
-        if or (eq num_neighbors 2) (eq num_neighbors 3) {
-          = @new_state 'x';
-        }
-        if eq num_neighbors 3 {
-          = @new_state load8 + (eq ' ' load8 cur) " x";
-        }
-        if < 3 num_neighbors {
-          = @new_state ' ';
-        }
+        = @new_state load8 + (eq ' ' load8 cur) " x";
+        // if < num_neighbors 2 {
+        //   = @new_state ' ';
+        // }
+        // if or (eq num_neighbors 2) (eq num_neighbors 3) {
+        //   = @new_state 'x';
+        // }
+        // if eq num_neighbors 3 {
+        //   = @new_state load8 + (eq ' ' load8 cur) " x";
+        // }
+        // if < 3 num_neighbors {
+        //   = @new_state ' ';
+        // }
 
         store8 cur new_state;
 

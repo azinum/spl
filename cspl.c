@@ -115,6 +115,7 @@ typedef enum Token_type {
   T_MUL,
   T_DIVMOD,
   T_LT,
+  T_GT,
   T_AND,
   T_OR,
   T_EQ,
@@ -160,6 +161,7 @@ static const char* token_type_str[] = {
   "T_MUL",
   "T_DIVMOD",
   "T_LT",
+  "T_GT",
   "T_AND",
   "T_OR",
   "T_EQ",
@@ -297,6 +299,7 @@ typedef enum Ir_code {
   I_MUL,
   I_DIVMOD,
   I_LT,
+  I_GT,
   I_AND,
   I_OR,
   I_EQ,
@@ -344,6 +347,7 @@ static const char* ir_code_str[] = {
   "I_MUL",
   "I_DIVMOD",
   "I_LT",
+  "I_GT",
   "I_AND",
   "I_OR",
   "I_EQ",
@@ -1052,6 +1056,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_LT:
             num = va.num < vb.num;
             break;
+          case T_GT:
+            num = va.num > vb.num;
+            break;
           case T_AND:
             num = va.num && vb.num;
             break;
@@ -1567,6 +1574,9 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         }
         else if (ast->token.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
+        }
+        else if (ast->token.type == T_GT) {
+          ir_push_ins(c, OP(I_GT), ins_count);
         }
         else if (ast->token.type == T_AND) {
           ir_push_ins(c, OP(I_AND), ins_count);
@@ -2178,6 +2188,19 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         );
         break;
       }
+      case I_GT: {
+        vo("; I_GT\n");
+        o(
+        "  mov rcx, 0\n"
+        "  mov rdx, 1\n"
+        "  pop rax\n"
+        "  pop rbx\n"
+        "  cmp rbx, rax\n"
+        "  cmovg rcx, rdx\n"
+        "  push rcx\n"
+        );
+        break;
+      }
       case I_AND: {
         vo("; I_AND\n");
         o(
@@ -2752,6 +2775,7 @@ Ast* parse_expr(Parser* p) {
     case T_MUL:
     case T_DIVMOD:
     case T_LT:
+    case T_GT:
     case T_AND:
     case T_OR:
     case T_EQ:
@@ -3193,6 +3217,10 @@ Token lexer_next(Lexer* l) {
       }
       case '<': {
         l->token.type = T_LT;
+        goto done;
+      }
+      case '>': {
+        l->token.type = T_GT;
         goto done;
       }
       case ';': {
