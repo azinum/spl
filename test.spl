@@ -40,10 +40,6 @@
 // }
 
 fn main {
-  let a 0;
-  let b 1;
-  if < b a print 12; else print 14;
-
   // let TMP_SIZE * 4 1024;
   // memory tmp TMP_SIZE;
   // let ERROR - 0 2; // -1

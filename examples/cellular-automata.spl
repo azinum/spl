@@ -78,7 +78,7 @@ fn ca_init(codep, map, map.w, map.h) {
   while < y map.h {
     while < x map.w {
       let r % lc_random(@seed) 128;
-      let v load8 + @value_map < r 7;
+      let v load8 + @value_map < r 30;
       store8 map v;
       = @map +1 map;
       = @x +1 x;
@@ -102,12 +102,27 @@ fn ca_draw_map(map, map.w, map.h) {
 fn ca_get_entity_state(map, map.w, map.h, x, y) {
   let state 0;
 
-  if or (or (or (< x 0) (< y 0)) (or (> x map.w) (> y map.h))) 1 {
-    // y*w+x
-    let position + x * y map.w;
-    let entity load8 + map position;
-    = @state eq entity 'x';
+  if and (< x map.w) (< y map.h) {
   }
+  else {
+    if < (x) (+1 map.w) {
+      = @x 0;
+    }
+    else {
+      = @x (-1 map.w);
+    }
+    if < (y) (+1 map.h) {
+      = @y 0;
+    }
+    else {
+      = @y (-1 map.h);
+    }
+  }
+  // y*w+x
+  let position + x * y map.w;
+  let entity load8 + map position;
+  = @state eq entity 'x';
+
   state;
 }
 
@@ -164,21 +179,22 @@ fn main {
           ca_get_entity_state(next, map.w, map.h, + x 1, + y 1)
         ;
         let new_state 0;
-        = @new_state load8 + (eq ' ' load8 cur) " x";
-        // if < num_neighbors 2 {
-        //   = @new_state ' ';
-        // }
-        // if or (eq num_neighbors 2) (eq num_neighbors 3) {
-        //   = @new_state 'x';
-        // }
-        // if eq num_neighbors 3 {
-        //   = @new_state load8 + (eq ' ' load8 cur) " x";
-        // }
-        // if < 3 num_neighbors {
-        //   = @new_state ' ';
-        // }
+        // = @new_state load8 + (eq ' ' load8 cur) " x";
+        let is_alive eq 'x' load8 cur;
+        if is_alive {
+          = @new_state or (eq num_neighbors 2) (eq num_neighbors 3);
+        }
+        else {
+          = @new_state eq num_neighbors 3;
+        }
+        if new_state {
+          = @new_state 'x';
+        }
+        else {
+          = @new_state ' ';
+        }
 
-        store8 cur new_state;
+        store8 cur load8 @new_state;
 
         = @cur  +1 cur;
         = @next +1 next;
@@ -187,10 +203,10 @@ fn main {
       = @y +1 y;
       = @x 0;
     }
-    = @cur - cur map.size;
+    = @cur  - cur map.size;
     = @next - next map.size;
     clear(codep, code.size);
-    ca_draw_map(cur, map.w, map.h);
+    ca_draw_map(next, map.w, map.h);
     nanosleep(ts);
   }
   0;
