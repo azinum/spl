@@ -8,7 +8,7 @@ endif
 syntax keyword Todos TODO NOTE FIXME
 
 " Language keywords
-syntax keyword Keywords print const let fn memory if while and or not eq neq
+syntax keyword Keywords print const let fn memory if else while and or not eq neq
 
 " Types
 syntax keyword Types None

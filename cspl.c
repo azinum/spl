@@ -130,6 +130,7 @@ typedef enum Token_type {
   T_FN,
   T_WHILE,
   T_IF,
+  T_ELSE,
   T_LEFT_P,
   T_RIGHT_P,
   T_LEFT_CURLY,
@@ -177,6 +178,7 @@ static const char* token_type_str[] = {
   "T_FN",
   "T_WHILE",
   "T_IF",
+  "T_ELSE",
   "T_LEFT_P",
   "T_RIGHT_P",
   "T_LEFT_CURLY",
@@ -1265,6 +1267,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       vs_pop(c, NULL);
       if (type == TypeUnsigned64) {
         typecheck(c, block, fs, body);
+        if (ast->count == 3) {
+          Ast* else_body = ast->node[2];
+          typecheck(c, block, fs, else_body);
+        }
         return TypeNone;
       }
       typecheck_error(c, "invalid type in if statement condition\n");
@@ -1792,23 +1798,43 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstIfStatement: {
-      assert("invalid while statement construction" && ast->count == 2);
-      i32 loop_label = c->label_count++;
+      assert("invalid if statement construction" && (ast->count >= 2 && ast->count <= 3));
       u32 cond_size = 0;
       u32 body_size = 0;
-      ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_label, .src0 = -1, .src1 = -1, }, &cond_size);
+      u32 else_body_size = 0;
 
       Ast* cond = ast->node[0];
       Ast* body = ast->node[1];
 
       if (ir_compile_stmts(c, block, cond, &cond_size) == NoError) {
         i32 body_start_address = c->ins_count;
-        i32 loop_end_label = c->label_count++;
-        ir_push_ins(c, (Op) { .i = I_JZ, .dest = loop_end_label, .src0 = 0, .src1 = 0, }, &body_size);
+        i32 end_label = c->label_count++;
+        ir_push_ins(c, (Op) { .i = I_JZ, .dest = end_label, .src0 = 0, .src1 = 0, }, &body_size);
         if (ir_compile_stmts(c, block, body, &body_size) == NoError) {
-          ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = loop_end_label, .src0 = -1, .src1 = -1, }, &body_size);
-          Op* jz = &c->ins[body_start_address];
-          jz->src0 = body_size;
+          if (ast->count == 3) { // else body
+            Ast* else_body = ast->node[2];
+            i32 else_label = c->label_count++;
+            ir_push_ins(c, (Op) {
+              .i = I_JMP,
+              .dest = else_label,
+              .src0 = -1,
+              .src1 = -1,
+            }, &body_size);
+            ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = end_label, .src0 = -1, .src1 = -1, }, &else_body_size);
+            if (ir_compile_stmts(c, block, else_body, &else_body_size) == NoError) {
+              ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = else_label, .src0 = -1, .src1 = -1, }, &else_body_size);
+              Op* jz = &c->ins[body_start_address];
+              jz->src0 = else_body_size;
+            }
+            else {
+              return c->status;
+            }
+          }
+          else {
+            ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = end_label, .src0 = -1, .src1 = -1, }, &body_size);
+            Op* jz = &c->ins[body_start_address];
+            jz->src0 = body_size;
+          }
         }
         else {
           return c->status;
@@ -1818,12 +1844,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         return c->status;
       }
       if (ins_count) {
-        *ins_count += cond_size + body_size;
+        *ins_count += cond_size + body_size + else_body_size;
       }
       break;
     }
     default: {
-      compile_error(c, "invalid or unhandled AST branch type\n");
+      compile_error(c, "invalid or unhandled AST branch type `%d`\n", ast->type);
       c->status = Error;
       break;
     }
@@ -2707,7 +2733,6 @@ Ast* parse_statement(Parser* p) {
       }
       return while_stmt;
     }
-    // TODO: rework, shares a lot of code with parsing of while statements
     case T_IF: {
       lexer_next(&p->l); // skip `if`
       Ast* if_stmt = ast_create(AstIfStatement);
@@ -2726,7 +2751,28 @@ Ast* parse_statement(Parser* p) {
         lexer_next(&p->l); // skip `}`
       }
       else {
-        ast_push(if_stmt, parse_statement(p));
+        Ast* if_body = ast_create(AstStatementList);
+        ast_push(if_body, parse_statement(p));
+        ast_push(if_stmt, if_body);
+      }
+      if (lexer_peek(&p->l).type == T_ELSE) {
+        t = lexer_next(&p->l);
+        if (t.type == T_LEFT_CURLY) {
+          lexer_next(&p->l); // skip `{`
+
+          ast_push(if_stmt, parse_statements(p));
+          t = lexer_peek(&p->l);
+          if (t.type != T_RIGHT_CURLY) {
+            parser_error(p, "expected closing `}` curly bracket in else body, but got `%.*s`\n", t.length, t.buffer);
+            return if_stmt;
+          }
+          lexer_next(&p->l); // skip `}`
+        }
+        else {
+          Ast* else_body = ast_create(AstStatementList);
+          ast_push(else_body, parse_statement(p));
+          ast_push(if_stmt, else_body);
+        }
       }
       return if_stmt;
     }
@@ -3037,6 +3083,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "if")) {
     l->token.type = T_IF;
+  }
+  else if (compare(l->token, "else")) {
+    l->token.type = T_ELSE;
   }
   else if (compare(l->token, "store64")) {
     l->token.type = T_STORE64;
