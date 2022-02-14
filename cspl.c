@@ -439,8 +439,35 @@ typedef enum Compile_target {
   MAX_COMPILE_TARGET,
 } Compile_target;
 
+typedef enum Target_machine {
+  MACHINE_LINUX,
+  MACHINE_MACOS,
+
+  MAX_TARGET_MACHINE,
+} Target_machine;
+
 static const char* compile_target_str[MAX_COMPILE_TARGET] = {
   "compile_linux_nasm_x86_64"
+};
+
+static const char* compile_target_compile_str[MAX_COMPILE_TARGET] = {
+  "nasm",
+};
+
+static const char* compile_target_link_str[MAX_COMPILE_TARGET] = {
+  "ld",
+};
+
+// 2 * MAX_COMPILE_TARGET for compile and link options
+static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE_TARGET] = {
+  {
+    "-f elf64",
+    "-arch x86_64"
+  },
+  {
+    "-f macho64",
+    "-arch x86_64 -e _start -no_pie -lc -lSystem"
+  },
 };
 
 typedef struct Function {
@@ -595,6 +622,9 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(ast_type_str) == MAX_AST_TYPE);
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
   assert(ARR_SIZE(compile_target_str) == MAX_COMPILE_TARGET);
+  assert(ARR_SIZE(compile_target_compile_str) == MAX_COMPILE_TARGET);
+  assert(ARR_SIZE(compile_target_link_str) == MAX_COMPILE_TARGET);
+  assert(ARR_SIZE(target_machine_option_str) == MAX_TARGET_MACHINE);
   assert(ARR_SIZE(compile_targets) == MAX_COMPILE_TARGET);
   assert(ARR_SIZE(token_type_str) == MAX_TOKEN_TYPE);
   assert(ARR_SIZE(ir_code_str) == MAX_IR_CODE);
@@ -655,6 +685,10 @@ i32 main(i32 argc, char** argv) {
               compile(&c, TARGET_LINUX_NASM_X86_64, fp);
               fclose(fp);
             }
+            REAL_TIMER_END(
+              print_info("compilation took %lf seconds\n", _dt);
+              (void)_dt;
+            );
 #if 1
             char debug_path[MAX_PATH_SIZE] = {0};
             snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", filename);
@@ -666,47 +700,41 @@ i32 main(i32 argc, char** argv) {
               fclose(debug);
             }
 #endif
-            REAL_TIMER_END(
-              print_info("compilation took %lf seconds\n", _dt);
-              (void)_dt;
-            );
             char exec_path[MAX_PATH_SIZE] = {0};
             char o_path[MAX_PATH_SIZE] = {0};
             snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(filename), filename);
             snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
 #if __APPLE__
+            Compile_target target = TARGET_LINUX_NASM_X86_64;
+            const char** target_options = target_machine_option_str[MACHINE_MACOS];
             if (exec_command(
-              "nasm -f macho64 %s -o %s && "
-              "ld -arch x86_64 -e _start -no_pie -lc -lSystem %s -o %s"
+              "%s %s %s -o %s && "
+              "%s %s %s -o %s"
               ,
+              compile_target_compile_str[target],
+              target_options[target * 2],
               path,
               o_path,
+              compile_target_link_str[target],
+              target_options[target * 2 + 1],
               o_path,
               exec_path
             ) == NoError) {
               exec_command("./%s", exec_path);
             }
-#if 0
-            exec_command(
-              "nasm -f macho64 %s.asm && "
-              "ld -arch x86_64 -e _start -no_pie -lc %s.o -o %.*s -lSystem && "
-              "./%.*s"
-              ,
-              filename,
-              filename,
-              first_dot(filename),
-              filename,
-              first_dot(filename),
-              filename
-            );
-#endif
 #else
+            Compile_target target = TARGET_LINUX_NASM_X86_64;
+            const char** target_options = target_machine_option_str[MACHINE_LINUX];
             if (exec_command(
-              "nasm -f elf64 %s -o %s && "
-              "ld -arch x86_64 %s -o %s"
+              "%s %s %s -o %s && "
+              "%s %s %s -o %s"
               ,
+              compile_target_compile_str[target],
+              target_options[target * 2],
               path,
               o_path,
+              compile_target_link_str[target],
+              target_options[target * 2 + 1],
               o_path,
               exec_path
             ) == NoError) {
