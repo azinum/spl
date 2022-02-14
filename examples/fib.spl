@@ -1,0 +1,24 @@
+// fib.spl
+
+fn fib(n) {
+  let a 0;
+  let b 1;
+  let c 0;
+  let i 1;
+  if eq n 0 {
+    = @b 0;
+  }
+  else {
+    while < i n {
+      = @c + a b;
+      = @a b;
+      = @b c;
+      = @i +1 i;
+    }
+  }
+  b;
+}
+
+fn main {
+  print fib(7);
+}

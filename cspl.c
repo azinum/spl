@@ -1994,7 +1994,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   #define vo(...)
 #endif
 #define ENTRY "_start"
-#define MEMORY_CAPACITY KB(512)
+#define MEMORY_CAPACITY KB(64)
   o("bits 64\n");
   o("section .text\n");
   o("global %s\n", ENTRY);
