@@ -8,7 +8,7 @@
 //   }
 //   length;
 // }
-// 
+//
 // fn memset(ptr, c, n) {
 //   let count 0;
 //   while < count n {
@@ -24,12 +24,12 @@
 //     = @str +1 str;
 //   }
 // }
-// 
+//
 // fn read(fd, buf, count)    syscall3(0, fd, buf, count);
 // fn open(path, flags, mode) syscall3(2, path, flags, mode);
 // fn close(fd) { let _ syscall1(3, fd); }
 // fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
-// 
+//
 // fn read_file_into_buffer(fd, buf) {
 //   let n 0;
 //   while neq 0 read(fd, buf, 1) {

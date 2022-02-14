@@ -278,7 +278,6 @@ typedef struct Ast {
 typedef struct Parser {
   Lexer l;
   Ast* ast;
-  Ast* current;
   i32 status;
 } Parser;
 
@@ -469,6 +468,15 @@ static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE
     "-arch x86_64 -e _start -no_pie -lc -lSystem"
   },
 };
+
+#if __APPLE__
+  #define MACHINE MACHINE_MACOS
+#elif __LINUX__
+  #define MACHINE MACHINE_LINUX
+#else
+  #warning "the compiler does not support this machine, defaulting to linux"
+  #define MACHINE MACHINE_LINUX
+#endif
 
 typedef struct Function {
   i32 ir_address;
@@ -700,31 +708,14 @@ i32 main(i32 argc, char** argv) {
               fclose(debug);
             }
 #endif
+
+#if 1
             char exec_path[MAX_PATH_SIZE] = {0};
             char o_path[MAX_PATH_SIZE] = {0};
             snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(filename), filename);
             snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
-#if __APPLE__
             Compile_target target = TARGET_LINUX_NASM_X86_64;
-            const char** target_options = target_machine_option_str[MACHINE_MACOS];
-            if (exec_command(
-              "%s %s %s -o %s && "
-              "%s %s %s -o %s"
-              ,
-              compile_target_compile_str[target],
-              target_options[target * 2],
-              path,
-              o_path,
-              compile_target_link_str[target],
-              target_options[target * 2 + 1],
-              o_path,
-              exec_path
-            ) == NoError) {
-              exec_command("./%s", exec_path);
-            }
-#else
-            Compile_target target = TARGET_LINUX_NASM_X86_64;
-            const char** target_options = target_machine_option_str[MACHINE_LINUX];
+            const char** target_options = target_machine_option_str[MACHINE];
             if (exec_command(
               "%s %s %s -o %s && "
               "%s %s %s -o %s"
@@ -2599,14 +2590,12 @@ i32 parser_init(Parser* p, char* filename, char* source) {
   }
   lexer_init(&p->l, filename, source);
   p->ast = ast_create(AstRoot);
-  p->current = NULL;
   p->status = NoError;
   return NoError;
 }
 
 void parser_free(Parser* p) {
   ast_free(p->ast);
-  p->current = NULL;
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
