@@ -2,6 +2,7 @@
 *.swp
 *.o
 .DS_Store
+cspl.dSYM
 cspl
 spl.spl.asm
 spl
@@ -9,6 +10,5 @@ test.spl.asm
 test
 debug.txt
 examples/*spl.asm
-cspl.dSYM
 *.spl.asm
 *.spl.debug
