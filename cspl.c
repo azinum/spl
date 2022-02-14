@@ -587,7 +587,7 @@ static u32 ast_count(Ast* ast);
 static void ast_print(const Ast* ast, i32 level, FILE* fp);
 static void ast_free(Ast* ast);
 
-void exec_command(const char* fmt, ...);
+i32 exec_command(const char* fmt, ...);
 u32 first_dot(const char* s);
 
 i32 main(i32 argc, char** argv) {
@@ -656,8 +656,9 @@ i32 main(i32 argc, char** argv) {
               fclose(fp);
             }
 #if 1
-            snprintf(path, MAX_PATH_SIZE, "%s.debug", filename);
-            FILE* debug = fopen(path, "w");
+            char debug_path[MAX_PATH_SIZE] = {0};
+            snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", filename);
+            FILE* debug = fopen(debug_path, "w");
             if (debug) {
               ast_print(p.ast, 0, debug);
               ir_print(&c, debug);
@@ -669,7 +670,23 @@ i32 main(i32 argc, char** argv) {
               print_info("compilation took %lf seconds\n", _dt);
               (void)_dt;
             );
+            char exec_path[MAX_PATH_SIZE] = {0};
+            char o_path[MAX_PATH_SIZE] = {0};
+            snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(filename), filename);
+            snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
 #if __APPLE__
+            if (exec_command(
+              "nasm -f macho64 %s -o %s && "
+              "ld -arch x86_64 -e _start -no_pie -lc -lSystem %s -o %s"
+              ,
+              path,
+              o_path,
+              o_path,
+              exec_path
+            ) == NoError) {
+              exec_command("./%s", exec_path);
+            }
+#if 0
             exec_command(
               "nasm -f macho64 %s.asm && "
               "ld -arch x86_64 -e _start -no_pie -lc %s.o -o %.*s -lSystem && "
@@ -682,19 +699,19 @@ i32 main(i32 argc, char** argv) {
               first_dot(filename),
               filename
             );
+#endif
 #else
-            exec_command(
-              "nasm -f elf64 %s.asm && "
-              "ld -arch x86_64 %s.o -o %.*s && "
-              "./%.*s"
+            if (exec_command(
+              "nasm -f elf64 %s -o %s && "
+              "ld -arch x86_64 %s -o %s"
               ,
-              filename,
-              filename,
-              first_dot(filename),
-              filename,
-              first_dot(filename),
-              filename
-            );
+              path,
+              o_path,
+              o_path,
+              exec_path
+            ) == NoError) {
+              exec_command("./%s", exec_path);
+            }
 #endif
           }
           else {
@@ -3540,7 +3557,7 @@ void ast_free(Ast* ast) {
 
 #define MAX_COMMAND_SIZE 512
 
-void exec_command(const char* fmt, ...) {
+i32 exec_command(const char* fmt, ...) {
   char command[MAX_COMMAND_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -3549,7 +3566,11 @@ void exec_command(const char* fmt, ...) {
 
   fprintf(stdout, "+ %s\n", command); // to simulate 'set -xe'
   FILE* fp = popen(command, "w");
+  if (!fp) {
+    return Error;
+  }
   fclose(fp);
+  return NoError;
 }
 
 u32 first_dot(const char* s) {
