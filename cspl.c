@@ -233,7 +233,7 @@ typedef enum Ast_type {
   AstBlockStatement,
   AstBinopExpression,
   AstUopExpression,
-  AstConstAssignment,
+  AstConstStatement,
   AstLetStatement,
   AstFuncDefinition,
   AstFuncCall,
@@ -257,7 +257,7 @@ static const char* ast_type_str[] = {
   "AstBlockStatement",
   "AstBinopExpression",
   "AstUopExpression",
-  "AstConstAssignment",
+  "AstConstStatement",
   "AstLetStatement",
   "AstFuncDefinition",
   "AstFuncCall",
@@ -491,11 +491,18 @@ typedef union Value {
   u64 num;
 } Value;
 
+typedef enum Symbol_type {
+  SYM_FUNC_ARG = 0,
+  SYM_FUNC,
+  SYM_LOCAL_VAR,
+} Symbol_type;
+
 typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 imm; // address to immediate value
   i32 size;
-  i32 local; // (0) function argument, (1) local variable, (2) function (need to change the name of this)
+  // i32 local; // (0) function argument, (1) local variable, (2) function (need to change the name of this)
+  Symbol_type sym_type;
   Compile_type type;
   Token token;
   Value value;
@@ -759,7 +766,7 @@ void symbol_init(Symbol* s) {
   memset(s->name, 0, ARR_SIZE(s->name));
   s->imm = -1;
   s->size = 0;
-  s->local = 1;
+  s->sym_type = SYM_LOCAL_VAR;
   s->type = TypeNone;
   s->token = (Token) {0};
   s->value = (Value) { .num = 0, };
@@ -771,7 +778,7 @@ void symbol_print(Symbol* s, FILE* fp) {
     "  name = %s,\n"
     "  imm = %d,\n"
     "  size = %d,\n"
-    "  local = %d,\n"
+    "  sym_type = %d,\n"
     "  type = %s,\n"
     "  token = { %.*s, %d, },\n"
     "  value = {\n"
@@ -788,7 +795,7 @@ void symbol_print(Symbol* s, FILE* fp) {
     s->name,
     s->imm,
     s->size,
-    s->local,
+    s->sym_type,
     compile_type_str[s->type],
     s->token.length, s->token.buffer, s->token.type,
     s->value.func.ir_address,
@@ -904,7 +911,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   assert(symbol_index != -1);
   symbol->imm = -1;
   symbol->size = compile_type_size[TypeSyscallFunc];
-  symbol->local = 2;
+  symbol->sym_type = SYM_FUNC;
   symbol->type = TypeSyscallFunc;
   symbol->token = token; // duplicated in compile_declare_value
   symbol->token.v.i = symbol_index;
@@ -1142,8 +1149,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       return ts_top(c);
     }
-    case AstConstAssignment: {
-      assert("AstConstAssignment not implemented yet" && 0);
+    case AstConstStatement: {
+      assert("AstConstStatement not implemented yet" && 0);
       return TypeNone;
     }
     case AstLetStatement: {
@@ -1162,7 +1169,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
         symbol->size = compile_type_size[type];
-        symbol->local = 1;
+        symbol->sym_type = SYM_LOCAL_VAR;
         symbol->type = type;
         symbol->token = ast->token; // duplicated in compile_declare_value
         symbol->value = value;
@@ -1194,7 +1201,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         symbol->imm = -1;
         symbol->size = compile_type_size[TypeFunc];
-        symbol->local = 2; // TODO: hack, fix
+        symbol->sym_type = SYM_FUNC;
         symbol->type = TypeFunc;
         symbol->token = ast->token; // duplicated in compile_declare_value
         ast->token.v.i = symbol_index;
@@ -1213,7 +1220,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
             arg_symbol->imm = -1;
             arg_symbol->size = compile_type_size[TypeUnsigned64];
-            arg_symbol->local = 0;
+            arg_symbol->sym_type = SYM_FUNC_ARG;
             arg_symbol->type = TypeUnsigned64;
             arg_symbol->token = arg;
             arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id
@@ -1533,17 +1540,17 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_IDENTIFIER: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->local >= 1) {
-            if (symbol->type == TypeFunc) {
-              Function* func = &symbol->value.func;
-              ir_push_ins(c, (Op) {
-                .i = I_PUSH_LOCAL,
-                .dest = symbol->type,
-                .src0 = func->label,
-                .src1 = -1,
-              }, ins_count);
-            }
-            else if (symbol->type == TypeCString) {
+          if (symbol->sym_type == SYM_FUNC) {
+            Function* func = &symbol->value.func;
+            ir_push_ins(c, (Op) {
+              .i = I_PUSH_LOCAL,
+              .dest = symbol->type,
+              .src0 = func->label,
+              .src1 = -1,
+            }, ins_count);
+          }
+          else if (symbol->sym_type == SYM_LOCAL_VAR) {
+            if (symbol->type == TypeCString) {
               // for now c strings are handled using pointers (64-bit unsigned integers)
               // therefore we do nothing here
               assert(0); // just in case
@@ -1571,7 +1578,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         case T_AT: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->local >= 1) {
+          if (symbol->sym_type == SYM_FUNC || symbol->sym_type == SYM_LOCAL_VAR) {
             ir_push_ins(c, (Op) {
               .i = I_PUSH_LOCAL_ADDR_OF,
               .dest = symbol->type,
@@ -1684,8 +1691,8 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       ir_compile_warning(c, "unused AST branch type\n");
       break;
     }
-    case AstConstAssignment: {
-      assert("AstConstAssignment not implemented yet" && 0);
+    case AstConstStatement: {
+      assert("AstConstStatement not implemented yet" && 0);
       break;
     }
     case AstLetStatement: {
@@ -1723,7 +1730,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       ir_compile_func_args(c, block, ast->node[0], ins_count); // compile function args in reverse order
       switch (symbol->type) {
         case TypeFunc: {
-          if (symbol->local == 1) {
+          if (symbol->sym_type == SYM_LOCAL_VAR) {
             ir_push_ins(c, (Op) {
               .i = I_ADDR_CALL,
               .dest = id,
@@ -2548,7 +2555,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->local != 1) {
+    if (s->sym_type != SYM_LOCAL_VAR) {
       continue;
     }
     switch (s->type) {
@@ -2684,19 +2691,20 @@ done:
 */
 Ast* parse_statement(Parser* p) {
   Token t = lexer_peek(&p->l);
-  switch (t.type) {
-    case T_CONST: {
-      assert("T_CONST not implemented yet" && 0);
-      break;
-    }
+  Token_type token_type = t.type;
+  switch (token_type) {
+    case T_CONST:
     case T_LET: {
+      Ast_type branch_type[] = {AstConstStatement, AstLetStatement};
       t = lexer_next(&p->l); // skip `let`
       if (t.type != T_IDENTIFIER) {
         parser_error(p, "expected identifier in let statement, but got `%.*s`\n", t.length, t.buffer);
         return NULL;
       }
       lexer_next(&p->l);  // skip `identifier`
-      Ast* expr = ast_create(AstLetStatement);
+      Ast* expr = ast_create(
+        branch_type[token_type == T_LET]
+      );
       expr->token = t;
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);

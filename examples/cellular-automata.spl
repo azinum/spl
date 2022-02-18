@@ -70,18 +70,18 @@ fn ca_init(codep, map, map.w, map.h) {
   store8 codep 72; = @codep +1 codep;
   // randomize map
   memory value_map 2;
-  = @value_map ' ';
-  = +1 @value_map 'x';
+  store8    @value_map ' ';
+  store8 +1 @value_map 'x';
   let seed time();
   let x 0;
   let y 0;
   while < y map.h {
     while < x map.w {
-      let r % lc_random(@seed) 128;
-      let v load8 + @value_map < r 30;
+      let r % lc_random(@seed) 5;
+      let v load8 + @value_map eq r 0;
       store8 map v;
       = @map +1 map;
-      = @x +1 x;
+      = @x   +1 x;
     }
     = @y +1 y;
     = @x 0;
@@ -102,28 +102,26 @@ fn ca_draw_map(map, map.w, map.h) {
 fn ca_get_entity_state(map, map.w, map.h, x, y) {
   let state 0;
 
-  if and (< x map.w) (< y map.h) {
-  }
-  else {
-    if < (x) (+1 map.w) {
+  if > (x) (- map.w 1) {
+    if < (x) (+ map.w 1) {
       = @x 0;
     }
     else {
-      = @x (-1 map.w);
+      = @x - map.w 1;
     }
-    if < (y) (+1 map.h) {
+  }
+  if > (y) (- map.h 1) {
+    if < (y) (+ map.h 1) {
       = @y 0;
     }
     else {
-      = @y (-1 map.h);
+      = @y - map.h 1;
     }
   }
   // y*w+x
-  let position + x * y map.w;
+  let position + * y map.w x;
   let entity load8 + map position;
-  = @state eq entity 'x';
-
-  state;
+  eq entity 'x';
 }
 
 fn clear(codep, code.size) {
@@ -149,13 +147,13 @@ fn main {
   // initialize random number generator
   let cur_seed time();
 
+  // initialize timer
   memory timespec * 2 u64.size;
   let ts @timespec;
   = ts 0;
-  = + u64.size ts 800000000;
+  = + u64.size ts 500000000;
 
   let running 1;
-  let index 0;
 
   let cur @map;
   let next @map_next;
@@ -176,10 +174,9 @@ fn main {
 
           ca_get_entity_state(next, map.w, map.h, - x 1, + y 1)
           ca_get_entity_state(next, map.w, map.h, x,     + y 1)
-          ca_get_entity_state(next, map.w, map.h, + x 1, + y 1)
-        ;
+          ca_get_entity_state(next, map.w, map.h, + x 1, + y 1);
+
         let new_state 0;
-        // = @new_state load8 + (eq ' ' load8 cur) " x";
         let is_alive eq 'x' load8 cur;
         if is_alive {
           = @new_state or (eq num_neighbors 2) (eq num_neighbors 3);
@@ -187,14 +184,8 @@ fn main {
         else {
           = @new_state eq num_neighbors 3;
         }
-        if new_state {
-          = @new_state 'x';
-        }
-        else {
-          = @new_state ' ';
-        }
 
-        store8 cur load8 @new_state;
+        store8 cur load8 + new_state " x";
 
         = @cur  +1 cur;
         = @next +1 next;
