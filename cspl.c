@@ -547,6 +547,14 @@ typedef struct Compile {
   i32 vs_count;
 } Compile;
 
+typedef struct Options {
+  i32 compile;
+  i32 run;
+  char* filename;
+} Options;
+
+static i32 spl_start(Options* options);
+
 static void symbol_init(Symbol* s);
 static void symbol_print(Symbol* s, FILE* fp);
 static void block_init(Block* block, Block* parent);
@@ -648,53 +656,71 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
 
   i32 exit_status = EXIT_SUCCESS;
+  Options options = (Options) {
+    .compile = 1,
+    .run = 0,
+    .filename = NULL,
+  };
 
-  char* filename = NULL;
-  char* source = NULL;
-  FILE* fp = NULL;
   if (argc < 2) {
-    printf("Usage; %s [-t | <filename>]\n", argv[0]);
+    printf("Usage; %s [-t | <filename>]\n", *argv);
     return EXIT_SUCCESS;
   }
-  else {
-    filename = argv[1];
-    if (!strcmp(filename, "-t")) {
-      return EXIT_SUCCESS;
+  ++argv;
+  while (*argv != NULL) {
+    if (!strncmp(*argv, "run", MAX_PATH_SIZE)) {
+      options.run = 1;
+    }
+    else if (!strncmp(*argv, "nocom", MAX_PATH_SIZE)) {
+      options.compile = 0;
     }
     else {
-      fp = fopen(filename, "rb");
-      if (!fp) {
-        fprintf(stderr, "Failed to open file `%s`\n", filename);
-        return EXIT_FAILURE;
-      }
-      fseek(fp, 0, SEEK_END);
-      i32 size = ftell(fp);
-      fseek(fp, 0, SEEK_SET);
-      source = (char*)malloc(size + 1);
-      if (!source) {
-        fprintf(stderr, "Failed to allocate memory for source file `%s`\n", filename);
-        fclose(fp);
-        exit_status = EXIT_FAILURE;
-      }
-      i32 read_size = fread(source, 1, size, fp);
-      assert("something went wrong when reading file" && read_size == size);
-      (void)read_size;  // ignore warning
-      source[read_size] = '\0';
+      options.filename = *argv;
     }
+    ++argv;
   }
-  assert(filename != NULL);
+  i32 result = spl_start(&options);
+  if (result != NoError) {
+    exit_status = EXIT_FAILURE;
+  }
+  return exit_status;
+}
 
+i32 spl_start(Options* options) {
+  i32 result = NoError;
+  // read source file
+  char* source = NULL;
+  FILE* fp = fopen(options->filename, "rb");
+  if (!fp) {
+    fprintf(stderr, "error: failed to open file `%s`\n", options->filename);
+    return Error;
+  }
+  fseek(fp, 0, SEEK_END);
+  i32 size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  source = (char*)malloc(size + 1);
+  if (!source) {
+    fprintf(stderr, "error: failed to allocate memory for source file `%s`\n", options->filename);
+    fclose(fp);
+    return Error;
+  }
+  i32 read_size = fread(source, 1, size, fp);
+  (void)read_size;  // ignore warning
+  source[read_size] = '\0';
+  fclose(fp);
+
+  // begin compiling source file
   REAL_TIMER_START();
   Parser p;
   Compile c;
-  if (parser_init(&p, filename, (char*)source) == NoError) {
+  if (parser_init(&p, options->filename, (char*)source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
       if (compile_state_init(&c) == NoError) {
         if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
             char path[MAX_PATH_SIZE] = {0};
-            snprintf(path, MAX_PATH_SIZE, "%s.asm", filename);
+            snprintf(path, MAX_PATH_SIZE, "%s.asm", options->filename);
             FILE* fp = fopen(path, "w");
             if (fp) {
               compile(&c, TARGET_LINUX_NASM_X86_64, fp);
@@ -706,12 +732,12 @@ i32 main(i32 argc, char** argv) {
             );
 #if 1
             char debug_path[MAX_PATH_SIZE] = {0};
-            snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", filename);
+            snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", options->filename);
             FILE* debug = fopen(debug_path, "w");
             if (debug) {
               ast_print(p.ast, 0, debug);
               ir_print(&c, debug);
-              compile_print_symbol_info(&c, filename, (char*)source, debug);
+              compile_print_symbol_info(&c, options->filename, (char*)source, debug);
               fclose(debug);
             }
 #endif
@@ -719,7 +745,7 @@ i32 main(i32 argc, char** argv) {
 #if 1
             char exec_path[MAX_PATH_SIZE] = {0};
             char o_path[MAX_PATH_SIZE] = {0};
-            snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(filename), filename);
+            snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(options->filename), options->filename);
             snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
             Compile_target target = TARGET_LINUX_NASM_X86_64;
             const char** target_options = target_machine_option_str[MACHINE];
@@ -735,31 +761,28 @@ i32 main(i32 argc, char** argv) {
               target_options[target * 2 + 1],
               o_path,
               exec_path
-            ) == NoError) {
+            ) == NoError && options->run) {
               exec_command("./%s", exec_path);
             }
 #endif
           }
           else {
-            exit_status = EXIT_FAILURE;
+            result = Error;
           }
         }
         else {
-          exit_status = EXIT_FAILURE;
+          result = Error;
         }
       }
     }
     else {
-      exit_status = EXIT_FAILURE;
+      result = Error;
     }
     compile_state_free(&c);
     parser_free(&p);
   }
-  if (fp) {
-    fclose(fp);
-  }
   free(source);
-  return exit_status;
+  return result;
 }
 
 void symbol_init(Symbol* s) {
