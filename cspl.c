@@ -2289,10 +2289,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_DIV: {
         vo("; I_DIV\n");
         o(
-        "  xor rbx, rbx\n"
-        "  pop rcx\n"
+        "  xor rdx, rdx\n"
+        "  pop r8\n"
         "  pop rax\n"
-        "  div rcx\n"
+        "  div r8\n"
         "  push rax\n"
         );
         break;
