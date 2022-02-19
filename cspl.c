@@ -113,7 +113,10 @@ typedef enum Token_type {
   T_ADD,
   T_SUB,
   T_MUL,
+  T_DIV,
   T_DIVMOD,
+  T_LSHIFT,
+  T_RSHIFT,
   T_LT,
   T_GT,
   T_AND,
@@ -161,7 +164,10 @@ static const char* token_type_str[] = {
   "T_ADD",
   "T_SUB",
   "T_MUL",
+  "T_DIV",
   "T_DIVMOD",
+  "T_LSHIFT",
+  "T_RSHIFT",
   "T_LT",
   "T_GT",
   "T_AND",
@@ -300,6 +306,9 @@ typedef enum Ir_code {
   I_ADD,
   I_SUB,
   I_MUL,
+  I_LSHIFT,
+  I_RSHIFT,
+  I_DIV,
   I_DIVMOD,
   I_LT,
   I_GT,
@@ -349,6 +358,9 @@ static const char* ir_code_str[] = {
   "I_ADD",
   "I_SUB",
   "I_MUL",
+  "I_LSHIFT",
+  "I_RSHIFT",
+  "I_DIV",
   "I_DIVMOD",
   "I_LT",
   "I_GT",
@@ -1122,8 +1134,17 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_MUL:
             num = va.num * vb.num;
             break;
+          case T_DIV:
+            num = va.num / vb.num;
+            break;
           case T_DIVMOD:
             num = va.num % vb.num;
+            break;
+          case T_LSHIFT:
+            num = va.num << vb.num;
+            break;
+          case T_RSHIFT:
+            num = va.num >> vb.num;
             break;
           case T_LT:
             num = va.num < vb.num;
@@ -1645,8 +1666,17 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         else if (ast->token.type == T_MUL) {
           ir_push_ins(c, OP(I_MUL), ins_count);
         }
+        else if (ast->token.type == T_DIV) {
+          ir_push_ins(c, OP(I_DIV), ins_count);
+        }
         else if (ast->token.type == T_DIVMOD) {
           ir_push_ins(c, OP(I_DIVMOD), ins_count);
+        }
+        else if (ast->token.type == T_LSHIFT) {
+          ir_push_ins(c, OP(I_LSHIFT), ins_count);
+        }
+        else if (ast->token.type == T_RSHIFT) {
+          ir_push_ins(c, OP(I_RSHIFT), ins_count);
         }
         else if (ast->token.type == T_LT) {
           ir_push_ins(c, OP(I_LT), ins_count);
@@ -2254,6 +2284,29 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "  mul rbx\n"
         "  push rax\n"
         );
+        break;
+      }
+      case I_DIV: {
+        vo("; I_DIV\n");
+        o(
+        "  xor rbx, rbx\n"
+        "  pop rcx\n"
+        "  pop rax\n"
+        "  div rcx\n"
+        "  push rax\n"
+        );
+        break;
+      }
+      // shl and shr requires immediate value on the second argument
+      // TODO(lucas): implement
+      case I_LSHIFT: {
+        vo("; I_LSHIFT\n");
+        assert("I_LSHIFT instruction not implemented yet" && 0);
+        break;
+      }
+      case I_RSHIFT: {
+        vo("; I_LSHIFT\n");
+        assert("I_RSHIFT instruction not implemented yet" && 0);
         break;
       }
       case I_DIVMOD: {
@@ -2895,7 +2948,10 @@ Ast* parse_expr(Parser* p) {
     case T_ADD:
     case T_SUB:
     case T_MUL:
+    case T_DIV:
     case T_DIVMOD:
+    case T_LSHIFT:
+    case T_RSHIFT:
     case T_LT:
     case T_GT:
     case T_AND:
@@ -3223,6 +3279,12 @@ Token lexer_read_symbol(Lexer* l) {
     l->token.type = T_NUMBER;
     l->token.v.num = sizeof(i8);
   }
+  else if (compare(l->token, "lshift")) {
+    l->token.type = T_LSHIFT;
+  }
+  else if (compare(l->token, "rshift")) {
+    l->token.type = T_RSHIFT;
+  }
   else {
     l->token.type = T_IDENTIFIER;
   }
@@ -3280,8 +3342,10 @@ Token lexer_next(Lexer* l) {
             l->index++;
             l->column++;
           }
+          break;
         }
-        break;
+        l->token.type = T_DIV;
+        goto done;
       }
       case '"': {
         char delimiter = ch;
