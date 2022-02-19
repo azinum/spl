@@ -1134,11 +1134,15 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_MUL:
             num = va.num * vb.num;
             break;
-          case T_DIV:
-            num = va.num / vb.num;
+          case T_DIV: {
+            u64 nozero[] = {vb.num, 1};
+            num = va.num / nozero[vb.num == 0];
             break;
-          case T_DIVMOD:
-            num = va.num % vb.num;
+          }
+          case T_DIVMOD: {
+            u64 nozero[] = {vb.num, 1};
+            num = va.num % nozero[vb.num == 0];
+          }
             break;
           case T_LSHIFT:
             num = va.num << vb.num;
