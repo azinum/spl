@@ -1298,6 +1298,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         func->ir_address = -1;
         func->label = symbol_index;
         func->argc = params->count;
+        func->rtype = TypeUnsigned64;
 
         for (u32 i = 0; i < func->argc; ++i) {
           Symbol* arg_symbol = NULL;
@@ -1445,7 +1446,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstAssignment: {
       Compile_type a = typecheck(c, block, fs, ast->node[0]);
       Compile_type b = typecheck(c, block, fs, ast->node[1]);
-      if (a != b && a != TypeUnsigned64) {
+      if (a != b && a != TypeUnsigned64 && (a != TypeAny && b != TypeAny)) {
         typecheck_error_at(c, ast->token, "type mismatch in assignment expression\n");
         return TypeNone;
       }
@@ -2740,6 +2741,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case TypeFunc: {
         o("v%d: resb %d ; `%s` : TypeFunc\n", i, s->size, s->name);
         break;
+      }
+      case TypeAny: {
+        o("v%d: resb %d ; `%s` : TypeAny\n", i, s->size, s->name);
       }
       case TypeNone:
       case TypeSyscallFunc:
