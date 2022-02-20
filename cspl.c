@@ -299,6 +299,7 @@ typedef struct Parser {
   Lexer l;
   Ast* ast;
   i32 status;
+  char* path[MAX_SOURCE];
   char* source[MAX_SOURCE];
   u32 source_count;
 } Parser;
@@ -1368,7 +1369,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         if (rtype_node != NULL) {
           Compile_type explicit_rtype = token_to_compile_type(rtype_node->token);
           if (explicit_rtype != rtype && explicit_rtype != TypeAny) {
-            compile_error_at(c, rtype_node->token, "function produces a value that does not match the return type\n");
+            compile_error_at(c, rtype_node->token, "function returns a value that does not match the return type\n");
             return TypeNone;
           }
         }
@@ -2811,8 +2812,13 @@ i32 parser_init(Parser* p, char* filename, char* source) {
 
 void parser_free(Parser* p) {
   ast_free(p->ast);
-  for (u32 i = 0; i < p->source_count; ++i) {
-    free(p->source[i]);
+  char** path = (char**)&p->path;
+  for (u32 i = 1; i < p->source_count; ++i, ++path) { // first path is lives on throughout the program runtime, thus i = 1. remaining paths are allocated on heap.
+    free(*path);
+  }
+  char** source = (char**)&p->source;
+  for (u32 i = 0; i < p->source_count; ++i, ++source) {
+    free(*source);
   }
 }
 
@@ -2887,15 +2893,19 @@ Ast* parse_statements(Parser* p) {
 
         Lexer l_copy;
         memcpy(&l_copy, &p->l, sizeof(Lexer));
-        char path[MAX_PATH_SIZE] = {0};
+        u32 path_length = t.length + 1;
+        char* path = malloc(path_length);
         snprintf(path, MAX_PATH_SIZE, "%.*s", t.length, t.buffer);
         char* source = read_entire_file(path);
         if (!source) {
           parser_error(p, "failed to include source file `%s`\n", path);
+          free(path);
           return stmts;
         }
         if (p->source_count < MAX_SOURCE) {
-          p->source[p->source_count++] = source;
+          p->path[p->source_count] = path;
+          p->source[p->source_count] = source;
+          p->source_count++;
           // initialize new lexer
           lexer_init(&p->l, path, source);
           lexer_next(&p->l); // read first token
@@ -2905,7 +2915,7 @@ Ast* parse_statements(Parser* p) {
           memcpy(&p->l, &l_copy, sizeof(Lexer));
         }
         else {
-          assert(0); // TODO: handle
+          assert("max includes was reached, increase capacity!" && 0); // TODO: handle
         }
         break;
       }

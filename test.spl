@@ -8,7 +8,7 @@ fn main {
   let fd open("test.spl", 0, O_RDONLY);
   if neq fd ERROR {
     let n read_file_into_buffer(fd, @tmp);
-    puts(@tmp);
+    puts(STDOUT_FILENO, @tmp);
     close(fd);
   }
 }

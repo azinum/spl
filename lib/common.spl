@@ -343,10 +343,10 @@ fn memset(any ptr, u64 c, u64 n) {
   }
 }
 
-fn puts(any str) {
+fn puts(u64 fd, any str) {
   while neq 0 load8 str {
     let ch load8 str;
-    let _ syscall3(1, 1, @ch, 1);
+    let _ syscall3(SYS_write, fd, @ch, 1);
     = @str +1 str;
   }
 }
@@ -363,14 +363,4 @@ fn read_file_into_buffer(u64 fd, any buf) {
     = @n   +1 n;
   }
   n;
-}
-
-fn test {
-  memory tmp 8192;
-  let fd open("test.spl", 0, O_RDONLY);
-  if neq fd ERROR {
-    let n read_file_into_buffer(fd, @tmp);
-    puts(@tmp);
-    close(fd);
-  }
 }
