@@ -25,6 +25,7 @@ typedef uint8_t u8;
 #define NoError (0)
 
 #define ARR_SIZE(ARR) (sizeof(ARR) / sizeof(ARR[0]))
+#define HERE printf("%s:%d: HERE\n", __FUNCTION__, __LINE__)
 
 typedef enum Ir_code {
   I_NOP = 0,
@@ -107,22 +108,46 @@ typedef struct Op {
   i32 src1;
 } Op;
 
-typedef enum Func_call_regs {
-  RDI = 0,
-  RSI,
-  RDX,
+typedef enum Register {
+  RAX = 0,
   RCX,
+  RDX,
+  RBX,
+  RSP,
+  RBP,
+  RSI,
+  RDI,
   R8,
   R9,
+  R10,
+  R11,
+  R12,
+  R13,
+  R14,
+  R15,
+
+  MAX_REGS,
+} Register;
+
+// maps to regs
+typedef enum Func_call_regs {
+  F0 = RDI,
+  F1 = RSI,
+  F2 = RDX,
+  F3 = RCX,
+  F4 = R8,
+  F5 = R9,
 
   MAX_FUNC_CALL_REGS,
 } Func_call_regs;
+
+#define MAX_STACK 512
 
 typedef struct Vm {
   u8* ir;
   u32 ir_size;
 
-  u64 func_call_regs_x86_64[MAX_FUNC_CALL_REGS];
+  u64 regs[MAX_REGS];
 
   u8* imm;
   u32 imm_size;
@@ -135,6 +160,9 @@ typedef struct Vm {
 
   Op* ins;
   u32 ins_count;
+
+  u64 stack[MAX_STACK];
+  u32 stack_top;
 } Vm;
 
 const u8 ir_magic[] = {'S', 'P', 'L', '0'};
@@ -149,8 +177,13 @@ static i32 vm_load_ir(Vm* vm, Buffer* b);
 static i32 vm_exec(Vm* vm);
 static i32 read_entire_file(char* path, Buffer* b);
 static void buffer_free(Buffer* b);
+static u64 stack_push(Vm* vm, u32 v);
+static u64 stack_pop(Vm* vm, u64* reg);
+static void stack_trace(Vm* vm); // not really a conventional stack trace, but just a way of printing the contents of the stack
+static u64* reg(Vm* vm, Register r);
 
 i32 main(i32 argc, char** argv) {
+  (void)compile_type_size; // unused
   if (argc < 2) {
     printf("Usage; %s <ir filename>\n", *argv);
     return EXIT_SUCCESS;
@@ -163,6 +196,11 @@ i32 main(i32 argc, char** argv) {
     vm_init(&vm);
     if (vm_load_ir(&vm, &b) == NoError) {
       vm_exec(&vm);
+      u32 stack_delta = MAX_STACK - vm.stack_top;
+      if (stack_delta > 1) {
+        fprintf(stderr, "error: unhandled data on the stack\n");
+      }
+      (void)stack_trace;
     }
     buffer_free(&b);
     return EXIT_SUCCESS;
@@ -174,7 +212,7 @@ i32 vm_init(Vm* vm) {
   vm->ir = NULL;
   vm->ir_size = 0;
 
-  memset(&vm->func_call_regs_x86_64[0], 0, sizeof(u64) * MAX_FUNC_CALL_REGS);
+  memset(&vm->regs[0], 0, sizeof(u64) * MAX_REGS);
 
   vm->imm = NULL;
   vm->imm_size = 0;
@@ -187,6 +225,9 @@ i32 vm_init(Vm* vm) {
 
   vm->ins = NULL;
   vm->ins_count = 0;
+
+  vm->stack_top = MAX_STACK;
+
   return NoError;
 }
 
@@ -329,6 +370,8 @@ i32 vm_exec(Vm* vm) {
         else if (op->src1 >= 0) { // immediate value
           switch (op->dest) {
             case TypeUnsigned64: {
+              u64 imm = vm->imm[op->src1];
+              stack_push(vm, imm);
               break;
             }
             default: {
@@ -340,15 +383,39 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_ADD: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax + *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_SUB: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax - *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_MUL: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax * *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_DIV: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax / *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_LSHIFT: {
@@ -360,27 +427,73 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_DIVMOD: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax % *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_LT: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax < *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_GT: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax > *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_AND: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax & *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_LOGICAL_NOT: {
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rax);
+        *rax = !(*rax);
+        stack_push(vm, *rax);
         break;
       }
       case I_OR: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax | *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_EQ: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax == *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_NEQ: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbx);
+        *rax = *rax != *rbx;
+        stack_push(vm, *rax);
         break;
       }
       case I_RET: {
@@ -396,6 +509,8 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_PRINT: {
+        u64 a = stack_pop(vm, NULL);
+        printf("%ld\n", a);
         break;
       }
       case I_LABEL: {
@@ -432,24 +547,94 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_SYSCALL0: {
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rax);
+        *rax = syscall(*rax);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL1: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        *rax = syscall(*rax, *rdi);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL2: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        u64* rsi = reg(vm, RSI);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        stack_pop(vm, rsi);
+        *rax = syscall(*rax, *rdi, *rsi);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL3: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        u64* rsi = reg(vm, RSI);
+        u64* rdx = reg(vm, RDX);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        stack_pop(vm, rsi);
+        stack_pop(vm, rdx);
+        *rax = syscall(*rax, *rdi, *rsi, *rdx);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL4: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        u64* rsi = reg(vm, RSI);
+        u64* rdx = reg(vm, RDX);
+        u64* r10 = reg(vm, R10);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        stack_pop(vm, rsi);
+        stack_pop(vm, rdx);
+        stack_pop(vm, r10);
+        *rax = syscall(*rax, *rdi, *rsi, *rdx, *r10);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL5: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        u64* rsi = reg(vm, RSI);
+        u64* rdx = reg(vm, RDX);
+        u64* r10 = reg(vm, R10);
+        u64* r8 = reg(vm, R8);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        stack_pop(vm, rsi);
+        stack_pop(vm, rdx);
+        stack_pop(vm, r10);
+        stack_pop(vm, r8);
+        *rax = syscall(*rax, *rdi, *rsi, *rdx, *r10, *r8);
+        stack_push(vm, *rax);
         break;
       }
       case I_SYSCALL6: {
+        u64* rax = reg(vm, RAX);
+        u64* rdi = reg(vm, RDI);
+        u64* rsi = reg(vm, RSI);
+        u64* rdx = reg(vm, RDX);
+        u64* r10 = reg(vm, R10);
+        u64* r8 = reg(vm, R8);
+        u64* r9 = reg(vm, R9);
+        stack_pop(vm, rax);
+        stack_pop(vm, rdi);
+        stack_pop(vm, rsi);
+        stack_pop(vm, rdx);
+        stack_pop(vm, r10);
+        stack_pop(vm, r8);
+        stack_pop(vm, r9);
+        *rax = syscall(*rax, *rdi, *rsi, *rdx, *r10, *r8, *r9);
+        stack_push(vm, *rax);
         break;
       }
       default: {
@@ -487,5 +672,37 @@ i32 read_entire_file(char* path, Buffer* b) {
 void buffer_free(Buffer* b) {
   free(b->data);
   b->size = 0;
-  
+}
+
+u64 stack_push(Vm* vm, u32 v) {
+  if (vm->stack_top > 0) {
+    return (vm->stack[--vm->stack_top] = v);
+  }
+  assert("stack overflow" && 0);
+  return -1;
+}
+
+u64 stack_pop(Vm* vm, u64* reg) {
+  if (vm->stack_top < MAX_STACK) {
+    u64 result = vm->stack[vm->stack_top++];
+    if (reg) {
+      *reg = result;
+    }
+    return result;
+  }
+  assert("stack underflow" && 0);
+  return -1;
+}
+
+void stack_trace(Vm* vm) {
+  FILE* fp = stdout;
+  fprintf(fp, "%s:\n", __FUNCTION__);
+  for (u32 i = vm->stack_top; i < MAX_STACK; ++i) {
+    u64 value = vm->stack[i];
+    fprintf(fp, "%ld\n", value);
+  }
+}
+
+u64* reg(Vm* vm, Register r) {
+  return &vm->regs[r];
 }
