@@ -4,11 +4,10 @@
 .DS_Store
 cspl.dSYM
 cspl
-spl.spl.asm
 spl
-test.spl.asm
 test
-debug.txt
+vm
 examples/*spl.asm
 *.spl.asm
 *.spl.debug
+*.spl.ir

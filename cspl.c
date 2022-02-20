@@ -557,8 +557,8 @@ typedef struct Compile {
   Op* ins;
   u32 ins_count;
 
-  u8 data[MAX_DATA];
-  u32 data_index;
+  u8 imm[MAX_DATA];
+  u32 imm_index;
 
   Symbol symbols[MAX_SYMBOL];
   u32 symbol_count;
@@ -615,6 +615,7 @@ static i32 vs_push(Compile* c, Value v);
 static i32 vs_pop(Compile* c, Value* v);
 
 static void ir_print(Compile* c, FILE* fp);
+static void ir_binary_output(Compile* c, FILE* fp);
 static i32 ir_start_compile(Compile* c, Ast* ast);
 static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count);
@@ -765,30 +766,38 @@ i32 spl_start(Options* options) {
               fclose(debug);
             }
 #endif
-
-#if 1
-            char exec_path[MAX_PATH_SIZE] = {0};
-            char o_path[MAX_PATH_SIZE] = {0};
-            snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(options->filename), options->filename);
-            snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
-            Compile_target target = TARGET_LINUX_NASM_X86_64;
-            const char** target_options = target_machine_option_str[MACHINE];
-            if (exec_command(
-              "%s %s %s -o %s && "
-              "%s %s %s -o %s"
-              ,
-              compile_target_compile_str[target],
-              target_options[target * 2],
-              path,
-              o_path,
-              compile_target_link_str[target],
-              target_options[target * 2 + 1],
-              o_path,
-              exec_path
-            ) == NoError && options->run) {
-              exec_command("./%s", exec_path);
+            {
+              char ir_path[MAX_PATH_SIZE] = {0};
+              snprintf(ir_path, MAX_PATH_SIZE, "%s.ir", options->filename);
+              FILE* fp = fopen(ir_path, "wb");
+              if (fp) {
+                ir_binary_output(&c, fp);
+                fclose(fp);
+              }
             }
-#endif
+            if (options->compile) {
+              char exec_path[MAX_PATH_SIZE] = {0};
+              char o_path[MAX_PATH_SIZE] = {0};
+              snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(options->filename), options->filename);
+              snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
+              Compile_target target = TARGET_LINUX_NASM_X86_64;
+              const char** target_options = target_machine_option_str[MACHINE];
+              if (exec_command(
+                "%s %s %s -o %s && "
+                "%s %s %s -o %s"
+                ,
+                compile_target_compile_str[target],
+                target_options[target * 2],
+                path,
+                o_path,
+                compile_target_link_str[target],
+                target_options[target * 2 + 1],
+                o_path,
+                exec_path
+              ) == NoError && options->run) {
+                exec_command("./%s", exec_path);
+              }
+            }
           }
           else {
             result = Error;
@@ -884,7 +893,7 @@ void block_init(Block* block, Block* parent) {
 i32 compile_state_init(Compile* c) {
   c->ins = NULL;
   c->ins_count = 0;
-  c->data_index = 0;
+  c->imm_index = 0;
   c->symbol_count = 0;
   c->cstring_count = 0;
   block_init(&c->global, NULL);
@@ -1558,6 +1567,114 @@ void ir_print(Compile* c, FILE* fp) {
   }
 }
 
+// ir binary layout:
+// -----------+---------------+-----
+// id         | size in bytes | type
+// -----------+---------------+-----
+// IR_MAGIC   | 4             | u8
+// imm size   | 4             | u32
+// data size  | 4             | u32
+// bss size   | 4             | u32
+// ins count  | 4             | u32
+// imm data   | imm size      | *
+// data       | data size     | *
+// bss data   | bss size      | *
+// ins        | 4 * ins count | Op
+//
+// data layout (one element):
+// { type : Compile_type, size : u32, [list of data elements] }
+//
+// bss data layout (one element):
+// { type : Compile_type, size : u32 }
+// TODO(lucas): add some sort of mapping between
+// indices/pointers to values in the ir binary
+void ir_binary_output(Compile* c, FILE* fp) {
+#define o(...) fwrite(__VA_ARGS__, fp)
+  // write spl ir magic
+  const u8 IR_MAGIC[] = {'S', 'P', 'L', '0'};
+  o(&IR_MAGIC, ARR_SIZE(IR_MAGIC), 1);
+
+  u32 imm_size = c->imm_index;
+  o(&imm_size, sizeof(imm_size), 1);
+
+  u32 data_size = 0;
+  for (u32 i = 0; i < c->cstring_count; ++i) {
+    u8* cstring_address = &c->imm[c->cstrings[i]];
+    u32 length = *(u32*)cstring_address;
+    data_size += length + 1;
+  }
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    if (s->sym_type != SYM_LOCAL_VAR) {
+      continue;
+    }
+    if (s->konst) {
+      data_size += s->size;
+    }
+  }
+  o(&data_size, sizeof(data_size), 1);
+
+  u32 bss_size = 0;
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
+      bss_size += s->size;
+    }
+  }
+  o(&bss_size, sizeof(bss_size), 1);
+  o(&c->ins_count, sizeof(c->ins_count), 1);
+
+  // write immediate data
+  o(&c->imm[0], imm_size, 1);
+
+  // write data section
+  for (u32 i = 0; i < c->cstring_count; ++i) {
+    u8* buffer = &c->imm[c->cstrings[i]];
+    u32 length = *(u32*)buffer;
+    buffer += sizeof(length);
+    o(&length, sizeof(length), 1);
+    o(buffer, length - 1, 1);
+    u8 null = 0;
+    o(&null, sizeof(null), 1);
+  }
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    Value* v = &s->value;
+    if (s->sym_type != SYM_LOCAL_VAR) {
+      continue;
+    }
+    if (s->konst) {
+      switch (s->type) {
+        case TypeUnsigned64: {
+          o(&s->type, sizeof(s->type), 1);
+          o(&v->num, sizeof(v->num), 1);
+          break;
+        }
+        default: {
+          assert("type not implemented yet" && 0);
+          break;
+        }
+      }
+    }
+  }
+
+  // write bss section
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
+      o(&s->type, sizeof(s->type), 1);
+      o(&s->size, sizeof(s->size), 1);
+    }
+  }
+
+  // write ir op codes (instructions)
+  for (u32 i = 0; i < c->ins_count; ++i) {
+    Op* op = &c->ins[i];
+    o(op, sizeof(Op), 1);
+  }
+#undef o
+}
+
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
   (void)c; // unused
   char buffer[MAX_ERR_SIZE] = {0};
@@ -1591,10 +1708,10 @@ i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count) {
 }
 
 i32 ir_push_value(Compile* c, void* value, u32 size) {
-  i32 address = c->data_index;
+  i32 address = c->imm_index;
   if (address + size < MAX_DATA) {
-    memcpy(&c->data[c->data_index], value, size);
-    c->data_index += size;
+    memcpy(&c->imm[c->imm_index], value, size);
+    c->imm_index += size;
     return address;
   }
   return -1;
@@ -2351,7 +2468,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         else if (op->src1 >= 0) { // immediate value
           switch (op->dest) {
             case TypeUnsigned64: {
-              i64 value = *(i64*)&c->data[op->src1];
+              u64 value = *(u64*)&c->imm[op->src1];
               o("  mov rax, %ld\n", value);
               o("  push rax\n");
               break;
@@ -2708,7 +2825,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("%s:\n", ENTRY);
   o("  call main\n");
 #if __APPLE__
-  // macos uses different system call codes, which can be found here: https://sigsegv.pl/osx-bsd-syscalls/
+  // macos uses different system call codes, they can be found here: https://sigsegv.pl/osx-bsd-syscalls/
   o("  mov rax, 1 ; exit syscall\n");
   o("  mov rdi, 0\n");
   o("  syscall\n");
@@ -2719,11 +2836,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("  syscall\n");
 #endif
   o("section .data\n");
+  // TODO(lucas): make strings constants
   for (u32 i = 0; i < c->cstring_count; ++i) {
-    u8* cstring_address = &c->data[c->cstrings[i]];
-    u32 length = *(u32*)cstring_address;
-    cstring_address += sizeof(length);
-    char* buffer = (char*)cstring_address;
+    u8* buffer = &c->imm[c->cstrings[i]];
+    u32 length = *(u32*)buffer;
+    buffer += sizeof(length);
     o("str%u: db ", i);
     for (u32 str_index = 0; str_index < length; ++str_index) {
       char ch = buffer[str_index];

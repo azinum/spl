@@ -1,14 +1,7 @@
 // test.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 
 fn main {
-  const TMP_SIZE * 16 1024;
-  memory tmp TMP_SIZE;
-  let fd open("test.spl", 0, O_RDONLY);
-  if neq fd ERROR {
-    let n read_file_into_buffer(fd, @tmp);
-    puts(STDOUT_FILENO, @tmp);
-    close(fd);
-  }
+  + 2 3;
 }

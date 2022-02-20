@@ -2,19 +2,21 @@
 
 include config.mk
 
-all: compile_src
+all: cspl
 
-compile_src:
-	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
+SPL_FLAGS=
+
+${SRC}:
+	${CC} $@.c -o $@ ${FLAGS} && strip $@
 
 clean:
-	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}}
+	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
 
 run: test
 
 ${SPL_SRC}:
-	./${PROG} $@.spl
+	./${PROG} ${SPL_FLAGS} $@.spl
 
 examples: ${SPL_EXAMPLES}
 
-.PHONY: test spl cspl examples/*
+.PHONY: test ${SRC} examples/*

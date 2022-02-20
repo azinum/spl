@@ -2,11 +2,11 @@
 
 CC=clang
 
-SRC=cspl.c
+SRC=${subst .c,, ${wildcard *.c}}
 
 PROG=cspl
 
-FLAGS=-Wall -Wextra -pedantic -g -O0
+FLAGS=-Wall -Wextra -pedantic -g -O3
 
 SPL_SRC=${subst .spl,, ${wildcard *.spl}}
 
