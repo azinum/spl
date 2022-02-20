@@ -1205,6 +1205,11 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       else if (ast->token.type == T_DEREF) {
         // dereference to a specific type
       }
+      else if (ast->token.type == T_LOGICAL_NOT) {
+        Value value;
+        vs_pop(c, &value);
+        vs_push(c, (Value) { .num = !value.num, });
+      }
       return ts_top(c);
     }
     // TODO(lucas): implement strings in const statements

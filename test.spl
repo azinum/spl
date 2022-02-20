@@ -365,13 +365,12 @@ fn read_file_into_buffer(fd, buf) {
 }
 
 fn main {
-  print / 10 0;
-  const TMP_SIZE * 16 1024;
-  memory tmp TMP_SIZE;
-  let fd open("test.spl", 0, O_RDONLY);
-  if neq fd ERROR {
-    let n read_file_into_buffer(fd, @tmp);
-    puts(@tmp);
-    close(fd);
-  }
+  // const TMP_SIZE * 16 1024;
+  // memory tmp TMP_SIZE;
+  // let fd open("test.spl", 0, O_RDONLY);
+  // if neq fd ERROR {
+  //   let n read_file_into_buffer(fd, @tmp);
+  //   puts(@tmp);
+  //   close(fd);
+  // }
 }
