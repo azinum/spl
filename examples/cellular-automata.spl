@@ -36,6 +36,7 @@ fn memcpy(dest, src, n) {
     = @count +1 count;
   }
 }
+
 fn memset8(ptr, c, n) {
   let count 0;
   while < count n {
