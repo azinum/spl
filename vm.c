@@ -162,7 +162,6 @@ typedef struct Vm {
   u32 ins_count;
 
   u64 stack[MAX_STACK];
-  u32 stack_top;
 } Vm;
 
 const u8 ir_magic[] = {'S', 'P', 'L', '0'};
@@ -178,7 +177,7 @@ static i32 vm_exec(Vm* vm);
 static i32 read_entire_file(char* path, Buffer* b);
 static void buffer_free(Buffer* b);
 static u64 stack_push(Vm* vm, u32 v);
-static u64 stack_pop(Vm* vm, u64* reg);
+static u64 stack_pop(Vm* vm, u64* r);
 static void stack_trace(Vm* vm); // not really a conventional stack trace, but just a way of printing the contents of the stack
 static u64* reg(Vm* vm, Register r);
 
@@ -196,7 +195,8 @@ i32 main(i32 argc, char** argv) {
     vm_init(&vm);
     if (vm_load_ir(&vm, &b) == NoError) {
       vm_exec(&vm);
-      u32 stack_delta = MAX_STACK - vm.stack_top;
+      u64* rsp = reg(&vm, RSP);
+      u32 stack_delta = MAX_STACK - *rsp;
       if (stack_delta > 1) {
         fprintf(stderr, "error: unhandled data on the stack\n");
       }
@@ -226,7 +226,10 @@ i32 vm_init(Vm* vm) {
   vm->ins = NULL;
   vm->ins_count = 0;
 
-  vm->stack_top = MAX_STACK;
+  u64* rsp = reg(vm, RSP);
+  u64* rbp = reg(vm, RBP);
+  *rbp = MAX_STACK;
+  *rsp = *rbp;
 
   return NoError;
 }
@@ -675,18 +678,20 @@ void buffer_free(Buffer* b) {
 }
 
 u64 stack_push(Vm* vm, u32 v) {
-  if (vm->stack_top > 0) {
-    return (vm->stack[--vm->stack_top] = v);
+  u64* rsp = reg(vm, RSP);
+  if (*rsp > 0) {
+    return (vm->stack[--(*rsp)] = v);
   }
   assert("stack overflow" && 0);
   return -1;
 }
 
-u64 stack_pop(Vm* vm, u64* reg) {
-  if (vm->stack_top < MAX_STACK) {
-    u64 result = vm->stack[vm->stack_top++];
-    if (reg) {
-      *reg = result;
+u64 stack_pop(Vm* vm, u64* r) {
+  u64* rsp = reg(vm, RSP);
+  if (*rsp < MAX_STACK) {
+    u64 result = vm->stack[(*rsp)++];
+    if (r) {
+      *r = result;
     }
     return result;
   }
@@ -697,7 +702,8 @@ u64 stack_pop(Vm* vm, u64* reg) {
 void stack_trace(Vm* vm) {
   FILE* fp = stdout;
   fprintf(fp, "%s:\n", __FUNCTION__);
-  for (u32 i = vm->stack_top; i < MAX_STACK; ++i) {
+  u64* rsp = reg(vm, RSP);
+  for (u32 i = *rsp; i < MAX_STACK; ++i) {
     u64 value = vm->stack[i];
     fprintf(fp, "%ld\n", value);
   }
