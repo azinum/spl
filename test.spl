@@ -3,5 +3,7 @@
 // include "lib/common.spl"
 
 fn main {
- + 2 3;
+  const a 2;
+  const b 3;
+  print + a b;
 }

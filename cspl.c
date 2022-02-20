@@ -1585,12 +1585,12 @@ void ir_print(Compile* c, FILE* fp) {
 // { type : Compile_type, size : u32, [list of data elements] }
 //
 // bss data layout (one element):
-// { type : Compile_type, size : u32 }
+// { type : Compile_type, size : u32, pre-allocated memory based on the size }
 // TODO(lucas): add some sort of mapping between
 // indices/pointers to values in the ir binary
 void ir_binary_output(Compile* c, FILE* fp) {
 #define o(...) fwrite(__VA_ARGS__, fp)
-  // write spl ir magic
+  // write spl ir magic constant
   const u8 IR_MAGIC[] = {'S', 'P', 'L', '0'};
   o(&IR_MAGIC, ARR_SIZE(IR_MAGIC), 1);
 
@@ -1601,7 +1601,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* cstring_address = &c->imm[c->cstrings[i]];
     u32 length = *(u32*)cstring_address;
-    data_size += length + 1;
+    data_size += length + 1 + sizeof(length);
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
@@ -1609,7 +1609,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
       continue;
     }
     if (s->konst) {
-      data_size += s->size;
+      data_size += sizeof(s->type) + sizeof(s->size) + s->size;
     }
   }
   o(&data_size, sizeof(data_size), 1);
@@ -1618,7 +1618,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
     if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
-      bss_size += s->size;
+      bss_size +=  sizeof(s->type) + sizeof(s->size) + s->size;
     }
   }
   o(&bss_size, sizeof(bss_size), 1);
@@ -1647,6 +1647,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
       switch (s->type) {
         case TypeUnsigned64: {
           o(&s->type, sizeof(s->type), 1);
+          o(&s->size, sizeof(s->size), 1);
           o(&v->num, sizeof(v->num), 1);
           break;
         }
@@ -1664,6 +1665,11 @@ void ir_binary_output(Compile* c, FILE* fp) {
     if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
       o(&s->type, sizeof(s->type), 1);
       o(&s->size, sizeof(s->size), 1);
+      // pre-allocate memory for this data based on the specified size
+      for (i32 m = 0; m < s->size; ++m) {
+        u8 byte = 0;
+        o(&byte, sizeof(byte), 1);
+      }
     }
   }
 

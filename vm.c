@@ -23,6 +23,7 @@ typedef uint8_t u8;
 
 #define Error (-1)
 #define NoError (0)
+#define NUM_SYSCALL (7)
 
 #define ARR_SIZE(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 #define HERE printf("%s:%d: HERE\n", __FUNCTION__, __LINE__)
@@ -162,6 +163,8 @@ typedef struct Vm {
   u32 ins_count;
 
   u64 stack[MAX_STACK];
+
+  // TODO(lucas): create mappings between labels and addresses for not-too-slow-execution
 } Vm;
 
 const u8 ir_magic[] = {'S', 'P', 'L', '0'};
@@ -174,11 +177,13 @@ typedef struct Buffer {
 static i32 vm_init(Vm* vm);
 static i32 vm_load_ir(Vm* vm, Buffer* b);
 static i32 vm_exec(Vm* vm);
+static u8* vm_id_to_address_from_bss(Vm* vm, i32 id);
+static u8* vm_id_to_address_from_data(Vm* vm, i32 id);
 static i32 read_entire_file(char* path, Buffer* b);
 static void buffer_free(Buffer* b);
 static u64 stack_push(Vm* vm, u32 v);
 static u64 stack_pop(Vm* vm, u64* r);
-static void stack_trace(Vm* vm); // not really a conventional stack trace, but just a way of printing the contents of the stack
+static void stack_trace(Vm* vm);
 static u64* reg(Vm* vm, Register r);
 
 i32 main(i32 argc, char** argv) {
@@ -284,6 +289,7 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
     vm->ins_count
   );
 #endif
+#undef r
   return NoError;
 }
 
@@ -354,8 +360,17 @@ i32 vm_exec(Vm* vm) {
       }
       case I_PUSH_LOCAL: {
         if (op->src0 >= 0) {
+          u8* address = vm_id_to_address_from_bss(vm, op->src0);
+          if (!address) {
+            address = vm_id_to_address_from_data(vm, op->src0);
+          }
+          assert(address != NULL);
           switch (op->dest) {
             case TypeUnsigned64: {
+              u64 value = *(u64*)address;
+              u64* rax = reg(vm, RAX);
+              *rax = value;
+              stack_push(vm, *rax);
               break;
             }
             case TypeCString: {
@@ -374,7 +389,9 @@ i32 vm_exec(Vm* vm) {
           switch (op->dest) {
             case TypeUnsigned64: {
               u64 imm = vm->imm[op->src1];
-              stack_push(vm, imm);
+              u64* rax = reg(vm, RAX);
+              *rax = imm;
+              stack_push(vm, *rax);
               break;
             }
             default: {
@@ -512,7 +529,8 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_PRINT: {
-        u64 a = stack_pop(vm, NULL);
+        u64* rax = reg(vm, RAX);
+        u64 a = stack_pop(vm, rax);
         printf("%ld\n", a);
         break;
       }
@@ -650,6 +668,42 @@ i32 vm_exec(Vm* vm) {
   return NoError;
 }
 
+// TODO(lucas): this is slow, create mapping from ids to addresses
+u8* vm_id_to_address_from_bss(Vm* vm, i32 id) {
+  i32 current_id = NUM_SYSCALL + 1; // ids 0-7 are reserved for syscalls
+  u8* memory_area = &vm->bss[0];
+  u32 memory_area_size = vm->bss_size;
+  for (u32 i = 0; i < memory_area_size; ++current_id) {
+    Compile_type type = *(Compile_type*)&memory_area[i];
+    i += sizeof(type);
+    u32 size = *(Compile_type*)&memory_area[i];
+    i += sizeof(size);
+    if (current_id == id) {
+      return &memory_area[i];
+    }
+    i += size;
+  }
+  return NULL;
+}
+
+// TODO(lucas): this is slow, create mapping from ids to addresses
+u8* vm_id_to_address_from_data(Vm* vm, i32 id) {
+  i32 current_id = NUM_SYSCALL + 1; // ids 0-7 are reserved for syscalls
+  u8* memory_area = &vm->data[0];
+  u32 memory_area_size = vm->data_size;
+  for (u32 i = 0; i < memory_area_size; ++current_id) {
+    Compile_type type = *(Compile_type*)&memory_area[i];
+    i += sizeof(type);
+    u32 size = *(Compile_type*)&memory_area[i];
+    i += sizeof(size);
+    if (current_id == id) {
+      return &memory_area[i];
+    }
+    i += size;
+  }
+  return NULL;
+}
+
 i32 read_entire_file(char* path, Buffer* b) {
   FILE* fp = fopen(path, "rb");
   if (!fp) {
@@ -699,6 +753,7 @@ u64 stack_pop(Vm* vm, u64* r) {
   return -1;
 }
 
+// NOTE(lucas): not really a conventional stack trace, but just a way of printing the stack contents
 void stack_trace(Vm* vm) {
   FILE* fp = stdout;
   fprintf(fp, "%s:\n", __FUNCTION__);
