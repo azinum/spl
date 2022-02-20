@@ -366,8 +366,6 @@ fn read_file_into_buffer(u64 fd, any buf) {
 }
 
 fn main {
-  let a 0xbad;
-  print a;
   // const TMP_SIZE * 16 1024;
   // memory tmp TMP_SIZE;
   // let fd open("test.spl", 0, O_RDONLY);

@@ -3723,18 +3723,17 @@ i32 str_to_int(char* str, u32 length, u64* out) {
         *out = 0;
         return Error;
       }
+      return NoError;
     }
   }
-  else {
-    for (u32 i = 0; i < length; ++i) {
-      char ch = str[i];
-      if (is_digit(ch)) {
-        *out = *out * base + (str[i] - '0');
-        continue;
-      }
-      *out = 0;
-      return Error;
+  for (u32 i = 0; i < length; ++i) {
+    char ch = str[i];
+    if (is_digit(ch)) {
+      *out = *out * base + (str[i] - '0');
+      continue;
     }
+    *out = 0;
+    return Error;
   }
   return NoError;
 }

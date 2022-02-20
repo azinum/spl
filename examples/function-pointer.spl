@@ -1,8 +1,8 @@
 // function-pointer.spl
 
-fn foo(x) + x 7;
-fn bar(x) * x x;
-fn baz(x) + x x;
+fn foo(u64 x) + x 7;
+fn bar(u64 x) * x x;
+fn baz(u64 x) + x x;
 
 fn main {
   let count 3;
