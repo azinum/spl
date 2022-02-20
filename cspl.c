@@ -1033,9 +1033,6 @@ void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
     }
     if (symbol->type == TypeFunc) {
       Function* func = &symbol->value.func;
-#if 0
-      fprintf(fp, "%3u: `%s` (type = %s, label = %d, ir_address = %d, argc = %d, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->label, func->ir_address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
-#else
       fprintf(fp, "%3u: `%s` (", i, symbol->name);
       for (u32 arg_index = 0; arg_index < func->argc; ++arg_index) {
         Symbol* arg = &c->symbols[func->args[arg_index]];
@@ -1045,10 +1042,9 @@ void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
         }
       }
       fprintf(fp, ") -> %s\n", compile_type_str[func->rtype]);
-#endif
       continue;
     }
-    fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
+    fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->token.filename, symbol->token.line, symbol->token.column);
   }
 }
 
