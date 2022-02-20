@@ -401,6 +401,7 @@ static const char* func_call_regs[] = {
 
 typedef enum Compile_type {
   TypeNone = 0,
+  TypeAny,
   TypeUnsigned64,
   TypePointer,
   TypeCString,
@@ -411,16 +412,18 @@ typedef enum Compile_type {
 } Compile_type;
 
 static const char* compile_type_str[] = {
-  "TypeNone",
-  "TypeUnsigned64",
-  "TypePointer",
-  "TypeCString",
-  "TypeFunc",
-  "TypeSyscallFunc",
+  "None",
+  "Any",
+  "Unsigned64",
+  "Pointer",
+  "CString",
+  "Func",
+  "SyscallFunc",
 };
 
 static u64 compile_type_size[] = {
   0,
+  sizeof(u64),
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
@@ -483,7 +486,7 @@ static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE
 
 #if __APPLE__
   #define MACHINE MACHINE_MACOS
-#elif __LINUX__
+#elif __LINUX__ || __unix__
   #define MACHINE MACHINE_LINUX
 #else
   // #warning "the compiler does not support this machine, defaulting to linux"
@@ -1000,7 +1003,19 @@ void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
     }
     if (symbol->type == TypeFunc) {
       Function* func = &symbol->value.func;
+#if 0
       fprintf(fp, "%3u: `%s` (type = %s, label = %d, ir_address = %d, argc = %d, rtype = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], func->label, func->ir_address, func->argc, compile_type_str[func->rtype], symbol->size, path, symbol->token.line, symbol->token.column);
+#else
+      fprintf(fp, "%3u: `%s` (", i, symbol->name);
+      for (u32 arg_index = 0; arg_index < func->argc; ++arg_index) {
+        Symbol* arg = &c->symbols[func->args[arg_index]];
+        fprintf(fp, "%s", compile_type_str[arg->type]);
+        if (arg_index != func->argc - 1) {
+          fprintf(fp, ", ");
+        }
+      }
+      fprintf(fp, ") -> %s\n", compile_type_str[func->rtype]);
+#endif
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, path, symbol->token.line, symbol->token.column);
@@ -1337,7 +1352,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           }
           else {
             Symbol* arg = &c->symbols[func->args[i]];
-            if (arg->type != arg_type) {
+            if (arg->type != arg_type && arg->type != TypeAny) {
               typecheck_error_at(c, arg->token, "type mismatch in function call\n");
               return TypeNone;
             }
