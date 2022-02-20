@@ -410,6 +410,14 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_PUSH_LOCAL_ADDR_OF: {
+        u8* address = vm_id_to_address_from_bss(vm, op->src0);
+        if (!address) {
+          address = vm_id_to_address_from_data(vm, op->src0);
+        }
+        u64* rax = reg(vm, RAX);
+        *rax = (u64)address;
+        stack_push(vm, *rax);
+        assert(address != NULL);
         break;
       }
       case I_PUSH: {
