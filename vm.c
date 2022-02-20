@@ -330,44 +330,68 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_STORE64: {
+        u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rbx);
+        stack_pop(vm, rax);
+        u64* rax_ptr = (u64*)*rax;
+        *rax_ptr = *rbx;
         break;
       }
       case I_STORE32: {
+        u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rbx);
+        stack_pop(vm, rax);
+        u64* rax_ptr = (u64*)*rax;
+        *rax_ptr = *rbx & 0xffffffff;
         break;
       }
       case I_STORE16: {
+        u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rbx);
+        stack_pop(vm, rax);
+        u64* rax_ptr = (u64*)*rax;
+        *rax_ptr = *rbx & 0xffff;
         break;
       }
       case I_STORE8: {
+        u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rbx);
+        stack_pop(vm, rax);
+        u64* rax_ptr = (u64*)*rax;
+        *rax_ptr = *rbx & 0xff;
         break;
       }
       case I_LOAD64: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rax);
         *rbx = *(u64*)*rax;
         stack_push(vm, *rbx);
         break;
       }
       case I_LOAD32: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rax);
         *rbx = *(u64*)*rax & 0xffffffff;
         stack_push(vm, *rbx);
         break;
       }
       case I_LOAD16: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rax);
         *rbx = *(u64*)*rax & 0xffff;
         stack_push(vm, *rbx);
         break;
       }
       case I_LOAD8: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rax);
         *rbx = *(u64*)*rax & 0xff;
         stack_push(vm, *rbx);
@@ -452,37 +476,37 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_ADD: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax + *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_SUB: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax - *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_MUL: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax * *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_DIV: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax / *rbx;
         stack_push(vm, *rax);
         break;
@@ -496,37 +520,37 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_DIVMOD: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax % *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_LT: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax < *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_GT: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax > *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_AND: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax & *rbx;
         stack_push(vm, *rax);
         break;
@@ -539,28 +563,28 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_OR: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax | *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_EQ: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax == *rbx;
         stack_push(vm, *rax);
         break;
       }
       case I_NEQ: {
-        u64* rax = reg(vm, RAX);
         u64* rbx = reg(vm, RBX);
-        stack_pop(vm, rax);
+        u64* rax = reg(vm, RAX);
         stack_pop(vm, rbx);
+        stack_pop(vm, rax);
         *rax = *rax != *rbx;
         stack_push(vm, *rax);
         break;
