@@ -1139,13 +1139,21 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_DIV: {
             u64 nozero[] = {vb.num, 1};
             num = va.num / nozero[vb.num == 0];
+            if (vb.num == 0) {
+              typecheck_error_at(c, ast->token, "divide by zero arithmetic error\n");
+              return TypeNone;
+            }
             break;
           }
           case T_DIVMOD: {
             u64 nozero[] = {vb.num, 1};
             num = va.num % nozero[vb.num == 0];
-          }
+            if (vb.num == 0) {
+              typecheck_error_at(c, ast->token, "modulo by zero arithmetic error\n");
+              return TypeNone;
+            }
             break;
+          }
           case T_LSHIFT:
             num = va.num << vb.num;
             break;
