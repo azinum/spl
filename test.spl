@@ -3,7 +3,5 @@
 // include "lib/common.spl"
 
 fn main {
-  const a 2;
-  const b 3;
-  print + a b;
+  print load8 "Hello world";
 }

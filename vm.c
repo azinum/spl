@@ -153,6 +153,9 @@ typedef struct Vm {
   u8* imm;
   u32 imm_size;
 
+  u8* cstrings;
+  u32 cstring_size;
+
   u8* data;
   u32 data_size;
 
@@ -179,6 +182,7 @@ static i32 vm_load_ir(Vm* vm, Buffer* b);
 static i32 vm_exec(Vm* vm);
 static u8* vm_id_to_address_from_bss(Vm* vm, i32 id);
 static u8* vm_id_to_address_from_data(Vm* vm, i32 id);
+static u8* vm_id_to_address_from_cstring_data(Vm* vm, i32 id);
 static i32 read_entire_file(char* path, Buffer* b);
 static void buffer_free(Buffer* b);
 static u64 stack_push(Vm* vm, u32 v);
@@ -222,6 +226,9 @@ i32 vm_init(Vm* vm) {
   vm->imm = NULL;
   vm->imm_size = 0;
 
+  vm->cstrings = NULL;
+  vm->cstring_size = 0;
+
   vm->data = NULL;
   vm->data_size = 0;
 
@@ -253,12 +260,16 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   }
 
   r(&vm->imm_size, sizeof(vm->imm_size));
+  r(&vm->cstring_size, sizeof(vm->cstring_size));
   r(&vm->data_size, sizeof(vm->data_size));
   r(&vm->bss_size, sizeof(vm->bss_size));
   r(&vm->ins_count, sizeof(vm->ins_count));
 
   vm->imm = &it[0];
   it += vm->imm_size;
+
+  vm->cstrings = &it[0];
+  it += vm->cstring_size;
 
   vm->data = &it[0];
   it += vm->data_size;
@@ -276,14 +287,16 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
 
 #if 0
   printf(
-    "ir_size   = %d\n"
-    "imm_size  = %d\n"
-    "data_size = %d\n"
-    "bss_size  = %d\n"
-    "ins_count = %d\n"
+    "ir_size       = %d\n"
+    "imm_size      = %d\n"
+    "cstring_size  = %d\n"
+    "data_size     = %d\n"
+    "bss_size      = %d\n"
+    "ins_count     = %d\n"
     ,
     vm->ir_size,
     vm->imm_size,
+    vm->cstring_size,
     vm->data_size,
     vm->bss_size,
     vm->ins_count
@@ -319,15 +332,35 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_LOAD64: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        *rbx = *(u64*)*rax;
+        stack_push(vm, *rbx);
         break;
       }
       case I_LOAD32: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        *rbx = *(u64*)*rax & 0xffffffff;
+        stack_push(vm, *rbx);
         break;
       }
       case I_LOAD16: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        *rbx = *(u64*)*rax & 0xffff;
+        stack_push(vm, *rbx);
         break;
       }
       case I_LOAD8: {
+        u64* rax = reg(vm, RAX);
+        u64* rbx = reg(vm, RBX);
+        stack_pop(vm, rax);
+        *rbx = *(u64*)*rax & 0xff;
+        stack_push(vm, *rbx);
         break;
       }
       case I_PUSH_ADDR_OF: {
@@ -364,9 +397,9 @@ i32 vm_exec(Vm* vm) {
           if (!address) {
             address = vm_id_to_address_from_data(vm, op->src0);
           }
-          assert(address != NULL);
           switch (op->dest) {
             case TypeUnsigned64: {
+              assert(address != NULL);
               u64 value = *(u64*)address;
               u64* rax = reg(vm, RAX);
               *rax = value;
@@ -374,6 +407,12 @@ i32 vm_exec(Vm* vm) {
               break;
             }
             case TypeCString: {
+              address = vm_id_to_address_from_cstring_data(vm, op->src0);
+              assert(address != NULL);
+              u64* value = (u64*)address;
+              u64* rax = reg(vm, RAX);
+              *rax = (u64)value;
+              stack_push(vm, *rax);
               break;
             }
             case TypeFunc: {
@@ -694,6 +733,22 @@ u8* vm_id_to_address_from_data(Vm* vm, i32 id) {
   for (u32 i = 0; i < memory_area_size; ++current_id) {
     Compile_type type = *(Compile_type*)&memory_area[i];
     i += sizeof(type);
+    u32 size = *(Compile_type*)&memory_area[i];
+    i += sizeof(size);
+    if (current_id == id) {
+      return &memory_area[i];
+    }
+    i += size;
+  }
+  return NULL;
+}
+
+// TODO(lucas): this is slow, create mapping from ids to addresses
+u8* vm_id_to_address_from_cstring_data(Vm* vm, i32 id) {
+  i32 current_id = 0;
+  u8* memory_area = &vm->cstrings[0];
+  u32 memory_area_size = vm->cstring_size;
+  for (u32 i = 0; i < memory_area_size; ++current_id) {
     u32 size = *(Compile_type*)&memory_area[i];
     i += sizeof(size);
     if (current_id == id) {

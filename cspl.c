@@ -1568,26 +1568,26 @@ void ir_print(Compile* c, FILE* fp) {
 }
 
 // ir binary layout:
-// -----------+---------------+-----
-// id         | size in bytes | type
-// -----------+---------------+-----
-// IR_MAGIC   | 4             | u8
-// imm size   | 4             | u32
-// data size  | 4             | u32
-// bss size   | 4             | u32
-// ins count  | 4             | u32
-// imm data   | imm size      | *
-// data       | data size     | *
-// bss data   | bss size      | *
-// ins        | 4 * ins count | Op
+// -----------+----------------+-----
+// id         | size in bytes  | type
+// -----------+----------------+-----
+// IR_MAGIC   | 4              | u8
+// imm size   | 4              | u32
+// cstr size  | 4              | u32
+// data size  | 4              | u32
+// bss size   | 4              | u32
+// ins count  | 4              | u32
+// imm data   | imm size       | *
+// data       | data+cstr size | *
+// bss data   | bss size       | *
+// ins        | 4 * ins count  | Op
 //
 // data layout (one element):
 // { type : Compile_type, size : u32, [list of data elements] }
 //
 // bss data layout (one element):
 // { type : Compile_type, size : u32, pre-allocated memory based on the size }
-// TODO(lucas): add some sort of mapping between
-// indices/pointers to values in the ir binary
+// TODO(lucas): add some sort of id to address mapping in the ir binary
 void ir_binary_output(Compile* c, FILE* fp) {
 #define o(...) fwrite(__VA_ARGS__, fp)
   // write spl ir magic constant
@@ -1598,10 +1598,11 @@ void ir_binary_output(Compile* c, FILE* fp) {
   o(&imm_size, sizeof(imm_size), 1);
 
   u32 data_size = 0;
+  u32 cstr_size = 0;
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* cstring_address = &c->imm[c->cstrings[i]];
     u32 length = *(u32*)cstring_address;
-    data_size += length + 1 + sizeof(length);
+    cstr_size += length + 1 + sizeof(length);
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
@@ -1612,13 +1613,14 @@ void ir_binary_output(Compile* c, FILE* fp) {
       data_size += sizeof(s->type) + sizeof(s->size) + s->size;
     }
   }
+  o(&cstr_size, sizeof(cstr_size), 1);
   o(&data_size, sizeof(data_size), 1);
 
   u32 bss_size = 0;
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
     if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
-      bss_size +=  sizeof(s->type) + sizeof(s->size) + s->size;
+      bss_size += sizeof(s->type) + sizeof(s->size) + s->size;
     }
   }
   o(&bss_size, sizeof(bss_size), 1);
@@ -1630,7 +1632,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
   // write data section
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* buffer = &c->imm[c->cstrings[i]];
-    u32 length = *(u32*)buffer;
+    u32 length = *(u32*)buffer + 1;
     buffer += sizeof(length);
     o(&length, sizeof(length), 1);
     o(buffer, length - 1, 1);
