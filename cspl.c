@@ -147,6 +147,9 @@ typedef enum Token_type {
   T_LOAD16,
   T_LOAD8,
 
+  T_ANY,
+  T_UNSIGNED64,
+
   MAX_TOKEN_TYPE,
 } Token_type;
 
@@ -197,6 +200,9 @@ static const char* token_type_str[] = {
   "T_LOAD32",
   "T_LOAD16",
   "T_LOAD8",
+
+  "T_ANY",
+  "T_UNSIGNED64",
 };
 
 typedef union Tvalue {
@@ -244,6 +250,7 @@ typedef enum Ast_type {
   AstFuncDefinition,
   AstFuncCall,
   AstParamList,
+  AstArg,
   AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
@@ -268,6 +275,7 @@ static const char* ast_type_str[] = {
   "AstFuncDefinition",
   "AstFuncCall",
   "AstParamList",
+  "AstArg",
   "AstMemoryStatement",
   "AstAssignment",
   "AstWhileStatement",
@@ -639,6 +647,8 @@ inline i32 is_alpha(char ch);
 inline i32 is_extended_ascii(u8 ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
+
+static Compile_type token_to_compile_type(Token t);
 
 static void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow, u32 num_lines_to_print);
 static void print_info(const char* fmt, ...);
@@ -1136,7 +1146,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
-      if (a == TypeUnsigned64 && b == TypeUnsigned64) {
+      if ((a == TypeUnsigned64 && b == TypeUnsigned64) || (a == TypeAny || b == TypeAny)) {
         Value va;
         Value vb;
         vs_pop(c, &vb);
@@ -1291,7 +1301,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         for (u32 i = 0; i < func->argc; ++i) {
           Symbol* arg_symbol = NULL;
-          Token arg = params->node[i]->token;
+          Ast* arg_node = params->node[i];
+          Token arg_type = arg_node->token;
+          Token arg = arg_node->node[0]->token;
           i32 arg_symbol_index = -1;
           if (compile_declare_value(c, &local_block, func, arg, &arg_symbol, &arg_symbol_index) == NoError) {
             u32* arg_id = &func->args[i];
@@ -1301,12 +1313,12 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             arg_symbol->size = compile_type_size[TypeUnsigned64];
             arg_symbol->konst = 0;
             arg_symbol->sym_type = SYM_FUNC_ARG;
-            arg_symbol->type = TypeUnsigned64;
+            arg_symbol->type = token_to_compile_type(arg_type);
             arg_symbol->token = arg;
-            arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id
+            arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id (don't think this is used here anymore, investigate)
           }
           else {
-            compile_error_at(c, arg, "duplicate function argument `%.*s`\n", arg.length, arg.buffer);
+            compile_error_at(c, arg, "duplicate argument `%.*s`\n", arg.length, arg.buffer);
             return TypeNone;
           }
         }
@@ -1340,6 +1352,11 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
+        if (symbol->type == TypeAny) {
+          typecheck_error_at(c, ast->token, "function call of type `%s` is not allowed (for now)\n", compile_type_str[symbol->type]);
+          return TypeNone;
+        }
+
         if (func->argc != arg_list->count) {
           compile_error_at(c, ast->token, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
           return TypeNone;
@@ -1349,6 +1366,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Compile_type arg_type = typecheck(c, block, fs, arg_list->node[i]);
           if (symbol->type == TypeSyscallFunc) {
             // any type is allowed here
+            // we still want to type check the arguments of the call,
+            // which is why this is here instead of outside this loop
           }
           else {
             Symbol* arg = &c->symbols[func->args[i]];
@@ -1818,8 +1837,18 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       Function* func = &symbol->value.func;
       ir_compile_func_args(c, block, ast->node[0], ins_count); // compile function args in reverse order
       switch (symbol->type) {
+        case TypeAny:
         case TypeFunc: {
           if (symbol->sym_type == SYM_LOCAL_VAR) {
+            ir_push_ins(c, (Op) {
+              .i = I_ADDR_CALL,
+              .dest = id,
+              .src0 = func->argc,
+              .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
+            }, ins_count);
+            break;
+          }
+          else if (symbol->sym_type == SYM_FUNC_ARG) {
             ir_push_ins(c, (Op) {
               .i = I_ADDR_CALL,
               .dest = id,
@@ -2226,6 +2255,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_PUSH_ADDR_OF: {
         vo("; I_PUSH_ADDR_OF\n");
         switch (op->dest) {
+          case TypeAny: // TODO(lucas): temp
           case TypeUnsigned64: {
             o("  lea rax, [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             o("  push rax\n");
@@ -2246,13 +2276,15 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_PUSH: {
         vo("; I_PUSH\n");
         switch (op->dest) {
+          case TypeAny: // TODO(lucas): temp
           case TypeUnsigned64: {
             o("  push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             break;
           }
-          default:
+          default: {
             assert("I_PUSH: type not implemented yet" && 0);
             break;
+          }
         }
         break;
       }
@@ -2275,8 +2307,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
               o("  push rax\n");
               break;
             }
-            default:
+            default: {
+              assert("I_PUSH_LOCAL: type not implemented yet" && 0);
               break;
+            }
           }
         }
         else if (op->src1 >= 0) { // immediate value
@@ -2287,9 +2321,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
               o("  push rax\n");
               break;
             }
-            default:
+            default: {
               assert("I_PUSH_LOCAL: imm type not implemented yet" && 0);
               break;
+            }
           }
         }
         break;
@@ -3159,11 +3194,33 @@ Ast* parse_param_list(Parser* p) {
   for (;;) {
     Token t = lexer_peek(&p->l);
     if (t.type == T_IDENTIFIER) {
-      ast_push_node(param_list, AstValue, t);
+      Ast* arg = ast_create(AstArg);
+      arg->token = t;
+      arg->token.type = T_UNSIGNED64;
+      ast_push_node(arg, AstValue, t);
+      ast_push(param_list, arg);
       t = lexer_next(&p->l);
       if (t.type == T_COMMA) {
         lexer_next(&p->l);
         continue;
+      }
+    }
+    else {
+      if (t.type == T_ANY || t.type == T_UNSIGNED64) {
+        Token ident = lexer_next(&p->l);
+        if (ident.type != T_IDENTIFIER) {
+          parser_error(p, "expected identifier after argument type, but got `%.*s`\n", ident.length, ident.buffer);
+          return param_list;
+        }
+        Ast* arg = ast_create(AstArg);
+        arg->token = t;
+        ast_push_node(arg, AstValue, ident);
+        ast_push(param_list, arg);
+        t = lexer_next(&p->l);
+        if (t.type == T_COMMA) {
+          lexer_next(&p->l);
+          continue;
+        }
       }
     }
     break;
@@ -3339,6 +3396,12 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "rshift")) {
     l->token.type = T_RSHIFT;
+  }
+  else if (compare(l->token, "any")) {
+    l->token.type = T_ANY;
+  }
+  else if (compare(l->token, "u64")) {
+    l->token.type = T_UNSIGNED64;
   }
   else {
     l->token.type = T_IDENTIFIER;
@@ -3544,6 +3607,18 @@ done:
 
 Token lexer_peek(Lexer* l) {
   return l->token;
+}
+
+Compile_type token_to_compile_type(Token t) {
+  switch (t.type) {
+    case T_ANY:
+      return TypeAny;
+    case T_UNSIGNED64:
+      return TypeUnsigned64;
+    default:
+      return TypeNone;
+  }
+  return TypeNone;
 }
 
 // NOTE(lucas): index points to the end of the token, maybe change this.
