@@ -325,7 +325,7 @@ const O_WRONLY 1;
 const O_CREAT 64;
 const O_TRUNC 512;
 
-fn strlen(str) {
+fn strlen(any str) {
   let length 0;
   while < 0 load8 str {
     = @length +1 length;
@@ -334,15 +334,16 @@ fn strlen(str) {
   length;
 }
 
-fn memset(ptr, c, n) {
+fn memset(any ptr, u64 c, u64 n) {
   let count 0;
   while < count n {
-    store8 ptr c; = @ptr +1 ptr;
+    store8 ptr c;
+    = @ptr   +1 ptr;
     = @count +1 count;
   }
 }
 
-fn puts(str) {
+fn puts(any str) {
   while neq 0 load8 str {
     let ch load8 str;
     let _ syscall3(1, 1, @ch, 1);
@@ -350,12 +351,12 @@ fn puts(str) {
   }
 }
 
-fn read(fd, buf, count)    syscall3(SYS_read, fd, buf, count);
-fn open(path, flags, mode) syscall3(SYS_open, path, flags, mode);
-fn close(fd) { let _ syscall1(SYS_close, fd); }
-fn write(fd, buf, count) { let _ syscall3(SYS_write, fd, buf, count); }
+fn read(u64 fd, any buf, u64 count)    syscall3(SYS_read, fd, buf, count);
+fn open(any path, u64 flags, u64 mode) syscall3(SYS_open, path, flags, mode);
+fn close(u64 fd) { let _ syscall1(SYS_close, fd); }
+fn write(u64 fd, any buf, u64 count) { let _ syscall3(SYS_write, fd, buf, count); }
 
-fn read_file_into_buffer(fd, buf) {
+fn read_file_into_buffer(u64 fd, any buf) {
   let n 0;
   while neq 0 read(fd, buf, 1) {
     = @buf +1 buf;

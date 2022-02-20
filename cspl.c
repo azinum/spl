@@ -130,6 +130,7 @@ typedef enum Token_type {
   T_LET,
   T_MEMORY,
   T_PRINT,
+  T_INCLUDE,
   T_FN,
   T_ARROW,
   T_WHILE,
@@ -185,6 +186,7 @@ static const char* token_type_str[] = {
   "T_LET",
   "T_MEMORY",
   "T_PRINT",
+  "T_INCLUDE",
   "T_FN",
   "T_ARROW",
   "T_WHILE",
@@ -291,10 +293,14 @@ typedef struct Ast {
   Token token;
 } Ast;
 
+#define MAX_SOURCE 32
+
 typedef struct Parser {
   Lexer l;
   Ast* ast;
   i32 status;
+  char* source[MAX_SOURCE];
+  u32 source_count;
 } Parser;
 
 typedef enum Ir_code {
@@ -581,6 +587,8 @@ typedef struct Options {
 
 static i32 spl_start(Options* options);
 
+static char* read_entire_file(char* path);
+
 static void symbol_init(Symbol* s);
 static void symbol_print(Symbol* s, FILE* fp);
 static void block_init(Block* block, Block* parent);
@@ -719,32 +727,16 @@ i32 main(i32 argc, char** argv) {
 
 i32 spl_start(Options* options) {
   i32 result = NoError;
-  // read source file
-  char* source = NULL;
-  FILE* fp = fopen(options->filename, "rb");
-  if (!fp) {
-    fprintf(stderr, "error: failed to open file `%s`\n", options->filename);
-    return Error;
-  }
-  fseek(fp, 0, SEEK_END);
-  i32 size = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-  source = (char*)malloc(size + 1);
+  // read entry source file
+  char* source = read_entire_file(options->filename);
   if (!source) {
-    fprintf(stderr, "error: failed to allocate memory for source file `%s`\n", options->filename);
-    fclose(fp);
     return Error;
   }
-  i32 read_size = fread(source, 1, size, fp);
-  (void)read_size;  // ignore warning
-  source[read_size] = '\0';
-  fclose(fp);
-
   // begin compiling source file
   REAL_TIMER_START();
   Parser p;
   Compile c;
-  if (parser_init(&p, options->filename, (char*)source) == NoError) {
+  if (parser_init(&p, options->filename, source) == NoError) {
     parse(&p);
     if (p.status == NoError && p.l.status == NoError) {
       if (compile_state_init(&c) == NoError) {
@@ -812,8 +804,30 @@ i32 spl_start(Options* options) {
     compile_state_free(&c);
     parser_free(&p);
   }
-  free(source);
   return result;
+}
+
+char* read_entire_file(char* path) {
+  FILE* fp = fopen(path, "rb");
+  if (!fp) {
+    fprintf(stderr, "[error]: failed to open file `%s`\n", path);
+    return NULL;
+  }
+  char* source = NULL;
+  fseek(fp, 0, SEEK_END);
+  i32 size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  source = (char*)malloc(size + 1);
+  if (!source) {
+    fprintf(stderr, "[error]: failed to allocate memory for file `%s`\n", path);
+    fclose(fp);
+    return NULL;
+  }
+  i32 read_size = fread(source, 1, size, fp);
+  (void)read_size;  // ignore warning
+  source[read_size] = '\0';
+  fclose(fp);
+  return source;
 }
 
 void symbol_init(Symbol* s) {
@@ -2790,11 +2804,16 @@ i32 parser_init(Parser* p, char* filename, char* source) {
   lexer_init(&p->l, filename, source);
   p->ast = ast_create(AstRoot);
   p->status = NoError;
+  p->source[0] = source;
+  p->source_count = 1;
   return NoError;
 }
 
 void parser_free(Parser* p) {
   ast_free(p->ast);
+  for (u32 i = 0; i < p->source_count; ++i) {
+    free(p->source[i]);
+  }
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
@@ -2855,6 +2874,39 @@ Ast* parse_statements(Parser* p) {
           goto done;
         }
         ast_push(stmts, func_def);
+        break;
+      }
+      // TODO(lucas): add recursive inclusion protection
+      case T_INCLUDE: {
+        t = lexer_next(&p->l);
+        if (t.type != T_CSTRING) {
+          parser_error(p, "expected string after include statement, but got `%.*s`\n", t.length, t.buffer);
+          return NULL;
+        }
+        lexer_next(&p->l);
+
+        Lexer l_copy;
+        memcpy(&l_copy, &p->l, sizeof(Lexer));
+        char path[MAX_PATH_SIZE] = {0};
+        snprintf(path, MAX_PATH_SIZE, "%.*s", t.length, t.buffer);
+        char* source = read_entire_file(path);
+        if (!source) {
+          parser_error(p, "failed to include source file `%s`\n", path);
+          return stmts;
+        }
+        if (p->source_count < MAX_SOURCE) {
+          p->source[p->source_count++] = source;
+          // initialize new lexer
+          lexer_init(&p->l, path, source);
+          lexer_next(&p->l); // read first token
+          Ast* include_stmts = parse_statements(p);
+          ast_push(stmts, include_stmts);
+          // restore lexer state
+          memcpy(&p->l, &l_copy, sizeof(Lexer));
+        }
+        else {
+          assert(0); // TODO: handle
+        }
         break;
       }
       default: {
@@ -3348,6 +3400,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "print")) {
     l->token.type = T_PRINT;
+  }
+  else if (compare(l->token, "include")) {
+    l->token.type = T_INCLUDE;
   }
   else if (compare(l->token, "const")) {
     l->token.type = T_CONST;
