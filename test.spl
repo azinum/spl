@@ -337,7 +337,8 @@ fn strlen(str) {
 fn memset(ptr, c, n) {
   let count 0;
   while < count n {
-    store8 ptr c; = @ptr +1 ptr;
+    store8 ptr c;
+    = @ptr   +1 ptr;
     = @count +1 count;
   }
 }

@@ -8,7 +8,7 @@ compile_src:
 	${CC} ${SRC} -o ${PROG} ${FLAGS} && strip ${PROG}
 
 clean:
-	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .spl.o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}}
+	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}}
 
 run: test
 

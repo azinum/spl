@@ -486,7 +486,8 @@ static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE
 #elif __LINUX__
   #define MACHINE MACHINE_LINUX
 #else
-  #warning "the compiler does not support this machine, defaulting to linux"
+  // #warning "the compiler does not support this machine, defaulting to linux"
+  // TODO(lucas): give warning to user which is portable
   #define MACHINE MACHINE_LINUX
 #endif
 
