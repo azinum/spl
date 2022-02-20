@@ -131,6 +131,7 @@ typedef enum Token_type {
   T_MEMORY,
   T_PRINT,
   T_FN,
+  T_ARROW,
   T_WHILE,
   T_IF,
   T_ELSE,
@@ -185,6 +186,7 @@ static const char* token_type_str[] = {
   "T_MEMORY",
   "T_PRINT",
   "T_FN",
+  "T_ARROW",
   "T_WHILE",
   "T_IF",
   "T_ELSE",
@@ -250,11 +252,11 @@ typedef enum Ast_type {
   AstFuncDefinition,
   AstFuncCall,
   AstParamList,
-  AstArg,
   AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
   AstIfStatement,
+  AstType,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -275,11 +277,11 @@ static const char* ast_type_str[] = {
   "AstFuncDefinition",
   "AstFuncCall",
   "AstParamList",
-  "AstArg",
   "AstMemoryStatement",
   "AstAssignment",
   "AstWhileStatement",
   "AstIfStatement",
+  "AstType",
 };
 
 typedef struct Ast {
@@ -398,7 +400,7 @@ static const char* ir_code_str[] = {
 };
 
 // https://www.cs.uaf.edu/2017/fall/cs301/reference/x86_64.html
-static const char* func_call_regs[] = {
+static const char* func_call_regs_x86_64[] = {
   "rdi",
   "rsi",
   "rdx",
@@ -635,6 +637,7 @@ static Ast* parse_expr(Parser* p);
 static Ast* parse_func_def(Parser* p);
 static Ast* parse_expr_list(Parser* p);
 static Ast* parse_param_list(Parser* p);
+static Ast* parse_type(Parser* p);
 static void lexer_init(Lexer* l, char* filename, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -1277,6 +1280,11 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstFuncDefinition: {
       Ast* params = ast->node[0];
       Ast* body = ast->node[1];
+      Ast* rtype_node = NULL;
+      if (ast->count == 3) {
+        rtype_node = ast->node[1];
+        body = ast->node[2];
+      }
 
       if (params->count > MAX_FUNC_ARGC) {
         compile_error_at(c, ast->token, "reached function parameter count limit of %d\n", MAX_FUNC_ARGC);
@@ -1302,6 +1310,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         func->argc = params->count;
         func->rtype = TypeUnsigned64;
 
+        if (rtype_node != NULL) {
+          func->rtype = token_to_compile_type(rtype_node->token);
+        }
+
         for (u32 i = 0; i < func->argc; ++i) {
           Symbol* arg_symbol = NULL;
           Ast* arg_node = params->node[i];
@@ -1311,12 +1323,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           if (compile_declare_value(c, &local_block, func, arg, &arg_symbol, &arg_symbol_index) == NoError) {
             u32* arg_id = &func->args[i];
             *arg_id = arg_symbol_index;
+            Compile_type arg_compile_type = token_to_compile_type(arg_type);
 
             arg_symbol->imm = -1;
-            arg_symbol->size = compile_type_size[TypeUnsigned64];
+            arg_symbol->size = compile_type_size[arg_compile_type];
             arg_symbol->konst = 0;
             arg_symbol->sym_type = SYM_FUNC_ARG;
-            arg_symbol->type = token_to_compile_type(arg_type);
+            arg_symbol->type = arg_compile_type;
             arg_symbol->token = arg;
             arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id (don't think this is used here anymore, investigate)
           }
@@ -1339,7 +1352,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           rtype = ts_pop(c);
         }
 
-        func->rtype = rtype;
+        if (rtype_node != NULL) {
+          Compile_type explicit_rtype = token_to_compile_type(rtype_node->token);
+          if (explicit_rtype != rtype && explicit_rtype != TypeAny) {
+            compile_error_at(c, rtype_node->token, "function produces a value that does not match the return type\n");
+            return TypeNone;
+          }
+        }
+        else {
+          func->rtype = rtype;
+        }
 
         if (!strncmp(symbol->name, "main", MAX_NAME_SIZE)) {
           ++c->entry_point;
@@ -1826,7 +1848,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstFuncDefinition: {
-      assert(ast->count == 2);
+      assert(ast->count == 2 || ast->count == 3);
       ir_compile_func(c, block, ast, ins_count);
       break;
     }
@@ -2070,6 +2092,9 @@ i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   Ast* body = ast->node[1];
+  if (ast->count == 3) {
+    body = ast->node[2]; // FIXME: hack
+  }
   i32 id = ast->token.v.i;
   Symbol* symbol = &c->symbols[id];
   Function* func = &symbol->value.func;
@@ -2522,7 +2547,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(op->dest >= 0);
         i32 argc = op->src0;
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  pop %s\n", func_call_regs[arg]);
+          o("  pop %s\n", func_call_regs_x86_64[arg]);
         }
         // TODO: restore stack pointer in a more optimal way
         o("  push rbp\n");
@@ -2538,7 +2563,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(op->dest >= 0);
         i32 argc = op->src0;
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  pop %s\n", func_call_regs[arg]);
+          o("  pop %s\n", func_call_regs_x86_64[arg]);
         }
         o("  push rbp\n");
         o("  mov rbx, [v%d]\n", op->dest);
@@ -2572,7 +2597,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o("  sub rsp, 0x%x\n", argc * 0x8);
         }
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs[arg]); // +1 because we have pushed rbp onto stack
+          o("  mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs_x86_64[arg]); // +1 because we have pushed rbp onto stack
         }
         break;
       }
@@ -2724,35 +2749,34 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->sym_type != SYM_LOCAL_VAR || s->konst) {
-      continue;
-    }
-    switch (s->type) {
-      case TypeUnsigned64: {
-        o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
-        break;
-      }
-      case TypePointer: {
-        o("v%d: resb %d ; `%s` : TypePointer\n", i, s->size, s->name);
-        break;
-      }
-      case TypeCString: {
-        o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
-        break;
-      }
-      case TypeFunc: {
-        o("v%d: resb %d ; `%s` : TypeFunc\n", i, s->size, s->name);
-        break;
-      }
-      case TypeAny: {
-        o("v%d: resb %d ; `%s` : TypeAny\n", i, s->size, s->name);
-      }
-      case TypeNone:
-      case TypeSyscallFunc:
-        break;
-      default: {
-        assert("type not implemented yet" && 0);
-        break;
+    if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
+      switch (s->type) {
+        case TypeUnsigned64: {
+          o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
+          break;
+        }
+        case TypePointer: {
+          o("v%d: resb %d ; `%s` : TypePointer\n", i, s->size, s->name);
+          break;
+        }
+        case TypeCString: {
+          o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
+          break;
+        }
+        case TypeFunc: {
+          o("v%d: resb %d ; `%s` : TypeFunc\n", i, s->size, s->name);
+          break;
+        }
+        case TypeAny: {
+          o("v%d: resb %d ; `%s` : TypeAny\n", i, s->size, s->name);
+        }
+        case TypeNone:
+        case TypeSyscallFunc:
+          break;
+        default: {
+          assert("type not implemented yet" && 0);
+          break;
+        }
       }
     }
   }
@@ -3120,6 +3144,7 @@ Ast* parse_expr(Parser* p) {
 //      | fn name stmt `;`
 //      | fn name `(` params `)` stmt `;`
 //      | fn name `(` params `)` `{` stmts `}` `;`
+//      | fn name params `->` rtype body
 Ast* parse_func_def(Parser* p) {
   Token t = lexer_next(&p->l); // skip `fn`
   if (t.type == T_IDENTIFIER) {
@@ -3141,6 +3166,18 @@ Ast* parse_func_def(Parser* p) {
     }
     else {
       ast_push(func_def, ast_create(AstParamList)); // push an empty parameter list
+    }
+    t = lexer_peek(&p->l);
+    if (t.type == T_ARROW) {
+      lexer_next(&p->l);
+      Ast* type = parse_type(p);
+      if (!type) {
+        t = lexer_peek(&p->l);
+        parser_error(p, "expected type after `->`, but got `%.*s`\n", t.length, t.buffer);
+        return func_def;
+      }
+      ast_push(func_def, type);
+      lexer_next(&p->l);
     }
     t = lexer_peek(&p->l);
     if (t.type == T_LEFT_CURLY) {
@@ -3200,7 +3237,7 @@ Ast* parse_param_list(Parser* p) {
   for (;;) {
     Token t = lexer_peek(&p->l);
     if (t.type == T_IDENTIFIER) {
-      Ast* arg = ast_create(AstArg);
+      Ast* arg = ast_create(AstType);
       arg->token = t;
       arg->token.type = T_UNSIGNED64;
       ast_push_node(arg, AstValue, t);
@@ -3218,7 +3255,7 @@ Ast* parse_param_list(Parser* p) {
           parser_error(p, "expected identifier after argument type, but got `%.*s`\n", ident.length, ident.buffer);
           return param_list;
         }
-        Ast* arg = ast_create(AstArg);
+        Ast* arg = ast_create(AstType);
         arg->token = t;
         ast_push_node(arg, AstValue, ident);
         ast_push(param_list, arg);
@@ -3232,6 +3269,16 @@ Ast* parse_param_list(Parser* p) {
     break;
   }
   return param_list;
+}
+
+Ast* parse_type(Parser* p) {
+  Token t = lexer_peek(&p->l);
+  if (t.type == T_ANY || t.type == T_UNSIGNED64) {
+    Ast* type = ast_create(AstType);
+    type->token = t;
+    return type;
+  }
+  return NULL;
 }
 
 void lexer_init(Lexer* l, char* filename, char* source) {
@@ -3532,6 +3579,13 @@ Token lexer_next(Lexer* l) {
         goto done;
       }
       case '-': {
+        if (*l->index == '>') {
+          l->index++;
+          l->column++;
+          l->token.length++;
+          l->token.type = T_ARROW;
+          goto done;
+        }
         l->token.type = T_SUB;
         goto done;
       }
@@ -3848,7 +3902,7 @@ i32 exec_command(const char* fmt, ...) {
   vsnprintf(command, MAX_COMMAND_SIZE, fmt, args);
   va_end(args);
 
-  fprintf(stdout, "+ %s\n", command); // to simulate 'set -xe'
+  fprintf(stdout, "[cmd]: %s\n", command);
   FILE* fp = popen(command, "w");
   if (!fp) {
     return Error;
