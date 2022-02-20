@@ -3201,9 +3201,7 @@ Ast* parse_func_def(Parser* p) {
       }
       lexer_next(&p->l); // skip `;`
     }
-    if (type) {
-      ast_push(func_def, type);
-    }
+    ast_push(func_def, type);
     return func_def;
   }
   parser_error(p, "expected identifier in function definition, but got `%.*s`\n", t.length, t.buffer);
