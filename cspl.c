@@ -1,7 +1,7 @@
 //
 // cspl.c - simple programming language (spl)
 //
-// original implementation in c
+// original c implementation
 //
 
 #include <stdio.h>  // puts, printf
@@ -441,8 +441,8 @@ typedef struct Op {
 #define MAX_DATA (KB(32)) // temp
 
 #define MAX_NAME_SIZE 64
-#define MAX_SYMBOL 256
-#define MAX_FUNC 256
+#define MAX_SYMBOL 512
+#define MAX_FUNC 512
 #define MAX_FUNC_ARGC 6 // temp
 
 typedef enum Compile_target {
@@ -513,7 +513,7 @@ typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 imm; // address to immediate value
   i32 size;
-  // i32 local; // (0) function argument, (1) local variable, (2) function (need to change the name of this)
+  i32 konst;
   Symbol_type sym_type;
   Compile_type type;
   Token token;
@@ -801,6 +801,7 @@ void symbol_init(Symbol* s) {
   memset(s->name, 0, ARR_SIZE(s->name));
   s->imm = -1;
   s->size = 0;
+  s->konst = 0;
   s->sym_type = SYM_LOCAL_VAR;
   s->type = TypeNone;
   s->token = (Token) {0};
@@ -925,6 +926,7 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
     strncpy(s->name, token.buffer, token.length);
     return NoError;
   }
+  assert("symbol capacity exceeded" && 0);
   return Error;
 }
 
@@ -1116,13 +1118,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     }
     case AstBinopExpression: {
       typecheck_node_list(c, block, fs, ast);
-      Compile_type a = ts_pop(c);
       Compile_type b = ts_pop(c);
+      Compile_type a = ts_pop(c);
       if (a == TypeUnsigned64 && b == TypeUnsigned64) {
         Value va;
         Value vb;
-        vs_pop(c, &va);
         vs_pop(c, &vb);
+        vs_pop(c, &va);
         u64 num = 0;
         switch (ast->token.type) {
           case T_ADD:
@@ -1197,10 +1199,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       return ts_top(c);
     }
-    case AstConstStatement: {
-      assert("AstConstStatement not implemented yet" && 0);
-      return TypeNone;
-    }
+    // TODO(lucas): implement strings in const statements
+    case AstConstStatement:
     case AstLetStatement: {
       i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
@@ -1217,6 +1217,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
         symbol->imm = -1;
         symbol->size = compile_type_size[type];
+        symbol->konst = ast->type == AstConstStatement;
         symbol->sym_type = SYM_LOCAL_VAR;
         symbol->type = type;
         symbol->token = ast->token; // duplicated in compile_declare_value
@@ -1249,6 +1250,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
         symbol->imm = -1;
         symbol->size = compile_type_size[TypeFunc];
+        symbol->konst = 0;
         symbol->sym_type = SYM_FUNC;
         symbol->type = TypeFunc;
         symbol->token = ast->token; // duplicated in compile_declare_value
@@ -1268,6 +1270,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
             arg_symbol->imm = -1;
             arg_symbol->size = compile_type_size[TypeUnsigned64];
+            arg_symbol->konst = 0;
             arg_symbol->sym_type = SYM_FUNC_ARG;
             arg_symbol->type = TypeUnsigned64;
             arg_symbol->token = arg;
@@ -1749,7 +1752,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstConstStatement: {
-      assert("AstConstStatement not implemented yet" && 0);
+      // NOTE(lucas): value has already been defined in the type-checking phase
       break;
     }
     case AstLetStatement: {
@@ -2632,10 +2635,29 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
     }
     o("0\n");
   }
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    Value* v = &s->value;
+    if (s->sym_type != SYM_LOCAL_VAR) {
+      continue;
+    }
+    if (s->konst) {
+      switch (s->type) {
+        case TypeUnsigned64: {
+          o("v%d: dq %ld\n", i, v->num);
+          break;
+        }
+        default: {
+          assert("type not implemented yet" && 0);
+          break;
+        }
+      }
+    }
+  }
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->sym_type != SYM_LOCAL_VAR) {
+    if (s->sym_type != SYM_LOCAL_VAR || s->konst) {
       continue;
     }
     switch (s->type) {
