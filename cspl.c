@@ -1282,8 +1282,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* body = ast->node[1];
       Ast* rtype_node = NULL;
       if (ast->count == 3) {
-        rtype_node = ast->node[1];
-        body = ast->node[2];
+        rtype_node = ast->node[2];
       }
 
       if (params->count > MAX_FUNC_ARGC) {
@@ -2092,9 +2091,6 @@ i32 ir_compile_uop(Compile* c, Block* block, Ast* ast, u32* ins_count) {
 
 i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
   Ast* body = ast->node[1];
-  if (ast->count == 3) {
-    body = ast->node[2]; // FIXME: hack
-  }
   i32 id = ast->token.v.i;
   Symbol* symbol = &c->symbols[id];
   Function* func = &symbol->value.func;
@@ -3149,6 +3145,7 @@ Ast* parse_func_def(Parser* p) {
   Token t = lexer_next(&p->l); // skip `fn`
   if (t.type == T_IDENTIFIER) {
     Ast* func_def = ast_create(AstFuncDefinition);
+    Ast* type = NULL;
     func_def->token = t;
     t = lexer_next(&p->l); // skip `name`
     if (t.type == T_LEFT_P) {
@@ -3170,13 +3167,12 @@ Ast* parse_func_def(Parser* p) {
     t = lexer_peek(&p->l);
     if (t.type == T_ARROW) {
       lexer_next(&p->l);
-      Ast* type = parse_type(p);
+      type = parse_type(p);
       if (!type) {
         t = lexer_peek(&p->l);
         parser_error(p, "expected type after `->`, but got `%.*s`\n", t.length, t.buffer);
         return func_def;
       }
-      ast_push(func_def, type);
       lexer_next(&p->l);
     }
     t = lexer_peek(&p->l);
@@ -3204,6 +3200,9 @@ Ast* parse_func_def(Parser* p) {
         parser_error(p, "expected `;` after function definition expression, but got `%.*s`\n", t.length, t.buffer);
       }
       lexer_next(&p->l); // skip `;`
+    }
+    if (type) {
+      ast_push(func_def, type);
     }
     return func_def;
   }
