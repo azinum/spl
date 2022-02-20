@@ -643,7 +643,9 @@ inline i32 expect(Token t, Token_type type);
 inline Token lexer_read_symbol(Lexer* l);
 inline Token lexer_read_number(Lexer* l);
 inline i32 is_digit(char ch);
+inline i32 is_hex(char ch);
 inline i32 is_alpha(char ch);
+inline char to_lower(char ch);
 inline i32 is_extended_ascii(u8 ch);
 static Token lexer_next(Lexer* l);
 static Token lexer_peek(Lexer* l);
@@ -652,7 +654,7 @@ static Compile_type token_to_compile_type(Token t);
 
 static void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_arrow, u32 num_lines_to_print);
 static void print_info(const char* fmt, ...);
-static i32 str_to_int(char* str, i32 length, u64* out);
+static i32 str_to_int(char* str, u32 length, u64* out);
 
 static Ast* ast_create(Ast_type type);
 static void ast_init_node(Ast* node);
@@ -3414,7 +3416,7 @@ Token lexer_read_symbol(Lexer* l) {
 }
 
 Token lexer_read_number(Lexer* l) {
-  while (is_digit(*l->index)) {
+  while (is_hex(*l->index) || *l->index == 'x') {
     l->index++;
     l->column++;
   }
@@ -3427,8 +3429,19 @@ i32 is_digit(char ch) {
   return (ch >= '0') && (ch <= '9');
 }
 
+i32 is_hex(char ch) {
+  return is_digit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
+}
+
 i32 is_alpha(char ch) {
   return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+char to_lower(char ch) {
+  if (ch >= 'A' && ch <= 'Z') {
+    return ch + 32;
+  }
+  return ch;
 }
 
 i32 is_extended_ascii(u8 ch) {
@@ -3594,7 +3607,11 @@ Token lexer_next(Lexer* l) {
         }
         else if (is_digit(ch)) {
           lexer_read_number(l);
-          str_to_int(l->token.buffer, l->token.length, &l->token.v.num);
+          i32 result = str_to_int(l->token.buffer, l->token.length, &l->token.v.num);
+          if (result == Error) {
+            lexer_error(l, "invalid number `%.*s`\n", l->token.length, l->token.buffer);
+            l->token.type = T_EOF;
+          }
           goto done;
         }
         lexer_error(l, "unrecognized token `%.*s`\n", l->token.length, l->token.buffer);
@@ -3686,16 +3703,38 @@ void print_info(const char* fmt, ...) {
 #endif
 }
 
-i32 str_to_int(char* str, i32 length, u64* out) {
+// TODO(lucas): clean up
+i32 str_to_int(char* str, u32 length, u64* out) {
   *out = 0;
-  for (i32 i = 0; i < length; ++i) {
-    char ch = str[i];
-    if (is_digit(ch)) {
-      *out = *out * 10 + (str[i] - '0');
-      continue;
+  i32 base = 10;
+  if (length > 2) {
+    if (str[0] == '0' && str[1] == 'x') {
+      base = 16;
+      for (u32 i = 2; i < length; ++i) {
+        char ch = to_lower(str[i]);
+        if (is_digit(ch)) {
+          *out = *out * base + (ch - '0');
+          continue;
+        }
+        else if (is_hex(ch)) {
+          *out = *out * base + (10 + ch - 'a');
+          continue;
+        }
+        *out = 0;
+        return Error;
+      }
     }
-    *out = 0;
-    return Error;
+  }
+  else {
+    for (u32 i = 0; i < length; ++i) {
+      char ch = str[i];
+      if (is_digit(ch)) {
+        *out = *out * base + (str[i] - '0');
+        continue;
+      }
+      *out = 0;
+      return Error;
+    }
   }
   return NoError;
 }
