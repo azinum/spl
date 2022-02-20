@@ -142,6 +142,15 @@ typedef enum Func_call_regs {
   MAX_FUNC_CALL_REGS,
 } Func_call_regs;
 
+const u64 func_call_regs[MAX_FUNC_CALL_REGS] = {
+  RDI,
+  RSI,
+  RDX,
+  RCX,
+  R8,
+  R9,
+};
+
 #define MAX_STACK 512
 
 typedef struct Vm {
@@ -164,6 +173,9 @@ typedef struct Vm {
 
   Op* ins;
   u32 ins_count;
+
+  u32 entry_point_address;
+  u32 pc;
 
   u64 stack[MAX_STACK];
 
@@ -238,6 +250,9 @@ i32 vm_init(Vm* vm) {
   vm->ins = NULL;
   vm->ins_count = 0;
 
+  vm->entry_point_address = 0;
+  vm->pc = 0;
+
   u64* rsp = reg(vm, RSP);
   u64* rbp = reg(vm, RBP);
   *rbp = MAX_STACK;
@@ -263,7 +278,10 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   r(&vm->cstring_size, sizeof(vm->cstring_size));
   r(&vm->data_size, sizeof(vm->data_size));
   r(&vm->bss_size, sizeof(vm->bss_size));
+  r(&vm->entry_point_address, sizeof(vm->entry_point_address));
   r(&vm->ins_count, sizeof(vm->ins_count));
+
+  vm->pc = vm->entry_point_address;
 
   vm->imm = &it[0];
   it += vm->imm_size;
@@ -307,8 +325,8 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
 }
 
 i32 vm_exec(Vm* vm) {
-  for (u32 i = 0; i < vm->ins_count; ++i) {
-    Op* op = &vm->ins[i];
+  for (; vm->pc < vm->ins_count; ++vm->pc) {
+    Op* op = &vm->ins[vm->pc];
     switch (op->i) {
       case I_NOP: {
         break;
@@ -599,15 +617,25 @@ i32 vm_exec(Vm* vm) {
       }
       case I_RET: {
         i32 argc = op->src0;
+        u64* rax = reg(vm, RAX);
+        u64* rbp = reg(vm, RBP);
+        u64* rsp = reg(vm, RSP);
+        stack_pop(vm, rax);
+        stack_pop(vm, rbp);
         if (argc > 0) {
+          *rsp = *rsp + (argc * 0x8);
         }
-        break;
+        return NoError;
       }
       case I_NORET: {
         i32 argc = op->src0;
+        u64* rbp = reg(vm, RBP);
+        u64* rsp = reg(vm, RSP);
+        stack_pop(vm, rbp);
         if (argc > 0) {
+          *rsp = *rsp + (argc * 0x8);
         }
-        break;
+        return NoError;
       }
       case I_PRINT: {
         u64* rax = reg(vm, RAX);
@@ -637,12 +665,29 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_JMP: {
+        vm->pc += op->src0;
         break;
       }
       case I_JZ: { // jump if zero
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rax);
+        const i32 offset[] = {0, op->src0};
+        vm->pc += offset[*rax == 0];
         break;
       }
       case I_BEGIN_FUNC: {
+        u64* rbp = reg(vm, RBP);
+        u64* rsp = reg(vm, RSP);
+        stack_push(vm, *rbp);
+        *rbp = *rsp;
+        i32 argc = op->src0;
+        if (argc > 0) {
+          *rsp = *rsp - (argc * 0x8);
+        }
+        for (i32 arg = 0; arg < argc; ++arg) {
+          u64* r = reg(vm, func_call_regs[arg]);
+          *(rbp - ((arg + 1) * 0x8)) = *r;
+        }
         break;
       }
       case I_LOOP_LABEL: {

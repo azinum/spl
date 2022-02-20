@@ -3,7 +3,7 @@
 // include "lib/common.spl"
 
 fn main {
+  const c 14;
   let a 12;
-  store64 @a 14;
-  print a;
+  print c;
 }

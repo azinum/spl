@@ -341,7 +341,7 @@ typedef enum Ir_code {
   I_CALL, // <label, argc, rtype>
   I_ADDR_CALL, // <rax, argc, rtype>
   I_JMP,
-  I_JZ,
+  I_JZ, // <label, offset, x>
   I_BEGIN_FUNC, // <x, argc, x>
   I_LOOP_LABEL,
 
@@ -572,6 +572,7 @@ typedef struct Compile {
 
   i32 status;
   i32 entry_point;
+  u32 entry_point_address;
 
   Compile_type ts[MAX_TYPE_STACK]; // type stack
   i32 ts_count; // signed integer to be able to detect stack underflows
@@ -900,6 +901,7 @@ i32 compile_state_init(Compile* c) {
   c->label_count = 0;
   c->status = NoError;
   c->entry_point = 0;
+  c->entry_point_address = 0;
   c->ts_count = 0;
   c->vs_count = 0;
 
@@ -1568,19 +1570,20 @@ void ir_print(Compile* c, FILE* fp) {
 }
 
 // ir binary layout:
-// -----------+----------------+-----
-// id         | size in bytes  | type
-// -----------+----------------+-----
-// IR_MAGIC   | 4              | u8
-// imm size   | 4              | u32
-// cstr size  | 4              | u32
-// data size  | 4              | u32
-// bss size   | 4              | u32
-// ins count  | 4              | u32
-// imm data   | imm size       | *
-// data       | data+cstr size | *
-// bss data   | bss size       | *
-// ins        | 4 * ins count  | Op
+// ------------+----------------+-----
+// id          | size in bytes  | type
+// ------------+----------------+-----
+// IR_MAGIC    | 4              | u8
+// imm size    | 4              | u32
+// cstr size   | 4              | u32
+// data size   | 4              | u32
+// bss size    | 4              | u32
+// entry point | 4              | u32
+// ins count   | 4              | u32
+// imm data    | imm size       | *
+// data        | data+cstr size | *
+// bss data    | bss size       | *
+// ins         | 4 * ins count  | Op
 //
 // data layout (one element):
 // { type : Compile_type, size : u32, [list of data elements] }
@@ -1588,6 +1591,7 @@ void ir_print(Compile* c, FILE* fp) {
 // bss data layout (one element):
 // { type : Compile_type, size : u32, pre-allocated memory based on the size }
 // TODO(lucas): add some sort of id to address mapping in the ir binary
+// TODO(lucas): consolidate bss and data section
 void ir_binary_output(Compile* c, FILE* fp) {
 #define o(...) fwrite(__VA_ARGS__, fp)
   // write spl ir magic constant
@@ -1624,6 +1628,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
     }
   }
   o(&bss_size, sizeof(bss_size), 1);
+  o(&c->entry_point_address, sizeof(c->entry_point_address), 1);
   o(&c->ins_count, sizeof(c->ins_count), 1);
 
   // write immediate data
@@ -2135,6 +2140,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           if (ast->count == 3) { // else body
             Ast* else_body = ast->node[2];
             i32 else_label = c->label_count++;
+            i32 else_start_address = c->ins_count;
             ir_push_ins(c, (Op) {
               .i = I_JMP,
               .dest = else_label,
@@ -2146,6 +2152,8 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = else_label, .src0 = -1, .src1 = -1, }, &else_body_size);
               Op* jz = &c->ins[body_start_address];
               jz->src0 = else_body_size;
+              Op* else_jmp = &c->ins[else_start_address];
+              else_jmp->src0 = (i32)else_body_size;
             }
             else {
               return c->status;
@@ -2237,6 +2245,9 @@ i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     .src1 = -1,
   }, ins_count);
   func->ir_address = c->ins_count;
+  if (!strncmp(symbol->name, "main", ast->token.length)) {
+    c->entry_point_address = func->ir_address;
+  }
 
   ir_push_ins(c, (Op) {
     .i = I_BEGIN_FUNC,
