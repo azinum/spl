@@ -314,9 +314,19 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_POP: {
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rax);
         break;
       }
       case I_MOVE: {
+        u64* rax = reg(vm, RAX);
+        stack_pop(vm, rax);
+        u8* address = vm_id_to_address_from_bss(vm, op->dest);
+        if (!address) {
+          address = vm_id_to_address_from_data(vm, op->dest);
+        }
+        assert(address != NULL);
+        *(u64*)address = *rax;
         break;
       }
       case I_STORE64: {

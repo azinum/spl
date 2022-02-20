@@ -3,5 +3,7 @@
 // include "lib/common.spl"
 
 fn main {
-  print load8 "Hello world";
+  let a 2;
+  let b 3;
+  print + a b;
 }
