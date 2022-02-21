@@ -2,8 +2,11 @@
 
 // include "lib/common.spl"
 
+fn add(u64 a, u64 b) -> u64 + a b;
+
 fn main {
   const c 14;
   let a 12;
+  print a;
   print c;
 }

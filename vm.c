@@ -168,13 +168,11 @@ typedef struct Vm {
   u8* data;
   u32 data_size;
 
-  u8* bss;
-  u32 bss_size;
-
   Op* ins;
   u32 ins_count;
 
   u32 entry_point_address;
+  u32 func_count;
   u32 pc;
 
   u64 stack[MAX_STACK];
@@ -192,7 +190,6 @@ typedef struct Buffer {
 static i32 vm_init(Vm* vm);
 static i32 vm_load_ir(Vm* vm, Buffer* b);
 static i32 vm_exec(Vm* vm);
-static u8* vm_id_to_address_from_bss(Vm* vm, i32 id);
 static u8* vm_id_to_address_from_data(Vm* vm, i32 id);
 static u8* vm_id_to_address_from_cstring_data(Vm* vm, i32 id);
 static i32 read_entire_file(char* path, Buffer* b);
@@ -244,13 +241,11 @@ i32 vm_init(Vm* vm) {
   vm->data = NULL;
   vm->data_size = 0;
 
-  vm->bss = NULL;
-  vm->bss_size = 0;
-
   vm->ins = NULL;
   vm->ins_count = 0;
 
   vm->entry_point_address = 0;
+  vm->func_count = 0;
   vm->pc = 0;
 
   u64* rsp = reg(vm, RSP);
@@ -277,8 +272,8 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   r(&vm->imm_size, sizeof(vm->imm_size));
   r(&vm->cstring_size, sizeof(vm->cstring_size));
   r(&vm->data_size, sizeof(vm->data_size));
-  r(&vm->bss_size, sizeof(vm->bss_size));
   r(&vm->entry_point_address, sizeof(vm->entry_point_address));
+  r(&vm->func_count, sizeof(vm->func_count));
   r(&vm->ins_count, sizeof(vm->ins_count));
 
   vm->pc = vm->entry_point_address;
@@ -291,9 +286,6 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
 
   vm->data = &it[0];
   it += vm->data_size;
-
-  vm->bss = &it[0];
-  it += vm->bss_size;
 
   vm->ins = (Op*)&it[0];
   it += vm->ins_count;
@@ -339,10 +331,7 @@ i32 vm_exec(Vm* vm) {
       case I_MOVE: {
         u64* rax = reg(vm, RAX);
         stack_pop(vm, rax);
-        u8* address = vm_id_to_address_from_bss(vm, op->dest);
-        if (!address) {
-          address = vm_id_to_address_from_data(vm, op->dest);
-        }
+        u8* address = vm_id_to_address_from_data(vm, op->dest);
         assert(address != NULL);
         *(u64*)address = *rax;
         break;
@@ -428,10 +417,7 @@ i32 vm_exec(Vm* vm) {
         break;
       }
       case I_PUSH_LOCAL_ADDR_OF: {
-        u8* address = vm_id_to_address_from_bss(vm, op->src0);
-        if (!address) {
-          address = vm_id_to_address_from_data(vm, op->src0);
-        }
+        u8* address = vm_id_to_address_from_data(vm, op->src0);
         u64* rax = reg(vm, RAX);
         *rax = (u64)address;
         stack_push(vm, *rax);
@@ -453,10 +439,7 @@ i32 vm_exec(Vm* vm) {
       }
       case I_PUSH_LOCAL: {
         if (op->src0 >= 0) {
-          u8* address = vm_id_to_address_from_bss(vm, op->src0);
-          if (!address) {
-            address = vm_id_to_address_from_data(vm, op->src0);
-          }
+          u8* address = vm_id_to_address_from_data(vm, op->src0);
           switch (op->dest) {
             case TypeUnsigned64: {
               assert(address != NULL);
@@ -795,26 +778,8 @@ i32 vm_exec(Vm* vm) {
 }
 
 // TODO(lucas): this is slow, create mapping from ids to addresses
-u8* vm_id_to_address_from_bss(Vm* vm, i32 id) {
-  i32 current_id = NUM_SYSCALL + 1; // ids 0-7 are reserved for syscalls
-  u8* memory_area = &vm->bss[0];
-  u32 memory_area_size = vm->bss_size;
-  for (u32 i = 0; i < memory_area_size; ++current_id) {
-    Compile_type type = *(Compile_type*)&memory_area[i];
-    i += sizeof(type);
-    u32 size = *(Compile_type*)&memory_area[i];
-    i += sizeof(size);
-    if (current_id == id) {
-      return &memory_area[i];
-    }
-    i += size;
-  }
-  return NULL;
-}
-
-// TODO(lucas): this is slow, create mapping from ids to addresses
 u8* vm_id_to_address_from_data(Vm* vm, i32 id) {
-  i32 current_id = NUM_SYSCALL + 1; // ids 0-7 are reserved for syscalls
+  i32 current_id = vm->func_count + 1;
   u8* memory_area = &vm->data[0];
   u32 memory_area_size = vm->data_size;
   for (u32 i = 0; i < memory_area_size; ++current_id) {

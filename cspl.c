@@ -600,7 +600,7 @@ static void compile_state_free(Compile* c);
 static void compile_error(Compile* c, const char* fmt, ...);
 static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index);
-static i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc);
+static i32 compile_create_syscall(Compile* c, const char* name, u32 argc);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
 
@@ -905,13 +905,13 @@ i32 compile_state_init(Compile* c) {
   c->ts_count = 0;
   c->vs_count = 0;
 
-  compile_declare_syscall(c, &c->global, "syscall0", 1);
-  compile_declare_syscall(c, &c->global, "syscall1", 2);
-  compile_declare_syscall(c, &c->global, "syscall2", 3);
-  compile_declare_syscall(c, &c->global, "syscall3", 4);
-  compile_declare_syscall(c, &c->global, "syscall4", 5);
-  compile_declare_syscall(c, &c->global, "syscall5", 6);
-  compile_declare_syscall(c, &c->global, "syscall6", 7);
+  compile_create_syscall(c, "syscall0", 0);
+  compile_create_syscall(c, "syscall1", 1);
+  compile_create_syscall(c, "syscall2", 2);
+  compile_create_syscall(c, "syscall3", 3);
+  compile_create_syscall(c, "syscall4", 4);
+  compile_create_syscall(c, "syscall5", 5);
+  compile_create_syscall(c, "syscall6", 6);
   return NoError;
 }
 
@@ -975,7 +975,8 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
   return Error;
 }
 
-i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc) {
+i32 compile_create_syscall(Compile* c, const char* name, u32 argc) {
+  Block* block = &c->global;
   Token token = (Token) {
     .buffer = (char*)name,
     .length = strnlen(name, MAX_NAME_SIZE),
@@ -1000,7 +1001,7 @@ i32 compile_declare_syscall(Compile* c, Block* block, const char* name, u32 argc
   Function* func = &symbol->value.func;
   func->ir_address = -1;
   func->label = -1;
-  func->argc = argc;
+  func->argc = argc + 1;
   func->rtype = TypeUnsigned64;
   return NoError;
 }
@@ -1570,20 +1571,19 @@ void ir_print(Compile* c, FILE* fp) {
 }
 
 // ir binary layout:
-// ------------+----------------+-----
-// id          | size in bytes  | type
-// ------------+----------------+-----
-// IR_MAGIC    | 4              | u8
-// imm size    | 4              | u32
-// cstr size   | 4              | u32
-// data size   | 4              | u32
-// bss size    | 4              | u32
-// entry point | 4              | u32
-// ins count   | 4              | u32
-// imm data    | imm size       | *
-// data        | data+cstr size | *
-// bss data    | bss size       | *
-// ins         | 4 * ins count  | Op
+// --------------+----------------+-----
+// id            | size in bytes  | type
+// --------------+----------------+-----
+// IR_MAGIC      | 4              | u8
+// imm size      | 4              | u32
+// cstr size     | 4              | u32
+// bss+data size | 4              | u32
+// entry point   | 4              | u32
+// func count    | 4              | u32
+// ins count     | 4              | u32
+// imm data      | imm size       | *
+// data+bss      | data+cstr size | *
+// ins           | 4 * ins count  | Op
 //
 // data layout (one element):
 // { type : Compile_type, size : u32, [list of data elements] }
@@ -1591,7 +1591,6 @@ void ir_print(Compile* c, FILE* fp) {
 // bss data layout (one element):
 // { type : Compile_type, size : u32, pre-allocated memory based on the size }
 // TODO(lucas): add some sort of id to address mapping in the ir binary
-// TODO(lucas): consolidate bss and data section
 void ir_binary_output(Compile* c, FILE* fp) {
 #define o(...) fwrite(__VA_ARGS__, fp)
   // write spl ir magic constant
@@ -1603,6 +1602,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
 
   u32 data_size = 0;
   u32 cstr_size = 0;
+  u32 func_count = 1; // count entry point as well
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* cstring_address = &c->imm[c->cstrings[i]];
     u32 length = *(u32*)cstring_address;
@@ -1610,31 +1610,26 @@ void ir_binary_output(Compile* c, FILE* fp) {
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
+    if (s->type == TypeSyscallFunc || s->type == TypeFunc) {
+      func_count++;
+      continue;
+    }
     if (s->sym_type != SYM_LOCAL_VAR) {
       continue;
     }
-    if (s->konst) {
-      data_size += sizeof(s->type) + sizeof(s->size) + s->size;
-    }
+    data_size += sizeof(s->type) + sizeof(s->size) + s->size;
   }
+
   o(&cstr_size, sizeof(cstr_size), 1);
   o(&data_size, sizeof(data_size), 1);
-
-  u32 bss_size = 0;
-  for (u32 i = 0; i < c->symbol_count; ++i) {
-    Symbol* s = &c->symbols[i];
-    if (s->sym_type == SYM_LOCAL_VAR && s->konst == 0) {
-      bss_size += sizeof(s->type) + sizeof(s->size) + s->size;
-    }
-  }
-  o(&bss_size, sizeof(bss_size), 1);
   o(&c->entry_point_address, sizeof(c->entry_point_address), 1);
+  o(&func_count, sizeof(func_count), 1);
   o(&c->ins_count, sizeof(c->ins_count), 1);
 
   // write immediate data
   o(&c->imm[0], imm_size, 1);
 
-  // write data section
+  // write cstring data
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* buffer = &c->imm[c->cstrings[i]];
     u32 length = *(u32*)buffer + 1;
@@ -1644,6 +1639,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
     u8 null = 0;
     o(&null, sizeof(null), 1);
   }
+  // write data section
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
     Value* v = &s->value;
