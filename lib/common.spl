@@ -3,8 +3,6 @@
 
 include "lib/linux.spl"
 
-const ERROR - 0 2;
-
 fn strlen(any str) {
   let length 0;
   while < 0 load8 str {

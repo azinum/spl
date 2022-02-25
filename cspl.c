@@ -2314,130 +2314,130 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("global %s\n", ENTRY);
   o(
   "print:\n"
-  "    mov     r9, -3689348814741910323\n"
-  "    sub     rsp, 40\n"
-  "    mov     BYTE [rsp+31], 10\n"
-  "    lea     rcx, [rsp+30]\n"
+  "mov r9, -3689348814741910323\n"
+  "sub rsp, 40\n"
+  "mov BYTE [rsp+31], 10\n"
+  "lea rcx, [rsp+30]\n"
   ".L2:\n"
-  "    mov     rax, rdi\n"
-  "    lea     r8, [rsp+32]\n"
-  "    mul     r9\n"
-  "    mov     rax, rdi\n"
-  "    sub     r8, rcx\n"
-  "    shr     rdx, 3\n"
-  "    lea     rsi, [rdx+rdx*4]\n"
-  "    add     rsi, rsi\n"
-  "    sub     rax, rsi\n"
-  "    add     eax, 48\n"
-  "    mov     BYTE [rcx], al\n"
-  "    mov     rax, rdi\n"
-  "    mov     rdi, rdx\n"
-  "    mov     rdx, rcx\n"
-  "    sub     rcx, 1\n"
-  "    cmp     rax, 9\n"
-  "    ja      .L2\n"
-  "    lea     rax, [rsp+32]\n"
-  "    mov     edi, 1\n"
-  "    sub     rdx, rax\n"
-  "    xor     eax, eax\n"
-  "    lea     rsi, [rsp+32+rdx]\n"
-  "    mov     rdx, r8\n"
-  "    mov     rax, 1\n"
-  "    syscall\n"
-  "    add     rsp, 40\n"
-  "    ret\n"
+  "mov rax, rdi\n"
+  "lea r8, [rsp+32]\n"
+  "mul r9\n"
+  "mov rax, rdi\n"
+  "sub r8, rcx\n"
+  "shr rdx, 3\n"
+  "lea rsi, [rdx+rdx*4]\n"
+  "add rsi, rsi\n"
+  "sub rax, rsi\n"
+  "add eax, 48\n"
+  "mov BYTE [rcx], al\n"
+  "mov rax, rdi\n"
+  "mov rdi, rdx\n"
+  "mov rdx, rcx\n"
+  "sub rcx, 1\n"
+  "cmp rax, 9\n"
+  "ja .L2\n"
+  "lea rax, [rsp+32]\n"
+  "mov edi, 1\n"
+  "sub rdx, rax\n"
+  "xor eax, eax\n"
+  "lea rsi, [rsp+32+rdx]\n"
+  "mov rdx, r8\n"
+  "mov rax, 1\n"
+  "syscall\n"
+  "add rsp, 40\n"
+  "ret\n"
   );
 
   for (u32 i = 0; i < c->ins_count; ++i) {
     const Op* op = &c->ins[i];
     switch (op->i) {
       case I_NOP: {
-        o("  nop\n");
+        o("nop\n");
         break;
       }
       case I_POP: {
-        o("  pop rax\n");
+        o("pop rax\n");
         break;
       }
       case I_MOVE: {
         vo("; I_MOVE\n");
-        o("  pop rax\n");
-        o("  mov [v%i], rax\n", op->dest);
+        o("pop rax\n");
+        o("mov [v%i], rax\n", op->dest);
         break;
       }
       case I_STORE64: {
         vo("; I_STORE64\n");
         o(
-        "  pop rbx\n"
-        "  pop rax\n"
-        "  mov [rax], rbx\n"
+        "pop rbx\n"
+        "pop rax\n"
+        "mov [rax], rbx\n"
         );
         break;
       }
       case I_STORE32: {
         vo("; I_STORE32\n");
         o(
-        "  pop rbx\n"
-        "  pop rax\n"
-        "  mov [rax], ebx\n"
+        "pop rbx\n"
+        "pop rax\n"
+        "mov [rax], ebx\n"
         );
         break;
       }
       case I_STORE16: {
         vo("; I_STORE16\n");
         o(
-        "  pop rbx\n"
-        "  pop rax\n"
-        "  mov [rax], bx\n"
+        "pop rbx\n"
+        "pop rax\n"
+        "mov [rax], bx\n"
         );
         break;
       }
       case I_STORE8: {
         vo("; I_STORE8\n");
         o(
-        "  pop rbx\n"
-        "  pop rax\n"
-        "  mov [rax], bl\n"
+        "pop rbx\n"
+        "pop rax\n"
+        "mov [rax], bl\n"
         );
         break;
       }
       case I_LOAD64: {
         vo("; I_LOAD64\n");
         o(
-        "  pop rax\n"
-        "  xor rbx, rbx\n"
-        "  mov rbx, [rax]\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "xor rbx, rbx\n"
+        "mov rbx, [rax]\n"
+        "push rbx\n"
         );
         break;
       }
       case I_LOAD32: {
         vo("; I_LOAD32\n");
         o(
-        "  pop rax\n"
-        "  xor rbx, rbx\n"
-        "  mov ebx, [rax]\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "xor rbx, rbx\n"
+        "mov ebx, [rax]\n"
+        "push rbx\n"
         );
         break;
       }
       case I_LOAD16: {
         vo("; I_LOAD16\n");
         o(
-        "  pop rax\n"
-        "  xor rbx, rbx\n"
-        "  mov bx, [rax]\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "xor rbx, rbx\n"
+        "mov bx, [rax]\n"
+        "push rbx\n"
         );
         break;
       }
       case I_LOAD8: {
         vo("; I_LOAD8\n");
         o(
-        "  pop rax\n"
-        "  xor rbx, rbx\n"
-        "  mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
-        "  push rbx\n"
+        "pop rax\n"
+        "xor rbx, rbx\n"
+        "mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
+        "push rbx\n"
         );
         break;
       }
@@ -2446,8 +2446,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         switch (op->dest) {
           case TypeAny: // TODO(lucas): temp
           case TypeUnsigned64: {
-            o("  lea rax, [rbp-0x%x]\n", 0x8 * (1 + op->src0));
-            o("  push rax\n");
+            o("lea rax, [rbp-0x%x]\n", 0x8 * (1 + op->src0));
+            o("push rax\n");
             break;
           }
           default: {
@@ -2458,8 +2458,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_PUSH_LOCAL_ADDR_OF: {
         vo("; I_PUSH_LOCAL_ADDR_OF\n");
-        o("  mov rax, v%d\n", op->src0);
-        o("  push rax\n");
+        o("mov rax, v%d\n", op->src0);
+        o("push rax\n");
         break;
       }
       case I_PUSH: {
@@ -2467,7 +2467,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         switch (op->dest) {
           case TypeAny: // TODO(lucas): temp
           case TypeUnsigned64: {
-            o("  push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
+            o("push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             break;
           }
           default: {
@@ -2482,18 +2482,18 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         if (op->src0 >= 0) {
           switch (op->dest) {
             case TypeUnsigned64: {
-              o("  mov rax, [v%d]\n", op->src0);
-              o("  push rax\n");
+              o("mov rax, [v%d]\n", op->src0);
+              o("push rax\n");
               break;
             }
             case TypeCString: {
-              o("  mov rax, str%d\n", op->src0);
-              o("  push rax\n");
+              o("mov rax, str%d\n", op->src0);
+              o("push rax\n");
               break;
             }
             case TypeFunc: {
-              o("  mov rax, v%d\n", op->src0);
-              o("  push rax\n");
+              o("mov rax, v%d\n", op->src0);
+              o("push rax\n");
               break;
             }
             default: {
@@ -2506,8 +2506,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           switch (op->dest) {
             case TypeUnsigned64: {
               u64 value = *(u64*)&c->imm[op->src1];
-              o("  mov rax, %ld\n", value);
-              o("  push rax\n");
+              o("mov rax, %ld\n", value);
+              o("push rax\n");
               break;
             }
             default: {
@@ -2520,40 +2520,40 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_ADD: {
         vo("; I_ADD\n");
-        o("  pop rax\n");
-        o("  pop rbx\n");
-        o("  add rbx, rax\n");
-        o("  push rbx\n");
+        o("pop rax\n");
+        o("pop rbx\n");
+        o("add rbx, rax\n");
+        o("push rbx\n");
         break;
       }
       case I_SUB: {
         vo("; I_SUB\n");
         o(
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  sub rbx, rax\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "sub rbx, rax\n"
+        "push rbx\n"
         );
         break;
       }
       case I_MUL: {
         vo("; I_MUL\n");
         o(
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  mul rbx\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "mul rbx\n"
+        "push rax\n"
         );
         break;
       }
       case I_DIV: {
         vo("; I_DIV\n");
         o(
-        "  xor rdx, rdx\n"
-        "  pop r8\n"
-        "  pop rax\n"
-        "  div r8\n"
-        "  push rax\n"
+        "xor rdx, rdx\n"
+        "pop r8\n"
+        "pop rax\n"
+        "div r8\n"
+        "push rax\n"
         );
         break;
       }
@@ -2572,123 +2572,123 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_DIVMOD: {
         vo("; I_DIVMOD\n");
         o(
-        "  xor rdx, rdx\n"
-        "  pop rbx\n"
-        "  pop rax\n"
-        "  div rbx\n"
-        "  push rdx\n"
+        "xor rdx, rdx\n"
+        "pop rbx\n"
+        "pop rax\n"
+        "div rbx\n"
+        "push rdx\n"
         );
         break;
       }
       case I_LT: {
         vo("; I_LT\n");
         o(
-        "  mov rcx, 0\n"
-        "  mov rdx, 1\n"
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  cmp rbx, rax\n"
-        "  cmovl rcx, rdx\n"
-        "  push rcx\n"
+        "mov rcx, 0\n"
+        "mov rdx, 1\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "cmp rbx, rax\n"
+        "cmovl rcx, rdx\n"
+        "push rcx\n"
         );
         break;
       }
       case I_GT: {
         vo("; I_GT\n");
         o(
-        "  mov rcx, 0\n"
-        "  mov rdx, 1\n"
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  cmp rbx, rax\n"
-        "  cmovg rcx, rdx\n"
-        "  push rcx\n"
+        "mov rcx, 0\n"
+        "mov rdx, 1\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "cmp rbx, rax\n"
+        "cmovg rcx, rdx\n"
+        "push rcx\n"
         );
         break;
       }
       case I_AND: {
         vo("; I_AND\n");
         o(
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  and rbx, rax\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "and rbx, rax\n"
+        "push rbx\n"
         );
         break;
       }
       case I_LOGICAL_NOT: {
         vo("; I_LOGICAL_NOT\n");
         o(
-        "  pop rax\n"
-        "  cmp rax, 0\n"
-        "  sete al\n"
-        "  movzx rax, al\n" // TODO(lucas): i might not have to zero-extend here, investigate
-        "  push rax\n"
+        "pop rax\n"
+        "cmp rax, 0\n"
+        "sete al\n"
+        "movzx rax, al\n" // TODO(lucas): i might not have to zero-extend here, investigate
+        "push rax\n"
         );
         break;
       }
       case I_OR: {
         vo("; I_OR\n");
         o(
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  or rbx, rax\n"
-        "  push rbx\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "or rbx, rax\n"
+        "push rbx\n"
         );
         break;
       }
       case I_EQ: {
         vo("; I_EQ\n");
         o(
-        "  mov rcx, 0\n"
-        "  mov rdx, 1\n"
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  cmp rbx, rax\n"
-        "  cmove rcx, rdx\n"
-        "  push rcx\n"
+        "mov rcx, 0\n"
+        "mov rdx, 1\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "cmp rbx, rax\n"
+        "cmove rcx, rdx\n"
+        "push rcx\n"
         );
         break;
       }
       case I_NEQ: {
         vo("; I_NEQ\n");
         o(
-        "  mov rcx, 0\n"
-        "  mov rdx, 1\n"
-        "  pop rax\n"
-        "  pop rbx\n"
-        "  cmp rbx, rax\n"
-        "  cmovne rcx, rdx\n"
-        "  push rcx\n"
+        "mov rcx, 0\n"
+        "mov rdx, 1\n"
+        "pop rax\n"
+        "pop rbx\n"
+        "cmp rbx, rax\n"
+        "cmovne rcx, rdx\n"
+        "push rcx\n"
         );
         break;
       }
       case I_RET: {
         vo("; I_RET\n");
         i32 argc = op->src0;
-        o("  pop rax\n");
-        o("  pop rbp\n");
+        o("pop rax\n");
+        o("pop rbp\n");
         if (argc > 0) {
-          o("  add rsp, 0x%x\n", argc * 0x8);
+          o("add rsp, 0x%x\n", argc * 0x8);
         }
-        o("  ret\n");
+        o("ret\n");
         break;
       }
       case I_NORET: {
         vo("; I_NORET\n");
         i32 argc = op->src0;
-        o("  pop rbp\n");
+        o("pop rbp\n");
         if (argc > 0) {
-          o("  add rsp, 0x%x\n", argc * 0x8);
+          o("add rsp, 0x%x\n", argc * 0x8);
         }
-        o("  ret\n");
+        o("ret\n");
         break;
       }
       case I_PRINT: {
         vo("; I_PRINT\n");
         o(
-        "  pop rdi\n"
-        "  call print\n"
+        "pop rdi\n"
+        "call print\n"
         );
         break;
       }
@@ -2699,7 +2699,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o("%s:\n", symbol->name);
         }
         else {
-          o("v%d: ; `%s`\n", op->dest, symbol->name);
+          vo("; `%s`\n", symbol->name);
+          o("v%d:\n", op->dest);
         }
         break;
       }
@@ -2708,14 +2709,13 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(op->dest >= 0);
         i32 argc = op->src0;
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  pop %s\n", func_call_regs_x86_64[arg]);
+          o("pop %s\n", func_call_regs_x86_64[arg]);
         }
-        // TODO: restore stack pointer in a more optimal way
-        o("  push rbp\n");
-        o("  call v%d\n", op->dest);
-        o("  pop rbp\n");
+        o("push rbp\n");
+        o("call v%d\n", op->dest);
+        o("pop rbp\n");
         if (op->src1 >= 0) {
-          o("  push rax\n");
+          o("push rax\n");
         }
         break;
       }
@@ -2724,41 +2724,41 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         assert(op->dest >= 0);
         i32 argc = op->src0;
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  pop %s\n", func_call_regs_x86_64[arg]);
+          o("pop %s\n", func_call_regs_x86_64[arg]);
         }
-        o("  push rbp\n");
-        o("  mov rbx, [v%d]\n", op->dest);
-        o("  call rbx\n");
-        o("  pop rbp\n");
+        o("push rbp\n");
+        o("mov rbx, [v%d]\n", op->dest);
+        o("call rbx\n");
+        o("pop rbp\n");
         if (op->src1 >= 0) {
-          o("  push rax\n");
+          o("push rax\n");
         }
         break;
       }
       case I_JMP: {
-        o("  jmp L%d\n", op->dest);
+        o("jmp L%d\n", op->dest);
         break;
       }
       case I_JZ: { // jump if zero
         vo("; I_JZ\n");
         o(
-        "  pop rax\n"
-        "  test rax, rax\n"
+        "pop rax\n"
+        "test rax, rax\n"
         );
-        o("  jz L%d\n", op->dest);
+        o("jz L%d\n", op->dest);
         break;
       }
       case I_BEGIN_FUNC: {
         o(
-        "  push rbp\n"
-        "  mov rbp, rsp\n"
+        "push rbp\n"
+        "mov rbp, rsp\n"
         );
         i32 argc = op->src0;
         if (argc > 0) {
-          o("  sub rsp, 0x%x\n", argc * 0x8);
+          o("sub rsp, 0x%x\n", argc * 0x8);
         }
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("  mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs_x86_64[arg]); // +1 because we have pushed rbp onto stack
+          o("mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs_x86_64[arg]); // +1 because we have pushed rbp onto stack
         }
         break;
       }
@@ -2769,84 +2769,84 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_SYSCALL0: {
         vo("; I_SYSCALL0\n");
         o(
-        "  pop rax\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL1: {
         vo("; I_SYSCALL1\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL2: {
         vo("; I_SYSCALL2\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  pop rsi\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "pop rsi\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL3: {
         vo("; I_SYSCALL3\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  pop rsi\n"
-        "  pop rdx\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "pop rsi\n"
+        "pop rdx\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL4: {
         vo("; I_SYSCALL4\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  pop rsi\n"
-        "  pop rdx\n"
-        "  pop r10\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "pop rsi\n"
+        "pop rdx\n"
+        "pop r10\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL5: {
         vo("; I_SYSCALL5\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  pop rsi\n"
-        "  pop rdx\n"
-        "  pop r10\n"
-        "  pop r8\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "pop rsi\n"
+        "pop rdx\n"
+        "pop r10\n"
+        "pop r8\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
       case I_SYSCALL6: {
         vo("; I_SYSCALL6\n");
         o(
-        "  pop rax\n"
-        "  pop rdi\n"
-        "  pop rsi\n"
-        "  pop rdx\n"
-        "  pop r10\n"
-        "  pop r8\n"
-        "  pop r9\n"
-        "  syscall\n"
-        "  push rax\n"
+        "pop rax\n"
+        "pop rdi\n"
+        "pop rsi\n"
+        "pop rdx\n"
+        "pop r10\n"
+        "pop r8\n"
+        "pop r9\n"
+        "syscall\n"
+        "push rax\n"
         );
         break;
       }
@@ -2860,17 +2860,17 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 
   o("\n");
   o("%s:\n", ENTRY);
-  o("  call main\n");
+  o("call main\n");
 #if __APPLE__
   // macos uses different system call codes, they can be found here: https://sigsegv.pl/osx-bsd-syscalls/
-  o("  mov rax, 1 ; exit syscall\n");
-  o("  mov rdi, 0\n");
-  o("  syscall\n");
-  o("  ret\n");
+  o("mov rax, 1 ; exit syscall\n");
+  o("mov rdi, 0\n");
+  o("syscall\n");
+  o("ret\n");
 #else
-  o("  mov rax, 60 ; exit syscall\n");
-  o("  mov rdi, 0\n");
-  o("  syscall\n");
+  o("mov rax, 60 ; exit syscall\n");
+  o("mov rdi, 0\n");
+  o("syscall\n");
 #endif
   o("section .data\n");
   // TODO(lucas): make strings constants
@@ -2941,7 +2941,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
     }
   }
-
   o("memory: resb %d\n", MEMORY_CAPACITY);
   return c->status;
 #undef o
