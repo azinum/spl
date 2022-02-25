@@ -471,13 +471,11 @@ typedef enum Compile_target {
   MAX_COMPILE_TARGET,
 } Compile_target;
 
-typedef enum Target_machine {
-  MACHINE_LINUX,
-  MACHINE_MACOS,
-  MACHINE_WIN64,
-
-  MAX_TARGET_MACHINE,
-} Target_machine;
+// NOTE(lucas): annoying workaround to be able for macro if-statements to properly work (e.g. #if MACHINE == MACHINE_WIN64)
+#define MACHINE_LINUX      0
+#define MACHINE_MAXOS      1
+#define MACHINE_WIN64      2
+#define MAX_TARGET_MACHINE 3
 
 static const char* compile_target_str[MAX_COMPILE_TARGET] = {
   "compile_linux_nasm_x86_64",
@@ -1602,7 +1600,9 @@ void ir_print(Compile* c, FILE* fp) {
 // ins count     | 4              | u32
 // imm data      | imm size       | *
 // data+bss      | data+cstr size | *
-// ins           | 4 * ins count  | Op
+// ins           | 4*ins count    | Op*
+// id map size   | 4              | u32
+// id map        | 4*id map size  | i32*
 //
 // data layout (one element):
 // { type : Compile_type, size : u32, [list of data elements] }
@@ -1618,6 +1618,9 @@ void ir_binary_output(Compile* c, FILE* fp) {
 
   u32 imm_size = c->imm_index;
   o(&imm_size, sizeof(imm_size), 1);
+
+  i32 id_map[MAX_SYMBOL] = {0};
+  u32 id_map_size = 0;
 
   u32 data_size = 0;
   u32 cstr_size = 0;
