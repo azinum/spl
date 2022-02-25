@@ -467,37 +467,49 @@ typedef struct Op {
 
 typedef enum Compile_target {
   TARGET_LINUX_NASM_X86_64,
+  TARGET_WIN_NASM_X86_64,
   MAX_COMPILE_TARGET,
 } Compile_target;
 
 typedef enum Target_machine {
   MACHINE_LINUX,
   MACHINE_MACOS,
+  MACHINE_WIN64,
 
   MAX_TARGET_MACHINE,
 } Target_machine;
 
 static const char* compile_target_str[MAX_COMPILE_TARGET] = {
-  "compile_linux_nasm_x86_64"
+  "compile_linux_nasm_x86_64",
+  "compile_win_nasm_x86_64",
 };
 
 static const char* compile_target_compile_str[MAX_COMPILE_TARGET] = {
+  "nasm",
   "nasm",
 };
 
 static const char* compile_target_link_str[MAX_COMPILE_TARGET] = {
   "ld",
+  "ld",
 };
 
 // 2 * MAX_COMPILE_TARGET for compile and link options
+// TODO(lucas): reimplement for multiple targets and machines
 static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE_TARGET] = {
   {
     "-f elf64",
-    "-arch x86_64"
+    "-arch x86_64",
   },
   {
     "-f macho64",
-    "-arch x86_64 -e _start -no_pie -lc -lSystem"
+    "-arch x86_64 -e _start -no_pie -lc -lSystem",
+  },
+  {
+    NULL,
+    NULL,
+    "-f elf64",
+    "-arch x86_64",
   },
 };
 
@@ -505,6 +517,8 @@ static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE
   #define MACHINE MACHINE_MACOS
 #elif __LINUX__ || __unix__
   #define MACHINE MACHINE_LINUX
+#elif _WIN64
+  #define MACHINE MACHINE_WIN64
 #else
   // #warning "the compiler does not support this machine, defaulting to linux"
   // TODO(lucas): give warning to user which is portable
@@ -631,11 +645,13 @@ static i32 ir_compile_func(Compile* c, Block* block, Ast* ast, u32* ins_count);
 
 static i32 compile(Compile* c, Compile_target target, FILE* fp);
 static i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp);
+static i32 compile_win_nasm_x86_64(Compile* c, FILE* fp);
 
 typedef i32 (*compile_target)(Compile*, FILE*);
 
 static compile_target compile_targets[MAX_COMPILE_TARGET] = {
   compile_linux_nasm_x86_64,
+  compile_win_nasm_x86_64,
 };
 
 static i32 parser_init(Parser* p, char* filename, char* source);
@@ -748,8 +764,12 @@ i32 spl_start(Options* options) {
             char path[MAX_PATH_SIZE] = {0};
             snprintf(path, MAX_PATH_SIZE, "%s.asm", options->filename);
             FILE* fp = fopen(path, "w");
+            Compile_target target = TARGET_LINUX_NASM_X86_64;
+#if MACHINE == MACHINE_WIN64
+            target = TARGET_WIN_NASM_X86_64;
+#endif
             if (fp) {
-              compile(&c, TARGET_LINUX_NASM_X86_64, fp);
+              compile(&c, target, fp);
               fclose(fp);
             }
             REAL_TIMER_END(
@@ -781,7 +801,6 @@ i32 spl_start(Options* options) {
               char o_path[MAX_PATH_SIZE] = {0};
               snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(options->filename), options->filename);
               snprintf(o_path, MAX_PATH_SIZE, "%s.o", exec_path);
-              Compile_target target = TARGET_LINUX_NASM_X86_64;
               const char** target_options = target_machine_option_str[MACHINE];
               if (exec_command(
                 "%s %s %s -o %s && "
@@ -2924,6 +2943,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   return c->status;
 #undef o
 #undef vo
+}
+
+i32 compile_win_nasm_x86_64(Compile* c, FILE* fp) {
+  assert("compile_win_nasm_x86_64 not implemented yet" && 0);
+  return c->status;
 }
 
 i32 parser_init(Parser* p, char* filename, char* source) {

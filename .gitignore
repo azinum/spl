@@ -11,3 +11,4 @@ examples/*spl.asm
 *.spl.asm
 *.spl.debug
 *.spl.ir
+*.exe
