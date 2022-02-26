@@ -829,11 +829,11 @@ i32 spl_start(Options* options) {
           result = Error;
         }
       }
+      compile_state_free(&c);
     }
     else {
       result = Error;
     }
-    compile_state_free(&c);
     parser_free(&p);
   }
   return result;
