@@ -171,6 +171,9 @@ typedef struct Vm {
   Op* ins;
   u32 ins_count;
 
+  u32* id_map;
+  u32 id_map_size;
+
   u32 entry_point_address;
   u32 func_count;
   u32 pc;
@@ -244,6 +247,9 @@ i32 vm_init(Vm* vm) {
   vm->ins = NULL;
   vm->ins_count = 0;
 
+  vm->id_map = NULL;
+  vm->id_map_size = 0;
+
   vm->entry_point_address = 0;
   vm->func_count = 0;
   vm->pc = 0;
@@ -288,7 +294,13 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   it += vm->data_size;
 
   vm->ins = (Op*)&it[0];
-  it += vm->ins_count;
+  it += vm->ins_count * sizeof(Op);
+
+  r(&vm->id_map_size, sizeof(vm->id_map_size));
+  if (vm->id_map_size > 0) {
+    vm->id_map = (u32*)&it[0];
+    it += vm->id_map_size;
+  }
 
   if (it > end) {
     fprintf(stderr, "error: corrupt ir file\n");

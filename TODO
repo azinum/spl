@@ -1,6 +1,7 @@
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
 - remove the ability to define inlined functions (causes undefined behaviour, crashes)
+- throw error when trying to assign a runtime value to a const value
 
 - before i begin work on the self hosted compiler i would like to:
 	- add user structs/types
