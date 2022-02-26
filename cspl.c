@@ -148,6 +148,7 @@ typedef enum Token_type {
   T_LOAD32,
   T_LOAD16,
   T_LOAD8,
+  T_SIZEOF,
 
   T_ANY,
   T_UNSIGNED64,
@@ -204,6 +205,7 @@ static const char* token_type_str[] = {
   "T_LOAD32",
   "T_LOAD16",
   "T_LOAD8",
+  "T_SIZEOF",
 
   "T_ANY",
   "T_UNSIGNED64",
@@ -259,6 +261,7 @@ typedef enum Ast_type {
   AstWhileStatement,
   AstIfStatement,
   AstType,
+  AstSizeof,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -284,6 +287,7 @@ static const char* ast_type_str[] = {
   "AstWhileStatement",
   "AstIfStatement",
   "AstType",
+  "AstSizeof",
 };
 
 typedef struct Ast {
@@ -1518,6 +1522,41 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_pop(c);
       return ts_pop(c);
     }
+    case AstSizeof: {
+      Token* t = &ast->token;
+      u64 size = 0;
+      switch (t->type) {
+        case T_IDENTIFIER: {
+          Symbol* symbol = NULL;
+          i32 symbol_index = -1;
+          if (compile_lookup_value(c, block, fs, *t, &symbol, &symbol_index, NULL) == NoError) {
+            size = symbol->size;
+          }
+          else {
+            typecheck_error_at(c, *t, "symbol `%.*s` not defined\n", t->length, t->buffer);
+            return TypeNone;
+          }
+          break;
+        }
+        case T_UNSIGNED64:
+        case T_NUMBER: {
+          size = sizeof(u64);
+          break;
+        }
+        case T_CSTRING:
+        case T_ANY: {
+          size = sizeof(void*);
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+      Value v = { .num = size, };
+      vs_push(c, v);
+      t->v.num = size;
+      return ts_push(c, TypeUnsigned64);
+    }
     default: {
       assert(0);
       break;
@@ -2192,6 +2231,18 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       }
       if (ins_count) {
         *ins_count += cond_size + body_size + else_body_size;
+      }
+      break;
+    }
+    case AstSizeof: {
+      i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
+      if (imm >= 0) {
+        ir_push_ins(c, (Op) {
+          .i = I_PUSH_LOCAL,
+          .dest = TypeUnsigned64,
+          .src0 = -1,
+          .src1 = imm,
+        }, ins_count);
       }
       break;
     }
@@ -3327,6 +3378,29 @@ Ast* parse_expr(Parser* p) {
       parser_error(p, "invalid syntax in unary operator expression\n");
       return NULL;
     }
+    case T_SIZEOF: {
+      u8 ok = 0;
+      t = lexer_next(&p->l); // skip `sizeof`
+      switch (t.type) {
+        case T_IDENTIFIER:
+        case T_NUMBER:
+        case T_CSTRING:
+        case T_UNSIGNED64:
+        case T_ANY:
+          ok = 1;
+          break;
+        default:
+          break;
+      }
+      if (!ok) {
+        parser_error(p, "expected identifier, number, string, or type in sizeof operator, but got `%.*s`\n", t.length, t.buffer);
+        return NULL;
+      }
+      Ast* node = ast_create(AstSizeof);
+      node->token = t;
+      lexer_next(&p->l);
+      return node;
+    }
     case T_LEFT_P: {
       lexer_next(&p->l);
       Ast* expr = parse_expr(p);
@@ -3665,6 +3739,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "rshift")) {
     l->token.type = T_RSHIFT;
+  }
+  else if (compare(l->token, "sizeof")) {
+    l->token.type = T_SIZEOF;
   }
   else if (compare(l->token, "any")) {
     l->token.type = T_ANY;
