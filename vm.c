@@ -271,7 +271,7 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   u8 magic[4] = {0};
   r(magic, ARR_SIZE(magic));
   if (strncmp((void*)magic, (void*)ir_magic, ARR_SIZE(ir_magic)) != 0) {
-    fprintf(stderr, "error: bad ir magic `%.*s`, should be `%.*s`\n", (i32)ARR_SIZE(ir_magic), magic, (i32)ARR_SIZE(ir_magic), ir_magic);
+    fprintf(stderr, "error: bad ir magic `%.*s`, should be `%.*s`\n", (u32)ARR_SIZE(ir_magic), magic, (u32)ARR_SIZE(ir_magic), ir_magic);
     return Error;
   }
 
@@ -299,7 +299,7 @@ i32 vm_load_ir(Vm* vm, Buffer* b) {
   r(&vm->id_map_size, sizeof(vm->id_map_size));
   if (vm->id_map_size > 0) {
     vm->id_map = (u32*)&it[0];
-    it += vm->id_map_size;
+    it += vm->id_map_size * sizeof(u32);
   }
 
   if (it > end) {

@@ -342,7 +342,7 @@ typedef enum Ir_code {
   I_NORET, // <x, argc, x>
   I_PRINT,
   I_LABEL,
-  I_CALL, // <label, argc, rtype>
+  I_CALL, // <label:address, argc, rtype>
   I_ADDR_CALL, // <rax, argc, rtype>
   I_JMP,
   I_JZ, // <label, offset, x>
@@ -1648,9 +1648,20 @@ void ir_print(Compile* c, FILE* fp) {
 //
 // bss data layout (one element):
 // { type : Compile_type, size : u32, pre-allocated memory based on the size }
-// TODO(lucas): add some sort of id to address mapping in the ir binary
 void ir_binary_output(Compile* c, FILE* fp) {
-#define o(...) fwrite(__VA_ARGS__, fp)
+  u32 write_index = 0;
+#define o(_ptr, _size, _count) fwrite(_ptr, _size, _count, fp); write_index += (_size * _count)
+
+  struct {
+    u32 data;
+    u32 cstring;
+    u32 ins;
+  } addr = {
+    .data = 0,
+    .cstring = 0,
+    .ins = 0,
+  };
+
   // write spl ir magic constant
   const u8 IR_MAGIC[] = {'S', 'P', 'L', '0'};
   o(&IR_MAGIC, ARR_SIZE(IR_MAGIC), 1);
@@ -1658,7 +1669,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
   u32 imm_size = c->imm_index;
   o(&imm_size, sizeof(imm_size), 1);
 
-  u32 id_map[MAX_SYMBOL] = {0};
+  u32 id_map[MAX_CSTRING + MAX_SYMBOL] = {0};
   u32 id_map_size = 0;
 
   u32 data_size = 0;
@@ -1690,6 +1701,7 @@ void ir_binary_output(Compile* c, FILE* fp) {
   // write immediate data
   o(&c->imm[0], imm_size, 1);
 
+  addr.cstring = write_index;
   // write cstring data
   for (u32 i = 0; i < c->cstring_count; ++i) {
     u8* buffer = &c->imm[c->cstrings[i]];
@@ -1700,6 +1712,8 @@ void ir_binary_output(Compile* c, FILE* fp) {
     u8 null = 0;
     o(&null, sizeof(null), 1);
   }
+
+  addr.data = write_index;
   // write data section
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
@@ -1737,10 +1751,34 @@ void ir_binary_output(Compile* c, FILE* fp) {
     }
   }
 
+  addr.ins = write_index;
   // write ir op codes (instructions)
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
     o(op, sizeof(Op), 1);
+  }
+
+  // absolute addresses within the ir layout
+  for (u32 i = 0; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    u32 address = 0;
+    switch (s->type) {
+      case TypeFunc: {
+        Function* func = &s->value.func;
+        address = addr.ins + func->ir_address;
+        break;
+      }
+      case TypeCString: {
+        // skip for now
+        break;
+      }
+      default: {
+        address = i;
+        break;
+      }
+    }
+    id_map[id_map_size] = address;
+    ++id_map_size;
   }
   o(&id_map_size, sizeof(id_map_size), 1);
   o(&id_map[0], id_map_size * sizeof(id_map[0]), 1);
