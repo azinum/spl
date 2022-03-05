@@ -149,9 +149,10 @@ typedef enum Token_type {
   T_LOAD8,
   T_SIZEOF,
 
+  T_NONE,
   T_ANY,
   T_UNSIGNED64,
-  T_NONE,
+  T_CSTR,
 
   MAX_TOKEN_TYPE,
 } Token_type;
@@ -206,9 +207,10 @@ static const char* token_type_str[] = {
   "T_LOAD8",
   "T_SIZEOF",
 
+  "T_NONE",
   "T_ANY",
   "T_UNSIGNED64",
-  "T_NONE",
+  "T_CSTR",
 };
 
 typedef union Tvalue {
@@ -1145,7 +1147,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
         case T_CSTRING: {
           vs_push(c, (Value) { .num = 0, });
-          return ts_push(c, TypeUnsigned64); // ts_push(c, TypeCString);
+          return ts_push(c, TypeCString);
         }
         case T_POP: {
           vs_pop(c, NULL);
@@ -1195,7 +1197,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
-      if ((a == TypeUnsigned64 && b == TypeUnsigned64) || (a == TypeAny || b == TypeAny)) {
+      if ((a == TypeUnsigned64 || a == TypeAny || a == TypeCString) && (b == TypeUnsigned64 || b == TypeAny || b == TypeCString)) {
         Value va;
         Value vb;
         vs_pop(c, &vb);
@@ -1440,7 +1442,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           else {
             Symbol* arg = &c->symbols[func->args[i]];
             if (arg->type != arg_type && arg->type != TypeAny) {
-              typecheck_error_at(c, arg->token, "type mismatch in function call\n");
+              typecheck_error_at(c, ast->token, "type mismatch in function call\n");
+              c->status = NoError; // to print additional error location message
+              typecheck_error_at(c, arg->token, "from function `%s`\n", symbol->name);
               return TypeNone;
             }
           }
@@ -1912,9 +1916,12 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           }
           else if (symbol->sym_type == SYM_LOCAL_VAR) {
             if (symbol->type == TypeCString) {
-              // for now c strings are handled using pointers (64-bit unsigned integers)
-              // therefore we do nothing here
-              assert(0); // just in case
+              ir_push_ins(c, (Op) {
+                .i = I_PUSH_LOCAL,
+                .dest = TypeAny,
+                .src0 = id,
+                .src1 = -1,
+              }, ins_count);
             }
             else {
               ir_push_ins(c, (Op) {
@@ -2535,7 +2542,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_PUSH_ADDR_OF: {
         vo("; I_PUSH_ADDR_OF\n");
         switch (op->dest) {
-          case TypeAny: // TODO(lucas): temp
+          case TypeAny:
+          case TypeCString:
           case TypeUnsigned64: {
             o("lea rax, [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             o("push rax\n");
@@ -2557,6 +2565,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_PUSH\n");
         switch (op->dest) {
           case TypeAny: // TODO(lucas): temp
+          case TypeCString:
           case TypeUnsigned64: {
             o("push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
             break;
@@ -3578,7 +3587,7 @@ Ast* parse_param_list(Parser* p) {
       }
     }
     else {
-      if (t.type == T_ANY || t.type == T_UNSIGNED64) {
+      if (t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
         Token ident = lexer_next(&p->l);
         if (ident.type != T_IDENTIFIER) {
           parser_error(p, "expected identifier after argument type, but got `%.*s`\n", ident.length, ident.buffer);
@@ -3606,7 +3615,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_NONE) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
     Ast* type = ast_create(AstType);
     type->token = t;
     return type;
@@ -3797,6 +3806,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "u64")) {
     l->token.type = T_UNSIGNED64;
+  }
+  else if (compare(l->token, "cstr")) {
+    l->token.type = T_CSTR;
   }
   else {
     l->token.type = T_IDENTIFIER;
@@ -4032,6 +4044,9 @@ Compile_type token_to_compile_type(Token t) {
       return TypeAny;
     case T_UNSIGNED64:
       return TypeUnsigned64;
+    case T_CSTRING:
+    case T_CSTR:
+      return TypeCString;
     default:
       return TypeNone;
   }

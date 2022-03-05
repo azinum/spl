@@ -2,7 +2,8 @@
 - fix parsing bug where single `}` are not detected
 - remove the ability to define inlined functions (causes undefined behaviour, crashes)
 - throw error when trying to assign a runtime value to a const value
+- dead code elimination
 
 - before i begin work on the self hosted compiler i would like to:
-	- add user structs/types
+	- add user structs/types or some other method of creating structures e.g. expression matching or similar
 	- type casting

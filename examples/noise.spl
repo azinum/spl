@@ -1,11 +1,8 @@
 // noise.spl
 
-let lc_cur_seed 0;
+include "lib/common.spl"
 
-fn time {
-  let SYS_time 201;
-  syscall1(SYS_time, 0);
-}
+let lc_cur_seed 0;
 
 fn lc_random_init(seed) {
   = @lc_cur_seed seed;
@@ -16,62 +13,10 @@ fn lc_random {
   lc_cur_seed;
 }
 
-fn digit_count(n) {
-  let count 0;
-  let base 10;
-  let i 1;
-  while < i n {
-    = @i * i base;
-    = @count +1 count;
-  }
-  count;
-}
-
-fn u64_to_str(n, str, max_size) {
-  let count digit_count(n);
-  let i 0;
-  let base 10;
-
-  = @str + str - count 1;
-
-  while and (< i count) (< i max_size) {
-    let index % n base;
-    store8 str load8 + index "0123456789abcdef";
-    = @n / n base;
-    = @str - str 1;
-    = @i + 1 i;
-  }
-}
-
-fn puts(fd, str) {
-  while neq 0 load8 str {
-    let ch load8 str;
-    let _ syscall3(1, fd, @ch, 1);
-    = @str +1 str;
-  }
-}
-
-fn putc(fd, ch) {
-  let _ syscall3(1, fd, @ch, 1);
-}
-
-fn putu(fd, n) {
-  let MAX_BUFF_SIZE 512;
-  memory buff MAX_BUFF_SIZE;
-  u64_to_str(n, @buff, MAX_BUFF_SIZE);
-  puts(fd, @buff);
-}
-
-fn open(path, flags, mode) syscall3(2, path, flags, mode);
-fn close(fd) { let _ syscall1(3, fd); }
 
 fn main {
   lc_random_init(time()); 
 
-  let ERROR - 0 2;
-  let O_WRONLY 1;
-  let O_CREAT 64;
-  let O_TRUNC 512;
   let mode 434; // 0662
   let path "noise.ppm";
   let fd open(path, or or O_CREAT O_TRUNC O_WRONLY, mode);

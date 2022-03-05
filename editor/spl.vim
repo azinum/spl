@@ -11,7 +11,7 @@ syntax keyword Todos TODO NOTE FIXME
 syntax keyword Keywords include print const let fn memory if else while and or not eq neq lshift rshift sizeof
 
 " Types
-syntax keyword Types none any u64
+syntax keyword Types none any u64 cstr
 
 " Comments
 syntax region CommentLine start="//" end="$"   contains=Todos
