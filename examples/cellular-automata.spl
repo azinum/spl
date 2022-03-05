@@ -100,7 +100,7 @@ fn main {
   let cur_seed time();
 
   // initialize timer
-  memory timespec * 2 u64.size;
+  memory timespec * 2 sizeof u64;
   let ts @timespec;
   = ts 0;
   = + u64.size ts 500000000;

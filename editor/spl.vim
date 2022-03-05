@@ -8,10 +8,10 @@ endif
 syntax keyword Todos TODO NOTE FIXME
 
 " Language keywords
-syntax keyword Keywords include print const let fn memory if else while and or not eq neq lshift rshift sizeof any u64
+syntax keyword Keywords include print const let fn memory if else while and or not eq neq lshift rshift sizeof
 
 " Types
-syntax keyword Types None
+syntax keyword Types none any u64
 
 " Comments
 syntax region CommentLine start="//" end="$"   contains=Todos

@@ -100,7 +100,6 @@ typedef uint8_t u8;
 #define NoError (0)
 
 typedef enum Token_type {
-  T_NONE = 0,
   T_EOF,
 
   T_IDENTIFIER,
@@ -152,12 +151,12 @@ typedef enum Token_type {
 
   T_ANY,
   T_UNSIGNED64,
+  T_NONE,
 
   MAX_TOKEN_TYPE,
 } Token_type;
 
 static const char* token_type_str[] = {
-  "T_NONE",
   "T_EOF",
 
   "T_IDENTIFIER",
@@ -209,6 +208,7 @@ static const char* token_type_str[] = {
 
   "T_ANY",
   "T_UNSIGNED64",
+  "T_NONE",
 };
 
 typedef union Tvalue {
@@ -3594,6 +3594,10 @@ Ast* parse_param_list(Parser* p) {
           continue;
         }
       }
+      else if (t.type == T_NONE) {
+        parser_error(p, "unexpected type `none` in parameter list\n");
+        return param_list;
+      }
     }
     break;
   }
@@ -3602,7 +3606,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_ANY || t.type == T_UNSIGNED64) {
+  if (t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_NONE) {
     Ast* type = ast_create(AstType);
     type->token = t;
     return type;
@@ -3784,6 +3788,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "sizeof")) {
     l->token.type = T_SIZEOF;
+  }
+  else if (compare(l->token, "none")) {
+    l->token.type = T_NONE;
   }
   else if (compare(l->token, "any")) {
     l->token.type = T_ANY;

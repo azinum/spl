@@ -4,5 +4,7 @@ include "lib/common.spl"
 
 fn add(u64 a, u64 b) -> u64 + a b;
 
-fn main {
+fn f(none n) 0;
+
+fn main -> none {
 }
