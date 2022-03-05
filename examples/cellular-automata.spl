@@ -2,8 +2,7 @@
 
 include "lib/common.spl"
 
-fn nanosleep(ts) {
-  let SYS_nanosleep 35;
+fn nanosleep(any ts) {
   let _ syscall2(SYS_nanosleep, ts, 0);
 }
 
@@ -12,7 +11,7 @@ fn lc_random(any cur_seed) {
   #cur_seed;
 }
 
-fn ca_init(codep, map, map.w, map.h) {
+fn ca_init(any codep, any map, u64 map.w, u64 map.h) {
   // fancy initialization of clear code: \x1b[2J\x1b[H
   store8 codep 27; = @codep +1 codep;
   store8 codep 91; = @codep +1 codep;
@@ -41,7 +40,7 @@ fn ca_init(codep, map, map.w, map.h) {
   }
 }
 
-fn ca_draw_map(map, map.w, map.h) {
+fn ca_draw_map(any map, u64 map.w, u64 map.h) {
   let y 0;
   let linebreak 10;
   while < y map.h {
@@ -52,7 +51,7 @@ fn ca_draw_map(map, map.w, map.h) {
   }
 }
 
-fn ca_get_entity_state(map, map.w, map.h, x, y) {
+fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) {
   let state 0;
 
   if > (x) (- map.w 1) {
@@ -77,7 +76,7 @@ fn ca_get_entity_state(map, map.w, map.h, x, y) {
   eq entity 'x';
 }
 
-fn clear(codep, code.size) {
+fn clear(any codep, u64 code.size) {
   write(1, codep, code.size);
 }
 
