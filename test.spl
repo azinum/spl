@@ -8,5 +8,6 @@ fn f(cstr s) {
 
 fn main -> none {
   let s "Hello, World";
+  print sizeof cstr;
   f(s);
 }

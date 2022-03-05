@@ -1548,6 +1548,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           break;
         }
         case T_CSTRING:
+        case T_CSTR:
         case T_ANY: {
           size = sizeof(void*);
           break;
@@ -3436,6 +3437,7 @@ Ast* parse_expr(Parser* p) {
         case T_NUMBER:
         case T_CSTRING:
         case T_UNSIGNED64:
+        case T_CSTR:
         case T_ANY: {
           ok = 1;
           break;
