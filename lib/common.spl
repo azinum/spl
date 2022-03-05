@@ -23,8 +23,8 @@ fn memset8(any ptr, u64 c, u64 n) {
   let count 0;
   while < count n {
     store64 ptr c;
-    = @ptr   + u64.size ptr;
-    = @count + u64.size count;
+    = @ptr   + sizeof u64 ptr;
+    = @count + sizeof u64 count;
   }
 }
 

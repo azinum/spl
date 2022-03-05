@@ -3759,38 +3759,6 @@ Token lexer_read_symbol(Lexer* l) {
   else if (compare(l->token, "neq")) {
     l->token.type = T_NEQ;
   }
-  else if (compare(l->token, "u64.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(u64);
-  }
-  else if (compare(l->token, "i64.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(i64);
-  }
-  else if (compare(l->token, "u32.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(u32);
-  }
-  else if (compare(l->token, "i32.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(i32);
-  }
-  else if (compare(l->token, "u16.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(u16);
-  }
-  else if (compare(l->token, "i16.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(i16);
-  }
-  else if (compare(l->token, "u8.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(u8);
-  }
-  else if (compare(l->token, "i8.size")) {
-    l->token.type = T_NUMBER;
-    l->token.v.num = sizeof(i8);
-  }
   else if (compare(l->token, "lshift")) {
     l->token.type = T_LSHIFT;
   }
