@@ -1,61 +1,13 @@
 // cellular-automata.spl
 
-fn write(fd, buf, count) { let _ syscall3(1, fd, buf, count); }
-
-fn puts(str) {
-  while neq 0 load8 str {
-    let ch load8 str;
-    let _ syscall3(1, 1, @ch, 1);
-    = @str +1 str;
-  }
-}
-
-fn strlen(str) {
-  let length 0;
-  while < 0 load8 str {
-    = @length +1 length;
-    = @str +1 str;
-  }
-  length;
-}
-
-fn memset(ptr, c, n) {
-  let count 0;
-  while < count n {
-    store8 ptr c; = @ptr +1 ptr;
-    = @count +1 count;
-  }
-}
-
-fn memcpy(dest, src, n) {
-  let count 0;
-  while < count n {
-    store8 dest load8 src;
-    = @dest +1 dest;
-    = @src  +1 src;
-    = @count +1 count;
-  }
-}
-
-fn memset8(ptr, c, n) {
-  let count 0;
-  while < count n {
-    store64 ptr c; = @ptr +u64.size ptr;
-    = @count +u64.size count;
-  }
-}
-
-fn time {
-  let SYS_time 201;
-  syscall1(SYS_time, 0);
-}
+include "lib/common.spl"
 
 fn nanosleep(ts) {
   let SYS_nanosleep 35;
   let _ syscall2(SYS_nanosleep, ts, 0);
 }
 
-fn lc_random(cur_seed) {
+fn lc_random(any cur_seed) {
   = cur_seed % + (* (#cur_seed) 16807) 13 2147483647;
   #cur_seed;
 }

@@ -326,18 +326,14 @@ const O_WRONLY 1;
 const O_CREAT 64;
 const O_TRUNC 512;
 
-fn puts(u64 fd, any str) {
-  while neq 0 load8 str {
-    let ch load8 str;
-    let _ syscall3(SYS_write, fd, @ch, 1);
-    = @str +1 str;
-  }
-}
-
 fn read(u64 fd, any buf, u64 count)    syscall3(SYS_read, fd, buf, count);
 fn open(any path, u64 flags, u64 mode) syscall3(SYS_open, path, flags, mode);
 fn close(u64 fd) { let _ syscall1(SYS_close, fd); }
 fn write(u64 fd, any buf, u64 count) { let _ syscall3(SYS_write, fd, buf, count); }
+
+fn time {
+  syscall1(SYS_time, 0);
+}
 
 fn read_file_into_buffer(u64 fd, any buf) {
   let n 0;
@@ -348,13 +344,21 @@ fn read_file_into_buffer(u64 fd, any buf) {
   n;
 }
 
-fn test {
-  const TMP_SIZE * 16 1024;
-  memory tmp TMP_SIZE;
-  let fd open("test.spl", 0, O_RDONLY);
-  if neq fd ERROR {
-    let n read_file_into_buffer(fd, @tmp);
-    puts(STDOUT_FILENO, @tmp);
-    close(fd);
+fn putc(u64 fd, u64 ch) {
+  let _ syscall3(1, fd, @ch, 1);
+}
+
+fn puts(u64 fd, any str) {
+  while neq 0 load8 str {
+    let ch load8 str;
+    let _ syscall3(SYS_write, fd, @ch, 1);
+    = @str +1 str;
   }
+}
+
+fn putu(u64 fd, u64 n) {
+  let MAX_BUFF_SIZE 512;
+  memory buff MAX_BUFF_SIZE;
+  u64_to_str(n, @buff, MAX_BUFF_SIZE);
+  puts(fd, @buff);
 }

@@ -30,15 +30,15 @@ typedef uint8_t u8;
 #define GB(n) (MB(n * 1024))
 
 #define REAL_TIMER_START(...) \
-	struct timeval _end = {0}; \
-	struct timeval _start = {0}; \
-	gettimeofday(&_start, NULL); \
-	__VA_ARGS__
+  struct timeval _end = {0}; \
+  struct timeval _start = {0}; \
+  gettimeofday(&_start, NULL); \
+  __VA_ARGS__
 
 #define REAL_TIMER_END(...) { \
-	gettimeofday(&_end, NULL); \
-	f64 _dt = ((((_end.tv_sec - _start.tv_sec) * 1000000.0f) + _end.tv_usec) - (_start.tv_usec)) / 1000000.0f; \
-	__VA_ARGS__ \
+  gettimeofday(&_end, NULL); \
+  f64 _dt = ((((_end.tv_sec - _start.tv_sec) * 1000000.0f) + _end.tv_usec) - (_start.tv_usec)) / 1000000.0f; \
+  __VA_ARGS__ \
 }
 
 #define list_push(list, count, value) do { \
@@ -2572,6 +2572,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_PUSH_LOCAL\n");
         if (op->src0 >= 0) {
           switch (op->dest) {
+            case TypeAny:
             case TypeUnsigned64: {
               o("mov rax, [v%d]\n", op->src0);
               o("push rax\n");
@@ -3426,9 +3427,10 @@ Ast* parse_expr(Parser* p) {
         case T_NUMBER:
         case T_CSTRING:
         case T_UNSIGNED64:
-        case T_ANY:
+        case T_ANY: {
           ok = 1;
           break;
+        }
         default:
           break;
       }

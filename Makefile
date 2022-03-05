@@ -19,4 +19,8 @@ ${SPL_SRC}:
 
 examples: ${SPL_EXAMPLES}
 
+install:
+	chmod o+x ${PROG}
+	cp ${PROG} ${INSTALL_DIR}/${PROG}
+
 .PHONY: test ${SRC} examples/*
