@@ -5,7 +5,7 @@ fn strlen(cstr str) {
   let length 0;
   while < 0 load8 str {
     = @length +1 length;
-    = @str +1 str;
+    = @str    +1 str;
   }
   length;
 }
@@ -32,8 +32,8 @@ fn memcpy(any dest, any src, u64 n) {
   let count 0;
   while < count n {
     store8 dest load8 src;
-    = @dest +1 dest;
-    = @src  +1 src;
+    = @dest  +1 dest;
+    = @src   +1 src;
     = @count +1 count;
   }
 }
@@ -64,9 +64,9 @@ fn u64_to_str(u64 n, any str, u64 max_size) {
   while and (< i count) (< i max_size) {
     let index % n base;
     store8 str load8 + index "0123456789abcdef";
-    = @n / n base;
+    = @n   / n base;
     = @str - str 1;
-    = @i + 1 i;
+    = @i   + 1 i;
   }
 }
 
