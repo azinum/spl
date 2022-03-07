@@ -63,6 +63,26 @@ const MAX_TOKEN_TYPE 53;
 
 let token_type_str "";
 
+let token.buffer 0;
+let token.length 0;
+let token.type 0;
+let token.value 0;
+let token.filename "";
+let token.source "";
+let token.line 0;
+let token.column 0;
+let Token.size +++++++
+  sizeof token.buffer
+  sizeof token.length
+  sizeof token.type
+  sizeof token.value
+  sizeof token.filename
+  sizeof token.source
+  sizeof token.line
+  sizeof token.column;
+
+memory token Token.size;
+
 // struct Lexer {
 let l.filename "";
 let l.source "";
@@ -72,8 +92,47 @@ let l.column 0;
 let l.status 0;
 // };
 
-fn token_str(u64 token_type) -> cstr {
-  #(+ token_type_str * sizeof any token_type);
+fn token_init(any token, any buffer, u64 length, u64 type, any filename, any source) -> none {
+  = token buffer;   = @token + sizeof token.buffer token;
+  = token length;   = @token + sizeof token.length token;
+  = token type;     = @token + sizeof token.type token;
+  = token 0;        = @token + sizeof token.value token;
+  = token filename; = @token + sizeof token.filename token;
+  = token source;   = @token + sizeof token.source token;
+  = token 1;        = @token + sizeof token.line token;
+  = token 1;        = @token + sizeof token.column token;
+}
+
+fn token_print(any token) -> none {
+  let tmp tmp_it;
+  let p tmp_push_cstr;
+  // oh boy, i really REALLY need proper structs
+  let buffer #token;   = @token + sizeof token.buffer token;
+  let length #token;   = @token + sizeof token.length token;
+  let type #token;     = @token + sizeof token.type token;
+  let value #token;    = @token + sizeof token.value token;
+  let filename #token; = @token + sizeof token.filename token;
+  let source #token;   = @token + sizeof token.source token;
+  let line #token;     = @token + sizeof token.line token;
+  let column #token;   = @token + sizeof token.column token;
+
+  if eq filename 0 = @filename "none";
+
+  p("buffer   = "); tmp_push_str(buffer, length);
+  p("\n");
+  p("length   = "); tmp_push_u64(length);
+  p("\n");
+  p("type     = "); tmp_push_u64(type);
+  p("\n");
+  p("filename = "); p(filename);
+  p("\n");
+  p("line     = "); tmp_push_u64(line);
+  p("\n");
+  p("column   = "); tmp_push_u64(column);
+  p("\n");
+
+  puts(1, tmp);
+  = @tmp_it tmp;
 }
 
 fn lexer_init(any filename, any source) -> none {
@@ -142,4 +201,7 @@ fn lexer_init(any filename, any source) -> none {
   );
   = @token_type_str @t;
   assert(eq (* sizeof any MAX_TOKEN_TYPE) (sizeof t), "mismatch between token_type_str and MAX_TOKEN_TYPE\n");
+
+  token_init(@token, "test", 4, T_IDENTIFIER, filename, source);
+  token_print(@token);
 }

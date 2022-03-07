@@ -43,6 +43,16 @@ fn tmp_push_cstr(any str) -> none {
   }
 }
 
+fn tmp_push_str(any str, u64 length) -> none {
+  if < (+ tmp_it length) tmp_end {
+    memcpy(tmp_it, str, length);
+    = @tmp_it + length tmp_it;
+  }
+  else {
+    error("out of scratch memory\n");
+  }
+}
+
 fn tmp_push_u64(u64 n) -> none {
   const max_size 128;
   memory buf max_size;
