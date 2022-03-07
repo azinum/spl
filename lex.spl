@@ -1,1 +1,146 @@
 // lex.spl
+
+// enum Token_type {
+const T_EOF 0;
+
+const T_IDENTIFIER 1;
+const T_NUMBER 2;
+const T_CSTRING 3;
+const T_ASSIGN 4;
+const T_COMMA 5;
+const T_AT 6;
+const T_DEREF 7;
+const T_ADD 8;
+const T_SUB 9;
+const T_MUL 10;
+const T_DIV 11;
+const T_DIVMOD 12;
+const T_LSHIFT 13;
+const T_RSHIFT 14;
+const T_LT 15;
+const T_GT 16;
+const T_AND 17;
+const T_LOGICAL_NOT 18;
+const T_OR 19;
+const T_EQ 20;
+const T_NEQ 21;
+const T_SEMICOLON 22;
+const T_POP 23;
+const T_CONST 24;
+const T_LET 25;
+const T_MEMORY 26;
+const T_PRINT 27;
+const T_INCLUDE 28;
+const T_FN 29;
+const T_ARROW 30;
+const T_WHILE 31;
+const T_IF 31;
+const T_ELSE 32;
+const T_LEFT_P 33;
+const T_RIGHT_P 34;
+const T_LEFT_BRACKET 35;
+const T_RIGHT_BRACKET 36;
+const T_LEFT_CURLY 37;
+const T_RIGHT_CURLY 38;
+const T_STORE64 39;
+const T_STORE32 40;
+const T_STORE16 41;
+const T_STORE8 42;
+const T_LOAD64 43;
+const T_LOAD32 44;
+const T_LOAD16 45;
+const T_LOAD8 46;
+const T_SIZEOF 47;
+
+// built-in types
+const T_NONE 48;
+const T_ANY 49;
+const T_UNSIGNED64 50;
+const T_CSTR 51;
+
+const MAX_TOKEN_TYPE 52;
+// };
+
+let token_type_str "";
+
+// struct Lexer {
+let l.filename "";
+let l.source "";
+let l.index 0;
+let l.line 0;
+let l.column 0;
+let l.status 0;
+// };
+
+fn token_str(u64 token_type) -> cstr {
+  #(+ token_type_str * sizeof any token_type);
+}
+
+fn lexer_init(any filename, any source) -> none {
+  = @l.filename filename;
+  = @l.source source;
+  = @l.index source;
+  = @l.index 1;
+  = @l.column 1;
+  = @l.status NoError;
+  let t (
+    "T_EOF",
+
+    "T_IDENTIFIER",
+    "T_NUMBER",
+    "T_CSTRING",
+    "T_ASSIGN",
+    "T_COMMA",
+    "T_AT",
+    "T_DEREF",
+    "T_ADD",
+    "T_SUB",
+    "T_MUL",
+    "T_DIV",
+    "T_DIVMOD",
+    "T_LSHIFT",
+    "T_RSHIFT",
+    "T_LT",
+    "T_GT",
+    "T_AND",
+    "T_LOGICAL_NOT",
+    "T_OR",
+    "T_EQ",
+    "T_NEQ",
+    "T_SEMICOLON",
+    "T_POP",
+    "T_CONST",
+    "T_LET",
+    "T_MEMORY",
+    "T_PRINT",
+    "T_INCLUDE",
+    "T_FN",
+    "T_ARROW",
+    "T_WHILE",
+    "T_IF",
+    "T_ELSE",
+    "T_LEFT_P",
+    "T_RIGHT_P",
+    "T_LEFT_BRACKET",
+    "T_RIGHT_BRACKET",
+    "T_LEFT_CURLY",
+    "T_RIGHT_CURLY",
+    "T_STORE64",
+    "T_STORE32",
+    "T_STORE16",
+    "T_STORE8",
+    "T_LOAD64",
+    "T_LOAD32",
+    "T_LOAD16",
+    "T_LOAD8",
+    "T_SIZEOF",
+
+    "T_NONE",
+    "T_ANY",
+    "T_UNSIGNED64",
+    "T_CSTR"
+  );
+  = @token_type_str @t;
+  // let str token_str(T_INCLUDE);
+  puts(1, token_str(T_UNSIGNED64));
+}

@@ -14,11 +14,39 @@ include "compile.spl"
 
 fn usage(any prog) -> none {
   let it tmp_it;
-  tmp_push_cstr("Usage; ");
-  tmp_push_cstr(prog);
-  tmp_push_cstr(" [-t <filename>]\n");
+  let p tmp_push_cstr;
+  p("Usage; ");
+  p(prog);
+  p(" [-t <filename>]\n");
   puts(STDOUT_FILENO, it);
   = @tmp_it it;
+}
+
+fn spl_start(any filename) -> u64 {
+  let result NoError;
+
+  let fd open(filename, 0, O_RDONLY);
+  if neq fd ERROR {
+    let source tmp_it;
+    let size read_file_into_buffer(fd, source);
+    = @tmp_it + size tmp_it;
+    if eq parser_init(filename, source) NoError {
+    }
+    else {
+      // TODO: handle
+    }
+    close(fd);
+  }
+  else {
+    let message tmp_it;
+    let p tmp_push_cstr;
+    p("failed to open file `");
+    p(filename);
+    p("`\n");
+    err(message);
+    = @tmp_it message;
+  }
+  result;
 }
 
 fn main(u64 argc, any argv) -> none {
@@ -31,5 +59,6 @@ fn main(u64 argc, any argv) -> none {
   else {
     = @arg + sizeof any arg;
     let filename #arg;
+    let result spl_start(filename);
   }
 }

@@ -1,13 +1,21 @@
 // common.spl
 
-// `scratch` buffer
-const TMP_SIZE 4096;
+const NoError 0;
+const Error 1;
+
+// temporary `scratch` buffer
+const TMP_SIZE 32768;
 memory tmp TMP_SIZE;
 let tmp_end 0;
 let tmp_it 0;
 
-fn error(cstr message) -> none {
+fn err(any message) -> none {
+  puts(STDERR_FILENO, "[error]: ");
   puts(STDERR_FILENO, message);
+}
+
+fn error(any message) -> none {
+  err(message);
   exit(1);
 }
 

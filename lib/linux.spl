@@ -327,7 +327,7 @@ const O_CREAT 64;
 const O_TRUNC 512;
 
 fn read(u64 fd, any buf, u64 count)    syscall3(SYS_read, fd, buf, count);
-fn open(cstr path, u64 flags, u64 mode) syscall3(SYS_open, path, flags, mode);
+fn open(any path, u64 flags, u64 mode) syscall3(SYS_open, path, flags, mode);
 fn close(u64 fd) { let _ syscall1(SYS_close, fd); }
 fn write(u64 fd, any buf, u64 count) { let _ syscall3(SYS_write, fd, buf, count); }
 fn exit(u64 error_code) { let _ syscall1(SYS_exit, error_code); }

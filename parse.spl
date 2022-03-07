@@ -1,1 +1,14 @@
 // parse.spl
+
+// struct Parser {
+let p.ast 0;
+let p.status 0;
+// };
+
+fn parser_init(any filename, any source) -> u64 {
+  let result NoError;
+  lexer_init(filename, source);
+  = @p.ast 0;
+  = @p.status NoError;
+  result;
+}
