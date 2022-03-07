@@ -71,7 +71,7 @@ let token.filename "";
 let token.source "";
 let token.line 0;
 let token.column 0;
-let Token.size +++++++
+let token.size +++++++
   sizeof token.buffer
   sizeof token.length
   sizeof token.type
@@ -156,91 +156,30 @@ fn to_lower(u64 ch) -> u64 {
   ch;
 }
 
-fn lexer_error(cstr message) -> none {
-  if eq l.status NoError {
-    puts(STDERR_FILENO, "[lex-error]: ");
-    puts(STDERR_FILENO, message);
-    = @l.status Error;
+fn lexer_read_number -> none {
+  while or is_hex(load8 l.index) eq load8 l.index 'x' {
+    = @l.index + 1 l.index;
+    = @l.column + 1 l.column;
   }
+  = @token.length - l.index token.buffer;
+  = @token.type T_NUMBER;
 }
 
-fn lexer_init(any filename, any source) -> none {
-  // initialize lexer state
-  = @l.filename filename;
-  = @l.source source;
-  = @l.index source;
-  = @l.column 1;
-  = @l.status NoError;
-
-  // initialize lexer token
-  = @token.buffer source;
-  = @token.length 0;
-  = @token.type T_EOF;
-  = @token.v 0;
-  = @token.filename filename;
-  = @token.source source;
-  = @token.line 1;
-  = @token.column 1;
-
-  let t (
-    "T_EOF",
-
-    "T_IDENTIFIER",
-    "T_NUMBER",
-    "T_CSTRING",
-    "T_ASSIGN",
-    "T_COMMA",
-    "T_AT",
-    "T_DEREF",
-    "T_ADD",
-    "T_SUB",
-    "T_MUL",
-    "T_DIV",
-    "T_DIVMOD",
-    "T_LSHIFT",
-    "T_RSHIFT",
-    "T_LT",
-    "T_GT",
-    "T_AND",
-    "T_LOGICAL_NOT",
-    "T_OR",
-    "T_EQ",
-    "T_NEQ",
-    "T_SEMICOLON",
-    "T_POP",
-    "T_CONST",
-    "T_LET",
-    "T_MEMORY",
-    "T_PRINT",
-    "T_INCLUDE",
-    "T_FN",
-    "T_ARROW",
-    "T_WHILE",
-    "T_IF",
-    "T_ELSE",
-    "T_LEFT_P",
-    "T_RIGHT_P",
-    "T_LEFT_BRACKET",
-    "T_RIGHT_BRACKET",
-    "T_LEFT_CURLY",
-    "T_RIGHT_CURLY",
-    "T_STORE64",
-    "T_STORE32",
-    "T_STORE16",
-    "T_STORE8",
-    "T_LOAD64",
-    "T_LOAD32",
-    "T_LOAD16",
-    "T_LOAD8",
-    "T_SIZEOF",
-
-    "T_NONE",
-    "T_ANY",
-    "T_UNSIGNED64",
-    "T_CSTR"
-  );
-  = @token_type_str @t;
-  assert(eq (* sizeof any MAX_TOKEN_TYPE) (sizeof t), "mismatch between token_type_str and MAX_TOKEN_TYPE\n");
+fn lexer_error(cstr message) -> none {
+  if eq l.status NoError {
+    let it tmp_it;
+    // a bit noisey, but this will do for now
+    // TODO: varadic functions to the rescue
+    tmp_push_cstr("[lex-error]: ");
+    tmp_push_u64(token.line);
+    tmp_push_cstr(":");
+    tmp_push_u64(token.column);
+    tmp_push_cstr(": ");
+    tmp_push_cstr(message);
+    puts(STDERR_FILENO, it);
+    = @tmp_it it;
+    = @l.status Error;
+  }
 }
 
 fn next -> none {
@@ -363,6 +302,9 @@ fn lexer_next -> none {
         = @should_exit 1;
       }
       else if is_digit(ch) {
+        lexer_read_number();
+        let number str_to_u64(token.buffer, token.length);
+        = @token.v number;
         = @should_exit 1;
       }
       else {
@@ -379,4 +321,84 @@ fn lexer_next -> none {
     }
   }
   = @token.line l.line;
+}
+
+fn lexer_init(any filename, any source) -> none {
+  // initialize lexer state
+  = @l.filename filename;
+  = @l.source source;
+  = @l.index source;
+  = @l.line 1;
+  = @l.column 1;
+  = @l.status NoError;
+
+  // initialize lexer token
+  = @token.buffer source;
+  = @token.length 0;
+  = @token.type T_EOF;
+  = @token.v 0;
+  = @token.filename filename;
+  = @token.source source;
+  = @token.line 1;
+  = @token.column 1;
+
+  let t (
+    "T_EOF",
+
+    "T_IDENTIFIER",
+    "T_NUMBER",
+    "T_CSTRING",
+    "T_ASSIGN",
+    "T_COMMA",
+    "T_AT",
+    "T_DEREF",
+    "T_ADD",
+    "T_SUB",
+    "T_MUL",
+    "T_DIV",
+    "T_DIVMOD",
+    "T_LSHIFT",
+    "T_RSHIFT",
+    "T_LT",
+    "T_GT",
+    "T_AND",
+    "T_LOGICAL_NOT",
+    "T_OR",
+    "T_EQ",
+    "T_NEQ",
+    "T_SEMICOLON",
+    "T_POP",
+    "T_CONST",
+    "T_LET",
+    "T_MEMORY",
+    "T_PRINT",
+    "T_INCLUDE",
+    "T_FN",
+    "T_ARROW",
+    "T_WHILE",
+    "T_IF",
+    "T_ELSE",
+    "T_LEFT_P",
+    "T_RIGHT_P",
+    "T_LEFT_BRACKET",
+    "T_RIGHT_BRACKET",
+    "T_LEFT_CURLY",
+    "T_RIGHT_CURLY",
+    "T_STORE64",
+    "T_STORE32",
+    "T_STORE16",
+    "T_STORE8",
+    "T_LOAD64",
+    "T_LOAD32",
+    "T_LOAD16",
+    "T_LOAD8",
+    "T_SIZEOF",
+
+    "T_NONE",
+    "T_ANY",
+    "T_UNSIGNED64",
+    "T_CSTR"
+  );
+  = @token_type_str @t;
+  assert(eq (* sizeof any MAX_TOKEN_TYPE) (sizeof t), "mismatch between token_type_str and MAX_TOKEN_TYPE\n");
 }

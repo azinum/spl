@@ -70,4 +70,18 @@ fn u64_to_str(u64 n, any str, u64 max_size) -> none {
   }
 }
 
+// TODO: implement parsing of hex numbers.
+// TODO: add error checking.
+fn str_to_u64(any str, u64 length) -> u64 {
+  let result 0;
+  let base 10;
+  let i 0;
+  while < i length {
+    let ch load8 + str i;
+    = @result + * result base - ch '0';
+    = @i + 1 i;
+  }
+  result;
+}
+
 include "lib/linux.spl"

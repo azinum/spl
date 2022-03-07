@@ -5,11 +5,12 @@ let p.ast 0;
 let p.status 0;
 // };
 
-fn parser_init(any filename, any source) -> u64 {
+fn parser_function_signature -> u64 0;
+let statement parser_function_signature;
+let statements parser_function_signature;
+
+fn parse_statement -> u64 {
   let result NoError;
-  lexer_init(filename, source);
-  = @p.ast 0;
-  = @p.status NoError;
   result;
 }
 
@@ -17,12 +18,24 @@ fn parse_statements -> u64 {
   let result NoError;
   let should_exit 0;
   while neq should_exit 1 {
-    putsn(STDOUT_FILENO, token.buffer, token.length);
-    puts(STDOUT_FILENO, ", ");
     if eq token.type T_EOF {
       = @should_exit 1;
     }
-    lexer_next();
+    else if eq token.type T_SEMICOLON {
+      lexer_next();
+    }
+    else if eq token.type T_RIGHT_CURLY {
+      = @should_exit 1;
+    }
+    else if eq token.type T_FN {
+      assert(0, "TODO: T_FN not implemented yet\n");
+    }
+    else if eq token.type T_INCLUDE {
+      assert(0, "TODO: T_INCLUDE not implemented yet\n");
+    }
+    else {
+      lexer_next();
+    }
   }
   result;
 }
@@ -31,6 +44,18 @@ fn parse -> u64 {
   let result NoError;
   lexer_next();
   = @result parse_statements();
+  result;
+}
+
+fn parser_init(any filename, any source) -> u64 {
+  let result NoError;
+  lexer_init(filename, source);
+  = @p.ast 0;
+  = @p.status NoError;
+
+  = @statement parse_statement;
+  = @statements parse_statements;
+
   result;
 }
 
