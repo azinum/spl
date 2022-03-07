@@ -16,7 +16,7 @@ fn common_init -> none {
   = @tmp_end + tmp_it TMP_SIZE;
 }
 
-fn tmp_cstr_push(any str) -> none {
+fn tmp_push_cstr(any str) -> none {
   let length strlen(str);
   if < (+ tmp_it length) tmp_end {
     memcpy(tmp_it, str, length);
@@ -25,4 +25,11 @@ fn tmp_cstr_push(any str) -> none {
   else {
     error("out of scratch memory\n");
   }
+}
+
+fn tmp_push_u64(u64 n) -> none {
+  const max_size 128;
+  memory buf max_size;
+  u64_to_str(n, @buf, max_size);
+  tmp_push_cstr(@buf);
 }

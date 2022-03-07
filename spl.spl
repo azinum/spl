@@ -14,9 +14,9 @@ include "compile.spl"
 
 fn usage(any prog) -> none {
   let it tmp_it;
-  tmp_cstr_push("Usage; ");
-  tmp_cstr_push(prog);
-  tmp_cstr_push(" [-t <filename>]\n");
+  tmp_push_cstr("Usage; ");
+  tmp_push_cstr(prog);
+  tmp_push_cstr(" [-t <filename>]\n");
   puts(STDOUT_FILENO, it);
   = @tmp_it it;
 }

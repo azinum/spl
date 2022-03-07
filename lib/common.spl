@@ -54,7 +54,7 @@ fn digit_count(u64 n) {
   count;
 }
 
-fn u64_to_str(u64 n, any str, u64 max_size) {
+fn u64_to_str(u64 n, any str, u64 max_size) -> none {
   let count digit_count(n);
   let i 0;
   let base 10;
