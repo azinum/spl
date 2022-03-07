@@ -13,6 +13,27 @@ fn parser_init(any filename, any source) -> u64 {
   result;
 }
 
+fn parse_statements -> u64 {
+  let result NoError;
+  let should_exit 0;
+  while neq should_exit 1 {
+    putsn(STDOUT_FILENO, token.buffer, token.length);
+    puts(STDOUT_FILENO, ", ");
+    if eq token.type T_EOF {
+      = @should_exit 1;
+    }
+    lexer_next();
+  }
+  result;
+}
+
+fn parse -> u64 {
+  let result NoError;
+  lexer_next();
+  = @result parse_statements();
+  result;
+}
+
 fn parser_free -> none {
 
 }

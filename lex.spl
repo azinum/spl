@@ -66,7 +66,7 @@ let token_type_str "";
 let token.buffer 0;
 let token.length 0;
 let token.type 0;
-let token.value 0;
+let token.v 0;
 let token.filename "";
 let token.source "";
 let token.line 0;
@@ -75,13 +75,11 @@ let Token.size +++++++
   sizeof token.buffer
   sizeof token.length
   sizeof token.type
-  sizeof token.value
+  sizeof token.v
   sizeof token.filename
   sizeof token.source
   sizeof token.line
   sizeof token.column;
-
-memory token Token.size;
 
 // struct Lexer {
 let l.filename "";
@@ -96,7 +94,7 @@ fn token_init(any token, any buffer, u64 length, u64 type, any filename, any sou
   = token buffer;   = @token + sizeof token.buffer token;
   = token length;   = @token + sizeof token.length token;
   = token type;     = @token + sizeof token.type token;
-  = token 0;        = @token + sizeof token.value token;
+  = token 0;        = @token + sizeof token.v token;
   = token filename; = @token + sizeof token.filename token;
   = token source;   = @token + sizeof token.source token;
   = token 1;        = @token + sizeof token.line token;
@@ -110,7 +108,7 @@ fn token_print(any token) -> none {
   let buffer #token;   = @token + sizeof token.buffer token;
   let length #token;   = @token + sizeof token.length token;
   let type #token;     = @token + sizeof token.type token;
-  let value #token;    = @token + sizeof token.value token;
+  let value #token;    = @token + sizeof token.v token;
   let filename #token; = @token + sizeof token.filename token;
   let source #token;   = @token + sizeof token.source token;
   let line #token;     = @token + sizeof token.line token;
@@ -135,13 +133,55 @@ fn token_print(any token) -> none {
   = @tmp_it tmp;
 }
 
+fn is_digit(u64 ch) -> u64 {
+  and > ch - '0' 1 < ch + '9' 1;
+}
+
+fn is_hex(u64 ch) -> u64 {
+  or or is_digit(ch) (and > ch - 'a' 1 < ch + 'f' 1) (and > ch - 'A' 1 < ch + 'F' 1);
+}
+
+fn is_alpha(u64 ch) -> u64 {
+  or (and > ch - 'a' 1 < ch + 'z' 1) (and > ch - 'A' 1 < ch + 'Z' 1);
+}
+
+fn is_extended_ascii(u64 ch) -> u64 {
+  and > ch 127 < ch 255;
+}
+
+fn to_lower(u64 ch) -> u64 {
+  if and > ch - 'A' 1 < ch + 'Z' 1 {
+    = @ch + 32 ch;
+  }
+  ch;
+}
+
+fn lexer_error(cstr message) -> none {
+  if eq l.status NoError {
+    puts(STDERR_FILENO, "[lex-error]: ");
+    puts(STDERR_FILENO, message);
+    = @l.status Error;
+  }
+}
+
 fn lexer_init(any filename, any source) -> none {
+  // initialize lexer state
   = @l.filename filename;
   = @l.source source;
   = @l.index source;
-  = @l.index 1;
   = @l.column 1;
   = @l.status NoError;
+
+  // initialize lexer token
+  = @token.buffer source;
+  = @token.length 0;
+  = @token.type T_EOF;
+  = @token.v 0;
+  = @token.filename filename;
+  = @token.source source;
+  = @token.line 1;
+  = @token.column 1;
+
   let t (
     "T_EOF",
 
@@ -201,7 +241,142 @@ fn lexer_init(any filename, any source) -> none {
   );
   = @token_type_str @t;
   assert(eq (* sizeof any MAX_TOKEN_TYPE) (sizeof t), "mismatch between token_type_str and MAX_TOKEN_TYPE\n");
+}
 
-  token_init(@token, "test", 4, T_IDENTIFIER, filename, source);
-  token_print(@token);
+fn next -> none {
+  = @token.buffer l.index;
+  = @token.length 1;
+  = @token.line l.line;
+  = @token.column l.column;
+}
+
+fn lexer_next -> none {
+  let should_exit 0;
+  let ch 0;
+  while not should_exit {
+    next();
+    = @ch load8 token.buffer;
+    = @token.filename l.filename;
+    = @token.source l.source;
+    = @token.column l.column;
+    = @l.index + 1 l.index;
+    = @l.column + 1 l.column;
+
+    if eq ch 10 {
+      = @l.line + 1 l.line;
+      = @l.column 1;
+    }
+    else if eq ch '=' {
+      = @token.type T_ASSIGN;
+      = @should_exit 1;
+    }
+    else if eq ch ',' {
+      = @token.type T_COMMA;
+      = @should_exit 1;
+    }
+    else if eq ch '@' {
+      = @token.type T_AT;
+      = @should_exit 1;
+    }
+    else if eq ch '#' {
+      = @token.type T_DEREF;
+      = @should_exit 1;
+    }
+    else if eq ch '+' {
+      = @token.type T_ADD;
+      = @should_exit 1;
+    }
+    else if eq ch '-' {
+      = @token.type T_SUB;
+      = @should_exit 1;
+    }
+    else if eq ch '*' {
+      = @token.type T_MUL;
+      = @should_exit 1;
+    }
+    else if eq ch '%' {
+      = @token.type T_DIVMOD;
+      = @should_exit 1;
+    }
+    else if eq ch '<' {
+      = @token.type T_LT;
+      = @should_exit 1;
+    }
+    else if eq ch '>' {
+      = @token.type T_GT;
+      = @should_exit 1;
+    }
+    else if eq ch ';' {
+      = @token.type T_SEMICOLON;
+      = @should_exit 1;
+    }
+    else if eq ch '(' {
+      = @token.type T_LEFT_P;
+      = @should_exit 1;
+    }
+    else if eq ch ')' {
+      = @token.type T_RIGHT_P;
+      = @should_exit 1;
+    }
+    else if eq ch '[' {
+      = @token.type T_LEFT_BRACKET;
+      = @should_exit 1;
+    }
+    else if eq ch ']' {
+      = @token.type T_RIGHT_BRACKET;
+      = @should_exit 1;
+    }
+    else if eq ch '{' {
+      = @token.type T_LEFT_CURLY;
+      = @should_exit 1;
+    }
+    else if eq ch '}' {
+      = @token.type T_RIGHT_CURLY;
+      = @should_exit 1;
+    }
+    else if or or or eq ch ' ' eq ch 9 eq ch 11 eq ch 12 { // ` `, `\t`, `\v`, `\f`
+    }
+    else if eq ch 0 {
+      = @token.type T_EOF;
+      = @should_exit 1;
+    }
+    else if eq ch 39 { // `\'`
+      = @ch load8 l.index;
+      = @token.buffer l.index;
+      = @l.index + 1 l.index;
+      = @l.column + 1 l.column;
+      if neq load8 l.index 39 {
+        = @token.type T_EOF;
+        lexer_error("missing closing `'`\n");
+      }
+      else {
+        = @l.index + 1 l.index;
+        = @l.column + 1 l.column;
+        = @token.v ch;
+        = @token.type T_NUMBER;
+        = @token.length 1;
+      }
+      = @should_exit 1;
+    }
+    else {
+      if or or is_alpha(ch) is_extended_ascii(ch) eq ch '_' {
+        = @should_exit 1;
+      }
+      else if is_digit(ch) {
+        = @should_exit 1;
+      }
+      else {
+        let it "";
+        = @it tmp_it;
+        tmp_push_cstr("unrecognized token `");
+        tmp_push_str(token.buffer, token.length);
+        tmp_push_cstr("`\n");
+        lexer_error(it);
+        = @tmp_it it;
+        = @token.type T_EOF;
+        = @should_exit 1;
+      }
+    }
+  }
+  = @token.line l.line;
 }

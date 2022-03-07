@@ -345,11 +345,11 @@ fn read_file_into_buffer(u64 fd, any buf) -> u64 {
   n;
 }
 
-fn putc(u64 fd, u64 ch) {
+fn putc(u64 fd, u64 ch) -> none {
   let _ syscall3(1, fd, @ch, 1);
 }
 
-fn puts(u64 fd, any str) {
+fn puts(u64 fd, any str) -> none {
   while neq 0 load8 str {
     let ch load8 str;
     let _ syscall3(SYS_write, fd, @ch, 1);
@@ -357,7 +357,11 @@ fn puts(u64 fd, any str) {
   }
 }
 
-fn putu(u64 fd, u64 n) {
+fn putsn(u64 fd, any str, u64 n) -> none {
+  let _ syscall3(SYS_write, fd, str, n);
+}
+
+fn putu(u64 fd, u64 n) -> none {
   let MAX_BUFF_SIZE 512;
   memory buff MAX_BUFF_SIZE;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
