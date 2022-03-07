@@ -431,7 +431,6 @@ typedef enum Compile_type {
   TypeNone = 0,
   TypeAny,
   TypeUnsigned64,
-  TypePointer,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
@@ -443,7 +442,6 @@ static const char* compile_type_str[] = {
   "None",
   "Any",
   "Unsigned64",
-  "Pointer",
   "CString",
   "Func",
   "SyscallFunc",
@@ -451,7 +449,6 @@ static const char* compile_type_str[] = {
 
 static u64 compile_type_size[] = {
   0,
-  sizeof(u64),
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
@@ -3027,7 +3024,13 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 
   o("\n");
   o("%s:\n", ENTRY);
+  o("mov rdi, [rsp]\n");
+  o("mov rax, rsp\n");
+  o("add rax, 8\n");
+  o("mov rsi, rax\n");
+  o("push rbp\n");
   o("call main\n");
+  o("pop rbp\n");
 #if __APPLE__
   // macos uses different system call codes, they can be found here: https://sigsegv.pl/osx-bsd-syscalls/
   o("mov rax, 1 ; exit syscall\n");
@@ -3089,10 +3092,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       switch (s->type) {
         case TypeUnsigned64: {
           o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
-          break;
-        }
-        case TypePointer: {
-          o("v%d: resb %d ; `%s` : TypePointer\n", i, s->size, s->name);
           break;
         }
         case TypeCString: {

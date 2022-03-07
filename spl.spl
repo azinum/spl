@@ -6,5 +6,16 @@
 
 include "lib/common.spl"
 
-fn main -> none {
+fn add(a, b) + a b;
+
+fn main(u64 argc, any argv) -> none {
+  let arg argv;
+  let i 0;
+  while < i argc {
+    puts(1, #arg);
+    puts(1, " ");
+    = @arg + sizeof any arg;
+    = @i + 1 i;
+  }
+  puts(1, "\n");
 }
