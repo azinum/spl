@@ -6,6 +6,7 @@ cspl.dSYM
 cspl
 spl
 test
+main
 vm
 examples/*spl.asm
 *.spl.asm
