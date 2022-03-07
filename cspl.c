@@ -1286,8 +1286,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ts_pop(c);
         return TypeNone;
       }
-      else if (ast->token.type == T_DEREF) {
-        // dereference to a specific type
+      else if (ast->token.type == T_DEREF || ast->token.type == T_LOAD64 || ast->token.type == T_LOAD32 || ast->token.type == T_LOAD16 || ast->token.type == T_LOAD8) {
+        ts_pop(c);
+        ts_push(c, TypeUnsigned64);
       }
       else if (ast->token.type == T_LOGICAL_NOT) {
         Value value;
