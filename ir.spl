@@ -1,1 +1,114 @@
 // ir.spl
+
+// enum Ir_code {
+const I_NOP 0;
+const I_POP 1;
+const I_MOVE 2;
+const I_STORE64 3;
+const I_STORE32 4;
+const I_STORE16 5;
+const I_STORE8 6;
+const I_LOAD64 7;
+const I_LOAD32 8;
+const I_LOAD16 9;
+const I_LOAD8 10;
+const I_PUSH_ADDR_OF 11;
+const I_PUSH_LOCAL_ADDR_OF 12;
+const I_PUSH 13;
+const I_PUSH_LOCAL 14;
+const I_ADD 15;
+const I_SUB 16;
+const I_MUL 17;
+const I_LSHIFT 18;
+const I_RSHIFT 19;
+const I_DIV 20;
+const I_DIVMOD 21;
+const I_LT 22;
+const I_GT 23;
+const I_AND 24;
+const I_LOGICAL_NOT 25;
+const I_OR 26;
+const I_EQ 27;
+const I_NEQ 28;
+const I_RET 29;
+const I_NORET 30;
+const I_PRINT 31;
+const I_LABEL 32;
+const I_CALL 33;
+const I_ADDR_CALL 34;
+const I_JMP 35;
+const I_JZ 36;
+const I_BEGIN_FUNC 37;
+const I_LOOP_LABEL 38;
+
+const I_SYSCALL0 39;
+const I_SYSCALL1 40;
+const I_SYSCALL2 41;
+const I_SYSCALL3 42;
+const I_SYSCALL4 43;
+const I_SYSCALL5 44;
+const I_SYSCALL6 45;
+
+const MAX_IR_CODE 46;
+// };
+
+let ir_code_str "";
+
+fn compile_state_init -> u64 {
+  let t (
+    "I_NOP",
+    "I_POP",
+    "I_MOVE",
+    "I_STORE64",
+    "I_STORE32",
+    "I_STORE16",
+    "I_STORE8",
+    "I_LOAD64",
+    "I_LOAD32",
+    "I_LOAD16",
+    "I_LOAD8",
+    "I_PUSH_ADDR_OF",
+    "I_PUSH_LOCAL_ADDR_OF",
+    "I_PUSH",
+    "I_PUSH_LOCAL",
+    "I_ADD",
+    "I_SUB",
+    "I_MUL",
+    "I_LSHIFT",
+    "I_RSHIFT",
+    "I_DIV",
+    "I_DIVMOD",
+    "I_LT",
+    "I_GT",
+    "I_AND",
+    "I_LOGICAL_NOT",
+    "I_OR",
+    "I_EQ",
+    "I_NEQ",
+    "I_RET",
+    "I_NORET",
+    "I_PRINT",
+    "I_LABEL",
+    "I_CALL",
+    "I_ADDR_CALL",
+    "I_JMP",
+    "I_JZ",
+    "I_BEGIN_FUNC",
+    "I_LOOP_LABEL",
+
+    "I_SYSCALL0",
+    "I_SYSCALL1",
+    "I_SYSCALL2",
+    "I_SYSCALL3",
+    "I_SYSCALL4",
+    "I_SYSCALL5",
+    "I_SYSCALL6"
+  );
+  = @ir_code_str @t;
+  assert(eq (* sizeof any MAX_IR_CODE) (sizeof t), "mismatch between ir_code_str and MAX_IR_CODE\n");
+  NoError;
+}
+
+fn compile_state_free -> none {
+
+}

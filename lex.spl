@@ -34,31 +34,31 @@ const T_INCLUDE 28;
 const T_FN 29;
 const T_ARROW 30;
 const T_WHILE 31;
-const T_IF 31;
-const T_ELSE 32;
-const T_LEFT_P 33;
-const T_RIGHT_P 34;
-const T_LEFT_BRACKET 35;
-const T_RIGHT_BRACKET 36;
-const T_LEFT_CURLY 37;
-const T_RIGHT_CURLY 38;
-const T_STORE64 39;
-const T_STORE32 40;
-const T_STORE16 41;
-const T_STORE8 42;
-const T_LOAD64 43;
-const T_LOAD32 44;
-const T_LOAD16 45;
-const T_LOAD8 46;
-const T_SIZEOF 47;
+const T_IF 32;
+const T_ELSE 33;
+const T_LEFT_P 34;
+const T_RIGHT_P 35;
+const T_LEFT_BRACKET 36;
+const T_RIGHT_BRACKET 37;
+const T_LEFT_CURLY 38;
+const T_RIGHT_CURLY 39;
+const T_STORE64 40;
+const T_STORE32 41;
+const T_STORE16 42;
+const T_STORE8 43;
+const T_LOAD64 44;
+const T_LOAD32 45;
+const T_LOAD16 46;
+const T_LOAD8 47;
+const T_SIZEOF 48;
 
 // built-in types
-const T_NONE 48;
-const T_ANY 49;
-const T_UNSIGNED64 50;
-const T_CSTR 51;
+const T_NONE 49;
+const T_ANY 50;
+const T_UNSIGNED64 51;
+const T_CSTR 52;
 
-const MAX_TOKEN_TYPE 52;
+const MAX_TOKEN_TYPE 53;
 // };
 
 let token_type_str "";
@@ -141,6 +141,5 @@ fn lexer_init(any filename, any source) -> none {
     "T_CSTR"
   );
   = @token_type_str @t;
-  // let str token_str(T_INCLUDE);
-  puts(1, token_str(T_UNSIGNED64));
+  assert(eq (* sizeof any MAX_TOKEN_TYPE) (sizeof t), "mismatch between token_type_str and MAX_TOKEN_TYPE\n");
 }

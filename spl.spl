@@ -31,6 +31,10 @@ fn spl_start(any filename) -> u64 {
     let size read_file_into_buffer(fd, source);
     = @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
+      if eq compile_state_init() NoError {
+        compile_state_free();
+      }
+      parser_free();
     }
     else {
       // TODO: handle

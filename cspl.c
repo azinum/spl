@@ -469,8 +469,8 @@ typedef struct Op {
 #define MAX_DATA (KB(32)) // temp
 
 #define MAX_NAME_SIZE 64
-#define MAX_SYMBOL 512
-#define MAX_FUNC 512
+#define MAX_SYMBOL 1024
+#define MAX_FUNC 1024
 #define MAX_FUNC_ARGC 6 // temp
 
 typedef enum Compile_target {
@@ -569,8 +569,7 @@ typedef struct Block {
 
 #define MAX_TYPE_STACK 256
 #define MAX_VALUE_STACK 256 // temporary
-#define MAX_CSTRING 256
-#define MAX_CONSTANT 256
+#define MAX_CSTRING 512
 
 // compile state
 typedef struct Compile {

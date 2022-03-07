@@ -12,3 +12,7 @@ fn parser_init(any filename, any source) -> u64 {
   = @p.status NoError;
   result;
 }
+
+fn parser_free -> none {
+
+}
