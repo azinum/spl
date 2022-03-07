@@ -5,9 +5,9 @@ let p.ast 0;
 let p.status 0;
 // };
 
-fn parser_function_signature -> u64 0;
-let statement parser_function_signature;
-let statements parser_function_signature;
+fn parser_function -> u64 0;
+let statement parser_function;
+let statements parser_function;
 
 fn parse_statement -> u64 {
   let result NoError;

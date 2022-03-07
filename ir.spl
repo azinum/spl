@@ -54,58 +54,97 @@ const MAX_IR_CODE 46;
 
 let ir_code_str "";
 
-fn compile_state_init -> u64 {
-  let t (
-    "I_NOP",
-    "I_POP",
-    "I_MOVE",
-    "I_STORE64",
-    "I_STORE32",
-    "I_STORE16",
-    "I_STORE8",
-    "I_LOAD64",
-    "I_LOAD32",
-    "I_LOAD16",
-    "I_LOAD8",
-    "I_PUSH_ADDR_OF",
-    "I_PUSH_LOCAL_ADDR_OF",
-    "I_PUSH",
-    "I_PUSH_LOCAL",
-    "I_ADD",
-    "I_SUB",
-    "I_MUL",
-    "I_LSHIFT",
-    "I_RSHIFT",
-    "I_DIV",
-    "I_DIVMOD",
-    "I_LT",
-    "I_GT",
-    "I_AND",
-    "I_LOGICAL_NOT",
-    "I_OR",
-    "I_EQ",
-    "I_NEQ",
-    "I_RET",
-    "I_NORET",
-    "I_PRINT",
-    "I_LABEL",
-    "I_CALL",
-    "I_ADDR_CALL",
-    "I_JMP",
-    "I_JZ",
-    "I_BEGIN_FUNC",
-    "I_LOOP_LABEL",
+const TypeNone 0;
+const TypeAny 1;
+const TypeUnsigned64 2;
+const TypeCString 3;
+const TypeFunc 4;
+const TypeSyscallFunc 5;
 
-    "I_SYSCALL0",
-    "I_SYSCALL1",
-    "I_SYSCALL2",
-    "I_SYSCALL3",
-    "I_SYSCALL4",
-    "I_SYSCALL5",
-    "I_SYSCALL6"
-  );
-  = @ir_code_str @t;
-  assert(eq (* sizeof any MAX_IR_CODE) (sizeof t), "mismatch between ir_code_str and MAX_IR_CODE\n");
+const MAX_COMPILE_TYPE 6;
+
+let compile_type_str "";
+
+let compile_type_size 0;
+
+fn compile_state_init -> u64 {
+  {
+    let t (
+      "I_NOP",
+      "I_POP",
+      "I_MOVE",
+      "I_STORE64",
+      "I_STORE32",
+      "I_STORE16",
+      "I_STORE8",
+      "I_LOAD64",
+      "I_LOAD32",
+      "I_LOAD16",
+      "I_LOAD8",
+      "I_PUSH_ADDR_OF",
+      "I_PUSH_LOCAL_ADDR_OF",
+      "I_PUSH",
+      "I_PUSH_LOCAL",
+      "I_ADD",
+      "I_SUB",
+      "I_MUL",
+      "I_LSHIFT",
+      "I_RSHIFT",
+      "I_DIV",
+      "I_DIVMOD",
+      "I_LT",
+      "I_GT",
+      "I_AND",
+      "I_LOGICAL_NOT",
+      "I_OR",
+      "I_EQ",
+      "I_NEQ",
+      "I_RET",
+      "I_NORET",
+      "I_PRINT",
+      "I_LABEL",
+      "I_CALL",
+      "I_ADDR_CALL",
+      "I_JMP",
+      "I_JZ",
+      "I_BEGIN_FUNC",
+      "I_LOOP_LABEL",
+
+      "I_SYSCALL0",
+      "I_SYSCALL1",
+      "I_SYSCALL2",
+      "I_SYSCALL3",
+      "I_SYSCALL4",
+      "I_SYSCALL5",
+      "I_SYSCALL6"
+    );
+    = @ir_code_str @t;
+    assert(eq (* sizeof any MAX_IR_CODE) (sizeof t), "mismatch between ir_code_str and MAX_IR_CODE\n");
+  }
+  {
+    let t (
+      "None",
+      "Any",
+      "Unsigned64",
+      "CString",
+      "Func",
+      "SyscallFunc"
+    );
+    = @compile_type_str @t;
+    assert(eq (* sizeof any MAX_COMPILE_TYPE) (sizeof t), "mismatch between compile_type_str and MAX_COMPILE_TYPE\n");
+  }
+  {
+    let t (
+      0,
+      sizeof u64,
+      sizeof u64,
+      sizeof u64,
+      sizeof u64,
+      sizeof u64
+    );
+    = @compile_type_size @t;
+    assert(eq (* sizeof any MAX_COMPILE_TYPE) (sizeof t), "mismatch between compile_type_size and MAX_COMPILE_TYPE\n");
+  }
   NoError;
 }
 
