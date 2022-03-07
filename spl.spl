@@ -4,6 +4,7 @@
 // self hosted implementation in spl
 //
 
-fn main {
-  0;
+include "lib/common.spl"
+
+fn main -> none {
 }

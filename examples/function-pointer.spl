@@ -1,16 +1,12 @@
 // function-pointer.spl
 
-fn foo(u64 x) + x 7;
-fn bar(u64 x) * x x;
-fn baz(u64 x) + x x;
+fn foo(u64 x) -> u64 + x 7;
+fn bar(u64 x) -> u64 * x x;
+fn baz(u64 x) -> u64 + x x;
 
-fn main {
-  let count 3;
-  memory funcs * u64.size count;
-  = (+0 @funcs)  foo;
-  = (+8 @funcs)  bar;
-  = (+16 @funcs) baz;
-
+fn main -> none {
+  const count 3;
+  let funcs (foo, bar, baz);
   let i 0;
   let index 0;
   let func foo;
@@ -18,7 +14,6 @@ fn main {
     = @func load64 + index @funcs;
     print func(i);
     = @i + 1 i;
-    = @index +u64.size index;
+    = @index + sizeof u64 index;
   }
-  0;
 }

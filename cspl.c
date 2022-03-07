@@ -137,6 +137,8 @@ typedef enum Token_type {
   T_ELSE,
   T_LEFT_P,
   T_RIGHT_P,
+  T_LEFT_BRACKET,
+  T_RIGHT_BRACKET,
   T_LEFT_CURLY,
   T_RIGHT_CURLY,
   T_STORE64,
@@ -149,6 +151,7 @@ typedef enum Token_type {
   T_LOAD8,
   T_SIZEOF,
 
+  // built-in types
   T_NONE,
   T_ANY,
   T_UNSIGNED64,
@@ -195,6 +198,8 @@ static const char* token_type_str[] = {
   "T_ELSE",
   "T_LEFT_P",
   "T_RIGHT_P",
+  "T_LEFT_BRACKET",
+  "T_RIGHT_BRACKET",
   "T_LEFT_CURLY",
   "T_RIGHT_CURLY",
   "T_STORE64",
@@ -313,7 +318,7 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
-  I_MOVE,
+  I_MOVE, // <id, offset, x>
   I_STORE64,
   I_STORE32,
   I_STORE16,
@@ -632,6 +637,8 @@ static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
 static i32 vs_push(Compile* c, Value v);
 static i32 vs_pop(Compile* c, Value* v);
+static Value vs_top(Compile* c);
+static i32 check_func_signatures(Compile* c, Function* a, Function* b);
 
 static void ir_print(Compile* c, FILE* fp);
 static void ir_binary_output(Compile* c, FILE* fp);
@@ -717,6 +724,8 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
 
+  (void)symbol_print; // unused
+  (void)ir_pop_ins; // unused
   i32 exit_status = EXIT_SUCCESS;
   Options options = (Options) {
     .compile = 1,
@@ -1060,6 +1069,7 @@ i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, 
 
 void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
   (void)source; // unused
+  (void)path; // unused
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
@@ -1189,6 +1199,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstExpression: {
       return typecheck(c, block, fs, ast->node[0]);
     }
+    case AstExprList:
     case AstStatement:
     case AstStatementList: {
       return typecheck_node_list(c, block, fs, ast);
@@ -1197,7 +1208,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
-      if ((a == TypeUnsigned64 || a == TypeAny || a == TypeCString) && (b == TypeUnsigned64 || b == TypeAny || b == TypeCString)) {
+      if ((a == TypeUnsigned64 || a == TypeAny || a == TypeCString || a == TypeFunc) && (b == TypeUnsigned64 || b == TypeAny || b == TypeCString || b == TypeFunc)) {
         Value va;
         Value vb;
         vs_pop(c, &vb);
@@ -1289,9 +1300,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       return ts_top(c);
     }
-    // TODO(lucas): implement strings in const statements
     case AstConstStatement:
     case AstLetStatement: {
+      i32 konst = ast->type == AstConstStatement;
       i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
       i32 ts_delta = c->ts_count - ts_count;
@@ -1299,15 +1310,43 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
         return TypeNone;
       }
-      Compile_type type = ts_pop(c);
-      Value value;
-      vs_pop(c, &value);
+      i32 imm = -1;
+      Value value = vs_top(c);
+      Value prev_value = value;
+      Compile_type type = ts_top(c);
+      Compile_type prev_type = type;
+      if (type != TypeUnsigned64 && konst) {
+        typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
+        return TypeNone;
+      }
+      for (i32 i = 0; i < ts_delta; ++i) {
+        type = ts_pop(c);
+        if (type != prev_type) {
+          typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+          return TypeNone;
+        }
+        prev_type = type;
+        vs_pop(c, &value);
+        if (type == TypeFunc) {
+          if (!check_func_signatures(c, &value.func, &prev_value.func)) {
+            typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+            return TypeNone;
+          }
+        }
+        prev_value = value;
+        if (konst) {
+          imm = ir_push_value(c, &value.num, compile_type_size[type]);
+        }
+      }
+      if (konst) {
+        imm -= (ts_delta - 1) * compile_type_size[type];
+      }
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
-        symbol->imm = -1;
-        symbol->size = compile_type_size[type];
-        symbol->konst = ast->type == AstConstStatement;
+        symbol->imm = imm;
+        symbol->size = ts_delta * compile_type_size[type];
+        symbol->konst = konst;
         symbol->sym_type = SYM_LOCAL_VAR;
         symbol->type = type;
         symbol->token = ast->token; // duplicated in compile_declare_value
@@ -1621,6 +1660,28 @@ i32 vs_pop(Compile* c, Value* v) {
   typecheck_error(c, "value type stack underflow (current type stack = %d)\n", c->ts_count);
   --c->vs_count;
   return Error;
+}
+
+Value vs_top(Compile* c) {
+  if (c->vs_count > 0) {
+    return c->vs[c->vs_count - 1];
+  }
+  return c->vs[0];
+}
+
+// checks for function signature equality
+i32 check_func_signatures(Compile* c, Function* a, Function* b) {
+  if ((a->argc != b->argc) || (a->rtype != b->rtype)) {
+    return 0;
+  }
+  for (u32 i = 0; i < a->argc; ++i) {
+    const Symbol* arg_a = &c->symbols[a->args[i]];
+    const Symbol* arg_b = &c->symbols[b->args[i]];
+    if (arg_a->type != arg_b->type) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 void ir_print(Compile* c, FILE* fp) {
@@ -1974,6 +2035,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       break;
     }
     case AstExpression:
+    case AstExprList:
     case AstStatement:
     case AstStatementList: {
       return ir_compile_stmts(c, block, ast, ins_count);
@@ -2082,13 +2144,17 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
         if (count == 1) {
           symbol->token = node->token;
         }
-        // store contents of rax into [v]
-        ir_push_ins(c, (Op) {
-          .i = I_MOVE,
-          .dest = id,
-          .src0 = -1,
-          .src1 = -1,
-        }, ins_count);
+        u32 size = compile_type_size[symbol->type];
+        u32 type_count = symbol->size / size;
+        for (u32 i = 0; i < type_count; ++i) {
+          // store contents of rax into [v + offset]
+          ir_push_ins(c, (Op) {
+            .i = I_MOVE,
+            .dest = id,
+            .src0 = (type_count - i - 1) * size,
+            .src1 = -1,
+          }, ins_count);
+        }
       }
       break;
     }
@@ -2407,7 +2473,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   #define vo(...)
 #endif
 #define ENTRY "_start"
-#define MEMORY_CAPACITY KB(64)
   o("bits 64\n");
   o("section .text\n");
   o("global %s\n", ENTRY);
@@ -2461,7 +2526,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_MOVE: {
         vo("; I_MOVE\n");
         o("pop rax\n");
-        o("mov [v%i], rax\n", op->dest);
+        o("mov [v%d+%d], rax\n", op->dest, op->src0);
         break;
       }
       case I_STORE64: {
@@ -2992,14 +3057,22 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    Value* v = &s->value;
     if (s->sym_type != SYM_LOCAL_VAR) {
       continue;
     }
     if (s->konst) {
+      u32 size = compile_type_size[s->type];
+      u32 count = s->size / size;
       switch (s->type) {
         case TypeUnsigned64: {
-          o("v%d: dq %ld\n", i, v->num);
+          assert(s->imm >= 0);
+          i32 imm = s->imm + s->size - size;
+          o("v%d: dq", i);
+          for (u32 v = 0; v < count; ++v, imm -= size) {
+            u64 value = (u64)c->imm[imm];
+            o(" %ld,", value);
+          }
+          o("\n");
           break;
         }
         default: {
@@ -3043,7 +3116,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
     }
   }
-  o("memory: resb %d\n", MEMORY_CAPACITY);
   return c->status;
 #undef o
 #undef vo
@@ -3051,6 +3123,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 
 i32 compile_win_nasm_x86_64(Compile* c, FILE* fp) {
   assert("compile_win_nasm_x86_64 not implemented yet" && 0);
+  (void)fp; // unused
   return c->status;
 }
 
@@ -3216,7 +3289,20 @@ Ast* parse_statement(Parser* p) {
         branch_type[token_type == T_LET]
       );
       expr->token = t;
-      ast_push(expr, parse_expr(p));
+      t = lexer_peek(&p->l);
+      if (t.type == T_LEFT_P) {
+        lexer_next(&p->l); // skip `(`
+        ast_push(expr, parse_expr_list(p));
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_P) {
+          parser_error(p, "expected closing parenthesis `)` expression list, but got `%.*s`\n", t.length, t.buffer);
+          return expr;
+        }
+        lexer_next(&p->l); // skip `)`
+      }
+      else {
+        ast_push(expr, parse_expr(p));
+      }
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
         parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
@@ -3364,7 +3450,7 @@ Ast* parse_expr(Parser* p) {
     case T_IDENTIFIER: {
       lexer_next(&p->l);
       if (lexer_peek(&p->l).type == T_LEFT_P) { // function call
-        lexer_next(&p->l);
+        lexer_next(&p->l); // skip `(`
         Ast* node = ast_create(AstFuncCall);
         node->token = t;
         ast_push(node, parse_expr_list(p));
@@ -3939,6 +4025,14 @@ Token lexer_next(Lexer* l) {
       }
       case ')': {
         l->token.type = T_RIGHT_P;
+        goto done;
+      }
+      case '[': {
+        l->token.type = T_LEFT_BRACKET;
+        goto done;
+      }
+      case ']': {
+        l->token.type = T_RIGHT_BRACKET;
         goto done;
       }
       case '{': {

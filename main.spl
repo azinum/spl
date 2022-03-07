@@ -1,0 +1,13 @@
+// main.spl
+
+include "lib/common.spl"
+
+fn f(u64 x, u64 y) -> u64 * x y;
+fn g(u64 x, u64 y) -> u64 + x y;
+
+fn main -> none {
+  let a "Hello, ";
+  let s (a, "World\n");
+  puts(1, s);
+  puts(1, #(+ @s sizeof any));
+}
