@@ -1,0 +1,28 @@
+// common.spl
+
+// `scratch` buffer
+const TMP_SIZE 4096;
+memory tmp TMP_SIZE;
+let tmp_end 0;
+let tmp_it 0;
+
+fn error(cstr message) -> none {
+  puts(STDERR_FILENO, message);
+  exit(1);
+}
+
+fn common_init -> none {
+  = @tmp_it @tmp;
+  = @tmp_end + tmp_it TMP_SIZE;
+}
+
+fn tmp_cstr_push(any str) -> none {
+  let length strlen(str);
+  if < (+ tmp_it length) tmp_end {
+    memcpy(tmp_it, str, length);
+    = @tmp_it + length tmp_it;
+  }
+  else {
+    error("out of scratch memory\n");
+  }
+}

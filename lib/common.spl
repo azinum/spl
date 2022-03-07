@@ -1,7 +1,7 @@
 // common.spl
 // platform independent common/standard library
 
-fn strlen(cstr str) {
+fn strlen(any str) {
   let length 0;
   while < 0 load8 str {
     = @length +1 length;

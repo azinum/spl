@@ -1332,7 +1332,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
         prev_value = value;
         if (konst) {
-          imm = ir_push_value(c, &value.num, compile_type_size[type]);
+          imm = ir_push_value(c, &value.num, sizeof(value.num));
         }
       }
       if (konst) {
@@ -1887,6 +1887,7 @@ i32 ir_push_value(Compile* c, void* value, u32 size) {
     c->imm_index += size;
     return address;
   }
+  assert("out of immediate data memory" && 0);
   return -1;
 }
 
@@ -3072,10 +3073,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           i32 imm = s->imm + s->size - size;
           o("v%d: dq", i);
           for (u32 v = 0; v < count; ++v, imm -= size) {
-            u64 value = (u64)c->imm[imm];
+            u64 value = *(u64*)&c->imm[imm];
             o(" %ld,", value);
           }
-          o("\n");
+          o("; `%s`\n", s->name);
           break;
         }
         default: {

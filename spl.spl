@@ -1,21 +1,35 @@
 //
 // spl.spl - simple programming language
 //
-// self hosted implementation in spl
+// self hosted implementation of spl in spl
 //
 
 include "lib/common.spl"
+include "common.spl"
+include "lex.spl"
+include "ast.spl"
+include "parse.spl"
+include "ir.spl"
+include "compile.spl"
 
-fn add(a, b) + a b;
+fn usage(any prog) -> none {
+  let it tmp_it;
+  tmp_cstr_push("Usage; ");
+  tmp_cstr_push(prog);
+  tmp_cstr_push(" [-t <filename>]\n");
+  puts(STDOUT_FILENO, it);
+  = @tmp_it it;
+}
 
 fn main(u64 argc, any argv) -> none {
+  common_init();
   let arg argv;
   let i 0;
-  while < i argc {
-    puts(1, #arg);
-    puts(1, " ");
-    = @arg + sizeof any arg;
-    = @i + 1 i;
+  if < argc 2 {
+    usage(#arg);
   }
-  puts(1, "\n");
+  else {
+    = @arg + sizeof any arg;
+    let filename #arg;
+  }
 }

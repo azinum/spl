@@ -2,6 +2,6 @@
 
 // include "lib/common.spl"
 
-fn main -> none {
+fn main {
 
 }
