@@ -481,7 +481,7 @@ typedef enum Compile_target {
 
 // NOTE(lucas): annoying workaround to be able for macro if-statements to properly work (e.g. #if MACHINE == MACHINE_WIN64)
 #define MACHINE_LINUX      0
-#define MACHINE_MAXOS      1
+#define MACHINE_MACOS      1
 #define MACHINE_WIN64      2
 #define MAX_TARGET_MACHINE 3
 
