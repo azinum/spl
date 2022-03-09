@@ -119,10 +119,7 @@ fn parse_type -> u64 {
 }
 
 fn parse_param_list -> u64 {
-  if eq token.type T_RIGHT_P {
-  
-  }
-  else {
+  if neq token.type T_RIGHT_P {
     let done 0;
     while eq done 0 {
       if eq token.type T_IDENTIFIER {
