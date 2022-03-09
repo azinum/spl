@@ -114,18 +114,71 @@ fn parse_statement -> u64 {
 }
 
 fn parse_type -> u64 {
+  lexer_next(); // skip type
+  p.status;
+}
+
+fn parse_param_list -> u64 {
+  if eq token.type T_RIGHT_P {
+  
+  }
+  else {
+    let done 0;
+    while eq done 0 {
+      if eq token.type T_IDENTIFIER {
+        lexer_next(); // skip identifier
+        if neq token.type T_COMMA {
+          = @done 1;
+        }
+      }
+      else {
+        if or or
+          eq token.type T_ANY
+          eq token.type T_UNSIGNED64
+          eq token.type T_CSTR {
+          lexer_next(); // skip type
+          if neq token.type T_IDENTIFIER {
+            = @done 1;
+          }
+          else {
+            lexer_next(); // skip identifier
+            if neq token.type T_COMMA {
+              = @done 1;
+            }
+          }
+        }
+        else if eq token.type T_NONE {
+          parser_error("unexected type `none` in parameter list\n");
+          = @done 1;
+        }
+      }
+    }
+  }
   p.status;
 }
 
 fn parse_func_def -> u64 {
   lexer_next(); // skip `fn`
   if eq token.type T_IDENTIFIER {
-    puts(1, "fn "); putsn(1, token.buffer, token.length); puts(1, "\n");
     lexer_next(); // skip `name`
 
+    if eq token.type T_LEFT_P {
+      lexer_next(); // skip `(`
+      if eq parse_param_list() NoError {
+        if neq token.type T_RIGHT_P {
+          parser_error("expected `)` right parenthesis in function parameter list\n");
+        }
+        lexer_next(); // skip `)`
+      }
+    }
+    else {
+      // push an empty parameter list
+    }
     if eq token.type T_ARROW {
       lexer_next(); // skip `->`
-      lexer_next(); // skip type
+      if neq parse_type() NoError {
+        parser_error("expected type after `->`\n");
+      }
     }
     if eq token.type T_LEFT_CURLY {
       lexer_next(); // skip `{`
