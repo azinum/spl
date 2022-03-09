@@ -1,6 +1,24 @@
 // common.spl
 // platform independent common/standard library
 
+const UINT64_MAX 0xffffffffffffffff;
+const INT64_MAX  0x7fffffffffffffff;
+const UINT32_MAX 0xffffffff;
+const INT32_MAX  0x7fffffff;
+const UINT16_MAX 0xffff;
+const INT16_MAX  0x7fff;
+const UINT8_MAX  0xff;
+const INT8_MAX   0x7f;
+
+const u64.max UINT64_MAX;
+const i64.max INT64_MAX;
+const u32.max UINT32_MAX;
+const i32.max INT32_MAX;
+const u16.max UINT16_MAX;
+const i16.max INT16_MAX;
+const u8.max  UINT8_MAX;
+const i8.max  INT8_MAX;
+
 fn strlen(any str) {
   let length 0;
   while < 0 load8 str {
