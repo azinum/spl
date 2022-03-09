@@ -361,7 +361,7 @@ fn lexer_next -> none {
           = @l.column + 1 l.column;
         }
       }
-      = @token.buffer +1 token.buffer;
+      = @token.buffer + 1 token.buffer;
       = @l.column + 1 l.column;
       = @token.type T_CSTRING;
       = @token.length - l.index token.buffer;
@@ -389,8 +389,17 @@ fn lexer_next -> none {
       = @done 1;
     }
     else if eq ch '-' {
-      = @token.type T_SUB;
-      = @done 1;
+      if eq load8 l.index '>' {
+        = @l.index + 1 l.index;
+        = @l.column + 1 l.column;
+        = @token.length + 1 token.length;
+        = @token.type T_ARROW;
+        = @done 1;
+      }
+      else {
+        = @token.type T_SUB;
+        = @done 1;
+      }
     }
     else if eq ch '*' {
       = @token.type T_MUL;
