@@ -56,11 +56,13 @@ fn strncmp(any a, any b, u64 count) -> u64 {
       = @result 1;
       = @done 1;
     }
-    = @a + 1 a;
-    = @b + 1 b;
-    = @i + 1 i;
+    else {
+      = @a + 1 a;
+      = @b + 1 b;
+      = @i + 1 i;
+    }
   }
-  result;
+  or neq load8 b 0 result;
 }
 
 fn memset(any ptr, u64 c, u64 n) {
