@@ -1,5 +1,11 @@
 // main.spl
 
-fn main {
+fn add(u64 a, u64 b) -> u64 + a b;
 
+fn main -> none {
+  let i 0;
+  const count 10;
+  if < i count {
+    print i;
+  }
 }

@@ -3319,6 +3319,11 @@ Ast* parse_statement(Parser* p) {
       expr->token = t;
       t = lexer_next(&p->l);  // skip `identifier`
       ast_push(expr, parse_expr(p));
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "expected `;` semicolon after memory statement, but got `%.*s`\n", t.length, t.buffer);
+      }
+      lexer_next(&p->l); // skip `;`
       return expr;
     }
     // TODO(lucas): fix parsing bug where there is a mismatch of curly brackets
