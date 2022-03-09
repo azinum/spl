@@ -309,9 +309,64 @@ fn lexer_next -> none {
     = @l.index + 1 l.index;
     = @l.column + 1 l.column;
 
-    if eq ch 10 {
+    if eq ch 13 { // `\r`
+      = @l.column 1;
+      if neq 10 load8 l.index {
+        = @l.line + 1 l.line
+      }
+    }
+    else if eq ch 10 { // `\n`
       = @l.line + 1 l.line;
       = @l.column 1;
+    }
+    else if eq ch '/' {
+      if eq '/' load8 l.index {
+        while and neq load8 l.index 10 neq load8 l.index 0 {
+          = @l.index + 1 l.index;
+          = @l.column + 1 l.column;
+        }
+      }
+      else {
+        = @token.type T_DIV;
+        = @done 1;
+      }
+    }
+    else if eq ch '"' {
+      let delimiter ch;
+      let loop_done 0;
+      while eq loop_done 0 {
+        if eq load8 l.index 0 {
+          lexer_error("unfinished string\n");
+          = @token.type T_EOF;
+          = @loop_done 1;
+          = @done 1;
+        }
+        else if eq load8 l.index 92 { // `\\`
+          if eq load8 + l.index 1 '0' {
+            store8 l.index 0;
+            = @l.index + 1 l.index;
+          }
+          if eq load8 + l.index 1 'n' {
+            store8 l.index 10;
+            = @l.index + 1 l.index;
+          }
+          = @l.index + 1 l.index;
+          = @l.column + 1 l.column;
+        }
+        else if eq load8 l.index delimiter {
+          = @loop_done 1;
+        }
+        else {
+          = @l.index + 1 l.index;
+          = @l.column + 1 l.column;
+        }
+      }
+      = @token.buffer +1 token.buffer;
+      = @l.column + 1 l.column;
+      = @token.type T_CSTRING;
+      = @token.length - l.index token.buffer;
+      = @l.index + 1 l.index;
+      = @done 1;
     }
     else if eq ch '=' {
       = @token.type T_ASSIGN;
