@@ -71,7 +71,7 @@ let token.filename "";
 let token.source "";
 let token.line 0;
 let token.column 0;
-let token.size +++++++
+let Token.size +++++++
   sizeof token.buffer
   sizeof token.length
   sizeof token.type

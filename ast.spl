@@ -1,1 +1,83 @@
 // ast.spl
+
+const AstNone 0;
+const AstRoot 1;
+const AstValue 2;
+const AstExpression 3;
+const AstExprList 4;
+const AstStatement 5;
+const AstStatementList 6;
+const AstBlockStatement 7;
+const AstBinopExpression 8;
+const AstUopExpression 9;
+const AstConstStatement 10;
+const AstLetStatement 11;
+const AstFuncDefinition 12;
+const AstFuncCall 13;
+const AstParamList 14;
+const AstMemoryStatement 15;
+const AstAssignment 16;
+const AstWhileStatement 17;
+const AstIfStatement 18;
+const AstType 19;
+const AstSizeof 20;
+const MAX_AST_TYPE 21;
+
+let ast_type_str "";
+
+const MAX_AST_NODE      2048;
+const MAX_AST_PTR       2048;
+const MAX_INTERNAL_NODE 16; // how many nodes each node can hold
+
+// ast node offsets
+const Ast.node 0;
+const Ast.count * sizeof any MAX_INTERNAL_NODE;
+const Ast.type     + Ast.count sizeof Ast.count;
+const Ast.token  + + Ast.count sizeof Ast.count sizeof Ast.type;
+const Ast.size + + + Ast.count sizeof Ast.count sizeof Ast.type Token.size;
+
+memory ast_node_memory * Ast.size MAX_AST_NODE;
+memory ast_ptr_memory * sizeof any MAX_AST_PTR;
+let ast_node 0;
+let ast_ptr 0;
+
+fn ast_create(u64 type) -> any {
+  let node ast_node;
+  = @ast_node + Ast.size @ast_node;
+
+  = + Ast.node node 0;
+  = + Ast.count node 0;
+  = + Ast.type node type;
+  token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
+  node;
+}
+
+fn ast_init -> none {
+  let t (
+    "AstNone",
+    "AstRoot",
+    "AstValue",
+    "AstExpression",
+    "AstExprList",
+    "AstStatement",
+    "AstStatementList",
+    "AstBlockStatement",
+    "AstBinopExpression",
+    "AstUopExpression",
+    "AstConstStatement",
+    "AstLetStatement",
+    "AstFuncDefinition",
+    "AstFuncCall",
+    "AstParamList",
+    "AstMemoryStatement",
+    "AstAssignment",
+    "AstWhileStatement",
+    "AstIfStatement",
+    "AstType",
+    "AstSizeof"
+  );
+  = @ast_type_str @t;
+  = @ast_node @ast_node_memory;
+  = @ast_ptr @ast_ptr_memory;
+  assert(eq (* sizeof any MAX_AST_TYPE) (sizeof t), "mismatch between ast_type_str and MAX_AST_TYPE\n");
+}

@@ -62,14 +62,19 @@ fn spl_start(any filename) -> u64 {
 
 fn main(u64 argc, any argv) -> none {
   common_init();
-  let arg argv;
-  let i 0;
-  if < argc 2 {
-    usage(#arg);
-  }
-  else {
-    = @arg + sizeof any arg;
-    let filename #arg;
-    let result spl_start(filename);
-  }
+  ast_init();
+  let a ast_create(AstExpression);
+  let b ast_create(AstBinopExpression);
+  print load64 + Ast.type a;
+  print load64 + Ast.type b;
+  // let arg argv;
+  // let i 0;
+  // if < argc 2 {
+  //   usage(#arg);
+  // }
+  // else {
+  //   = @arg + sizeof any arg;
+  //   let filename #arg;
+  //   let result spl_start(filename);
+  // }
 }
