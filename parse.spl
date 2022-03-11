@@ -62,7 +62,7 @@ fn parse_expr -> u64 {
     eq token.type T_NEQ {
     lexer_next(); // skip operator
     if eq parse_expr() NoError {
-      { let _ parse_expr(); }
+      let _ parse_expr();
     }
   }
   else if eq token.type T_AT {
@@ -159,7 +159,7 @@ fn parse_statement -> u64 {
         }
       }
       else {
-        { let _ parse_expr(); }
+        let _ parse_expr();
       }
     }
     if neq token.type T_SEMICOLON {
@@ -174,7 +174,7 @@ fn parse_statement -> u64 {
     }
     else {
       lexer_next(); // skip identifier
-      { let _ parse_expr(); }
+      let _ parse_expr();
       if neq token.type T_SEMICOLON {
         parser_error("expected `;` semicolon after statement\n");
       }
@@ -197,7 +197,7 @@ fn parse_statement -> u64 {
     eq token.type T_STORE8 {
     lexer_next(); // skip operator
     if eq parse_expr() NoError {
-      { let _ parse_expr(); }
+      let _ parse_expr();
     }
   }
   else if eq token.type T_WHILE {
@@ -213,7 +213,7 @@ fn parse_statement -> u64 {
         }
       }
       else {
-        { let _ parse_statement(); }
+        let _ parse_statement();
       }
     }
   }
@@ -230,7 +230,7 @@ fn parse_statement -> u64 {
         }
       }
       else {
-        { let _ parse_statement(); }
+        let _ parse_statement();
       }
     }
     if eq token.type T_ELSE {
@@ -245,7 +245,7 @@ fn parse_statement -> u64 {
         }
       }
       else {
-        { let _ parse_statement(); }
+        let _ parse_statement();
       }
     }
   }
@@ -397,7 +397,7 @@ fn parse_include -> u64 {
       = @tmp_it + tmp_it size;
       lexer_init(filename_path, file_source);
       lexer_next(); // read first token
-      { let _ statements(); }
+      let _ statements();
       close(fd);
     }
     else {
