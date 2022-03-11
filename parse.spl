@@ -434,9 +434,11 @@ fn parse_statements -> u64 {
       = @done 1;
     }
     else if eq token.type T_FN {
+      let prev done;
       if neq parse_func_def() NoError {
         = @done 1;
       }
+      = @done prev;
     }
     else if eq token.type T_INCLUDE {
       if eq parse_include() Error {
@@ -444,7 +446,7 @@ fn parse_statements -> u64 {
       }
     }
     else {
-      let prev done; // in case parse_statement() modifies the done variable
+      let prev done; // for cases when parse_statement modifies `done`
       if eq parse_statement() Error {
         = @done 1;
       }

@@ -279,6 +279,8 @@ fn lexer_error(cstr message) -> none {
     // a bit noisey, but this will do for now
     // TODO: varadic functions to the rescue
     tmp_push_cstr("[lex-error]: ");
+    tmp_push_cstr(token.filename);
+    tmp_push_cstr(":");
     tmp_push_u64(token.line);
     tmp_push_cstr(":");
     tmp_push_u64(token.column);
