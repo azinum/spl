@@ -1503,7 +1503,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
       if (type == TypeUnsigned64) {
-        typecheck(c, block, fs, body);
+        Block local_block;
+        block_init(&local_block, block);
+        typecheck(c, &local_block, fs, body);
         return TypeNone;
       }
       typecheck_error(c, "invalid type in while statement condition\n");
@@ -1516,10 +1518,14 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
       if (type == TypeUnsigned64) {
-        typecheck(c, block, fs, body);
+        Block local_block;
+        block_init(&local_block, block);
+        typecheck(c, &local_block, fs, body);
         if (ast->count == 3) {
           Ast* else_body = ast->node[2];
-          typecheck(c, block, fs, else_body);
+          Block local_block;
+          block_init(&local_block, block);
+          typecheck(c, &local_block, fs, else_body);
         }
         return TypeNone;
       }
