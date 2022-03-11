@@ -14,6 +14,8 @@ fn parser_error(cstr message) -> none {
   if eq p.status NoError {
     let it tmp_it;
     tmp_push_cstr("[parse-error]: ");
+    tmp_push_cstr(token.filename);
+    tmp_push_cstr(":");
     tmp_push_u64(token.line);
     tmp_push_cstr(":");
     tmp_push_u64(token.column);
@@ -140,7 +142,6 @@ fn parse_expr_list -> u64 {
 }
 
 fn parse_statement -> u64 {
-  memory test 128;
   if or eq token.type T_CONST eq token.type T_LET {
     lexer_next(); // skip `let`
     if neq token.type T_IDENTIFIER {
@@ -161,6 +162,10 @@ fn parse_statement -> u64 {
         { let _ parse_expr(); }
       }
     }
+    if neq token.type T_SEMICOLON {
+      parser_error("expected `;` semicolon after statement\n");
+    }
+    lexer_next(); // skip `;`
   }
   else if eq token.type T_MEMORY {
     lexer_next(); // skip `memory`
@@ -171,7 +176,7 @@ fn parse_statement -> u64 {
       lexer_next(); // skip identifier
       { let _ parse_expr(); }
       if neq token.type T_SEMICOLON {
-        parser_error("expected `;` semicolon after memory statement\n");
+        parser_error("expected `;` semicolon after statement\n");
       }
       lexer_next(); // skip `;`
     }
@@ -265,7 +270,7 @@ fn parse_type -> u64 {
     // TODO: push type to ast
   }
   else {
-    parser_error("not a type\n");
+    = @p.status Error;
   }
   lexer_next(); // skip type
   p.status;
@@ -342,6 +347,8 @@ fn parse_func_def -> u64 {
       if eq statements() NoError {
         if neq token.type T_RIGHT_CURLY {
           parser_error("expected `}` right curly bracket in function definition\n");
+          putsn(1, token.buffer, token.length);
+          puts(1, "\n");
         }
         lexer_next(); // skip `}`
       }
@@ -362,12 +369,61 @@ fn parse_func_def -> u64 {
 }
 
 fn parse_include -> u64 {
+  lexer_next(); // skip `include`
+  if neq token.type T_CSTRING {
+    parser_error("expected string after include keyword\n");
+  }
+  else {
+    let path token.buffer;
+    let path_length token.length;
+
+    lexer_next();
+
+    // copy current lexer state
+    let filename l.filename;
+    let source l.source;
+    let index l.index;
+    let line l.line;
+    let column l.column;
+    let status l.status;
+
+    let filename_path tmp_it;
+    tmp_push_str(path, + 1 path_length);
+    store8 + filename_path path_length 0;
+    let fd open(filename_path, 0, O_RDONLY);
+    if neq fd ERROR {
+      let file_source tmp_it;
+      let size read_file_into_buffer(fd, file_source);
+      = @tmp_it + tmp_it size;
+      lexer_init(filename_path, file_source);
+      lexer_next(); // read first token
+      { let _ statements(); }
+      close(fd);
+    }
+    else {
+      let message "";
+      = @message tmp_it;
+      tmp_push_cstr("failed to include source file `");
+      tmp_push_str(path, path_length);
+      tmp_push_cstr("`\n");
+      parser_error(message);
+      = @tmp_it message;
+    }
+
+    // restore lexer state
+    = @l.filename filename;
+    = @l.source source;
+    = @l.index index;
+    = @l.line line;
+    = @l.column column;
+    = @l.status status;
+  }
   p.status;
 }
 
 fn parse_statements -> u64 {
   let done 0;
-  while neq done 1 {
+  while eq done 0 {
     if eq token.type T_EOF {
       = @done 1;
     }
@@ -386,12 +442,13 @@ fn parse_statements -> u64 {
       if eq parse_include() Error {
         = @done 1;
       }
-      = @done 1;
     }
     else {
-      if neq parse_statement() NoError {
+      let prev done; // in case parse_statement() modifies the done variable
+      if eq parse_statement() Error {
         = @done 1;
       }
+      = @done prev;
     }
   }
   p.status;

@@ -1,6 +1,15 @@
 // main.spl
 
-fn add(u64 a, u64 b) -> u64 + a b;
+// include "lib/common.spl"
+
+fn strlen(any str) -> u64 {
+  let length 0;
+  while < 0 load8 str {
+    = @length + 1 length;
+    = @str    + 1 str;
+  }
+  length;
+}
 
 fn main -> none {
   let i 0;

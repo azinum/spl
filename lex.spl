@@ -314,16 +314,19 @@ fn lexer_next -> none {
       if neq 10 load8 l.index {
         = @l.line + 1 l.line
       }
+      = @token.column l.column;
     }
     else if eq ch 10 { // `\n`
       = @l.line + 1 l.line;
       = @l.column 1;
+      = @token.column l.column;
     }
     else if eq ch '/' {
       if eq '/' load8 l.index {
         while and neq load8 l.index 10 neq load8 l.index 0 {
           = @l.index + 1 l.index;
           = @l.column + 1 l.column;
+          = @token.column l.column;
         }
       }
       else {

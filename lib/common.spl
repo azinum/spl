@@ -19,11 +19,11 @@ const i16.max INT16_MAX;
 const u8.max  UINT8_MAX;
 const i8.max  INT8_MAX;
 
-fn strlen(any str) {
+fn strlen(any str) -> u64 {
   let length 0;
   while < 0 load8 str {
-    = @length +1 length;
-    = @str    +1 str;
+    = @length + 1 length;
+    = @str    + 1 str;
   }
   length;
 }
@@ -93,8 +93,9 @@ fn memcpy(any dest, any src, u64 n) {
   }
 }
 
+// TODO: sometimes yields wrong results, investigate
 fn digit_count(u64 n) {
-  let count 0;
+  let count 1;
   let base 10;
   let i 1;
   if < n 10 {
