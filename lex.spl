@@ -71,15 +71,17 @@ let token.filename "";
 let token.source "";
 let token.line 0;
 let token.column 0;
-let Token.size +++++++
-  sizeof token.buffer
-  sizeof token.length
-  sizeof token.type
-  sizeof token.v
-  sizeof token.filename
-  sizeof token.source
-  sizeof token.line
-  sizeof token.column;
+
+// token struct offsets
+const Token.buffer 0;
+const Token.length sizeof u64;
+const Token.type + Token.length sizeof u64;
+const Token.v + Token.type sizeof u64;
+const Token.filename + Token.v sizeof cstr;
+const Token.source + Token.filename sizeof cstr;
+const Token.line + Token.source sizeof u64;
+const Token.column + Token.line sizeof u64;
+const Token.size + Token.column sizeof u64;
 
 // struct Lexer {
 let l.filename "";
@@ -91,28 +93,28 @@ let l.status 0;
 // };
 
 fn token_init(any token, any buffer, u64 length, u64 type, any filename, any source) -> none {
-  = token buffer;   = @token + sizeof token.buffer token;
-  = token length;   = @token + sizeof token.length token;
-  = token type;     = @token + sizeof token.type token;
-  = token 0;        = @token + sizeof token.v token;
-  = token filename; = @token + sizeof token.filename token;
-  = token source;   = @token + sizeof token.source token;
-  = token 1;        = @token + sizeof token.line token;
-  = token 1;        = @token + sizeof token.column token;
+  = + token Token.buffer   buffer;
+  = + token Token.length   length;
+  = + token Token.type     type;
+  = + token Token.v        0;
+  = + token Token.filename filename;
+  = + token Token.source   source;
+  = + token Token.line     1;
+  = + token Token.column   1;
 }
 
 fn token_print(any token) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
-  // oh boy, i really REALLY need proper structs
-  let buffer #token;   = @token + sizeof token.buffer token;
-  let length #token;   = @token + sizeof token.length token;
-  let type #token;     = @token + sizeof token.type token;
-  let value #token;    = @token + sizeof token.v token;
-  let filename #token; = @token + sizeof token.filename token;
-  let source #token;   = @token + sizeof token.source token;
-  let line #token;     = @token + sizeof token.line token;
-  let column #token;   = @token + sizeof token.column token;
+
+  let buffer   # + token Token.buffer;
+  let length   # + token Token.length;
+  let type     # + token Token.type;
+  let value    # + token Token.v;
+  let filename # + token Token.filename;
+  let source   # + token Token.source;
+  let line     # + token Token.line;
+  let column   # + token Token.column;
 
   if eq filename 0 = @filename "none";
 
