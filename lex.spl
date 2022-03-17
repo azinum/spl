@@ -131,7 +131,7 @@ fn token_print(any token) -> none {
   p("column   = "); tmp_push_u64(column);
   p("\n");
 
-  puts(1, tmp);
+  puts(STDOUT_FILENO, tmp);
   = @tmp_it tmp;
 }
 

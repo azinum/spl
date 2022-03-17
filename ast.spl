@@ -31,15 +31,13 @@ const MAX_INTERNAL_NODE 16; // how many nodes each node can hold
 
 // ast node offsets
 const Ast.node 0;
-const Ast.count * sizeof any MAX_INTERNAL_NODE;
-const Ast.type     + Ast.count sizeof Ast.count;
-const Ast.token  + + Ast.count sizeof Ast.count sizeof Ast.type;
-const Ast.size + + + Ast.count sizeof Ast.count sizeof Ast.type Token.size;
+const Ast.count + sizeof Ast.node * sizeof any MAX_INTERNAL_NODE;
+const Ast.type + Ast.count sizeof any;
+const Ast.token + Ast.type sizeof u64;
+const Ast.size + Ast.token Token.size;
 
 memory ast_node_memory * Ast.size MAX_AST_NODE;
-memory ast_ptr_memory * sizeof any MAX_AST_PTR;
 let ast_node 0;
-let ast_ptr 0;
 
 fn ast_create(u64 type) -> any {
   let node ast_node;
@@ -51,6 +49,51 @@ fn ast_create(u64 type) -> any {
   token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
   node;
 }
+
+fn ast_print_node(any ast) -> none {
+  let tmp tmp_it;
+  let p tmp_push_cstr;
+
+  let count # + Ast.count ast;
+  let type  # + Ast.type ast;
+  let token + Ast.token ast;
+
+  p("count = "); tmp_push_u64(count);
+  p("\n");
+  p("type  = "); tmp_push_u64(type);
+  p("\n");
+  puts(STDOUT_FILENO, tmp);
+  = @tmp_it tmp;
+  token_print(token);
+}
+
+fn ast_push(any ast, any node) {
+  assert(neq ast 0, "null ast node\n");
+  if neq node 0 {
+    assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
+    let node + Ast.node ast;
+    let count + Ast.count ast;
+    memcpy(+ node * #count Ast.size, node, Ast.size);
+    = count + 1 #count;
+  }
+  ast;
+}
+
+fn _ast_count(any ast, u64 i, u64 count, u64 ast.count) -> u64 {
+  if > ast.count 0 {
+    while < i ast.count {
+      let node + Ast.node ast;
+      = @count + count _ast_count(+ node * ast.count Ast.size, 0, 1, # + Ast.count ast);
+      = @i + 1 i;
+    }
+  }
+  else {
+    = @count 0;
+  }
+  count;
+}
+
+fn ast_count(any ast) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
 
 fn ast_init -> none {
   let t (
@@ -78,6 +121,5 @@ fn ast_init -> none {
   );
   = @ast_type_str @t;
   = @ast_node @ast_node_memory;
-  = @ast_ptr @ast_ptr_memory;
   assert(eq (* sizeof any MAX_AST_TYPE) (sizeof t), "mismatch between ast_type_str and MAX_AST_TYPE\n");
 }

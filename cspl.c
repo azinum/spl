@@ -1267,7 +1267,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             break;
         }
         vs_push(c, (Value) { .num = num, });
-        return ts_push(c, a);
+        return ts_push(c, TypeUnsigned64);
       }
       typecheck_error_at(c, ast->token, "type mismatch in binary operator expression\n");
       return TypeNone;

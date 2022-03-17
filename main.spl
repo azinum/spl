@@ -1,11 +1,9 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
+
+fn f(u64 x) -> u64 * x 3;
 
 fn main -> none {
-  let i 0;
-  const count 10;
-  if < i count {
-    print i;
-  }
+  memory test 128;
 }

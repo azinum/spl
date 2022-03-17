@@ -4,7 +4,7 @@ const NoError 0;
 const Error 1;
 
 // temporary `scratch` buffer
-const TMP_SIZE 32768;
+const TMP_SIZE * 2 32768;
 memory tmp TMP_SIZE;
 let tmp_end 0;
 let tmp_it 0;

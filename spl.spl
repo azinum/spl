@@ -63,10 +63,10 @@ fn spl_start(any filename) -> u64 {
 fn main(u64 argc, any argv) -> none {
   common_init();
   ast_init();
-  let a ast_create(AstExpression);
-  let b ast_create(AstBinopExpression);
-  print load64 + Ast.type a;
-  print load64 + Ast.type b;
+  let root ast_create(AstExpression);
+  { let _ ast_push(root, ast_create(AstBinopExpression)); }
+  { let _ ast_push(root, ast_create(AstBinopExpression)); }
+  print ast_count(root);
   // let arg argv;
   // let i 0;
   // if < argc 2 {
