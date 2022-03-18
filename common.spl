@@ -4,7 +4,7 @@ const NoError 0;
 const Error 1;
 
 // temporary `scratch` buffer
-const TMP_SIZE * 2 32768;
+const TMP_SIZE * 4 32768;
 memory tmp TMP_SIZE;
 let tmp_end 0;
 let tmp_it 0;
@@ -29,14 +29,16 @@ fn assert(u64 cond, cstr message) -> none {
 
 fn common_init -> none {
   = @tmp_it @tmp;
-  = @tmp_end + tmp_it TMP_SIZE;
+  = @tmp_end + @tmp TMP_SIZE;
 }
 
 fn tmp_push_cstr(any str) -> none {
   let length strlen(str);
   if < (+ tmp_it length) tmp_end {
-    memcpy(tmp_it, str, length);
-    = @tmp_it + length tmp_it;
+    if > length 0 {
+      memcpy(tmp_it, str, length);
+      = @tmp_it + length tmp_it;
+    }
   }
   else {
     error("out of scratch memory\n");
@@ -44,12 +46,16 @@ fn tmp_push_cstr(any str) -> none {
 }
 
 fn tmp_push_str(any str, u64 length) -> none {
-  if < (+ tmp_it length) tmp_end {
-    memcpy(tmp_it, str, length);
-    = @tmp_it + length tmp_it;
-  }
-  else {
-    error("out of scratch memory\n");
+  if > length 0 {
+    if < (+ tmp_it length) tmp_end {
+      if > length 0 {
+        memcpy(tmp_it, str, length);
+        = @tmp_it + length tmp_it;
+      }
+    }
+    else {
+      error("out of scratch memory\n");
+    }
   }
 }
 
