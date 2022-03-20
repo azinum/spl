@@ -22,6 +22,9 @@ const i8.max  INT8_MAX;
 fn strlen(any str) -> u64 {
   let length 0;
   while < 0 load8 str {
+    if or eq load8 str 10 eq load8 str 13 { // `\n`, `\r`
+      = @str + 1 str;
+    }
     = @length + 1 length;
     = @str    + 1 str;
   }

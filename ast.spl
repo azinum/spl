@@ -68,15 +68,14 @@ fn ast_print_node(any ast) -> none {
   token_print(token);
 }
 
-fn ast_push(any ast, any node) -> any {
+fn ast_push(any ast, any node) -> none {
   assert(neq ast 0, "null ast node\n");
   if neq node 0 {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
     let count + Ast.count ast;
-    = + * #count sizeof any ast node;
+    = + + Ast.node ast * #count sizeof any node;
     = count + 1 #count;
   }
-  ast;
 }
 
 fn _ast_count(any ast, u64 i, u64 count, u64 ast.count) -> u64 {
@@ -104,9 +103,8 @@ fn _ast_print(any ast, u64 i, u64 count, u64 level, u64 fd) -> none {
     p(", ");
     let token + Ast.token ast;
     p(table_fetch(token_type_str, # + Token.type token));
-    // p(">: `");
     p(">: `");
-    // tmp_push_str(# + Token.buffer token, # + Token.length token);
+    tmp_push_str(# + Token.buffer token, # + Token.length token);
     p("`\n");
     puts(fd, it);
     = @tmp_it it;

@@ -64,13 +64,16 @@ fn main(u64 argc, any argv) -> none {
   common_init();
   lexer_init("main.spl", "");
   ast_init();
-  let root ast_create(AstExpression);
-  { let _ ast_push(root, ast_create(AstBinopExpression)); }
-  { let _ ast_push(root, ast_create(AstBinopExpression)); }
-  { let _ ast_push(root, ast_create(AstUopExpression)); }
-  { let _ ast_push(root, ast_create(AstBinopExpression)); }
+  let root ast_create(AstRoot);
+  let node ast_create(AstBinopExpression);
+
+  ast_push(node, ast_create(AstValue));
+  ast_push(node, ast_create(AstValue));
+  ast_push(root, node);
+  ast_push(root, node);
 
   ast_print(root, STDOUT_FILENO);
+
   // let arg argv;
   // let i 0;
   // if < argc 2 {
