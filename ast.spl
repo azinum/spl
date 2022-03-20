@@ -89,6 +89,10 @@ fn _ast_count(any ast, u64 i, u64 count, u64 ast.count) -> u64 {
 
 fn ast_count(any ast) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
 
+fn ast_child_count(any ast) -> u64 {
+  # + Ast.count ast;
+}
+
 fn _ast_print(any ast, u64 i, u64 count, u64 level, u64 fd) -> none {
   if neq ast 0 {
     let it tmp_it;
@@ -116,9 +120,7 @@ fn _ast_print(any ast, u64 i, u64 count, u64 level, u64 fd) -> none {
   }
 }
 
-fn ast_print(any ast, u64 fd) -> none {
-  _ast_print(ast, 0, # + Ast.count ast, 0, fd);
-}
+fn ast_print(any ast, u64 fd) _ast_print(ast, 0, # + Ast.count ast, 0, fd);
 
 fn ast_init -> none {
   let t (
