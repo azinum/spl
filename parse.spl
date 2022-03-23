@@ -5,7 +5,7 @@ let p.ast 0;
 let p.status 0;
 // };
 
-fn parser_function -> u64 0;
+fn parser_function -> any 0;
 let statement parser_function;
 let statements parser_function;
 let expr_list parser_function;
@@ -27,11 +27,15 @@ fn parser_error(cstr message) -> none {
   }
 }
 
-fn parse_expr -> u64 {
+fn parse_expr -> any {
+  let result 0;
   if or or
     eq token.type T_POP
     eq token.type T_NUMBER
     eq token.type T_CSTRING {
+    let node ast_create(AstValue);
+    copy_token_into_memory(+ Ast.token node);
+    = @result node;
     lexer_next();
   }
   else if eq token.type T_IDENTIFIER {
@@ -60,10 +64,12 @@ fn parse_expr -> u64 {
     eq token.type T_OR
     eq token.type T_EQ
     eq token.type T_NEQ {
+    let expr ast_create(AstBinopExpression);
+    copy_token_into_memory(+ Ast.token expr);
     lexer_next(); // skip operator
-    if eq parse_expr() NoError {
-      let _ parse_expr();
-    }
+    ast_push(expr, parse_expr());
+    ast_push(expr, parse_expr());
+    = @result expr;
   }
   else if eq token.type T_AT {
     lexer_next(); // skip `@`
@@ -120,10 +126,10 @@ fn parse_expr -> u64 {
   else {
     parser_error("unexected token in expression\n");
   }
-  p.status;
+  result;
 }
 
-fn parse_expr_list -> u64 {
+fn parse_expr_list -> any {
   if neq token.type T_RIGHT_P {
     let done 0;
     while eq done 0 {
@@ -141,7 +147,8 @@ fn parse_expr_list -> u64 {
   p.status;
 }
 
-fn parse_statement -> u64 {
+fn parse_statement -> any {
+  let result 0;
   if or eq token.type T_CONST eq token.type T_LET {
     lexer_next(); // skip `let`
     if neq token.type T_IDENTIFIER {
@@ -250,17 +257,17 @@ fn parse_statement -> u64 {
     }
   }
   else {
-    if eq parse_expr() NoError {
-      if neq token.type T_SEMICOLON {
-        parser_error("exptected `;` semicolon after statement\n");
-      }
-      lexer_next();
+    let expr parse_expr();
+    if neq token.type T_SEMICOLON {
+      parser_error("expected `;` semicolon after statement\n");
     }
+    lexer_next(); // skip `;`
+    = @result expr;
   }
-  p.status;
+  result;
 }
 
-fn parse_type -> u64 {
+fn parse_type -> any {
   if or or or
     eq token.type T_NONE
     eq token.type T_ANY
@@ -276,7 +283,7 @@ fn parse_type -> u64 {
   p.status;
 }
 
-fn parse_param_list -> u64 {
+fn parse_param_list -> any {
   if neq token.type T_RIGHT_P {
     let done 0;
     while eq done 0 {
@@ -319,7 +326,7 @@ fn parse_param_list -> u64 {
   p.status;
 }
 
-fn parse_func_def -> u64 {
+fn parse_func_def -> any {
   lexer_next(); // skip `fn`
   if eq token.type T_IDENTIFIER {
     lexer_next(); // skip `name`
@@ -421,8 +428,9 @@ fn parse_include -> u64 {
   p.status;
 }
 
-fn parse_statements -> u64 {
+fn parse_statements -> any {
   let done 0;
+  let stmts ast_create(AstStatementList);
   while eq done 0 {
     if eq token.type T_EOF {
       = @done 1;
@@ -447,31 +455,33 @@ fn parse_statements -> u64 {
     }
     else {
       let prev done; // for cases when parse_statement modifies `done`
-      if eq parse_statement() Error {
+      let stmt parse_statement();
+      if eq stmt 0 {
         = @done 1;
       }
+      ast_push(stmts, stmt);
       = @done prev;
     }
   }
-  p.status;
+  stmts;
 }
 
 fn parse -> u64 {
   lexer_next();
-  parse_statements();
+  ast_push(p.ast, parse_statements());
+  p.status;
 }
 
 fn parser_init(any filename, any source) -> u64 {
-  let result NoError;
   lexer_init(filename, source);
-  = @p.ast 0;
+  = @p.ast ast_create(AstRoot);
   = @p.status NoError;
 
   = @statement parse_statement;
   = @statements parse_statements;
   = @expr_list parse_expr_list;
 
-  result;
+  NoError;
 }
 
 fn parser_free -> none {

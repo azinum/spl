@@ -34,6 +34,7 @@ fn spl_start(any filename) -> u64 {
     if eq parser_init(filename, source) NoError {
       = @result parse();
       if and eq p.status NoError eq l.status NoError {
+        ast_print(p.ast, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           compile_state_free();
         }
@@ -62,26 +63,15 @@ fn spl_start(any filename) -> u64 {
 
 fn main(u64 argc, any argv) -> none {
   common_init();
-  lexer_init("main.spl", "");
   ast_init();
-  let root ast_create(AstRoot);
-  let node ast_create(AstBinopExpression);
-
-  ast_push(node, ast_create(AstValue));
-  ast_push(node, ast_create(AstValue));
-  ast_push(root, node);
-  ast_push(root, node);
-
-  ast_print(root, STDOUT_FILENO);
-
-  // let arg argv;
-  // let i 0;
-  // if < argc 2 {
-  //   usage(#arg);
-  // }
-  // else {
-  //   = @arg + sizeof any arg;
-  //   let filename #arg;
-  //   let result spl_start(filename);
-  // }
+  let arg argv;
+  let i 0;
+  if < argc 2 {
+    usage(#arg);
+  }
+  else {
+    = @arg + sizeof any arg;
+    let filename #arg;
+    let result spl_start(filename);
+  }
 }

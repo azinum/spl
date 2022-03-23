@@ -103,6 +103,17 @@ fn token_init(any token, any buffer, u64 length, u64 type, any filename, any sou
   = + token Token.column   1;
 }
 
+fn copy_token_into_memory(any mem) -> none {
+  = + mem Token.buffer   token.buffer;
+  = + mem Token.length   token.length;
+  = + mem Token.type     token.type;
+  = + mem Token.v        token.v;
+  = + mem Token.filename token.filename;
+  = + mem Token.source   token.source;
+  = + mem Token.line     token.line;
+  = + mem Token.column   token.column;
+}
+
 fn token_print(any token) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;

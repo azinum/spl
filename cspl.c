@@ -4277,7 +4277,7 @@ Ast* ast_push(Ast* ast, Ast* node) {
   else {
     Ast** tmp = realloc(ast->node, sizeof(Ast*) * (ast->count + 1));
     if (!tmp) {
-      fprintf(stderr, "Failed to resize list of ast node references\n");
+      fprintf(stderr, "failed to resize list of ast node references\n");
       return NULL;
     }
     ast->node = tmp;
