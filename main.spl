@@ -1,4 +1,17 @@
 // main.spl
 
+include "lib/common.spl"
+
+let s "";
+
+fn table_fetch(any table, u64 index, u64 elem_size) #(+ table * elem_size index);
+
 fn main -> none {
+  let t (
+    "Hello",
+    "There",
+    "Buddy"
+  );
+  = @s @t;
+  puts(1, table_fetch(s, 2, sizeof any));
 }

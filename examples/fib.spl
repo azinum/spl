@@ -31,6 +31,7 @@ fn fib_recursive(u64 n) {
 }
 
 fn main {
-  let n 30;
-  print eq fib_recursive(n) fib(n);
+  let n 12;
+  print fib_recursive(n);
+  print fib(n);
 }

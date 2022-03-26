@@ -2,16 +2,16 @@
 
 include "lib/common.spl"
 
-fn nanosleep(any ts) {
+fn nanosleep(any ts) -> none {
   let _ syscall2(SYS_nanosleep, ts, 0);
 }
 
-fn lc_random(any cur_seed) {
+fn lc_random(any cur_seed) -> u64 {
   = cur_seed % + (* (#cur_seed) 16807) 13 2147483647;
   #cur_seed;
 }
 
-fn ca_init(any codep, any map, u64 map.w, u64 map.h) {
+fn ca_init(any codep, any map, u64 map.w, u64 map.h) -> none {
   // fancy initialization of clear code: \x1b[2J\x1b[H
   store8 codep 27; = @codep +1 codep;
   store8 codep 91; = @codep +1 codep;
@@ -40,7 +40,7 @@ fn ca_init(any codep, any map, u64 map.w, u64 map.h) {
   }
 }
 
-fn ca_draw_map(any map, u64 map.w, u64 map.h) {
+fn ca_draw_map(any map, u64 map.w, u64 map.h) -> none {
   let y 0;
   let linebreak 10;
   while < y map.h {
@@ -103,7 +103,7 @@ fn main {
   memory timespec * 2 sizeof u64;
   let ts @timespec;
   = ts 0;
-  = + u64.size ts 500000000;
+  = + sizeof u64 ts 500000000;
 
   let running 1;
 

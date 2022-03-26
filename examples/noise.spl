@@ -4,17 +4,17 @@ include "lib/common.spl"
 
 let lc_cur_seed 0;
 
-fn lc_random_init(seed) {
+fn lc_random_init(u64 seed) -> none {
   = @lc_cur_seed seed;
 }
 
-fn lc_random {
+fn lc_random -> u64 {
   = @lc_cur_seed % + (* (lc_cur_seed) 16807) 13 2147483647;
   lc_cur_seed;
 }
 
 
-fn main {
+fn main -> none {
   lc_random_init(time()); 
 
   let mode 434; // 0662
