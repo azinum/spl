@@ -12,7 +12,8 @@ ${SRC}:
 clean:
 	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
 
-run: spl
+run: SPL_FLAGS+=run
+run: main
 
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl

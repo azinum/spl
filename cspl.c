@@ -535,6 +535,8 @@ typedef struct Function {
   i32 ir_address;
   i32 label;
   u32 argc;
+  u32 locals; // number of local variables
+  u32 locals_offset_counter; // some variables are bigger than 8 bytes, so this will act as a sort of offset counter. will have to add something similar to function arguments in the future in case i want to be able to push structs and other things which uses more than 8 bytes.
   Compile_type rtype;
   u32 args[MAX_FUNC_ARGC]; // arguments pointing to some symbol in the function block/symbol table
 } Function;
@@ -555,6 +557,7 @@ typedef struct Symbol {
   i32 imm; // address to immediate value
   i32 size;
   i32 konst;
+  i32 local_id;
   Symbol_type sym_type;
   Compile_type type;
   Token token;
@@ -621,7 +624,7 @@ static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
 static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index);
 static i32 compile_create_syscall(Compile* c, const char* name, u32 argc);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
-static void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp);
+static void compile_print_symbol_info(Compile* c, FILE* fp);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
 static void typecheck_error(Compile* c, const char* fmt, ...);
@@ -792,7 +795,7 @@ i32 spl_start(Options* options) {
             if (debug) {
               ast_print(p.ast, 0, debug);
               ir_print(&c, debug);
-              compile_print_symbol_info(&c, options->filename, (char*)source, debug);
+              compile_print_symbol_info(&c, debug);
               fclose(debug);
             }
 #endif
@@ -874,6 +877,7 @@ void symbol_init(Symbol* s) {
   s->imm = -1;
   s->size = 0;
   s->konst = 0;
+  s->local_id = -1;
   s->sym_type = SYM_LOCAL_VAR;
   s->type = TypeNone;
   s->token = (Token) {0};
@@ -1030,6 +1034,8 @@ i32 compile_create_syscall(Compile* c, const char* name, u32 argc) {
   func->ir_address = -1;
   func->label = -1;
   func->argc = argc + 1;
+  func->locals = 0;
+  func->locals_offset_counter = 0;
   func->rtype = TypeUnsigned64;
   return NoError;
 }
@@ -1063,9 +1069,7 @@ i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, 
   return compile_lookup_value(c, block->parent, func, token, symbol, symbol_index, levels_descent);
 }
 
-void compile_print_symbol_info(Compile* c, char* path, char* source, FILE* fp) {
-  (void)source; // unused
-  (void)path; // unused
+void compile_print_symbol_info(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* symbol = &c->symbols[i];
@@ -1389,6 +1393,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         func->ir_address = -1;
         func->label = symbol_index;
         func->argc = params->count;
+        func->locals = 0;
+        func->locals_offset_counter = 0;
         func->rtype = TypeUnsigned64;
 
         if (rtype_node != NULL) {
@@ -1938,7 +1944,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
           if (imm >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_LOCAL,
+              .i = I_PUSH,
               .dest = TypeUnsigned64,
               .src0 = -1,
               .src1 = imm,
@@ -1954,7 +1960,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           i32 cstring_address = ir_push_cstring(c, ast->token.buffer, ast->token.length, &cstring_index);
           if (cstring_address >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_LOCAL,
+              .i = I_PUSH,
               .dest = TypeCString,
               .src0 = cstring_index,
               .src1 = -1,
@@ -1974,7 +1980,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           if (symbol->sym_type == SYM_FUNC) {
             Function* func = &symbol->value.func;
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_LOCAL,
+              .i = I_PUSH,
               .dest = symbol->type,
               .src0 = func->label,
               .src1 = -1,
@@ -1983,7 +1989,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           else if (symbol->sym_type == SYM_LOCAL_VAR) {
             if (symbol->type == TypeCString) {
               ir_push_ins(c, (Op) {
-                .i = I_PUSH_LOCAL,
+                .i = I_PUSH,
                 .dest = TypeAny,
                 .src0 = id,
                 .src1 = -1,
@@ -1991,7 +1997,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             }
             else {
               ir_push_ins(c, (Op) {
-                .i = I_PUSH_LOCAL,
+                .i = I_PUSH,
                 .dest = symbol->type,
                 .src0 = id,
                 .src1 = -1,
@@ -2001,7 +2007,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           else {
             i32 arg = symbol->token.v.i;
             ir_push_ins(c, (Op) {
-              .i = I_PUSH,
+              .i = I_PUSH_LOCAL,
               .dest = symbol->type,
               .src0 = arg,
               .src1 = -1,
@@ -2014,7 +2020,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           Symbol* symbol = &c->symbols[id];
           if (symbol->sym_type == SYM_FUNC || symbol->sym_type == SYM_LOCAL_VAR) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_LOCAL_ADDR_OF,
+              .i = I_PUSH_ADDR_OF,
               .dest = symbol->type,
               .src0 = id,
               .src1 = -1,
@@ -2023,7 +2029,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
           else {
             id = symbol->token.v.i;
             ir_push_ins(c, (Op) {
-              .i = I_PUSH_ADDR_OF,
+              .i = I_PUSH_LOCAL_ADDR_OF,
               .dest = symbol->type,
               .src0 = id,
               .src1 = -1,
@@ -2164,7 +2170,9 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
     }
     case AstFuncDefinition: {
       assert(ast->count == 2 || ast->count == 3);
-      ir_compile_func(c, block, ast, ins_count);
+      Block local_block;
+      block_init(&local_block, block);
+      ir_compile_func(c, &local_block, ast, ins_count);
       break;
     }
     case AstParamList: {
@@ -2184,7 +2192,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               .i = I_ADDR_CALL,
               .dest = id,
               .src0 = func->argc,
-              .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
+              .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
             }, ins_count);
             break;
           }
@@ -2193,7 +2201,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
               .i = I_ADDR_CALL,
               .dest = id,
               .src0 = func->argc,
-              .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
+              .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
             }, ins_count);
             break;
           }
@@ -2201,7 +2209,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
             .i = I_CALL,
             .dest = func->label, 
             .src0 = func->argc,
-            .src1 = ((i32[]){0, -1})[func->rtype == TypeNone],
+            .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
           }, ins_count);
           break;
         }
@@ -2356,7 +2364,7 @@ i32 ir_compile(Compile* c, Block* block, Ast* ast, u32* ins_count) {
       i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
       if (imm >= 0) {
         ir_push_ins(c, (Op) {
-          .i = I_PUSH_LOCAL,
+          .i = I_PUSH,
           .dest = TypeUnsigned64,
           .src0 = -1,
           .src1 = imm,
@@ -2611,6 +2619,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_PUSH_ADDR_OF: {
         vo("; I_PUSH_ADDR_OF\n");
+        o("mov rax, v%d\n", op->src0);
+        o("push rax\n");
+        break;
+      }
+      case I_PUSH_LOCAL_ADDR_OF: {
+        vo("; I_PUSH_LOCAL_ADDR_OF\n");
         switch (op->dest) {
           case TypeAny:
           case TypeCString:
@@ -2620,35 +2634,13 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             break;
           }
           default: {
-            assert("I_PUSH_ADDR_OF: type not implemented yet" && 0);
+            assert("I_PUSH_LOCAL_ADDR_OF: type not implemented yet" && 0);
           }
         }
-        break;
-      }
-      case I_PUSH_LOCAL_ADDR_OF: {
-        vo("; I_PUSH_LOCAL_ADDR_OF\n");
-        o("mov rax, v%d\n", op->src0);
-        o("push rax\n");
         break;
       }
       case I_PUSH: {
         vo("; I_PUSH\n");
-        switch (op->dest) {
-          case TypeAny: // TODO(lucas): temp
-          case TypeCString:
-          case TypeUnsigned64: {
-            o("push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
-            break;
-          }
-          default: {
-            assert("I_PUSH: type not implemented yet" && 0);
-            break;
-          }
-        }
-        break;
-      }
-      case I_PUSH_LOCAL: {
-        vo("; I_PUSH_LOCAL\n");
         if (op->src0 >= 0) {
           switch (op->dest) {
             case TypeAny:
@@ -2689,12 +2681,30 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         }
         break;
       }
+      case I_PUSH_LOCAL: {
+        vo("; I_PUSH_LOCAL\n");
+        switch (op->dest) {
+          case TypeAny:
+          case TypeCString:
+          case TypeUnsigned64: {
+            o("push QWORD [rbp-0x%x]\n", 0x8 * (1 + op->src0));
+            break;
+          }
+          default: {
+            assert("I_PUSH: type not implemented yet" && 0);
+            break;
+          }
+        }
+        break;
+      }
       case I_ADD: {
         vo("; I_ADD\n");
-        o("pop rax\n");
-        o("pop rbx\n");
-        o("add rbx, rax\n");
-        o("push rbx\n");
+        o(
+        "pop rax\n"
+        "pop rbx\n"
+        "add rbx, rax\n"
+        "push rbx\n"
+        );
         break;
       }
       case I_SUB: {
@@ -2732,12 +2742,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       // TODO(lucas): implement
       case I_LSHIFT: {
         vo("; I_LSHIFT\n");
-        assert("I_LSHIFT instruction not implemented yet" && 0);
+        assert("I_LSHIFT: instruction not implemented yet" && 0);
         break;
       }
       case I_RSHIFT: {
         vo("; I_LSHIFT\n");
-        assert("I_RSHIFT instruction not implemented yet" && 0);
+        assert("I_RSHIFT: instruction not implemented yet" && 0);
         break;
       }
       case I_DIVMOD: {
@@ -3041,12 +3051,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 #if __APPLE__
   // macos uses different system call codes, they can be found here: https://sigsegv.pl/osx-bsd-syscalls/
   o("mov rax, 1 ; exit syscall\n");
-  o("mov rdi, 0\n");
+  o("mov rdi, 0 ; return code\n");
   o("syscall\n");
   o("ret\n");
 #else
   o("mov rax, 60 ; exit syscall\n");
-  o("mov rdi, 0\n");
+  o("mov rdi, 0  ; return code\n");
   o("syscall\n");
 #endif
   o("section .data\n");
@@ -3082,7 +3092,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             u64 value = *(u64*)&c->imm[imm];
             o(" %ld,", value);
           }
-          o("; `%s`\n", s->name);
+          o(" ; `%s`\n", s->name);
           break;
         }
         default: {

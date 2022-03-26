@@ -1,3 +1,4 @@
 // main.spl
 
-+ 2 3;
+fn main -> none {
+}
