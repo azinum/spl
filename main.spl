@@ -2,9 +2,11 @@
 
 // include "lib/common.spl"
 
+fn f(u64 x) -> u64 * x x;
+
 fn main -> none {
-  const a : u64 12;
-  let b : u64 13;
+  let a : u64 12;
+  let b : u64 3;
   print a;
   print b;
 }

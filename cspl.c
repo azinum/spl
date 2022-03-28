@@ -332,8 +332,9 @@ typedef enum Ir_code {
   I_LOAD8,
   I_PUSH_ADDR_OF, // <type, id, x>
   I_PUSH_LOCAL_ADDR_OF, // <type, local_id, x>
-  I_PUSH, // <type, id, imm>
+  I_PUSH, // <type, id, x>
   I_PUSH_LOCAL, // <type, local_id, x>
+  I_PUSH_IMM, // <type, imm, x>
   I_ADD,
   I_SUB,
   I_MUL,
@@ -352,7 +353,7 @@ typedef enum Ir_code {
   I_NORET, // <x, frame_size, x>
   I_PRINT,
   I_LABEL,
-  I_CALL, // <label:address, argc, rtype>
+  I_CALL, // <label, argc, rtype>
   I_ADDR_CALL, // <x, argc, rtype>
   I_JMP,
   I_JZ, // <label, offset, x>
@@ -387,6 +388,7 @@ static const char* ir_code_str[] = {
   "I_PUSH_LOCAL_ADDR_OF",
   "I_PUSH",
   "I_PUSH_LOCAL",
+  "I_PUSH_IMM",
   "I_ADD",
   "I_SUB",
   "I_MUL",
@@ -1328,7 +1330,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type prev_type = type;
       if (ast_type) {
         Compile_type explicit_type = token_to_compile_type(ast_type->token);
-        if (type != explicit_type) {
+        if (type != explicit_type && explicit_type != TypeAny) {
           typecheck_error_at(c, ast_type->token, "explicit type does not match rhs type\n");
           return TypeNone;
         }
@@ -1747,7 +1749,7 @@ void ir_print(Compile* c, FILE* fp) {
 void ir_binary_output(Compile* c, FILE* fp) {
   u32 write_index = 0;
 #define o(_ptr, _size, _count) fwrite(_ptr, _size, _count, fp); write_index += (_size * _count)
-  
+
   struct {
     u32 data;
     u32 cstring;
@@ -1965,10 +1967,10 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
           if (imm >= 0) {
             ir_push_ins(c, (Op) {
-              .i = I_PUSH,
+              .i = I_PUSH_IMM,
               .dest = TypeUnsigned64,
-              .src0 = -1,
-              .src1 = imm,
+              .src0 = imm,
+              .src1 = -1,
             }, ins_count);
           }
           else {
@@ -2226,8 +2228,8 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       if (count == 1) {
         symbol->token = node->token;
       }
-      // NOTE(lucas): temporarily change TypeCString -> TypeAny
       if (symbol->type == TypeCString) {
+        // NOTE(lucas): symbol is pointing to a string, thus we change the type from TypeCString -> TypeAny to reflect that
         symbol->type = TypeAny;
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
@@ -2556,6 +2558,7 @@ i32 ir_compile_uop(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_co
 }
 
 i32 ir_compile_func(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count) {
+  (void)fs;
   Ast* body = ast->node[1];
   i32 id = ast->token.v.i;
   Symbol* symbol = &c->symbols[id];
@@ -2801,20 +2804,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             }
           }
         }
-        else if (op->src1 >= 0) { // immediate value
-          switch (op->dest) {
-            case TypeUnsigned64: {
-              u64 value = *(u64*)&c->imm[op->src1];
-              o("mov rax, %ld\n", value);
-              o("push rax\n");
-              break;
-            }
-            default: {
-              assert("I_PUSH: imm type not implemented yet" && 0);
-              break;
-            }
-          }
-        }
         break;
       }
       case I_PUSH_LOCAL: {
@@ -2829,6 +2818,22 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           }
           default: {
             assert("I_PUSH_LOCAL: type not implemented yet" && 0);
+            break;
+          }
+        }
+        break;
+      }
+      case I_PUSH_IMM: {
+        vo("; I_PUSH_IMM\n");
+        switch (op->dest) {
+          case TypeUnsigned64: {
+            u64 value = *(u64*)&c->imm[op->src0];
+            o("mov rax, %ld\n", value);
+            o("push rax\n");
+            break;
+          }
+          default: {
+            assert("I_PUSH_IMM: imm type not implemented yet" && 0);
             break;
           }
         }
