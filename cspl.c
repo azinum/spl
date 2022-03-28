@@ -2509,10 +2509,10 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       i32 imm = ir_push_value(c, &ast->token.v.num, sizeof(ast->token.v.num));
       if (imm >= 0) {
         ir_push_ins(c, (Op) {
-          .i = I_PUSH,
+          .i = I_PUSH_IMM,
           .dest = TypeUnsigned64,
-          .src0 = -1,
-          .src1 = imm,
+          .src0 = imm,
+          .src1 = -1,
         }, ins_count);
       }
       break;
@@ -3863,7 +3863,7 @@ Ast* parse_param_list(Parser* p) {
         return param_list;
       }
       t = lexer_next(&p->l); // skip `:`
-      if (t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
+      if (token_to_compile_type(t) != TypeNone) {
         Ast* arg = ast_create(AstType);
         arg->token = t;
         ast_push_node(arg, AstValue, ident);
@@ -4293,15 +4293,11 @@ Token lexer_peek(Lexer* l) {
 
 Compile_type token_to_compile_type(Token t) {
   switch (t.type) {
-    case T_ANY:
-      return TypeAny;
-    case T_UNSIGNED64:
-      return TypeUnsigned64;
+    case T_ANY:         return TypeAny;
+    case T_UNSIGNED64:  return TypeUnsigned64;
     case T_CSTRING:
-    case T_CSTR:
-      return TypeCString;
-    default:
-      return TypeNone;
+    case T_CSTR:        return TypeCString;
+    default: break;
   }
   return TypeNone;
 }
