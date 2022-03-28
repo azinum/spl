@@ -326,17 +326,17 @@ const O_WRONLY 1;
 const O_CREAT 64;
 const O_TRUNC 512;
 
-fn read(u64 fd, any buf, u64 count)    syscall3(SYS_read, fd, buf, count);
-fn open(any path, u64 flags, u64 mode) syscall3(SYS_open, path, flags, mode);
-fn close(u64 fd) { let _ syscall1(SYS_close, fd); }
-fn write(u64 fd, any buf, u64 count) { let _ syscall3(SYS_write, fd, buf, count); }
-fn exit(u64 error_code) { let _ syscall1(SYS_exit, error_code); }
+fn read(fd : u64, buf : any, count : u64)    syscall3(SYS_read, fd, buf, count);
+fn open(path : any, flags : u64, mode : u64) syscall3(SYS_open, path, flags, mode);
+fn close(fd : u64) { let _ syscall1(SYS_close, fd); }
+fn write(fd : u64, buf : any, count : u64) { let _ syscall3(SYS_write, fd, buf, count); }
+fn exit(error_code : u64) { let _ syscall1(SYS_exit, error_code); }
 
 fn time -> u64 {
   syscall1(SYS_time, 0);
 }
 
-fn read_file_into_buffer(u64 fd, any buf) -> u64 {
+fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
   let n 0;
   while neq 0 read(fd, buf, 1) {
     = @buf +1 buf;
@@ -345,11 +345,11 @@ fn read_file_into_buffer(u64 fd, any buf) -> u64 {
   n;
 }
 
-fn putc(u64 fd, u64 ch) -> none {
+fn putc(fd : u64, ch : u64) -> none {
   let _ syscall3(1, fd, @ch, 1);
 }
 
-fn puts(u64 fd, any str) -> none {
+fn puts(fd : u64, str : any) -> none {
   while neq 0 load8 str {
     let ch load8 str;
     let _ syscall3(SYS_write, fd, @ch, 1);
@@ -357,11 +357,11 @@ fn puts(u64 fd, any str) -> none {
   }
 }
 
-fn putsn(u64 fd, any str, u64 n) -> none {
+fn putsn(fd : u64, str : any, n : u64) -> none {
   let _ syscall3(SYS_write, fd, str, n);
 }
 
-fn putu(u64 fd, u64 n) -> none {
+fn putu(fd : u64, n : u64) -> none {
   let MAX_BUFF_SIZE 512;
   memory buff MAX_BUFF_SIZE;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);

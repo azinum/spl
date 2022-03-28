@@ -652,6 +652,7 @@ static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index);
+static i32 ir_push_symbol(Compile* c, Block* block, Function* fs, Symbol* symbol, i32 id, u32* ins_count);
 static i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
 static i32 ir_compile_stmts(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
 static i32 ir_compile_func_args(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
@@ -1483,7 +1484,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (symbol->type == TypeAny) {
-          typecheck_error_at(c, ast->token, "function call of type `%s` is not allowed (for now)\n", compile_type_str[symbol->type]);
+          typecheck_error_at(c, ast->token, "function call of type `%s` is not allowed\n", compile_type_str[symbol->type]);
           return TypeNone;
         }
 
@@ -1940,6 +1941,63 @@ i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index) {
   return -1;
 }
 
+i32 ir_push_symbol(Compile* c, Block* block, Function* fs, Symbol* symbol, i32 id, u32* ins_count) {
+  switch (symbol->sym_type) {
+    case SYM_FUNC: {
+      Function* func = &symbol->value.func;
+      ir_push_ins(c, (Op) {
+        .i = I_PUSH,
+        .dest = symbol->type,
+        .src0 = func->label,
+        .src1 = -1,
+      }, ins_count);
+      break;
+    }
+    case SYM_LOCAL_VAR: {
+      if (symbol->konst) {
+        ir_push_ins(c, (Op) {
+          .i = I_PUSH,
+          .dest = symbol->type,
+          .src0 = id,
+          .src1 = -1,
+        }, ins_count);
+        break;
+      }
+      ir_push_ins(c, (Op) {
+        .i = I_PUSH_LOCAL,
+        .dest = symbol->type,
+        .src0 = ((1 + fs->argc) * 0x8) + symbol->local_id,
+        .src1 = -1,
+      }, ins_count);
+      break;
+    }
+    case SYM_GLOBAL_VAR: {
+      ir_push_ins(c, (Op) {
+        .i = I_PUSH,
+        .dest = symbol->type,
+        .src0 = id,
+        .src1 = -1,
+      }, ins_count);
+      break;
+    }
+    case SYM_FUNC_ARG: {
+      i32 arg = symbol->token.v.i;
+      ir_push_ins(c, (Op) {
+        .i = I_PUSH_LOCAL,
+        .dest = symbol->type,
+        .src0 = 0x8 + (0x8 * arg),
+        .src1 = -1,
+      }, ins_count);
+      break;
+    }
+    default: {
+      assert(0);
+      break;
+    }
+  }
+  return NoError;
+}
+
 i32 ir_start_compile(Compile* c, Ast* ast) {
   REAL_TIMER_START();
   assert("something went very wrong" && ast->type == AstRoot && ast);
@@ -2000,59 +2058,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         case T_IDENTIFIER: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          switch (symbol->sym_type) {
-            case SYM_FUNC: {
-              Function* func = &symbol->value.func;
-              ir_push_ins(c, (Op) {
-                .i = I_PUSH,
-                .dest = symbol->type,
-                .src0 = func->label,
-                .src1 = -1,
-              }, ins_count);
-              break;
-            }
-            case SYM_LOCAL_VAR: {
-              if (symbol->konst) {
-                ir_push_ins(c, (Op) {
-                  .i = I_PUSH,
-                  .dest = symbol->type,
-                  .src0 = id,
-                  .src1 = -1,
-                }, ins_count);
-                break;
-              }
-              ir_push_ins(c, (Op) {
-                .i = I_PUSH_LOCAL,
-                .dest = symbol->type,
-                .src0 = ((1 + fs->argc) * 0x8) + symbol->local_id,
-                .src1 = -1,
-              }, ins_count);
-              break;
-            }
-            case SYM_GLOBAL_VAR: {
-              ir_push_ins(c, (Op) {
-                .i = I_PUSH,
-                .dest = symbol->type,
-                .src0 = id,
-                .src1 = -1,
-              }, ins_count);
-              break;
-            }
-            case SYM_FUNC_ARG: {
-              i32 arg = symbol->token.v.i;
-              ir_push_ins(c, (Op) {
-                .i = I_PUSH_LOCAL,
-                .dest = symbol->type,
-                .src0 = 0x8 + (0x8 * arg),
-                .src1 = -1,
-              }, ins_count);
-              break;
-            }
-            default: {
-              assert(0);
-              break;
-            }
-          }
+          ir_push_symbol(c, block, fs, symbol, id, ins_count);
           break;
         }
         case T_AT: {
@@ -2270,6 +2276,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       Symbol* symbol = &c->symbols[id];
       Function* func = &symbol->value.func;
       ir_compile_func_args(c, block, fs, ast->node[0], ins_count); // compile function args in reverse order
+      // TODO(lucas): fully implement
       switch (symbol->type) {
         case TypeAny:
         case TypeFunc: {
@@ -2315,6 +2322,12 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
                 .src0 = id,
                 .src1 = -1,
               }, ins_count);
+              ir_push_ins(c, (Op) {
+                .i = I_ADDR_CALL,
+                .dest = -1,
+                .src0 = func->argc,
+                .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
+              }, ins_count);
               break;
             }
             case SYM_FUNC_ARG: {
@@ -2324,6 +2337,12 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
                 .dest = symbol->type,
                 .src0 = 0x8 + (0x8 * arg),
                 .src1 = -1,
+              }, ins_count);
+              ir_push_ins(c, (Op) {
+                .i = I_ADDR_CALL,
+                .dest = -1,
+                .src0 = func->argc,
+                .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
               }, ins_count);
               break;
             }
@@ -3837,36 +3856,28 @@ Ast* parse_param_list(Parser* p) {
   for (;;) {
     Token t = lexer_peek(&p->l);
     if (t.type == T_IDENTIFIER) {
-      Ast* arg = ast_create(AstType);
-      arg->token = t;
-      arg->token.type = T_UNSIGNED64;
-      ast_push_node(arg, AstValue, t);
-      ast_push(param_list, arg);
-      t = lexer_next(&p->l);
-      if (t.type == T_COMMA) {
-        lexer_next(&p->l);
-        continue;
+      Token ident = t;
+      t = lexer_next(&p->l); // skip argument identifier
+      if (t.type != T_COLON) {
+        parser_error(p, "expected `:` colon after argument identifier\n");
+        return param_list;
       }
-    }
-    else {
+      t = lexer_next(&p->l); // skip `:`
       if (t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
-        Token ident = lexer_next(&p->l);
-        if (ident.type != T_IDENTIFIER) {
-          parser_error(p, "expected identifier after argument type, but got `%.*s`\n", ident.length, ident.buffer);
-          return param_list;
-        }
         Ast* arg = ast_create(AstType);
         arg->token = t;
         ast_push_node(arg, AstValue, ident);
         ast_push(param_list, arg);
-        t = lexer_next(&p->l);
+        
+        t = lexer_next(&p->l); // skip type
         if (t.type == T_COMMA) {
           lexer_next(&p->l);
           continue;
         }
+        break;
       }
-      else if (t.type == T_NONE) {
-        parser_error(p, "unexpected type `none` in parameter list\n");
+      else {
+        parser_error(p, "expected type, but got `%.*s` in parameter list\n", t.length, t.buffer);
         return param_list;
       }
     }

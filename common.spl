@@ -9,17 +9,17 @@ memory tmp TMP_SIZE;
 let tmp_end 0;
 let tmp_it 0;
 
-fn err(any message) -> none {
+fn err(message : any) -> none {
   puts(STDERR_FILENO, "[error]: ");
   puts(STDERR_FILENO, message);
 }
 
-fn error(any message) -> none {
+fn error(message : any) -> none {
   err(message);
   exit(1);
 }
 
-fn assert(u64 cond, cstr message) -> none {
+fn assert(cond : u64, message : cstr) -> none {
   if eq 0 cond {
     puts(STDERR_FILENO, "[assertion failed]: ");
     puts(STDERR_FILENO, message);
@@ -32,7 +32,7 @@ fn common_init -> none {
   = @tmp_end + @tmp TMP_SIZE;
 }
 
-fn tmp_push_cstr(any str) -> none {
+fn tmp_push_cstr(str : any) -> none {
   let length strlen(str);
   if < (+ tmp_it length) tmp_end {
     if > length 0 {
@@ -45,7 +45,7 @@ fn tmp_push_cstr(any str) -> none {
   }
 }
 
-fn tmp_push_str(any str, u64 length) -> none {
+fn tmp_push_str(str : any, length : u64) -> none {
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
       if > length 0 {
@@ -59,11 +59,11 @@ fn tmp_push_str(any str, u64 length) -> none {
   }
 }
 
-fn tmp_push_u64(u64 n) -> none {
+fn tmp_push_u64(n : u64) -> none {
   const max_size 128;
   memory buf max_size;
   u64_to_str(n, @buf, max_size);
   tmp_push_cstr(@buf);
 }
 
-fn table_fetch(any table, u64 index) #(+ table * sizeof any index);
+fn table_fetch(table : any, index : u64) #(+ table * sizeof any index);

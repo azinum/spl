@@ -2,16 +2,16 @@
 
 include "lib/common.spl"
 
-fn nanosleep(any ts) -> none {
+fn nanosleep(ts : any) -> none {
   let _ syscall2(SYS_nanosleep, ts, 0);
 }
 
-fn lc_random(any cur_seed) -> u64 {
+fn lc_random(cur_seed : any) -> u64 {
   = cur_seed % + (* (#cur_seed) 16807) 13 2147483647;
   #cur_seed;
 }
 
-fn ca_init(any codep, any map, u64 map.w, u64 map.h) -> none {
+fn ca_init(codep : any, map : any, map.w : u64, map.h : u64) -> none {
   // fancy initialization of clear code: \x1b[2J\x1b[H
   store8 codep 27; = @codep +1 codep;
   store8 codep 91; = @codep +1 codep;
@@ -40,7 +40,7 @@ fn ca_init(any codep, any map, u64 map.w, u64 map.h) -> none {
   }
 }
 
-fn ca_draw_map(any map, u64 map.w, u64 map.h) -> none {
+fn ca_draw_map(map : any, map.w : u64, map.h : u64) -> none {
   let y 0;
   let linebreak 10;
   while < y map.h {
@@ -51,7 +51,7 @@ fn ca_draw_map(any map, u64 map.w, u64 map.h) -> none {
   }
 }
 
-fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) -> u64 {
+fn ca_get_entity_state(map : any, map.w : u64, map.h : u64, x : u64, y : u64) -> u64 {
   let state 0;
 
   if > (x) (- map.w 1) {
@@ -76,7 +76,7 @@ fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) -> u64 {
   eq entity 'x';
 }
 
-fn clear(any codep, u64 code.size) -> none {
+fn clear(codep : any, code.size : u64) -> none {
   write(1, codep, code.size);
 }
 

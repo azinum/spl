@@ -10,7 +10,7 @@ let statement parser_function;
 let statements parser_function;
 let expr_list parser_function;
 
-fn parser_error(cstr message) -> none {
+fn parser_error(message : cstr) -> none {
   if eq p.status NoError {
     let it tmp_it;
     tmp_push_cstr("[parse-error]: ");
@@ -472,7 +472,7 @@ fn parse -> u64 {
   p.status;
 }
 
-fn parser_init(any filename, any source) -> u64 {
+fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
   = @p.ast ast_create(AstRoot);
   = @p.status NoError;

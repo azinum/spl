@@ -19,7 +19,7 @@ const i16.max INT16_MAX;
 const u8.max  UINT8_MAX;
 const i8.max  INT8_MAX;
 
-fn strlen(any str) -> u64 {
+fn strlen(str : any) -> u64 {
   let length 0;
   while < 0 load8 str {
     if or eq load8 str 10 eq load8 str 13 { // `\n`, `\r`
@@ -31,7 +31,7 @@ fn strlen(any str) -> u64 {
   length;
 }
 
-fn strcmp(any a, any b) -> u64 {
+fn strcmp(a : any, b : any) -> u64 {
   let result 0;
   let done 0;
   while eq done 0 {
@@ -50,7 +50,7 @@ fn strcmp(any a, any b) -> u64 {
   result;
 }
 
-fn strncmp(any a, any b, u64 count) -> u64 {
+fn strncmp(a : any, b : any, count : u64) -> u64 {
   let result 0;
   let i 0;
   let done 0;
@@ -68,7 +68,7 @@ fn strncmp(any a, any b, u64 count) -> u64 {
   or neq load8 b 0 result;
 }
 
-fn memset(any ptr, u64 c, u64 n) {
+fn memset(ptr : any, c : u64, n : u64) {
   let count 0;
   while < count n {
     store8 ptr c;
@@ -77,7 +77,7 @@ fn memset(any ptr, u64 c, u64 n) {
   }
 }
 
-fn memset8(any ptr, u64 c, u64 n) {
+fn memset8(ptr : any, c : u64, n : u64) {
   let count 0;
   while < count n {
     store64 ptr c;
@@ -86,7 +86,7 @@ fn memset8(any ptr, u64 c, u64 n) {
   }
 }
 
-fn memcpy(any dest, any src, u64 n) {
+fn memcpy(dest : any, src : any, n : u64) {
   let count 0;
   while < count n {
     store8 dest load8 src;
@@ -97,7 +97,7 @@ fn memcpy(any dest, any src, u64 n) {
 }
 
 // TODO: sometimes yields wrong results, investigate
-fn digit_count(u64 n) {
+fn digit_count(n : u64) {
   let count 1;
   let base 10;
   let i 1;
@@ -113,7 +113,7 @@ fn digit_count(u64 n) {
   count;
 }
 
-fn u64_to_str(u64 n, any str, u64 max_size) -> none {
+fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
   let count digit_count(n);
   let i 0;
   let base 10;
@@ -131,7 +131,7 @@ fn u64_to_str(u64 n, any str, u64 max_size) -> none {
 
 // TODO: implement parsing of hex numbers.
 // TODO: add error checking.
-fn str_to_u64(any str, u64 length) -> u64 {
+fn str_to_u64(str : any, length : u64) -> u64 {
   let result 0;
   let base 10;
   let i 0;

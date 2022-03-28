@@ -1,12 +1,10 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
-fn f(u64 x) -> u64 * x x;
+fn f(x : u64) -> u64 * x x;
 
 fn main -> none {
-  let a : u64 12;
-  let b : u64 3;
+  let a : u64 f(3);
   print a;
-  print b;
 }

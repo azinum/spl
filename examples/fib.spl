@@ -1,6 +1,6 @@
 // fib.spl
 
-fn fib(u64 n) {
+fn fib(n : u64) {
   let a 0;
   let b 1;
   let c 0;
@@ -19,7 +19,7 @@ fn fib(u64 n) {
   b;
 }
 
-fn fib_recursive(u64 n) {
+fn fib_recursive(n : u64) {
   let result 0;
   if < n 2 {
     = @result n;

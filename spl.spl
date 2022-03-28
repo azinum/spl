@@ -13,7 +13,7 @@ include "typecheck.spl"
 include "ir.spl"
 include "compile.spl"
 
-fn usage(any prog) -> none {
+fn usage(prog : any) -> none {
   let it tmp_it;
   let p tmp_push_cstr;
   p("Usage; ");
@@ -23,7 +23,7 @@ fn usage(any prog) -> none {
   = @tmp_it it;
 }
 
-fn spl_start(any filename) -> u64 {
+fn spl_start(filename : any) -> u64 {
   let result NoError;
 
   let fd open(filename, 0, O_RDONLY);
@@ -61,7 +61,7 @@ fn spl_start(any filename) -> u64 {
   result;
 }
 
-fn main(u64 argc, any argv) -> none {
+fn main(argc : u64, argv : any) -> none {
   common_init();
   ast_init();
   let arg argv;

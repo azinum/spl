@@ -92,7 +92,7 @@ let l.column 0;
 let l.status 0;
 // };
 
-fn token_init(any token, any buffer, u64 length, u64 type, any filename, any source) -> none {
+fn token_init(token : any, buffer : any, length : u64, type : u64, filename : any, source : any) -> none {
   = + token Token.buffer   buffer;
   = + token Token.length   length;
   = + token Token.type     type;
@@ -103,7 +103,7 @@ fn token_init(any token, any buffer, u64 length, u64 type, any filename, any sou
   = + token Token.column   1;
 }
 
-fn copy_token_into_memory(any mem) -> none {
+fn copy_token_into_memory(mem : any) -> none {
   = + mem Token.buffer   token.buffer;
   = + mem Token.length   token.length;
   = + mem Token.type     token.type;
@@ -114,7 +114,7 @@ fn copy_token_into_memory(any mem) -> none {
   = + mem Token.column   token.column;
 }
 
-fn token_print(any token) -> none {
+fn token_print(token : any) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
@@ -146,23 +146,23 @@ fn token_print(any token) -> none {
   = @tmp_it tmp;
 }
 
-fn is_digit(u64 ch) -> u64 {
+fn is_digit(ch : u64) -> u64 {
   and > ch - '0' 1 < ch + '9' 1;
 }
 
-fn is_hex(u64 ch) -> u64 {
+fn is_hex(ch : u64) -> u64 {
   or or is_digit(ch) (and > ch - 'a' 1 < ch + 'f' 1) (and > ch - 'A' 1 < ch + 'F' 1);
 }
 
-fn is_alpha(u64 ch) -> u64 {
+fn is_alpha(ch : u64) -> u64 {
   or (and > ch - 'a' 1 < ch + 'z' 1) (and > ch - 'A' 1 < ch + 'Z' 1);
 }
 
-fn is_extended_ascii(u64 ch) -> u64 {
+fn is_extended_ascii(ch : u64) -> u64 {
   and > ch 127 < ch 255;
 }
 
-fn to_lower(u64 ch) -> u64 {
+fn to_lower(ch : u64) -> u64 {
   if and > ch - 'A' 1 < ch + 'Z' 1 {
     = @ch + 32 ch;
   }
@@ -286,7 +286,7 @@ fn lexer_read_number -> none {
   = @token.type T_NUMBER;
 }
 
-fn lexer_error(cstr message) -> none {
+fn lexer_error(message : cstr) -> none {
   if eq l.status NoError {
     let it tmp_it;
     // a bit noisey, but this will do for now
@@ -514,7 +514,7 @@ fn lexer_next -> none {
   = @token.line l.line;
 }
 
-fn lexer_init(any filename, any source) -> none {
+fn lexer_init(filename : any, source : any) -> none {
   // initialize lexer state
   = @l.filename filename;
   = @l.source source;

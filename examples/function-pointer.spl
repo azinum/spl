@@ -1,8 +1,8 @@
 // function-pointer.spl
 
-fn foo(u64 x) -> u64 + x 7;
-fn bar(u64 x) -> u64 * x x;
-fn baz(u64 x) -> u64 + x x;
+fn foo(x : u64) -> u64 + x 7;
+fn bar(x : u64) -> u64 * x x;
+fn baz(x : u64) -> u64 + x x;
 
 fn main -> none {
   const count 3;

@@ -39,7 +39,7 @@ const Ast.size + Ast.token Token.size;
 memory ast_node_memory * Ast.size MAX_AST_NODE;
 let ast_node 0;
 
-fn ast_create(u64 type) -> any {
+fn ast_create(type : u64) -> any {
   let node ast_node;
   = @ast_node + Ast.size ast_node;
 
@@ -51,7 +51,7 @@ fn ast_create(u64 type) -> any {
   node;
 }
 
-fn ast_print_node(any ast) -> none {
+fn ast_print_node(ast : any) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
@@ -68,7 +68,7 @@ fn ast_print_node(any ast) -> none {
   token_print(token);
 }
 
-fn ast_push(any ast, any node) -> none {
+fn ast_push(ast : any, node : any) -> none {
   assert(neq ast 0, "null ast node\n");
   if neq node 0 {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
@@ -78,7 +78,7 @@ fn ast_push(any ast, any node) -> none {
   }
 }
 
-fn _ast_count(any ast, u64 i, u64 count, u64 ast.count) -> u64 {
+fn _ast_count(ast : any, i : u64, count : u64, ast.count : u64) -> u64 {
   while < i ast.count {
     let node # + + Ast.node ast * i sizeof any;
     = @count + count _ast_count(node, 1, 1, # + Ast.count node);
@@ -87,13 +87,13 @@ fn _ast_count(any ast, u64 i, u64 count, u64 ast.count) -> u64 {
   count;
 }
 
-fn ast_count(any ast) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
+fn ast_count(ast : u64) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
 
-fn ast_child_count(any ast) -> u64 {
+fn ast_child_count(ast : any) -> u64 {
   # + Ast.count ast;
 }
 
-fn _ast_print(any ast, u64 i, u64 count, u64 level, u64 fd) -> none {
+fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
   if neq ast 0 {
     let it tmp_it;
     let p tmp_push_cstr;
@@ -120,7 +120,7 @@ fn _ast_print(any ast, u64 i, u64 count, u64 level, u64 fd) -> none {
   }
 }
 
-fn ast_print(any ast, u64 fd) _ast_print(ast, 0, # + Ast.count ast, 0, fd);
+fn ast_print(ast : any, fd : u64) -> none _ast_print(ast, 0, # + Ast.count ast, 0, fd);
 
 fn ast_init -> none {
   let t (

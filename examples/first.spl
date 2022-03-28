@@ -1,6 +1,6 @@
 // first.spl
 
-fn main {
+fn main -> none {
   memory data 128;
   let ptr @data;
   = ptr + 1 #ptr;
@@ -8,5 +8,4 @@ fn main {
   = ptr + 1 #ptr;
   = ptr + 1 #ptr;
   print #ptr;
-  0;
 }

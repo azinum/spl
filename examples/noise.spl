@@ -4,7 +4,7 @@ include "lib/common.spl"
 
 let lc_cur_seed 0;
 
-fn lc_random_init(u64 seed) -> none {
+fn lc_random_init(seed : u64) -> none {
   = @lc_cur_seed seed;
 }
 
