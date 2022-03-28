@@ -51,7 +51,7 @@ fn ca_draw_map(any map, u64 map.w, u64 map.h) -> none {
   }
 }
 
-fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) {
+fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) -> u64 {
   let state 0;
 
   if > (x) (- map.w 1) {
@@ -76,17 +76,17 @@ fn ca_get_entity_state(any map, u64 map.w, u64 map.h, u64 x, u64 y) {
   eq entity 'x';
 }
 
-fn clear(any codep, u64 code.size) {
+fn clear(any codep, u64 code.size) -> none {
   write(1, codep, code.size);
 }
 
-fn main {
+fn main -> none {
   // initialize map
-  let code.size 7;
+  const code.size 7;
   memory code code.size;
-  let map.w 64;
-  let map.h 32;
-  let map.size * map.w map.h;
+  const map.w 64;
+  const map.h 32;
+  const map.size * map.w map.h;
   memory map map.size;
   memory map_next map.size;
   memset8(@map, 0, map.size);
@@ -152,5 +152,4 @@ fn main {
     ca_draw_map(next, map.w, map.h);
     nanosleep(ts);
   }
-  0;
 }

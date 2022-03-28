@@ -123,6 +123,7 @@ typedef enum Token_type {
   T_OR,
   T_EQ,
   T_NEQ,
+  T_COLON,
   T_SEMICOLON,
   T_POP,
   T_CONST,
@@ -184,6 +185,7 @@ static const char* token_type_str[] = {
   "T_OR",
   "T_EQ",
   "T_NEQ",
+  "T_COLON",
   "T_SEMICOLON",
   "T_POP",
   "T_CONST",
@@ -801,6 +803,7 @@ i32 spl_start(Options* options) {
               fclose(debug);
             }
 #endif
+#if 0
             {
               char ir_path[MAX_PATH_SIZE] = {0};
               snprintf(ir_path, MAX_PATH_SIZE, "%s.ir", options->filename);
@@ -810,6 +813,8 @@ i32 spl_start(Options* options) {
                 fclose(fp);
               }
             }
+#endif
+            (void)ir_binary_output;
             if (options->compile) {
               char exec_path[MAX_PATH_SIZE] = {0};
               char o_path[MAX_PATH_SIZE] = {0};
@@ -1306,6 +1311,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstLetStatement: {
       i32 konst = ast->type == AstConstStatement;
       i32 ts_count = c->ts_count;
+      Ast* ast_type = NULL;
+      if (ast->count == 2) {
+        ast_type = ast->node[0];
+      }
       typecheck_node_list(c, block, fs, ast);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
@@ -1317,6 +1326,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value prev_value = value;
       Compile_type type = ts_top(c);
       Compile_type prev_type = type;
+      if (ast_type) {
+        Compile_type explicit_type = token_to_compile_type(ast_type->token);
+        if (type != explicit_type) {
+          typecheck_error_at(c, ast_type->token, "explicit type does not match rhs type\n");
+          return TypeNone;
+        }
+      }
       if (type != TypeUnsigned64 && konst) {
         typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
         return TypeNone;
@@ -1612,6 +1628,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       t->v.num = size;
       return ts_push(c, TypeUnsigned64);
     }
+    case AstType: {
+      break;
+    }
     default: {
       assert(0);
       break;
@@ -1728,7 +1747,7 @@ void ir_print(Compile* c, FILE* fp) {
 void ir_binary_output(Compile* c, FILE* fp) {
   u32 write_index = 0;
 #define o(_ptr, _size, _count) fwrite(_ptr, _size, _count, fp); write_index += (_size * _count)
-
+  
   struct {
     u32 data;
     u32 cstring;
@@ -2311,34 +2330,6 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
               break;
             }
           }
-          // if (symbol->sym_type == SYM_LOCAL_VAR) {
-          //   // TODO(lucas): push address onto stack
-          //   // pop it in I_ADDR_CALL
-          //   assert("I_ADDR_CALL not implemented yet" && 0);
-          //   ir_push_ins(c, (Op) {
-          //     .i = I_ADDR_CALL,
-          //     .dest = id,
-          //     .src0 = func->argc,
-          //     .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
-          //   }, ins_count);
-          //   break;
-          // }
-          // else if (symbol->sym_type == SYM_FUNC_ARG) {
-          //   assert("I_ADDR_CALL not implemented yet" && 0);
-          //   ir_push_ins(c, (Op) {
-          //     .i = I_ADDR_CALL,
-          //     .dest = id,
-          //     .src0 = func->argc,
-          //     .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
-          //   }, ins_count);
-          //   break;
-          // }
-          // ir_push_ins(c, (Op) {
-          //   .i = I_CALL,
-          //   .dest = func->label, 
-          //   .src0 = func->argc,
-          //   .src1 = ((const i32[]){0, -1})[func->rtype == TypeNone],
-          // }, ins_count);
           break;
         }
         case TypeSyscallFunc: {
@@ -2471,7 +2462,12 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
             }
           }
           else {
-            ir_push_ins(c, (Op) { .i = I_LOOP_LABEL, .dest = end_label, .src0 = -1, .src1 = -1, }, &body_size);
+            ir_push_ins(c, (Op) {
+              .i = I_LOOP_LABEL,
+              .dest = end_label,
+              .src0 = -1,
+              .src1 = -1,
+            }, &body_size);
             Op* jz = &c->ins[body_start_address];
             jz->src0 = body_size;
           }
@@ -2498,6 +2494,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           .src1 = imm,
         }, ins_count);
       }
+      break;
+    }
+    case AstType: {
       break;
     }
     default: {
@@ -3440,6 +3439,21 @@ Ast* parse_statement(Parser* p) {
       );
       expr->token = t;
       t = lexer_peek(&p->l);
+      if (t.type == T_COLON) { // explicit type
+        t = lexer_next(&p->l); // skip `:`
+        Ast* type = parse_type(p);
+        if (!type) {
+          parser_error(p, "expected type after `:`, but got `%.*s`\n", t.length, t.buffer);
+          return NULL;
+        }
+        if (type->token.type == T_NONE) {
+          parser_error(p, "explicit type cannot be `%.*s`\n", t.length, t.buffer);
+          return NULL;
+        }
+        ast_push(expr, type);
+        lexer_next(&p->l); // skip type
+      }
+      t = lexer_peek(&p->l);
       if (t.type == T_LEFT_P) {
         lexer_next(&p->l); // skip `(`
         ast_push(expr, parse_expr_list(p));
@@ -4168,6 +4182,10 @@ Token lexer_next(Lexer* l) {
       }
       case '>': {
         l->token.type = T_GT;
+        goto done;
+      }
+      case ':': {
+        l->token.type = T_COLON;
         goto done;
       }
       case ';': {
