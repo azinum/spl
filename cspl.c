@@ -562,6 +562,7 @@ typedef struct Symbol {
   char name[MAX_NAME_SIZE];
   i32 imm; // address to immediate value
   i32 size;
+  u32 num_elemements_init;
   i32 konst;
   i32 local_id;
   Symbol_type sym_type;
@@ -652,7 +653,7 @@ static i32 ir_push_ins(Compile* c, Op ins, u32* ins_count);
 static i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count);
 static i32 ir_push_value(Compile* c, void* value, u32 size);
 static i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index);
-static i32 ir_push_symbol(Compile* c, Block* block, Function* fs, Symbol* symbol, i32 id, u32* ins_count);
+static i32 ir_push_symbol(Compile* c, Function* fs, Symbol* symbol, i32 id, u32* ins_count);
 static i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
 static i32 ir_compile_stmts(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
 static i32 ir_compile_func_args(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count);
@@ -886,6 +887,7 @@ void symbol_init(Symbol* s) {
   memset(s->name, 0, ARR_SIZE(s->name));
   s->imm = -1;
   s->size = 0;
+  s->num_elemements_init = 0;
   s->konst = 0;
   s->local_id = -1;
   s->sym_type = SYM_LOCAL_VAR;
@@ -1095,7 +1097,7 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
           fprintf(fp, ", ");
         }
       }
-      fprintf(fp, ") -> %s\n", compile_type_str[func->rtype]);
+      fprintf(fp, ") -> %s - %s:%d:%d\n", compile_type_str[func->rtype], symbol->token.filename, symbol->token.line, symbol->token.column);
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->token.filename, symbol->token.line, symbol->token.column);
@@ -1314,15 +1316,32 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstLetStatement: {
       i32 konst = ast->type == AstConstStatement;
       i32 ts_count = c->ts_count;
+      i32 num_elements = 1;
+      Ast* rhs = ast->node[0];
       Ast* ast_type = NULL;
-      if (ast->count == 2) {
-        ast_type = ast->node[0];
-      }
-      typecheck_node_list(c, block, fs, ast);
+      typecheck_node_list(c, block, fs, rhs);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
         typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
         return TypeNone;
+      }
+      if (ast->count == 2) {
+        ast_type = ast->node[1];
+        if (ast_type->count > 0) {
+          typecheck(c, block, fs, ast_type);
+          Value value;
+          vs_pop(c, &value);
+          Compile_type type = ts_pop(c);
+          if (type != TypeUnsigned64) {
+            typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
+            return TypeNone;
+          }
+          num_elements = value.num;
+          if (ts_delta > num_elements) {
+            typecheck_error_at(c, ast_type->node[0]->token, "number of elements in rhs exceeded the array size specifier\n");
+            return TypeNone;
+          }
+        }
       }
       i32 imm = -1;
       Value value = vs_top(c);
@@ -1362,11 +1381,15 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       if (konst) {
         imm -= (ts_delta - 1) * compile_type_size[type];
       }
+      if (num_elements == 1) {
+        num_elements = ts_delta;
+      }
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
         symbol->imm = imm;
-        symbol->size = ts_delta * compile_type_size[type];
+        symbol->size = num_elements * compile_type_size[type];
+        symbol->num_elemements_init = ts_delta;
         symbol->konst = konst;
         symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
         symbol->type = type;
@@ -1632,6 +1655,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return ts_push(c, TypeUnsigned64);
     }
     case AstType: {
+      if (ast->count > 0) {
+        typecheck_node_list(c, block, fs, ast);
+      }
       break;
     }
     default: {
@@ -1941,7 +1967,7 @@ i32 ir_push_cstring(Compile* c, char* buffer, u32 length, u32* cstring_index) {
   return -1;
 }
 
-i32 ir_push_symbol(Compile* c, Block* block, Function* fs, Symbol* symbol, i32 id, u32* ins_count) {
+i32 ir_push_symbol(Compile* c, Function* fs, Symbol* symbol, i32 id, u32* ins_count) {
   switch (symbol->sym_type) {
     case SYM_FUNC: {
       Function* func = &symbol->value.func;
@@ -2058,7 +2084,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         case T_IDENTIFIER: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          ir_push_symbol(c, block, fs, symbol, id, ins_count);
+          ir_push_symbol(c, fs, symbol, id, ins_count);
           break;
         }
         case T_AT: {
@@ -2235,7 +2261,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         symbol->token = node->token;
       }
       if (symbol->type == TypeCString) {
-        // NOTE(lucas): symbol is pointing to a string, thus we change the type from TypeCString -> TypeAny to reflect that
+        // NOTE(lucas): we change the type from TypeCString -> TypeAny because symbol is pointing to a string
         symbol->type = TypeAny;
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
@@ -2244,9 +2270,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
           u32 type_size = compile_type_size[symbol->type];
-          u32 type_count = symbol->size / type_size;
+          // u32 type_count = symbol->size / type_size;
           fs->locals_offset_counter += symbol->size;
-          for (u32 i = 0; i < type_count; ++i) {
+          for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
               .i = I_MOVE_LOCAL,
               .dest = ((1 + fs->argc) * 0x8) + local_id,
@@ -2518,6 +2544,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       break;
     }
     case AstType: {
+      // assert(0);
       break;
     }
     default: {
@@ -3461,21 +3488,20 @@ Ast* parse_statement(Parser* p) {
       Ast* expr = ast_create(
         branch_type[token_type == T_LET]
       );
+      Ast* explicit_type = NULL;
       expr->token = t;
       t = lexer_peek(&p->l);
       if (t.type == T_COLON) { // explicit type
         t = lexer_next(&p->l); // skip `:`
-        Ast* type = parse_type(p);
-        if (!type) {
+        explicit_type = parse_type(p);
+        if (!explicit_type) {
           parser_error(p, "expected type after `:`, but got `%.*s`\n", t.length, t.buffer);
           return NULL;
         }
-        if (type->token.type == T_NONE) {
+        if (explicit_type->token.type == T_NONE) {
           parser_error(p, "explicit type cannot be `%.*s`\n", t.length, t.buffer);
           return NULL;
         }
-        ast_push(expr, type);
-        lexer_next(&p->l); // skip type
       }
       t = lexer_peek(&p->l);
       if (t.type == T_LEFT_P) {
@@ -3489,8 +3515,9 @@ Ast* parse_statement(Parser* p) {
         lexer_next(&p->l); // skip `)`
       }
       else {
-        ast_push(expr, parse_expr(p));
+        ast_push(expr, parse_expr_list(p));
       }
+      ast_push(expr, explicit_type);
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {
         parser_error(p, "expected `;` semicolon after statement, but got `%.*s`\n", t.length, t.buffer);
@@ -3795,7 +3822,6 @@ Ast* parse_func_def(Parser* p) {
         parser_error(p, "expected type after `->`, but got `%.*s`\n", t.length, t.buffer);
         return func_def;
       }
-      lexer_next(&p->l);
     }
     t = lexer_peek(&p->l);
     if (t.type == T_LEFT_CURLY) {
@@ -3891,6 +3917,11 @@ Ast* parse_type(Parser* p) {
   if (t.type == T_NONE || t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
     Ast* type = ast_create(AstType);
     type->token = t;
+    t = lexer_next(&p->l); // skip type
+    if (t.type == T_COLON) {
+      t = lexer_next(&p->l); // skip `:`
+      ast_push(type, parse_expr(p));
+    }
     return type;
   }
   return NULL;
