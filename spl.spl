@@ -34,7 +34,7 @@ fn spl_start(filename : any) -> u64 {
     if eq parser_init(filename, source) NoError {
       = @result parse();
       if and eq p.status NoError eq l.status NoError {
-        ast_print(p.ast, STDOUT_FILENO);
+        // ast_print(p.ast, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           compile_state_free();
         }

@@ -2,10 +2,5 @@
 
 // include "lib/common.spl"
 
-fn f(x : u64) -> u64 * x x;
-
 fn main -> none {
-  let COUNT : u64 4;
-  let a : u64 : COUNT 0;
-  print sizeof a;
 }

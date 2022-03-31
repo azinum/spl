@@ -646,6 +646,8 @@ static i32 vs_pop(Compile* c, Value* v);
 static Value vs_top(Compile* c);
 static i32 check_func_signatures(Compile* c, Function* a, Function* b);
 
+static void ir_compile_warning(Compile* c, const char* fmt, ...);
+static void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...);
 static void ir_print(Compile* c, FILE* fp);
 static void ir_binary_output(Compile* c, FILE* fp);
 static i32 ir_start_compile(Compile* c, Ast* ast);
@@ -733,6 +735,7 @@ i32 main(i32 argc, char** argv) {
 
   (void)symbol_print; // unused
   (void)ir_pop_ins; // unused
+  (void)ir_compile_warning_at; // unused
   i32 exit_status = EXIT_SUCCESS;
   Options options = (Options) {
     .compile = 1,
@@ -1743,6 +1746,31 @@ i32 check_func_signatures(Compile* c, Function* a, Function* b) {
   return 1;
 }
 
+void ir_compile_warning(Compile* c, const char* fmt, ...) {
+  (void)c; // unused
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stdout;
+  fprintf(fp, "[ir-compile-warning]: %s", buffer);
+}
+
+void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...) {
+  char buffer[MAX_ERR_SIZE] = {0};
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
+  va_end(args);
+
+  FILE* fp = stdout;
+  fprintf(fp, "[ir-compile-warning]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
+  printline(fp, token.source, token.buffer + token.length, token.length, 1, 1);
+  c->status = Error;
+}
+
 void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->ins_count; ++i) {
@@ -1908,18 +1936,6 @@ void ir_binary_output(Compile* c, FILE* fp) {
   o(&id_map_size, sizeof(id_map_size), 1);
   o(&id_map[0], id_map_size * sizeof(id_map[0]), 1);
 #undef o
-}
-
-void ir_compile_warning(Compile* c, const char* fmt, ...) {
-  (void)c; // unused
-  char buffer[MAX_ERR_SIZE] = {0};
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(buffer, MAX_ERR_SIZE, fmt, args);
-  va_end(args);
-
-  FILE* fp = stdout;
-  fprintf(fp, "[ir-compile-warning]: %s", buffer);
 }
 
 i32 ir_push_ins(Compile* c, Op ins, u32* ins_count) {
