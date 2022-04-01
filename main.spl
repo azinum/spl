@@ -3,4 +3,6 @@
 // include "lib/common.spl"
 
 fn main -> none {
+  let a : u64 : 2 (2, 3);
+  = @a 2;
 }

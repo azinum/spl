@@ -3573,7 +3573,14 @@ Ast* parse_statement(Parser* p) {
       }
       return block;
     }
-    case T_ASSIGN:
+    case T_ASSIGN: {
+      lexer_next(&p->l); // skip `=`
+      Ast* assignment = ast_create(AstAssignment);
+      assignment->token = t;
+      ast_push(assignment, parse_expr(p));
+      ast_push(assignment, parse_expr_list(p));
+      return assignment;
+    }
     case T_STORE64:
     case T_STORE32:
     case T_STORE16:
