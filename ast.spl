@@ -23,11 +23,11 @@ const AstType 19;
 const AstSizeof 20;
 const MAX_AST_TYPE 21;
 
-let ast_type_str "";
+let ast_type_str : cstr : MAX_AST_TYPE "";
 
-const MAX_AST_NODE      2048;
-const MAX_AST_PTR       2048;
-const MAX_INTERNAL_NODE 16; // how many nodes each node can hold
+const MAX_AST_NODE : u64 2048;
+const MAX_AST_PTR : u64 2048;
+const MAX_INTERNAL_NODE : u64 16; // how many nodes each node can hold
 
 // ast node offsets
 const Ast.node 0;
@@ -51,7 +51,7 @@ fn ast_create(type : u64) -> any {
   node;
 }
 
-fn ast_print_node(ast : any) -> none {
+fn ast_print_node(fd : u64, ast : any) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
@@ -63,7 +63,7 @@ fn ast_print_node(ast : any) -> none {
   p("\n");
   p("type  = "); tmp_push_u64(type);
   p("\n");
-  puts(STDOUT_FILENO, tmp);
+  puts(fd, tmp);
   = @tmp_it tmp;
   token_print(token);
 }
@@ -89,9 +89,7 @@ fn _ast_count(ast : any, i : u64, count : u64, ast.count : u64) -> u64 {
 
 fn ast_count(ast : u64) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
 
-fn ast_child_count(ast : any) -> u64 {
-  # + Ast.count ast;
-}
+fn ast_child_count(ast : any) -> u64 # + Ast.count ast;
 
 fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
   if neq ast 0 {
@@ -112,41 +110,39 @@ fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
     p("`\n");
     puts(fd, it);
     = @tmp_it it;
-  }
-  while < i count {
-    let node # + + Ast.node ast * i sizeof any;
-    _ast_print(node, 0, # + Ast.count node, + 1 level, fd);
-    = @i + 1 i;
+
+    while < i count {
+      let node # + + Ast.node ast * i sizeof any;
+      _ast_print(node, 0, # + Ast.count node, + 1 level, fd);
+      = @i + 1 i;
+    }
   }
 }
 
 fn ast_print(ast : any, fd : u64) -> none _ast_print(ast, 0, # + Ast.count ast, 0, fd);
 
 fn ast_init -> none {
-  let t (
-    "AstNone",
-    "AstRoot",
-    "AstValue",
-    "AstExpression",
-    "AstExprList",
-    "AstStatement",
-    "AstStatementList",
-    "AstBlockStatement",
-    "AstBinopExpression",
-    "AstUopExpression",
-    "AstConstStatement",
-    "AstLetStatement",
-    "AstFuncDefinition",
-    "AstFuncCall",
-    "AstParamList",
-    "AstMemoryStatement",
-    "AstAssignment",
-    "AstWhileStatement",
-    "AstIfStatement",
-    "AstType",
-    "AstSizeof"
-  );
-  = @ast_type_str @t;
+  = + @ast_type_str * 0  sizeof cstr "AstNone";
+  = + @ast_type_str * 1  sizeof cstr "AstRoot";
+  = + @ast_type_str * 2  sizeof cstr "AstValue";
+  = + @ast_type_str * 3  sizeof cstr "AstExpression";
+  = + @ast_type_str * 4  sizeof cstr "AstExprList";
+  = + @ast_type_str * 5  sizeof cstr "AstStatement";
+  = + @ast_type_str * 6  sizeof cstr "AstStatementList";
+  = + @ast_type_str * 7  sizeof cstr "AstBlockStatement";
+  = + @ast_type_str * 8  sizeof cstr "AstBinopExpression";
+  = + @ast_type_str * 9  sizeof cstr "AstUopExpression";
+  = + @ast_type_str * 10 sizeof cstr "AstConstStatement";
+  = + @ast_type_str * 11 sizeof cstr "AstLetStatement";
+  = + @ast_type_str * 12 sizeof cstr "AstFuncDefinition";
+  = + @ast_type_str * 13 sizeof cstr "AstFuncCall";
+  = + @ast_type_str * 14 sizeof cstr "AstParamList";
+  = + @ast_type_str * 15 sizeof cstr "AstMemoryStatement";
+  = + @ast_type_str * 16 sizeof cstr "AstAssignment";
+  = + @ast_type_str * 17 sizeof cstr "AstWhileStatement";
+  = + @ast_type_str * 18 sizeof cstr "AstIfStatement";
+  = + @ast_type_str * 19 sizeof cstr "AstType";
+  = + @ast_type_str * 20 sizeof cstr "AstSizeof";
+
   = @ast_node @ast_node_memory;
-  assert(eq (* sizeof any MAX_AST_TYPE) (sizeof t), "mismatch between ast_type_str and MAX_AST_TYPE\n");
 }

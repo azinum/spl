@@ -16,43 +16,44 @@ const I_PUSH_ADDR_OF 11;
 const I_PUSH_LOCAL_ADDR_OF 12;
 const I_PUSH 13;
 const I_PUSH_LOCAL 14;
-const I_ADD 15;
-const I_SUB 16;
-const I_MUL 17;
-const I_LSHIFT 18;
-const I_RSHIFT 19;
-const I_DIV 20;
-const I_DIVMOD 21;
-const I_LT 22;
-const I_GT 23;
-const I_AND 24;
-const I_LOGICAL_NOT 25;
-const I_OR 26;
-const I_EQ 27;
-const I_NEQ 28;
-const I_RET 29;
-const I_NORET 30;
-const I_PRINT 31;
-const I_LABEL 32;
-const I_CALL 33;
-const I_ADDR_CALL 34;
-const I_JMP 35;
-const I_JZ 36;
-const I_BEGIN_FUNC 37;
-const I_LOOP_LABEL 38;
+const I_PUSH_IMM 15;
+const I_ADD 16;
+const I_SUB 17;
+const I_MUL 18;
+const I_LSHIFT 19;
+const I_RSHIFT 20;
+const I_DIV 21;
+const I_DIVMOD 22;
+const I_LT 23;
+const I_GT 24;
+const I_AND 25;
+const I_LOGICAL_NOT 26;
+const I_OR 27;
+const I_EQ 28;
+const I_NEQ 29;
+const I_RET 30;
+const I_NORET 31;
+const I_PRINT 32;
+const I_LABEL 33;
+const I_CALL 34;
+const I_ADDR_CALL 35;
+const I_JMP 36;
+const I_JZ 37;
+const I_BEGIN_FUNC 38;
+const I_LOOP_LABEL 39;
 
-const I_SYSCALL0 39;
-const I_SYSCALL1 40;
-const I_SYSCALL2 41;
-const I_SYSCALL3 42;
-const I_SYSCALL4 43;
-const I_SYSCALL5 44;
-const I_SYSCALL6 45;
+const I_SYSCALL0 40;
+const I_SYSCALL1 41;
+const I_SYSCALL2 42;
+const I_SYSCALL3 43;
+const I_SYSCALL4 44;
+const I_SYSCALL5 45;
+const I_SYSCALL6 46;
 
-const MAX_IR_CODE 46;
+const MAX_IR_CODE 47;
 // };
 
-let ir_code_str "";
+let ir_code_str : cstr : MAX_IR_CODE "";
 
 const TypeNone 0;
 const TypeAny 1;
@@ -63,88 +64,73 @@ const TypeSyscallFunc 5;
 
 const MAX_COMPILE_TYPE 6;
 
-let compile_type_str "";
+let compile_type_str : cstr : MAX_COMPILE_TYPE "";
 
-let compile_type_size 0;
+let compile_type_size : u64 : MAX_COMPILE_TYPE 0;
 
 fn compile_state_init -> u64 {
-  {
-    let t (
-      "I_NOP",
-      "I_POP",
-      "I_MOVE",
-      "I_STORE64",
-      "I_STORE32",
-      "I_STORE16",
-      "I_STORE8",
-      "I_LOAD64",
-      "I_LOAD32",
-      "I_LOAD16",
-      "I_LOAD8",
-      "I_PUSH_ADDR_OF",
-      "I_PUSH_LOCAL_ADDR_OF",
-      "I_PUSH",
-      "I_PUSH_LOCAL",
-      "I_ADD",
-      "I_SUB",
-      "I_MUL",
-      "I_LSHIFT",
-      "I_RSHIFT",
-      "I_DIV",
-      "I_DIVMOD",
-      "I_LT",
-      "I_GT",
-      "I_AND",
-      "I_LOGICAL_NOT",
-      "I_OR",
-      "I_EQ",
-      "I_NEQ",
-      "I_RET",
-      "I_NORET",
-      "I_PRINT",
-      "I_LABEL",
-      "I_CALL",
-      "I_ADDR_CALL",
-      "I_JMP",
-      "I_JZ",
-      "I_BEGIN_FUNC",
-      "I_LOOP_LABEL",
+  = + @ir_code_str * 0  sizeof cstr "I_NOP";
+  = + @ir_code_str * 1  sizeof cstr "I_POP";
+  = + @ir_code_str * 2  sizeof cstr "I_MOVE";
+  = + @ir_code_str * 3  sizeof cstr "I_STORE64";
+  = + @ir_code_str * 4  sizeof cstr "I_STORE32";
+  = + @ir_code_str * 5  sizeof cstr "I_STORE16";
+  = + @ir_code_str * 6  sizeof cstr "I_STORE8";
+  = + @ir_code_str * 7  sizeof cstr "I_LOAD64";
+  = + @ir_code_str * 8  sizeof cstr "I_LOAD32";
+  = + @ir_code_str * 9  sizeof cstr "I_LOAD16";
+  = + @ir_code_str * 10 sizeof cstr "I_LOAD8";
+  = + @ir_code_str * 11 sizeof cstr "I_PUSH_ADDR_OF";
+  = + @ir_code_str * 12 sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
+  = + @ir_code_str * 13 sizeof cstr "I_PUSH";
+  = + @ir_code_str * 14 sizeof cstr "I_PUSH_LOCAL";
+  = + @ir_code_str * 15 sizeof cstr "I_PUSH_IMM";
+  = + @ir_code_str * 16 sizeof cstr "I_ADD";
+  = + @ir_code_str * 17 sizeof cstr "I_SUB";
+  = + @ir_code_str * 18 sizeof cstr "I_MUL";
+  = + @ir_code_str * 19 sizeof cstr "I_LSHIFT";
+  = + @ir_code_str * 20 sizeof cstr "I_RSHIFT";
+  = + @ir_code_str * 21 sizeof cstr "I_DIV";
+  = + @ir_code_str * 22 sizeof cstr "I_DIVMOD";
+  = + @ir_code_str * 23 sizeof cstr "I_LT";
+  = + @ir_code_str * 24 sizeof cstr "I_GT";
+  = + @ir_code_str * 25 sizeof cstr "I_AND";
+  = + @ir_code_str * 26 sizeof cstr "I_LOGICAL_NOT";
+  = + @ir_code_str * 27 sizeof cstr "I_OR";
+  = + @ir_code_str * 28 sizeof cstr "I_EQ";
+  = + @ir_code_str * 29 sizeof cstr "I_NEQ";
+  = + @ir_code_str * 30 sizeof cstr "I_RET";
+  = + @ir_code_str * 31 sizeof cstr "I_NORET";
+  = + @ir_code_str * 32 sizeof cstr "I_PRINT";
+  = + @ir_code_str * 33 sizeof cstr "I_LABEL";
+  = + @ir_code_str * 34 sizeof cstr "I_CALL";
+  = + @ir_code_str * 35 sizeof cstr "I_ADDR_CALL";
+  = + @ir_code_str * 36 sizeof cstr "I_JMP";
+  = + @ir_code_str * 37 sizeof cstr "I_JZ";
+  = + @ir_code_str * 38 sizeof cstr "I_BEGIN_FUNC";
+  = + @ir_code_str * 39 sizeof cstr "I_LOOP_LABEL";
+  = + @ir_code_str * 40 sizeof cstr "I_SYSCALL0";
+  = + @ir_code_str * 41 sizeof cstr "I_SYSCALL1";
+  = + @ir_code_str * 42 sizeof cstr "I_SYSCALL2";
+  = + @ir_code_str * 43 sizeof cstr "I_SYSCALL3";
+  = + @ir_code_str * 44 sizeof cstr "I_SYSCALL4";
+  = + @ir_code_str * 45 sizeof cstr "I_SYSCALL5";
+  = + @ir_code_str * 46 sizeof cstr "I_SYSCALL6";
 
-      "I_SYSCALL0",
-      "I_SYSCALL1",
-      "I_SYSCALL2",
-      "I_SYSCALL3",
-      "I_SYSCALL4",
-      "I_SYSCALL5",
-      "I_SYSCALL6"
-    );
-    = @ir_code_str @t;
-    assert(eq (* sizeof any MAX_IR_CODE) (sizeof t), "mismatch between ir_code_str and MAX_IR_CODE\n");
-  }
-  {
-    let t (
-      "None",
-      "Any",
-      "Unsigned64",
-      "CString",
-      "Func",
-      "SyscallFunc"
-    );
-    = @compile_type_str @t;
-    assert(eq (* sizeof any MAX_COMPILE_TYPE) (sizeof t), "mismatch between compile_type_str and MAX_COMPILE_TYPE\n");
-  }
-  {
-    let t (
-      0,
-      sizeof u64,
-      sizeof u64,
-      sizeof u64,
-      sizeof u64,
-      sizeof u64
-    );
-    = @compile_type_size @t;
-    assert(eq (* sizeof any MAX_COMPILE_TYPE) (sizeof t), "mismatch between compile_type_size and MAX_COMPILE_TYPE\n");
-  }
+  = + @compile_type_str * 0 sizeof cstr "None";
+  = + @compile_type_str * 1 sizeof cstr "Any";
+  = + @compile_type_str * 2 sizeof cstr "Unsigned64";
+  = + @compile_type_str * 3 sizeof cstr "CString";
+  = + @compile_type_str * 4 sizeof cstr "Func";
+  = + @compile_type_str * 5 sizeof cstr "SyscallFunc";
+
+  = + @compile_type_size * 0 sizeof u64 0;
+  = + @compile_type_size * 1 sizeof u64 sizeof u64;
+  = + @compile_type_size * 2 sizeof u64 sizeof u64;
+  = + @compile_type_size * 3 sizeof u64 sizeof u64;
+  = + @compile_type_size * 4 sizeof u64 sizeof u64;
+  = + @compile_type_size * 5 sizeof u64 sizeof u64;
+
   NoError;
 }
 

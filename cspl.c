@@ -533,7 +533,6 @@ static const char* target_machine_option_str[MAX_TARGET_MACHINE][2 * MAX_COMPILE
   #define MACHINE MACHINE_WIN64
 #else
   // #warning "the compiler does not support this machine, defaulting to linux"
-  // TODO(lucas): give warning to user which is portable
   #define MACHINE MACHINE_LINUX
 #endif
 
@@ -1095,7 +1094,11 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
       fprintf(fp, "%3u: `%s` (", i, symbol->name);
       for (u32 arg_index = 0; arg_index < func->argc; ++arg_index) {
         Symbol* arg = &c->symbols[func->args[arg_index]];
+        u32 count = arg->size / compile_type_size[arg->type];
         fprintf(fp, "%s", compile_type_str[arg->type]);
+        if (count > 1) {
+          fprintf(fp, " : %d", count);
+        }
         if (arg_index != func->argc - 1) {
           fprintf(fp, ", ");
         }
@@ -2286,7 +2289,6 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
           u32 type_size = compile_type_size[symbol->type];
-          // u32 type_count = symbol->size / type_size;
           fs->locals_offset_counter += symbol->size;
           for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
@@ -3573,14 +3575,7 @@ Ast* parse_statement(Parser* p) {
       }
       return block;
     }
-    case T_ASSIGN: {
-      lexer_next(&p->l); // skip `=`
-      Ast* assignment = ast_create(AstAssignment);
-      assignment->token = t;
-      ast_push(assignment, parse_expr(p));
-      ast_push(assignment, parse_expr_list(p));
-      return assignment;
-    }
+    case T_ASSIGN:
     case T_STORE64:
     case T_STORE32:
     case T_STORE16:
