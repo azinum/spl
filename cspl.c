@@ -686,6 +686,7 @@ static Ast* parse_statement(Parser* p);
 static Ast* parse_expr(Parser* p);
 static Ast* parse_func_def(Parser* p);
 static Ast* parse_expr_list(Parser* p);
+static Ast* parse_ident_list(Parser* p);
 static Ast* parse_param_list(Parser* p);
 static Ast* parse_type(Parser* p);
 static void lexer_init(Lexer* l, char* filename, char* source);
@@ -3688,7 +3689,7 @@ Ast* parse_statement(Parser* p) {
       t = lexer_next(&p->l); // skip `enum`
       if (t.type == T_LEFT_P) {
         lexer_next(&p->l); // skip `(`
-        ast_push(enum_expr, parse_expr_list(p));
+        ast_push(enum_expr, parse_ident_list(p));
         t = lexer_peek(&p->l);
         if (t.type != T_RIGHT_P) {
           parser_error(p, "expected closing `)` parenthesis, but got `%.*s`\n", t.length, t.buffer);
@@ -3697,7 +3698,7 @@ Ast* parse_statement(Parser* p) {
         lexer_next(&p->l); // skip `)`
       }
       else {
-        ast_push(enum_expr, parse_expr_list(p));
+        ast_push(enum_expr, parse_ident_list(p));
       }
       t = lexer_peek(&p->l);
       if (t.type != T_SEMICOLON) {

@@ -4,8 +4,8 @@
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
-enum A, B, C;
+enum (A, B, C);
 
 fn main -> none {
-  print C;
+  print 2;
 }
