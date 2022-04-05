@@ -1047,7 +1047,6 @@ i32 compile_create_syscall(Compile* c, const char* name, u32 argc) {
   symbol->size = compile_type_size[TypeSyscallFunc];
   symbol->sym_type = SYM_FUNC;
   symbol->type = TypeSyscallFunc;
-  symbol->token = token; // duplicated in compile_declare_value
   symbol->token.v.i = symbol_index;
   Function* func = &symbol->value.func;
   func->ir_address = -1;
@@ -1404,7 +1403,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         symbol->konst = konst;
         symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
         symbol->type = type;
-        symbol->token = ast->token; // duplicated in compile_declare_value
         symbol->value = value;
         ast->token.v.i = symbol_index;
         return type;
@@ -1441,7 +1439,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         symbol->konst = 0;
         symbol->sym_type = SYM_FUNC;
         symbol->type = TypeFunc;
-        symbol->token = ast->token; // duplicated in compile_declare_value
         ast->token.v.i = symbol_index;
         Function* func = &symbol->value.func;
         func->ir_address = -1;
@@ -1480,7 +1477,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
 
         i32 ts_count = c->ts_count;
-        typecheck_node_list(c, &local_block, fs, body);
+        Block func_body_block;
+        block_init(&func_body_block, &local_block); // to allow for shadowing of function arguments
+        typecheck_node_list(c, &func_body_block, fs, body);
         Compile_type rtype = TypeNone;
         i32 ts_delta = c->ts_count - ts_count;
         if (ts_delta > 1) {
@@ -1606,7 +1605,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           symbol->konst = 0;
           symbol->sym_type = SYM_GLOBAL_VAR;
           symbol->type = type;
-          symbol->token = ast->token; // duplicated in compile_declare_value
           symbol->value = value;
           ast->token.v.i = symbol_index;
           return type;
