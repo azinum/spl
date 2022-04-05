@@ -8,7 +8,7 @@ endif
 syntax keyword Todos TODO NOTE FIXME
 
 " Language keywords
-syntax keyword Keywords include print const let fn memory if else while and or not eq neq lshift rshift sizeof store64 store32 store16 store8 load64 load32 load16 load8
+syntax keyword Keywords include print const let fn memory if else while and or not eq neq lshift rshift sizeof store64 store32 store16 store8 load64 load32 load16 load8 enum
 
 " Types
 syntax keyword Types none any cstr u64 i64 u32 i32 u16 i16 u8 i8

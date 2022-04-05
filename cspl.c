@@ -151,6 +151,7 @@ typedef enum Token_type {
   T_LOAD16,
   T_LOAD8,
   T_SIZEOF,
+  T_ENUM,
 
   // built-in types
   T_NONE,
@@ -213,6 +214,7 @@ static const char* token_type_str[] = {
   "T_LOAD16",
   "T_LOAD8",
   "T_SIZEOF",
+  "T_ENUM",
 
   "T_NONE",
   "T_ANY",
@@ -271,6 +273,7 @@ typedef enum Ast_type {
   AstIfStatement,
   AstType,
   AstSizeof,
+  AstEnum,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -297,6 +300,7 @@ static const char* ast_type_str[] = {
   "AstIfStatement",
   "AstType",
   "AstSizeof",
+  "AstEnum",
 };
 
 typedef struct Ast {
@@ -1660,6 +1664,30 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       t->v.num = size;
       return ts_push(c, TypeUnsigned64);
     }
+    case AstEnum: {
+      Ast* enum_node = ast->node[0];
+      Value value = { .num = 0, };
+      for (u32 i = 0; i < enum_node->count; ++i, ++value.num) {
+        Ast* node = enum_node->node[i];
+        Symbol* symbol = NULL;
+        i32 symbol_index = -1;
+        Compile_type type = TypeUnsigned64;
+        i32 imm = ir_push_value(c, &value.num, sizeof(value.num));
+        if (compile_declare_value(c, block, fs, node->token, &symbol, &symbol_index) == NoError) {
+          symbol->imm = imm;
+          symbol->size = compile_type_size[type];
+          symbol->konst = 1;
+          symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
+          symbol->type = type;
+          symbol->value = value;
+        }
+        else {
+        compile_error_at(c, node->token, "symbol `%.*s` has already been declared\n", node->token.length, node->token.buffer);
+          return TypeNone;
+        }
+      }
+      break;
+    }
     case AstType: {
       if (ast->count > 0) {
         typecheck_node_list(c, block, fs, ast);
@@ -2559,6 +2587,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           .src1 = -1,
         }, ins_count);
       }
+      break;
+    }
+    case AstEnum: {
       break;
     }
     case AstType: {
@@ -3652,6 +3683,29 @@ Ast* parse_statement(Parser* p) {
       }
       return if_stmt;
     }
+    case T_ENUM: {
+      Ast* enum_expr = ast_create(AstEnum);
+      t = lexer_next(&p->l); // skip `enum`
+      if (t.type == T_LEFT_P) {
+        lexer_next(&p->l); // skip `(`
+        ast_push(enum_expr, parse_expr_list(p));
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_P) {
+          parser_error(p, "expected closing `)` parenthesis, but got `%.*s`\n", t.length, t.buffer);
+          return enum_expr;
+        }
+        lexer_next(&p->l); // skip `)`
+      }
+      else {
+        ast_push(enum_expr, parse_expr_list(p));
+      }
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "expected `;` after enum expression, but got `%.*s`\n", t.length, t.buffer);
+      }
+      lexer_next(&p->l); // skip `;`
+      return enum_expr;
+    }
     default: {
       Ast* expr = parse_expr(p);
       t = lexer_peek(&p->l);
@@ -3892,6 +3946,23 @@ Ast* parse_expr_list(Parser* p) {
   return expr_list;
 }
 
+// L : `(` identifier `,` ... `)`
+Ast* parse_ident_list(Parser* p) {
+  Ast* ident_list = ast_create(AstExprList);
+  for (;;) {
+    Token t = lexer_peek(&p->l);
+    if (t.type == T_IDENTIFIER) {
+      ast_push_node(ident_list, AstValue, t);
+      lexer_next(&p->l); // skip identifier
+    }
+    if (lexer_peek(&p->l).type == T_COMMA) {
+      lexer_next(&p->l);
+      continue;
+    }
+    break;
+  }
+  return ident_list;
+}
 Ast* parse_param_list(Parser* p) {
   Ast* param_list = ast_create(AstParamList);
   if (lexer_peek(&p->l).type == T_RIGHT_P) {
@@ -4087,6 +4158,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "sizeof")) {
     l->token.type = T_SIZEOF;
+  }
+  else if (compare(l->token, "enum")) {
+    l->token.type = T_ENUM;
   }
   else if (compare(l->token, "none")) {
     l->token.type = T_NONE;
