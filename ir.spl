@@ -1,135 +1,140 @@
 // ir.spl
 
-// enum Ir_code {
-const I_NOP 0;
-const I_POP 1;
-const I_MOVE 2;
-const I_STORE64 3;
-const I_STORE32 4;
-const I_STORE16 5;
-const I_STORE8 6;
-const I_LOAD64 7;
-const I_LOAD32 8;
-const I_LOAD16 9;
-const I_LOAD8 10;
-const I_PUSH_ADDR_OF 11;
-const I_PUSH_LOCAL_ADDR_OF 12;
-const I_PUSH 13;
-const I_PUSH_LOCAL 14;
-const I_PUSH_IMM 15;
-const I_ADD 16;
-const I_SUB 17;
-const I_MUL 18;
-const I_LSHIFT 19;
-const I_RSHIFT 20;
-const I_DIV 21;
-const I_DIVMOD 22;
-const I_LT 23;
-const I_GT 24;
-const I_AND 25;
-const I_LOGICAL_NOT 26;
-const I_OR 27;
-const I_EQ 28;
-const I_NEQ 29;
-const I_RET 30;
-const I_NORET 31;
-const I_PRINT 32;
-const I_LABEL 33;
-const I_CALL 34;
-const I_ADDR_CALL 35;
-const I_JMP 36;
-const I_JZ 37;
-const I_BEGIN_FUNC 38;
-const I_LOOP_LABEL 39;
+// Ir_code
+enum (
+  I_NOP,
+  I_POP,
+  I_MOVE, // <id, offset, x>
+  I_MOVE_LOCAL, // <local_id, x, x>
+  I_STORE64,
+  I_STORE32,
+  I_STORE16,
+  I_STORE8,
+  I_LOAD64,
+  I_LOAD32,
+  I_LOAD16,
+  I_LOAD8,
+  I_PUSH_ADDR_OF, // <type, id, x>
+  I_PUSH_LOCAL_ADDR_OF, // <type, local_id, x>
+  I_PUSH, // <type, id, x>
+  I_PUSH_LOCAL, // <type, local_id, x>
+  I_PUSH_IMM, // <type, imm, x>
+  I_ADD,
+  I_SUB,
+  I_MUL,
+  I_LSHIFT,
+  I_RSHIFT,
+  I_DIV,
+  I_DIVMOD,
+  I_LT,
+  I_GT,
+  I_AND,
+  I_LOGICAL_NOT,
+  I_OR,
+  I_EQ,
+  I_NEQ,
+  I_RET, // <x, frame_size, x>
+  I_NORET, // <x, frame_size, x>
+  I_PRINT,
+  I_LABEL,
+  I_CALL, // <label, argc, rtype>
+  I_ADDR_CALL, // <x, argc, rtype>
+  I_JMP,
+  I_JZ, // <label, offset, x>
+  I_BEGIN_FUNC, // <x, argc, frame_size>
+  I_LOOP_LABEL,
 
-const I_SYSCALL0 40;
-const I_SYSCALL1 41;
-const I_SYSCALL2 42;
-const I_SYSCALL3 43;
-const I_SYSCALL4 44;
-const I_SYSCALL5 45;
-const I_SYSCALL6 46;
+  I_SYSCALL0,
+  I_SYSCALL1,
+  I_SYSCALL2,
+  I_SYSCALL3,
+  I_SYSCALL4,
+  I_SYSCALL5,
+  I_SYSCALL6,
 
-const MAX_IR_CODE 47;
-// };
+  MAX_IR_CODE
+);
 
 let ir_code_str : cstr : MAX_IR_CODE "";
 
-const TypeNone 0;
-const TypeAny 1;
-const TypeUnsigned64 2;
-const TypeCString 3;
-const TypeFunc 4;
-const TypeSyscallFunc 5;
+enum (
+  TypeNone,
+  TypeAny,
+  TypeUnsigned64,
+  TypeCString,
+  TypeFunc,
+  TypeSyscallFunc,
 
-const MAX_COMPILE_TYPE 6;
+  MAX_COMPILE_TYPE
+);
 
 let compile_type_str : cstr : MAX_COMPILE_TYPE "";
 
 let compile_type_size : u64 : MAX_COMPILE_TYPE 0;
 
 fn compile_state_init -> u64 {
-  = + @ir_code_str * 0  sizeof cstr "I_NOP";
-  = + @ir_code_str * 1  sizeof cstr "I_POP";
-  = + @ir_code_str * 2  sizeof cstr "I_MOVE";
-  = + @ir_code_str * 3  sizeof cstr "I_STORE64";
-  = + @ir_code_str * 4  sizeof cstr "I_STORE32";
-  = + @ir_code_str * 5  sizeof cstr "I_STORE16";
-  = + @ir_code_str * 6  sizeof cstr "I_STORE8";
-  = + @ir_code_str * 7  sizeof cstr "I_LOAD64";
-  = + @ir_code_str * 8  sizeof cstr "I_LOAD32";
-  = + @ir_code_str * 9  sizeof cstr "I_LOAD16";
-  = + @ir_code_str * 10 sizeof cstr "I_LOAD8";
-  = + @ir_code_str * 11 sizeof cstr "I_PUSH_ADDR_OF";
-  = + @ir_code_str * 12 sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
-  = + @ir_code_str * 13 sizeof cstr "I_PUSH";
-  = + @ir_code_str * 14 sizeof cstr "I_PUSH_LOCAL";
-  = + @ir_code_str * 15 sizeof cstr "I_PUSH_IMM";
-  = + @ir_code_str * 16 sizeof cstr "I_ADD";
-  = + @ir_code_str * 17 sizeof cstr "I_SUB";
-  = + @ir_code_str * 18 sizeof cstr "I_MUL";
-  = + @ir_code_str * 19 sizeof cstr "I_LSHIFT";
-  = + @ir_code_str * 20 sizeof cstr "I_RSHIFT";
-  = + @ir_code_str * 21 sizeof cstr "I_DIV";
-  = + @ir_code_str * 22 sizeof cstr "I_DIVMOD";
-  = + @ir_code_str * 23 sizeof cstr "I_LT";
-  = + @ir_code_str * 24 sizeof cstr "I_GT";
-  = + @ir_code_str * 25 sizeof cstr "I_AND";
-  = + @ir_code_str * 26 sizeof cstr "I_LOGICAL_NOT";
-  = + @ir_code_str * 27 sizeof cstr "I_OR";
-  = + @ir_code_str * 28 sizeof cstr "I_EQ";
-  = + @ir_code_str * 29 sizeof cstr "I_NEQ";
-  = + @ir_code_str * 30 sizeof cstr "I_RET";
-  = + @ir_code_str * 31 sizeof cstr "I_NORET";
-  = + @ir_code_str * 32 sizeof cstr "I_PRINT";
-  = + @ir_code_str * 33 sizeof cstr "I_LABEL";
-  = + @ir_code_str * 34 sizeof cstr "I_CALL";
-  = + @ir_code_str * 35 sizeof cstr "I_ADDR_CALL";
-  = + @ir_code_str * 36 sizeof cstr "I_JMP";
-  = + @ir_code_str * 37 sizeof cstr "I_JZ";
-  = + @ir_code_str * 38 sizeof cstr "I_BEGIN_FUNC";
-  = + @ir_code_str * 39 sizeof cstr "I_LOOP_LABEL";
-  = + @ir_code_str * 40 sizeof cstr "I_SYSCALL0";
-  = + @ir_code_str * 41 sizeof cstr "I_SYSCALL1";
-  = + @ir_code_str * 42 sizeof cstr "I_SYSCALL2";
-  = + @ir_code_str * 43 sizeof cstr "I_SYSCALL3";
-  = + @ir_code_str * 44 sizeof cstr "I_SYSCALL4";
-  = + @ir_code_str * 45 sizeof cstr "I_SYSCALL5";
-  = + @ir_code_str * 46 sizeof cstr "I_SYSCALL6";
+  = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
+  = + @ir_code_str * I_POP                sizeof cstr "I_POP";
+  = + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
+  = + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";
+  = + @ir_code_str * I_STORE64            sizeof cstr "I_STORE64";
+  = + @ir_code_str * I_STORE32            sizeof cstr "I_STORE32";
+  = + @ir_code_str * I_STORE16            sizeof cstr "I_STORE16";
+  = + @ir_code_str * I_STORE8             sizeof cstr "I_STORE8";
+  = + @ir_code_str * I_LOAD64             sizeof cstr "I_LOAD64";
+  = + @ir_code_str * I_LOAD32             sizeof cstr "I_LOAD32";
+  = + @ir_code_str * I_LOAD16             sizeof cstr "I_LOAD16";
+  = + @ir_code_str * I_LOAD8              sizeof cstr "I_LOAD8";
+  = + @ir_code_str * I_PUSH_ADDR_OF       sizeof cstr "I_PUSH_ADDR_OF";
+  = + @ir_code_str * I_PUSH_LOCAL_ADDR_OF sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
+  = + @ir_code_str * I_PUSH               sizeof cstr "I_PUSH";
+  = + @ir_code_str * I_PUSH_LOCAL         sizeof cstr "I_PUSH_LOCAL";
+  = + @ir_code_str * I_PUSH_IMM           sizeof cstr "I_PUSH_IMM";
+  = + @ir_code_str * I_ADD                sizeof cstr "I_ADD";
+  = + @ir_code_str * I_SUB                sizeof cstr "I_SUB";
+  = + @ir_code_str * I_MUL                sizeof cstr "I_MUL";
+  = + @ir_code_str * I_LSHIFT             sizeof cstr "I_LSHIFT";
+  = + @ir_code_str * I_RSHIFT             sizeof cstr "I_RSHIFT";
+  = + @ir_code_str * I_DIV                sizeof cstr "I_DIV";
+  = + @ir_code_str * I_DIVMOD             sizeof cstr "I_DIVMOD";
+  = + @ir_code_str * I_LT                 sizeof cstr "I_LT";
+  = + @ir_code_str * I_GT                 sizeof cstr "I_GT";
+  = + @ir_code_str * I_AND                sizeof cstr "I_AND";
+  = + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
+  = + @ir_code_str * I_OR                 sizeof cstr "I_OR";
+  = + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
+  = + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";
+  = + @ir_code_str * I_RET                sizeof cstr "I_RET";
+  = + @ir_code_str * I_NORET              sizeof cstr "I_NORET";
+  = + @ir_code_str * I_PRINT              sizeof cstr "I_PRINT";
+  = + @ir_code_str * I_LABEL              sizeof cstr "I_LABEL";
+  = + @ir_code_str * I_CALL               sizeof cstr "I_CALL";
+  = + @ir_code_str * I_ADDR_CALL          sizeof cstr "I_ADDR_CALL";
+  = + @ir_code_str * I_JMP                sizeof cstr "I_JMP";
+  = + @ir_code_str * I_JZ                 sizeof cstr "I_JZ";
+  = + @ir_code_str * I_BEGIN_FUNC         sizeof cstr "I_BEGIN_FUNC";
+  = + @ir_code_str * I_LOOP_LABEL         sizeof cstr "I_LOOP_LABEL";
+  = + @ir_code_str * I_SYSCALL0           sizeof cstr "I_SYSCALL0";
+  = + @ir_code_str * I_SYSCALL1           sizeof cstr "I_SYSCALL1";
+  = + @ir_code_str * I_SYSCALL2           sizeof cstr "I_SYSCALL2";
+  = + @ir_code_str * I_SYSCALL3           sizeof cstr "I_SYSCALL3";
+  = + @ir_code_str * I_SYSCALL4           sizeof cstr "I_SYSCALL4";
+  = + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
+  = + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
 
-  = + @compile_type_str * 0 sizeof cstr "None";
-  = + @compile_type_str * 1 sizeof cstr "Any";
-  = + @compile_type_str * 2 sizeof cstr "Unsigned64";
-  = + @compile_type_str * 3 sizeof cstr "CString";
-  = + @compile_type_str * 4 sizeof cstr "Func";
-  = + @compile_type_str * 5 sizeof cstr "SyscallFunc";
+  = + @compile_type_str * TypeNone        sizeof cstr "None";
+  = + @compile_type_str * TypeAny         sizeof cstr "Any";
+  = + @compile_type_str * TypeUnsigned64  sizeof cstr "Unsigned64";
+  = + @compile_type_str * TypeCString     sizeof cstr "CString";
+  = + @compile_type_str * TypeFunc        sizeof cstr "Func";
+  = + @compile_type_str * TypeSyscallFunc sizeof cstr "SyscallFunc";
 
-  = + @compile_type_size * 0 sizeof u64 0;
-  = + @compile_type_size * 1 sizeof u64 sizeof u64;
-  = + @compile_type_size * 2 sizeof u64 sizeof u64;
-  = + @compile_type_size * 3 sizeof u64 sizeof u64;
-  = + @compile_type_size * 4 sizeof u64 sizeof u64;
-  = + @compile_type_size * 5 sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeNone        sizeof u64 0;
+  = + @compile_type_size * TypeAny         sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeUnsigned64  sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeCString     sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeFunc        sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeSyscallFunc sizeof u64 sizeof u64;
 
   NoError;
 }
