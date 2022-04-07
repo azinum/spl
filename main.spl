@@ -4,11 +4,5 @@
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
-fn some(a : u64, b : u64) -> u64 {
-  let a + a b;
-  a;
-}
-
 fn main -> none {
-  print some(2, 3);
 }

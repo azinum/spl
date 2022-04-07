@@ -476,7 +476,7 @@ typedef struct Op {
 
 #define OP(_i) ((Op) {.i = _i, .dest = -1, .src0 = -1, .src1 = -1, })
 
-#define MAX_DATA (KB(32)) // temp
+#define MAX_STATIC_DATA (KB(32)) // temp
 
 #define MAX_NAME_SIZE 64
 #define MAX_SYMBOL 1024
@@ -589,7 +589,7 @@ typedef struct Compile {
   Op* ins;
   u32 ins_count;
 
-  u8 imm[MAX_DATA];
+  u8 imm[MAX_STATIC_DATA];
   u32 imm_index;
 
   Symbol symbols[MAX_SYMBOL];
@@ -1990,7 +1990,7 @@ i32 ir_pop_ins(Compile* c, Op* ins, u32* ins_count) {
 
 i32 ir_push_value(Compile* c, void* value, u32 size) {
   i32 address = c->imm_index;
-  if (address + size < MAX_DATA) {
+  if (address + size < MAX_STATIC_DATA) {
     memcpy(&c->imm[c->imm_index], value, size);
     c->imm_index += size;
     return address;
@@ -3383,13 +3383,14 @@ i32 parser_init(Parser* p, char* filename, char* source) {
   p->ast = ast_create(AstRoot);
   p->status = NoError;
   p->source[0] = source;
+  p->path[0] = filename;
   p->source_count = 1;
   return NoError;
 }
 
 void parser_free(Parser* p) {
   ast_free(p->ast);
-  char** path = (char**)&p->path;
+  char** path = (char**)&p->path[1];
   for (u32 i = 1; i < p->source_count; ++i, ++path) { // first path is lives on throughout the program runtime, thus i = 1. remaining paths are allocated on heap.
     free(*path);
   }
@@ -3461,38 +3462,52 @@ Ast* parse_statements(Parser* p) {
       }
       // TODO(lucas): add recursive inclusion protection
       case T_INCLUDE: {
-        t = lexer_next(&p->l);
+        t = lexer_next(&p->l); // skip `include`
         if (t.type != T_CSTRING) {
           parser_error(p, "expected string after include statement, but got `%.*s`\n", t.length, t.buffer);
           return NULL;
         }
         lexer_next(&p->l);
 
-        Lexer l_copy;
-        memcpy(&l_copy, &p->l, sizeof(Lexer));
         u32 path_length = t.length + 1;
         char* path = malloc(path_length);
-        snprintf(path, MAX_PATH_SIZE, "%.*s", t.length, t.buffer);
-        char* source = read_entire_file(path);
-        if (!source) {
-          parser_error(p, "failed to include source file `%s`\n", path);
-          free(path);
-          return stmts;
+        snprintf(path, path_length, "%.*s", t.length, t.buffer);
+
+        // do not include a file that has already been included, i.e. inclusion protection/guards
+        u32 guard = 0;
+        for (u32 i = 0; i < p->source_count; ++i) {
+          char* included_path = p->path[i];
+          if (!strncmp(path, included_path, MAX_PATH_SIZE)) {
+            guard = 1;
+            free(path);
+            break;
+          }
         }
-        if (p->source_count < MAX_SOURCE) {
-          p->path[p->source_count] = path;
-          p->source[p->source_count] = source;
-          p->source_count++;
-          // initialize new lexer
-          lexer_init(&p->l, path, source);
-          lexer_next(&p->l); // read first token
-          Ast* include_stmts = parse_statements(p);
-          ast_push(stmts, include_stmts);
-          // restore lexer state
-          memcpy(&p->l, &l_copy, sizeof(Lexer));
-        }
-        else {
-          assert("max includes was reached, increase capacity!" && 0); // TODO: handle
+        if (!guard) {
+          char* source = read_entire_file(path);
+          if (!source) {
+            parser_error(p, "failed to include source file `%s`\n", path);
+            free(path);
+            return stmts;
+          }
+          // copy current lexer state
+          Lexer l_copy;
+          memcpy(&l_copy, &p->l, sizeof(Lexer));
+          if (p->source_count < MAX_SOURCE) {
+            p->path[p->source_count] = path;
+            p->source[p->source_count] = source;
+            p->source_count++;
+            // initialize new lexer state
+            lexer_init(&p->l, path, source);
+            lexer_next(&p->l); // read first token
+            Ast* include_stmts = parse_statements(p);
+            ast_push(stmts, include_stmts);
+            // restore lexer state
+            memcpy(&p->l, &l_copy, sizeof(Lexer));
+          }
+          else {
+            assert("max includes was reached, increase capacity!" && 0); // TODO: handle
+          }
         }
         break;
       }
