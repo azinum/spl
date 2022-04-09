@@ -5,4 +5,7 @@
 // fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
+  let value : u64 12;
+  const a : u64 sizeof value;
+  print a;
 }

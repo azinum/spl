@@ -308,6 +308,7 @@ typedef struct Ast {
   u32 count;
   Ast_type type;
   Token token;
+  u32 konst; // if this is true, this node contains the evaluation of a constant expression
 } Ast;
 
 #define MAX_SOURCE 32
@@ -549,9 +550,12 @@ typedef struct Function {
   u32 args[MAX_FUNC_ARGC]; // arguments pointing to some symbol in the function block/symbol table
 } Function;
 
-typedef union Value {
-  Function func;
-  u64 num;
+typedef struct Value {
+  union {
+    Function func;
+    u64 num;
+  };
+  u32 konst;
 } Value;
 
 typedef enum Symbol_type {
@@ -648,6 +652,7 @@ static i32 vs_push(Compile* c, Value v);
 static i32 vs_pop(Compile* c, Value* v);
 static Value vs_top(Compile* c);
 static i32 check_func_signatures(Compile* c, Function* a, Function* b);
+static u32 is_branch_konst_eval(Ast* ast);
 
 static void ir_compile_warning(Compile* c, const char* fmt, ...);
 static void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...);
@@ -1107,7 +1112,8 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
           fprintf(fp, ", ");
         }
       }
-      fprintf(fp, ") -> %s - %s:%d:%d\n", compile_type_str[func->rtype], symbol->token.filename, symbol->token.line, symbol->token.column);
+      fprintf(fp, ") -> %s", compile_type_str[func->rtype]);
+      fprintf(fp, " - %s:%d:%d\n", symbol->token.filename, symbol->token.line, symbol->token.column);
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->token.filename, symbol->token.line, symbol->token.column);
@@ -1173,7 +1179,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstValue: {
       switch (ast->token.type) {
         case T_NUMBER: {
-          vs_push(c, (Value) { .num = ast->token.v.num, });
+          vs_push(c, (Value) { .num = ast->token.v.num, .konst = 1, });
+          ast->konst = 1;
           return ts_push(c, TypeUnsigned64);
         }
         case T_CSTRING: {
@@ -1190,6 +1197,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
             ast->token.v.i = symbol_index;
             vs_push(c, symbol->value);
+            if (symbol->value.konst) {
+              ast->konst = 1;
+            }
             return ts_push(c, symbol->type);
           }
           compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
@@ -1218,12 +1228,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return TypeNone;
     }
     case AstExpression: {
-      return typecheck(c, block, fs, ast->node[0]);
+      Compile_type result = typecheck(c, block, fs, ast->node[0]);
+      ast->konst = is_branch_konst_eval(ast);
+      return result;
     }
     case AstExprList:
     case AstStatement:
     case AstStatementList: {
-      return typecheck_node_list(c, block, fs, ast);
+      Compile_type result = typecheck_node_list(c, block, fs, ast);
+      ast->konst = is_branch_konst_eval(ast);
+      return result;
     }
     case AstBinopExpression: {
       typecheck_node_list(c, block, fs, ast);
@@ -1234,6 +1248,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Value vb;
         vs_pop(c, &vb);
         vs_pop(c, &va);
+        if (va.konst && vb.konst) {
+          ast->konst = 1;
+        }
         u64 num = 0;
         switch (ast->token.type) {
           case T_ADD:
@@ -1291,7 +1308,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             assert("unhandled operation" && 0);
             break;
         }
-        vs_push(c, (Value) { .num = num, });
+        vs_push(c, (Value) { .num = num, .konst = ast->konst, });
         return ts_push(c, TypeUnsigned64);
       }
       typecheck_error_at(c, ast->token, "type mismatch in binary operator expression\n");
@@ -1300,6 +1317,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstUopExpression: {
       i32 ts_count = c->ts_count;
       typecheck_node_list(c, block, fs, ast);
+      ast->konst = is_branch_konst_eval(ast);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
         typecheck_error_at(c, ast->token, "no value was produced in the rhs of the unary operator expression\n");
@@ -1318,7 +1336,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       else if (ast->token.type == T_LOGICAL_NOT) {
         Value value;
         vs_pop(c, &value);
-        vs_push(c, (Value) { .num = !value.num, });
+        value.num = !value.num;
+        vs_push(c, value);
       }
       return ts_top(c);
     }
@@ -1330,6 +1349,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* rhs = ast->node[0];
       Ast* ast_type = NULL;
       typecheck_node_list(c, block, fs, rhs);
+      ast->konst = rhs->konst = is_branch_konst_eval(rhs);
       i32 ts_delta = c->ts_count - ts_count;
       if (ts_delta == 0) {
         typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
@@ -1390,6 +1410,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       if (konst) {
         imm -= (ts_delta - 1) * compile_type_size[type];
+        if (!rhs->konst) {
+          typecheck_error_at(c, ast->token, "tried to assign a runtime value to a constant value\n");
+        }
       }
       if (num_elements == 1) {
         num_elements = ts_delta;
@@ -1413,7 +1436,9 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstBlockStatement: {
       Block local_block;
       block_init(&local_block, block);
-      return typecheck_node_list(c, &local_block, fs, ast);
+      Compile_type result = typecheck_node_list(c, &local_block, fs, ast);
+      ast->konst = is_branch_konst_eval(ast);
+      return result;
     }
     case AstFuncDefinition: {
       Ast* params = ast->node[0];
@@ -1445,7 +1470,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         func->label = symbol_index;
         func->argc = params->count;
         func->locals_offset_counter = 0;
-        func->rtype = TypeUnsigned64;
+        func->rtype = TypeNone;
 
         if (rtype_node != NULL) {
           func->rtype = token_to_compile_type(rtype_node->token);
@@ -1468,7 +1493,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             arg_symbol->sym_type = SYM_FUNC_ARG;
             arg_symbol->type = arg_compile_type;
             arg_symbol->token = arg;
-            arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id (don't think this is used here anymore, investigate)
+            arg_symbol->token.v.i = i; // TODO(lucas): change where we store the argument id (don't think this is used anymore, investigate)
           }
           else {
             compile_error_at(c, arg, "duplicate argument `%.*s`\n", arg.length, arg.buffer);
@@ -1480,6 +1505,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Block func_body_block;
         block_init(&func_body_block, &local_block); // to allow for shadowing of function arguments
         typecheck_node_list(c, &func_body_block, fs, body);
+        body->konst = ast->konst = symbol->value.konst = is_branch_konst_eval(body);
         Compile_type rtype = TypeNone;
         i32 ts_delta = c->ts_count - ts_count;
         if (ts_delta > 1) {
@@ -1531,13 +1557,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           if (symbol->type == TypeSyscallFunc) {
             // any type is allowed here
             // we still want to type check the arguments of the call,
-            // which is why this is here instead of outside this loop
+            // which is why this is here instead of outside the loop
           }
           else {
             Symbol* arg = &c->symbols[func->args[i]];
             if (arg->type != arg_type && arg->type != TypeAny) {
               typecheck_error_at(c, ast->token, "type mismatch in function call\n");
-              c->status = NoError; // to print additional error location message
+              c->status = NoError; // to print additional error message
               typecheck_error_at(c, arg->token, "from function `%s`\n", symbol->name);
               return TypeNone;
             }
@@ -1549,6 +1575,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           return TypeNone;
         }
         vs_push(c, symbol->value);
+        ast->konst = symbol->value.konst;
         return ts_push(c, func->rtype);
       }
       compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
@@ -1564,6 +1591,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Block local_block;
         block_init(&local_block, block);
         typecheck(c, &local_block, fs, body);
+        ast->konst = is_branch_konst_eval(ast);
         return TypeNone;
       }
       typecheck_error(c, "invalid type in while statement condition\n");
@@ -1585,6 +1613,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           block_init(&local_block, block);
           typecheck(c, &local_block, fs, else_body);
         }
+        ast->konst = is_branch_konst_eval(ast);
         return TypeNone;
       }
       typecheck_error(c, "invalid type in if statement condition\n");
@@ -1607,6 +1636,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           symbol->type = type;
           symbol->value = value;
           ast->token.v.i = symbol_index;
+          ast->konst = is_branch_konst_eval(ast);
           return type;
         }
         compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
@@ -1661,6 +1691,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value v = { .num = size, };
       vs_push(c, v);
       t->v.num = size;
+      ast->konst = is_branch_konst_eval(ast);
       return ts_push(c, TypeUnsigned64);
     }
     case AstEnum: {
@@ -1774,6 +1805,18 @@ i32 check_func_signatures(Compile* c, Function* a, Function* b) {
     }
   }
   return 1;
+}
+
+u32 is_branch_konst_eval(Ast* ast) {
+  u32 konst = 1;
+  for (u32 i = 0; i < ast->count; ++i) {
+    Ast* node = ast->node[i];
+    if (!node->konst) {
+      konst = 0;
+      break;
+    }
+  }
+  return konst;
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
@@ -3460,7 +3503,6 @@ Ast* parse_statements(Parser* p) {
         ast_push(stmts, func_def);
         break;
       }
-      // TODO(lucas): add recursive inclusion protection
       case T_INCLUDE: {
         t = lexer_next(&p->l); // skip `include`
         if (t.type != T_CSTRING) {
@@ -4548,6 +4590,7 @@ void ast_init_node(Ast* node) {
     .count = 0,
     .type = AstNone,
     .token = {0},
+    .konst = 0,
   };
 }
 
@@ -4613,7 +4656,7 @@ void ast_print(const Ast* ast, i32 level, FILE* fp) {
   }
   for (i32 i = 0; i < level; ++i, fprintf(fp, "    "));
   assert("something went very wrong" && ast->type < MAX_AST_TYPE && ast->token.type < MAX_TOKEN_TYPE);
-  fprintf(fp, "<%s, %s>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->token.type],  ast->token.length, ast->token.buffer);
+  fprintf(fp, "<%s, %s, %d>: `%.*s`\n", ast_type_str[ast->type], token_type_str[ast->token.type], ast->konst, ast->token.length, ast->token.buffer);
   for (u32 i = 0; i < ast->count; ++i) {
     ast_print(ast->node[i], level + 1, fp);
   }
