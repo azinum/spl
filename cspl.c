@@ -1226,6 +1226,10 @@ void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
 }
 
 Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
+  // early out if error was detected
+  if (c->status == Error) {
+    return TypeNone;
+  }
   switch (ast->type) {
     case AstValue: {
       switch (ast->token.type) {
@@ -1625,8 +1629,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         if (func->rtype == TypeNone) {
           return TypeNone;
         }
-        vs_push(c, symbol->value);
         symbol->value.konst = 0; // NOTE(lucas): temporary
+        vs_push(c, symbol->value);
         ast->konst = symbol->value.konst;
         return ts_push(c, func->rtype);
       }
