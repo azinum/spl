@@ -2,10 +2,8 @@
 
 // include "lib/common.spl"
 
-// fn add(a : u64, b : u64) -> u64 + a b;
+alias t {print 12}
+alias y {print 12}
 
 fn main -> none {
-  let value : u64 12;
-  const a : u64 sizeof value;
-  print a;
 }

@@ -152,6 +152,7 @@ typedef enum Token_type {
   T_LOAD8,
   T_SIZEOF,
   T_ENUM,
+  T_ALIAS,
 
   // built-in types
   T_NONE,
@@ -215,6 +216,7 @@ static const char* token_type_str[] = {
   "T_LOAD8",
   "T_SIZEOF",
   "T_ENUM",
+  "T_ALIAS",
 
   "T_NONE",
   "T_ANY",
@@ -309,9 +311,16 @@ typedef struct Ast {
   Ast_type type;
   Token token;
   u32 konst; // if this is true, this node contains the evaluation of a constant expression
+  u32 pointer; // does this node refer to another node?
 } Ast;
 
 #define MAX_SOURCE 32
+#define MAX_ALIAS 256
+
+typedef struct Alias {
+  Token token;
+  Token content;
+} Alias;
 
 typedef struct Parser {
   Lexer l;
@@ -320,6 +329,8 @@ typedef struct Parser {
   char* path[MAX_SOURCE];
   char* source[MAX_SOURCE];
   u32 source_count;
+  Alias aliases[MAX_ALIAS];
+  u32 alias_count;
 } Parser;
 
 typedef enum Ir_code {
@@ -576,6 +587,7 @@ typedef struct Symbol {
   Compile_type type;
   Token token;
   Value value;
+  Ast* node;
 } Symbol;
 
 typedef struct Block {
@@ -626,6 +638,8 @@ typedef struct Options {
 static i32 spl_start(Options* options);
 
 static char* read_entire_file(char* path);
+static char* string_insert(char* dest, char* source, u32 dest_length, u32 source_length, u32 index);
+static char* string_shrink_at(char* dest, u32 dest_length, u32 index, u32 count);
 
 static void symbol_init(Symbol* s);
 static void symbol_print(Symbol* s, FILE* fp);
@@ -635,7 +649,7 @@ static i32 compile_state_init(Compile* c);
 static void compile_state_free(Compile* c);
 static void compile_error(Compile* c, const char* fmt, ...);
 static void compile_error_at(Compile* c, Token token, const char* fmt, ...);
-static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index);
+static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, Ast* node, i32* symbol_index);
 static i32 compile_create_syscall(Compile* c, const char* name, u32 argc);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token token, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static void compile_print_symbol_info(Compile* c, FILE* fp);
@@ -682,10 +696,15 @@ static compile_target compile_targets[MAX_COMPILE_TARGET] = {
   compile_win_nasm_x86_64,
 };
 
+static i32 alias_store(Parser* p, Alias* alias);
+static i32 alias_lookup(Parser* p, Alias* alias);
+
+static i32 preprocess(Parser* p);
+
 static i32 parser_init(Parser* p, char* filename, char* source);
 static void parser_free(Parser* p);
 static void parser_error(Parser* p, const char* fmt, ...);
-static i32 parse(Parser* p);
+static Ast* parse(Parser* p);
 static Ast* parse_statements(Parser* p);
 static Ast* parse_statement(Parser* p);
 static Ast* parse_expr(Parser* p);
@@ -694,6 +713,7 @@ static Ast* parse_expr_list(Parser* p);
 static Ast* parse_ident_list(Parser* p);
 static Ast* parse_param_list(Parser* p);
 static Ast* parse_type(Parser* p);
+static i32 parse_alias(Parser* p, u32 skip_store_of_alias);
 static void lexer_init(Lexer* l, char* filename, char* source);
 static void lexer_error(Lexer* l, const char* fmt, ...);
 static void next(Lexer* l);
@@ -742,6 +762,16 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
 
+  // u32 a_length = 5;
+  // char* a = malloc(a_length);
+  // strcpy(a, "hello");
+  // printf("`%s`\n", a);
+  // a = string_insert(a, "asdf", strlen(a), 4, 5);
+  // printf("`%s`\n", a);
+  // a = string_shrink_at(a, strlen(a), 0, 5);
+  // printf("`%s`\n", a);
+  // return 0;
+
   (void)symbol_print; // unused
   (void)ir_pop_ins; // unused
   (void)ir_compile_warning_at; // unused
@@ -788,8 +818,9 @@ i32 spl_start(Options* options) {
   Parser p;
   Compile c;
   if (parser_init(&p, options->filename, source) == NoError) {
-    parse(&p);
-    if (p.status == NoError && p.l.status == NoError) {
+    p.ast = ast_create(AstRoot);
+    ast_push(p.ast, parse(&p));
+    if (p.ast && p.status == NoError && p.l.status == NoError) {
       if (compile_state_init(&c) == NoError) {
         if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
@@ -895,6 +926,33 @@ char* read_entire_file(char* path) {
   return source;
 }
 
+char* string_insert(char* dest, char* source, u32 dest_length, u32 source_length, u32 index) {
+  u32 new_size = dest_length + source_length;
+  char* string = realloc(dest, new_size);
+  if (!string) {
+    return NULL;
+  }
+  memmove(&string[index + source_length], &string[index], new_size - source_length);
+  memmove(&string[index], source, source_length);
+  return string;
+}
+
+char* string_shrink_at(char* dest, u32 dest_length, u32 index, u32 count) {
+  i32 new_size = (i32)dest_length - count;
+  char* string = NULL;
+  if (new_size < 0) {
+    return string;
+  }
+
+  if ((i32)(index - count) < new_size) {
+    memmove(&dest[index], &dest[index + count], dest_length - (index + count));
+  }
+  string = realloc(dest, new_size);
+  string[new_size] = '\0';
+
+  return string;
+}
+
 void symbol_init(Symbol* s) {
   memset(s->name, 0, ARR_SIZE(s->name));
   s->imm = -1;
@@ -905,7 +963,8 @@ void symbol_init(Symbol* s) {
   s->sym_type = SYM_LOCAL_VAR;
   s->type = TypeNone;
   s->token = (Token) {0};
-  s->value = (Value) { .num = 0, };
+  s->value = (Value) { .num = 0, .konst = 0, };
+  s->node = NULL;
 }
 
 void symbol_print(Symbol* s, FILE* fp) {
@@ -1001,7 +1060,7 @@ void compile_error_at(Compile* c, Token token, const char* fmt, ...) {
   c->status = Error;
 }
 
-i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, Symbol** symbol, i32* symbol_index) {
+i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, Symbol** symbol, Ast* node, i32* symbol_index) {
   if (MAX_NAME_SIZE < token.length) {
     return Error;
   }
@@ -1025,6 +1084,7 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
     symbol_init(s);
     s->token = token;
     strncpy(s->name, token.buffer, token.length);
+    s->node = node;
     return NoError;
   }
   assert("symbol capacity exceeded" && 0);
@@ -1046,7 +1106,7 @@ i32 compile_create_syscall(Compile* c, const char* name, u32 argc) {
 
   Symbol* symbol = NULL;
   i32 symbol_index = -1;
-  compile_declare_value(c, block, NULL, token, &symbol, &symbol_index);
+  compile_declare_value(c, block, NULL, token, &symbol, NULL, &symbol_index);
   assert(symbol_index != -1);
   symbol->imm = -1;
   symbol->size = compile_type_size[TypeSyscallFunc];
@@ -1137,7 +1197,7 @@ i32 typecheck_program(Compile* c, Ast* ast) {
     typecheck_error(c, "unhandled data on the stack (%d)\n", c->ts_count);
   }
   REAL_TIMER_END(
-    print_info("type checking took %lf seconds\n", __FUNCTION__, _dt);
+    print_info("type checking took %lf seconds\n", _dt);
     (void)_dt;
   );
   return c->status;
@@ -1419,7 +1479,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
+      if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
         symbol->imm = imm;
         symbol->size = num_elements * compile_type_size[type];
         symbol->num_elemements_init = ts_delta;
@@ -1455,7 +1515,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
 
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
+      if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
         Block local_block;
         block_init(&local_block, block);
 
@@ -1482,7 +1542,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Token arg_type = arg_node->token;
           Token arg = arg_node->node[0]->token;
           i32 arg_symbol_index = -1;
-          if (compile_declare_value(c, &local_block, func, arg, &arg_symbol, &arg_symbol_index) == NoError) {
+          if (compile_declare_value(c, &local_block, func, arg, &arg_symbol, arg_node, &arg_symbol_index) == NoError) {
             u32* arg_id = &func->args[i];
             *arg_id = arg_symbol_index;
             Compile_type arg_compile_type = token_to_compile_type(arg_type);
@@ -1628,7 +1688,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ts_pop(c);
         Value value;
         vs_pop(c, &value);
-        if (compile_declare_value(c, block, fs, ast->token, &symbol, &symbol_index) == NoError) {
+        if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
           symbol->imm = -1;
           symbol->size = value.num;
           symbol->konst = 0;
@@ -1703,7 +1763,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         i32 symbol_index = -1;
         Compile_type type = TypeUnsigned64;
         i32 imm = ir_push_value(c, &value.num, sizeof(value.num));
-        if (compile_declare_value(c, block, fs, node->token, &symbol, &symbol_index) == NoError) {
+        if (compile_declare_value(c, block, fs, node->token, &symbol, node, &symbol_index) == NoError) {
           symbol->imm = imm;
           symbol->size = compile_type_size[type];
           symbol->konst = 1;
@@ -1712,7 +1772,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           symbol->value = value;
         }
         else {
-        compile_error_at(c, node->token, "symbol `%.*s` has already been declared\n", node->token.length, node->token.buffer);
+          compile_error_at(c, node->token, "symbol `%.*s` has already been declared\n", node->token.length, node->token.buffer);
           return TypeNone;
         }
       }
@@ -2126,7 +2186,7 @@ i32 ir_start_compile(Compile* c, Ast* ast) {
     compile_error(c, "missing entry point `main`\n");
   }
   REAL_TIMER_END(
-    print_info("ir code generation took %lf seconds\n", __FUNCTION__, _dt);
+    print_info("ir code generation took %lf seconds\n", _dt);
     (void)_dt;
   );
   return c->status;
@@ -2631,13 +2691,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       }
       break;
     }
-    case AstEnum: {
+    case AstEnum:
+    case AstType:
       break;
-    }
-    case AstType: {
-      // assert(0);
-      break;
-    }
     default: {
       compile_error(c, "invalid or unhandled AST branch type `%d`\n", ast->type);
       c->status = Error;
@@ -3418,23 +3474,103 @@ i32 compile_win_nasm_x86_64(Compile* c, FILE* fp) {
   return c->status;
 }
 
+i32 alias_store(Parser* p, Alias* alias) {
+  if (alias_lookup(p, alias) != NoError) {
+    if (p->alias_count < MAX_ALIAS) {
+      p->aliases[p->alias_count++] = *alias;
+      return NoError;
+    }
+  }
+  return Error;
+}
+
+i32 alias_lookup(Parser* p, Alias* alias) {
+  for (u32 i = 0; i < p->alias_count; ++i) {
+    Alias* a = &p->aliases[i];
+    char copy_a[MAX_NAME_SIZE] = {0};
+    char copy_b[MAX_NAME_SIZE] = {0};
+    strncpy(copy_a, a->token.buffer, a->token.length);
+    strncpy(copy_b, alias->token.buffer, alias->token.length);
+    if (!strncmp(copy_a, copy_b, MAX_NAME_SIZE)) {
+      *alias = *a;
+      return NoError;
+    }
+  }
+  return Error;
+}
+
+// TODO(lucas): free the contents of aliases
+i32 preprocess(Parser* p) {
+  i32 result = NoError;
+  REAL_TIMER_START();
+  u32 done = 0;
+  lexer_next(&p->l);
+  while (!done) {
+    Token t = lexer_peek(&p->l);
+    switch (t.type) {
+      case T_EOF: {
+        done = 1;
+        break;
+      }
+      case T_IDENTIFIER: {
+        Alias alias;
+        alias.token = t;
+        char* source = NULL;
+        u32 current_index = (u32)(p->l.index - &p->l.source[0]);
+        u32 ident_index = (u32)(t.buffer - &p->l.source[0]);
+        if (alias_lookup(p, &alias) == NoError) {
+          source = p->source[p->source_count - 1];
+          source = string_shrink_at(source, strlen(source), ident_index, t.length);
+          current_index -= t.length;
+          source = string_insert(source, alias.content.buffer, strlen(source), alias.content.length, ident_index);
+          p->source[p->source_count - 1] = source;
+          p->l.source = source;
+          p->l.index = &p->l.source[current_index + alias.content.length];
+          // printf("`%s`\n", source);
+          break;
+        }
+        lexer_next(&p->l); // skip identifier
+        break;
+      }
+      case T_ALIAS: {
+        if (parse_alias(p, 0) == Error) {
+          done = 1;
+          result = Error;
+        }
+        break;
+      }
+      default: {
+        lexer_next(&p->l);
+        break;
+      }
+    }
+  }
+
+  lexer_init(&p->l, p->path[p->source_count - 1], p->source[p->source_count - 1]);
+  REAL_TIMER_END(
+    print_info("preprocessing of `%s` took %lf seconds\n", p->l.filename, _dt);
+  );
+  return result;
+}
+
 i32 parser_init(Parser* p, char* filename, char* source) {
   if (!source) {
     return Error;
   }
   lexer_init(&p->l, filename, source);
-  p->ast = ast_create(AstRoot);
+  p->ast = NULL;
   p->status = NoError;
   p->source[0] = source;
   p->path[0] = filename;
   p->source_count = 1;
+  p->alias_count = 0;
   return NoError;
 }
 
 void parser_free(Parser* p) {
   ast_free(p->ast);
   char** path = (char**)&p->path[1];
-  for (u32 i = 1; i < p->source_count; ++i, ++path) { // first path is lives on throughout the program runtime, thus i = 1. remaining paths are allocated on heap.
+  for (u32 i = 1; i < p->source_count; ++i, ++path) { // first path lives on throughout the program runtime, thus i = 1. remaining paths are allocated on heap.
     free(*path);
   }
   char** source = (char**)&p->source;
@@ -3462,15 +3598,17 @@ void parser_error(Parser* p, const char* fmt, ...) {
   p->status = Error;
 }
 
-i32 parse(Parser* p) {
-  REAL_TIMER_START();
-  lexer_next(&p->l);
-  ast_push(p->ast, parse_statements(p));
-  REAL_TIMER_END(
-    print_info("parsing took %lf seconds\n", __FUNCTION__, _dt);
-    (void)_dt;
-  );
-  return p->status;
+Ast* parse(Parser* p) {
+  Ast* ast = NULL;
+  if (preprocess(p) == NoError) {
+    REAL_TIMER_START();
+    lexer_next(&p->l);
+    ast = parse_statements(p);
+    REAL_TIMER_END(
+      print_info("parsing of `%s` took %lf seconds\n", p->l.filename, _dt);
+    );
+  }
+  return ast;
 }
 
 /*
@@ -3541,15 +3679,19 @@ Ast* parse_statements(Parser* p) {
             p->source_count++;
             // initialize new lexer state
             lexer_init(&p->l, path, source);
-            lexer_next(&p->l); // read first token
-            Ast* include_stmts = parse_statements(p);
-            ast_push(stmts, include_stmts);
+            ast_push(stmts, parse(p));
             // restore lexer state
             memcpy(&p->l, &l_copy, sizeof(Lexer));
           }
           else {
             assert("max includes was reached, increase capacity!" && 0); // TODO: handle
           }
+        }
+        break;
+      }
+      case T_ALIAS: {
+        if (parse_alias(p, 1) == Error) {
+          return stmts;
         }
         break;
       }
@@ -3575,6 +3717,7 @@ done:
       | `=` expr expr `;`
       | fn name `{` stmts `}`
       | while expr `{` stmts `}`
+      | alias ident expr `;`
       ;
 */
 Ast* parse_statement(Parser* p) {
@@ -3796,7 +3939,7 @@ Ast* parse_expr(Parser* p) {
       return node;
     }
     case T_IDENTIFIER: {
-      lexer_next(&p->l);
+      lexer_next(&p->l); // skip identifier
       if (lexer_peek(&p->l).type == T_LEFT_P) { // function call
         lexer_next(&p->l); // skip `(`
         Ast* node = ast_create(AstFuncCall);
@@ -4072,11 +4215,66 @@ Ast* parse_type(Parser* p) {
   return NULL;
 }
 
+i32 parse_alias(Parser* p, u32 skip_store_of_alias) {
+  Token t;
+  Token ident = lexer_next(&p->l); // skip `alias`
+  if (ident.type != T_IDENTIFIER) {
+    parser_error(p, "expected identifier after alias keyword, but got `%.*s`\n", ident.length, ident.buffer);
+    return Error;
+  }
+  t = lexer_next(&p->l); // skip identifier
+  if (t.type != T_LEFT_CURLY) {
+    parser_error(p, "expected `{` to begin alias body, but got `%.*s`\n", t.length, t.buffer);
+    return Error;
+  }
+  lexer_next(&p->l); // skip `{`
+  Token first_token = lexer_peek(&p->l);
+  Token last_token;
+  for (;;) {
+    last_token = lexer_peek(&p->l);
+    if (last_token.type == T_EOF || last_token.type == T_RIGHT_CURLY) {
+      break;
+    }
+    lexer_next(&p->l);
+  }
+  t = lexer_peek(&p->l);
+  if (t.type != T_RIGHT_CURLY) {
+    parser_error(p, "expected `}` to end alias body, but got `%.*s`\n", t.length, t.buffer);
+    return Error;
+  }
+  lexer_next(&p->l); // skip `}`
+  if (!skip_store_of_alias) {
+    Alias alias = (Alias) {
+      .token = ident,
+      .content = first_token,
+    };
+    char* tmp = NULL;
+
+    tmp = malloc(alias.token.length);
+    strncpy(tmp, alias.token.buffer, alias.token.length);
+    alias.token.buffer = tmp;
+    alias.content.length = (u32)(last_token.buffer - first_token.buffer);
+
+    tmp = malloc(alias.content.length);
+    strncpy(tmp, alias.content.buffer, alias.content.length);
+    alias.content.buffer = tmp;
+
+    if (alias_store(p, &alias) == Error) {
+      parser_error(p, "alias `%.*s` already exists\n", ident.length, ident.buffer);
+      return Error;
+    }
+  }
+  return NoError;
+}
+
 void lexer_init(Lexer* l, char* filename, char* source) {
   l->token = (Token) {
     .buffer = source,
     .length = 1,
     .type = T_EOF,
+    .v.num = 0,
+    .filename = filename,
+    .source = source,
     .line = 1,
     .column = 1,
   };
@@ -4105,6 +4303,8 @@ void lexer_error(Lexer* l, const char* fmt, ...) {
 void next(Lexer* l) {
   l->token.buffer = l->index;
   l->token.length = 1;
+  l->token.filename = l->filename;
+  l->token.source = l->source;
   l->token.line = l->line;
   l->token.column = l->column;
 }
@@ -4217,6 +4417,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "enum")) {
     l->token.type = T_ENUM;
+  }
+  else if (compare(l->token, "alias")) {
+    l->token.type = T_ALIAS;
   }
   else if (compare(l->token, "none")) {
     l->token.type = T_NONE;
@@ -4591,6 +4794,7 @@ void ast_init_node(Ast* node) {
     .type = AstNone,
     .token = {0},
     .konst = 0,
+    .pointer = 0,
   };
 }
 
@@ -4670,12 +4874,16 @@ void ast_free(Ast* ast) {
     ast_free(ast->node[i]);
   }
   if (ast->node) {
-    free(ast->node);
-    ast->count = 0;
+    if (!ast->pointer) {
+      free(ast->node);
+      ast->count = 0;
+    }
   }
   if (ast) {
-    free(ast);
-    ast = NULL;
+    if (!ast->pointer) {
+      free(ast);
+      ast = NULL;
+    }
   }
 }
 
