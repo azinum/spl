@@ -3577,6 +3577,12 @@ void parser_free(Parser* p) {
   for (u32 i = 0; i < p->source_count; ++i, ++source) {
     free(*source);
   }
+
+  for (u32 i = 0; i < p->alias_count; ++i) {
+    Alias* alias = &p->aliases[i];
+    free(alias->token.buffer);
+    free(alias->content.buffer);
+  }
 }
 
 void parser_error(Parser* p, const char* fmt, ...) {
