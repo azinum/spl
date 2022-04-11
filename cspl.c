@@ -331,6 +331,7 @@ typedef struct Parser {
   u32 source_count;
   Alias aliases[MAX_ALIAS];
   u32 alias_count;
+  u32 total_lines;
 } Parser;
 
 typedef enum Ir_code {
@@ -826,7 +827,7 @@ i32 spl_start(Options* options) {
               fclose(fp);
             }
             REAL_TIMER_END(
-              print_info("compilation took %lf seconds\n", _dt);
+              print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
               (void)_dt;
             );
 #if 1
@@ -1707,6 +1708,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_pop(c);
       return ts_pop(c);
     }
+    // TODO(lucas): does the sizeof operator always yield a constant value?
     case AstSizeof: {
       Token* t = &ast->token;
       u64 size = 0;
@@ -1738,10 +1740,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           break;
         }
       }
-      Value v = { .num = size, };
+      Value v = { .num = size, .konst = 1, };
       vs_push(c, v);
       t->v.num = size;
-      ast->konst = is_branch_konst_eval(ast);
+      ast->konst = 1; // is_branch_konst_eval(ast);
       return ts_push(c, TypeUnsigned64);
     }
     case AstEnum: {
@@ -3500,6 +3502,7 @@ i32 preprocess(Parser* p) {
     switch (t.type) {
       case T_EOF: {
         done = 1;
+        p->total_lines += p->l.line;
         break;
       }
       case T_IDENTIFIER: {
@@ -3554,6 +3557,7 @@ i32 parser_init(Parser* p, char* filename, char* source) {
   p->path[0] = filename;
   p->source_count = 1;
   p->alias_count = 0;
+  p->total_lines = 0;
   return NoError;
 }
 

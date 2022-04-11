@@ -2,10 +2,5 @@
 
 // include "lib/common.spl"
 
-alias int {u64}
-
-fn add(a : int, b : int) -> int + a b;
-
 fn main -> none {
-  print add(2, 3);
 }
