@@ -762,16 +762,6 @@ i32 main(i32 argc, char** argv) {
   assert(ARR_SIZE(compile_type_str) == MAX_COMPILE_TYPE);
   assert(ARR_SIZE(compile_type_size) == MAX_COMPILE_TYPE);
 
-  // u32 a_length = 5;
-  // char* a = malloc(a_length);
-  // strcpy(a, "hello");
-  // printf("`%s`\n", a);
-  // a = string_insert(a, "asdf", strlen(a), 4, 5);
-  // printf("`%s`\n", a);
-  // a = string_shrink_at(a, strlen(a), 0, 5);
-  // printf("`%s`\n", a);
-  // return 0;
-
   (void)symbol_print; // unused
   (void)ir_pop_ins; // unused
   (void)ir_compile_warning_at; // unused
@@ -932,7 +922,7 @@ char* string_insert(char* dest, char* source, u32 dest_length, u32 source_length
   if (!string) {
     return NULL;
   }
-  memmove(&string[index + source_length], &string[index], new_size - source_length);
+  memmove(&string[index + source_length], &string[index], dest_length - index);
   memmove(&string[index], source, source_length);
   return string;
 }
@@ -3577,7 +3567,6 @@ void parser_free(Parser* p) {
   for (u32 i = 0; i < p->source_count; ++i, ++source) {
     free(*source);
   }
-
   for (u32 i = 0; i < p->alias_count; ++i) {
     Alias* alias = &p->aliases[i];
     free(alias->token.buffer);
@@ -4266,7 +4255,8 @@ i32 parse_alias(Parser* p, u32 skip_store_of_alias) {
     alias.content.buffer = tmp;
 
     if (alias_store(p, &alias) == Error) {
-      parser_error(p, "alias `%.*s` already exists\n", ident.length, ident.buffer);
+      // TODO(lucas): implement and use parser_error_at here, to point to the actual alias location
+      parser_error(p, "alias `%.*s` already exists\n", alias.token.length, alias.token.buffer);
       return Error;
     }
   }
