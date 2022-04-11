@@ -1163,11 +1163,11 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
           fprintf(fp, ", ");
         }
       }
-      fprintf(fp, ") -> %s", compile_type_str[func->rtype]);
+      fprintf(fp, ") -> %s (konst = %d, value.konst = %d)", compile_type_str[func->rtype], symbol->konst, symbol->value.konst);
       fprintf(fp, " - %s:%d:%d\n", symbol->token.filename, symbol->token.line, symbol->token.column);
       continue;
     }
-    fprintf(fp, "%3u: `%s` (type = %s, size = %u) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->token.filename, symbol->token.line, symbol->token.column);
+    fprintf(fp, "%3u: `%s` (type = %s, size = %d, konst = %d, value.konst = %d) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->konst, symbol->value.konst, symbol->token.filename, symbol->token.line, symbol->token.column);
   }
 }
 
@@ -1626,6 +1626,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           return TypeNone;
         }
         vs_push(c, symbol->value);
+        symbol->value.konst = 0; // NOTE(lucas): temporary
         ast->konst = symbol->value.konst;
         return ts_push(c, func->rtype);
       }
