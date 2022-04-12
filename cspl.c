@@ -85,6 +85,7 @@ typedef uint8_t u8;
 #define NUM_LINES_TO_PRINT 2
 #define NO_TYPECHECKING 0
 #define VERBOSE_ASSEMBLY 1
+#define MAX_SYSCALL_FUNCTION 7
 
 #define HERE printf("%s:%d: HERE\n", __FUNCTION__, __LINE__)
 
@@ -589,6 +590,7 @@ typedef struct Symbol {
   Token token;
   Value value;
   Ast* node;
+  u32 ref_count;
 } Symbol;
 
 typedef struct Block {
@@ -637,6 +639,8 @@ typedef struct Options {
   char* filename;
 } Options;
 
+static i32 disable_warnings = 1; // TODO(lucas): temp
+
 static i32 spl_start(Options* options);
 
 static char* read_entire_file(char* path);
@@ -657,10 +661,12 @@ static i32 compile_lookup_value(Compile* c, Block* block, Function* func, Token 
 static void compile_print_symbol_info(Compile* c, FILE* fp);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
+static void typecheck_print_unused(Compile* c);
 static void typecheck_error(Compile* c, const char* fmt, ...);
 static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
 static Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* ast);
+static Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type ts_push(Compile* c, Compile_type type);
 static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
@@ -776,7 +782,7 @@ i32 main(i32 argc, char** argv) {
   };
 
   if (argc < 2) {
-    printf("Usage; %s [-t | <filename>]\n", *argv);
+    printf("Usage; %s [<filename> | run | no-com | no-debug | disable-warnings]\n", *argv);
     return EXIT_SUCCESS;
   }
   ++argv;
@@ -784,11 +790,14 @@ i32 main(i32 argc, char** argv) {
     if (!strncmp(*argv, "run", MAX_PATH_SIZE)) {
       options.run = 1;
     }
-    else if (!strncmp(*argv, "nocom", MAX_PATH_SIZE)) {
+    else if (!strncmp(*argv, "no-com", MAX_PATH_SIZE)) {
       options.compile = 0;
     }
-    else if (!strncmp(*argv, "nodebug", MAX_PATH_SIZE)) {
+    else if (!strncmp(*argv, "no-debug", MAX_PATH_SIZE)) {
       options.debug = 0;
+    }
+    else if (!strncmp(*argv, "disable-warnings", MAX_PATH_SIZE)) {
+      disable_warnings = 1;
     }
     else {
       options.filename = *argv;
@@ -846,17 +855,6 @@ i32 spl_start(Options* options) {
               print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
               (void)_dt;
             );
-#if 0
-            {
-              char ir_path[MAX_PATH_SIZE] = {0};
-              snprintf(ir_path, MAX_PATH_SIZE, "%s.ir", options->filename);
-              FILE* fp = fopen(ir_path, "wb");
-              if (fp) {
-                ir_binary_output(&c, fp);
-                fclose(fp);
-              }
-            }
-#endif
             (void)ir_binary_output;
             if (options->compile) {
               char exec_path[MAX_PATH_SIZE] = {0};
@@ -961,6 +959,7 @@ void symbol_init(Symbol* s) {
   s->token = (Token) {0};
   s->value = (Value) { .num = 0, .konst = 0, };
   s->node = NULL;
+  s->ref_count = 0;
 }
 
 void symbol_print(Symbol* s, FILE* fp) {
@@ -1192,11 +1191,23 @@ i32 typecheck_program(Compile* c, Ast* ast) {
     // only print this error if nothing else failed
     typecheck_error(c, "unhandled data on the stack (%d)\n", c->ts_count);
   }
+  if (c->status == NoError) {
+    typecheck_print_unused(c);
+  }
   REAL_TIMER_END(
     print_info("type checking took %lf seconds\n", _dt);
     (void)_dt;
   );
   return c->status;
+}
+
+void typecheck_print_unused(Compile* c) {
+  for (u32 i = MAX_SYSCALL_FUNCTION; i < c->symbol_count; ++i) {
+    Symbol* s = &c->symbols[i];
+    if (s->ref_count == 0) {
+      ir_compile_warning_at(c, s->token, "unused symbol\n");
+    }
+  }
 }
 
 void typecheck_error(Compile* c, const char* fmt, ...) {
@@ -1255,6 +1266,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
+            symbol->ref_count++;
             ast->token.v.i = symbol_index;
             vs_push(c, symbol->value);
             if (symbol->value.konst) {
@@ -1269,6 +1281,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
           if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
+            symbol->ref_count++;
             if (symbol->type == TypeNone) {
               typecheck_error_at(c, ast->token, "can not take the address of the type `%s`\n", compile_type_str[symbol->type]);
               return TypeNone;
@@ -1403,95 +1416,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     }
     case AstConstStatement:
     case AstLetStatement: {
-      i32 konst = ast->type == AstConstStatement;
-      i32 ts_count = c->ts_count;
-      i32 num_elements = 1;
-      Ast* rhs = ast->node[0];
-      Ast* ast_type = NULL;
-      typecheck_node_list(c, block, fs, rhs);
-      ast->konst = rhs->konst = is_branch_konst_eval(rhs);
-      i32 ts_delta = c->ts_count - ts_count;
-      if (ts_delta == 0) {
-        typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
-        return TypeNone;
-      }
-      if (ast->count == 2) {
-        ast_type = ast->node[1];  // the type itself
-        if (ast_type->count > 0) {  // array specifier
-          typecheck(c, block, fs, ast_type);
-          Value value;
-          vs_pop(c, &value);
-          Compile_type type = ts_pop(c);
-          if (type != TypeUnsigned64) {
-            typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
-            return TypeNone;
-          }
-          num_elements = value.num;
-          if (ts_delta > num_elements) {
-            typecheck_error_at(c, ast_type->node[0]->token, "number of elements in rhs exceeded the array size specifier\n");
-            return TypeNone;
-          }
-        }
-      }
-      i32 imm = -1;
-      Value value = vs_top(c);
-      Value prev_value = value;
-      Compile_type type = ts_top(c);
-      Compile_type prev_type = type;
-      if (ast_type) {
-        Compile_type explicit_type = token_to_compile_type(ast_type->token);
-        if (type != explicit_type && explicit_type != TypeAny) {
-          typecheck_error_at(c, ast_type->token, "explicit type does not match rhs type\n");
-          return TypeNone;
-        }
-      }
-      if (type != TypeUnsigned64 && konst) {
-        typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
-        return TypeNone;
-      }
-      for (i32 i = 0; i < ts_delta; ++i) {
-        type = ts_pop(c);
-        if (type != prev_type) {
-          typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
-          return TypeNone;
-        }
-        prev_type = type;
-        vs_pop(c, &value);
-        if (type == TypeFunc) {
-          if (!check_func_signatures(c, &value.func, &prev_value.func)) {
-            typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
-            return TypeNone;
-          }
-        }
-        prev_value = value;
-        if (konst) {
-          imm = ir_push_value(c, &value.num, sizeof(value.num));
-        }
-      }
-      if (konst) {
-        imm -= (ts_delta - 1) * compile_type_size[type];
-        if (!rhs->konst) {
-          typecheck_error_at(c, ast->token, "tried to assign a runtime value to a constant value\n");
-        }
-      }
-      if (num_elements == 1) {
-        num_elements = ts_delta;
-      }
-      Symbol* symbol = NULL;
-      i32 symbol_index = -1;
-      if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
-        symbol->imm = imm;
-        symbol->size = num_elements * compile_type_size[type];
-        symbol->num_elemements_init = ts_delta;
-        symbol->konst = konst;
-        symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
-        symbol->type = type;
-        symbol->value = value;
-        ast->token.v.i = symbol_index;
-        return type;
-      }
-      compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
-      return TypeNone;
+      return typecheck_let_statement(c, block, fs, ast);
     }
     case AstBlockStatement: {
       Block local_block;
@@ -1589,6 +1514,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
 
         if (!strncmp(symbol->name, "main", MAX_NAME_SIZE)) {
+          symbol->ref_count++;
           ++c->entry_point;
         }
         return TypeFunc;
@@ -1600,6 +1526,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (compile_lookup_value(c, block, fs, ast->token, &symbol, &symbol_index, NULL) == NoError) {
+        symbol->ref_count++;
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (symbol->type == TypeAny) {
@@ -1801,6 +1728,97 @@ Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* as
   return TypeNone;
 }
 
+Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast) {
+  i32 konst = ast->type == AstConstStatement;
+  i32 ts_count = c->ts_count;
+  i32 num_elements = 1;
+  Ast* rhs = ast->node[0];
+  Ast* ast_type = NULL;
+  typecheck_node_list(c, block, fs, rhs);
+  ast->konst = rhs->konst = is_branch_konst_eval(rhs);
+  i32 ts_delta = c->ts_count - ts_count;
+  if (ts_delta == 0) {
+    typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
+    return TypeNone;
+  }
+  Compile_type explicit_type = -1;
+  if (ast->count == 2) {
+    ast_type = ast->node[1];  // the type itself
+    if (ast_type->count > 0) {  // array specifier
+      typecheck(c, block, fs, ast_type);
+      Value value;
+      vs_pop(c, &value);
+      Compile_type type = ts_pop(c);
+      if (type != TypeUnsigned64) {
+        typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
+        return TypeNone;
+      }
+      num_elements = value.num;
+      if (ts_delta > num_elements) {
+        typecheck_error_at(c, ast_type->node[0]->token, "number of elements in rhs exceeded the array size specifier\n");
+        return TypeNone;
+      }
+      explicit_type = token_to_compile_type(ast_type->token);
+      if (type != explicit_type && explicit_type != TypeAny) {
+        typecheck_error_at(c, ast_type->token, "explicit type does not match rhs type\n");
+        return TypeNone;
+      }
+    }
+  }
+  i32 imm = -1;
+  Value value = vs_top(c);
+  Value prev_value = value;
+  Compile_type type = ts_top(c);
+  Compile_type prev_type = type;
+  if (type != TypeUnsigned64 && konst) {
+    typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
+    return TypeNone;
+  }
+  for (i32 i = 0; i < ts_delta; ++i) {
+    type = ts_pop(c);
+    if (type != prev_type && explicit_type != TypeAny) {
+      typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+      return TypeNone;
+    }
+    prev_type = type;
+    vs_pop(c, &value);
+    if (type == TypeFunc) {
+      if (!check_func_signatures(c, &value.func, &prev_value.func)) {
+        typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+        return TypeNone;
+      }
+    }
+    prev_value = value;
+    if (konst) {
+      imm = ir_push_value(c, &value.num, sizeof(value.num));
+    }
+  }
+  if (konst) {
+    imm -= (ts_delta - 1) * compile_type_size[type];
+    if (!rhs->konst) {
+      typecheck_error_at(c, ast->token, "tried to assign a runtime value to a constant value\n");
+    }
+  }
+  if (num_elements == 1) {
+    num_elements = ts_delta;
+  }
+  Symbol* symbol = NULL;
+  i32 symbol_index = -1;
+  if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
+    symbol->imm = imm;
+    symbol->size = num_elements * compile_type_size[type];
+    symbol->num_elemements_init = ts_delta;
+    symbol->konst = konst;
+    symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
+    symbol->type = type;
+    symbol->value = value;
+    ast->token.v.i = symbol_index;
+    return type;
+  }
+  compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
+  return TypeNone;
+}
+
 Compile_type ts_push(Compile* c, Compile_type type) {
   if (c->ts_count >= 0 && c->ts_count < MAX_TYPE_STACK) {
     c->ts[c->ts_count++] = type;
@@ -1882,6 +1900,9 @@ u32 is_branch_konst_eval(Ast* ast) {
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
+  if (disable_warnings) {
+    return;
+  }
   (void)c; // unused
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
@@ -1894,6 +1915,9 @@ void ir_compile_warning(Compile* c, const char* fmt, ...) {
 }
 
 void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...) {
+  if (disable_warnings) {
+    return;
+  }
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
