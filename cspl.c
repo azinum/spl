@@ -639,7 +639,8 @@ typedef struct Options {
   char* filename;
 } Options;
 
-static i32 disable_warnings = 1; // TODO(lucas): temp
+static i32 disable_warnings = 1;
+static i32 disable_dce = 0; // disable dead-code-elimination?
 
 static i32 spl_start(Options* options);
 
@@ -782,7 +783,7 @@ i32 main(i32 argc, char** argv) {
   };
 
   if (argc < 2) {
-    printf("Usage; %s [<filename> | run | no-com | no-debug | disable-warnings]\n", *argv);
+    printf("Usage; %s [<filename> | run | no-com | no-debug | disable-warnings | disable-dce]\n", *argv);
     return EXIT_SUCCESS;
   }
   ++argv;
@@ -798,6 +799,9 @@ i32 main(i32 argc, char** argv) {
     }
     else if (!strncmp(*argv, "disable-warnings", MAX_PATH_SIZE)) {
       disable_warnings = 1;
+    }
+    else if (!strncmp(*argv, "disable-dce", MAX_PATH_SIZE)) {
+      disable_dce = 1;
     }
     else {
       options.filename = *argv;
@@ -2259,12 +2263,18 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         case T_IDENTIFIER: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
+          if (symbol->ref_count == 0 && !disable_dce) {
+            break;
+          }
           ir_push_symbol(c, fs, symbol, id, ins_count);
           break;
         }
         case T_AT: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
+          if (symbol->ref_count == 0 && !disable_dce) {
+            break;
+          }
           switch (symbol->sym_type) {
             case SYM_FUNC: {
               ir_push_ins(c, (Op) {
@@ -2430,6 +2440,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     case AstLetStatement: {
       i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
+      if (symbol->ref_count == 0 && !disable_dce) {
+        break;
+      }
       Ast* node = ast->node[0];
       u32 count = ast_count(node);
       if (count == 1) {
@@ -2474,6 +2487,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     case AstFuncCall: {
       i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
+      if (symbol->ref_count == 0 && !disable_dce) {
+        break;
+      }
       Function* func = &symbol->value.func;
       ir_compile_func_args(c, block, fs, ast->node[0], ins_count); // compile function args in reverse order
       // TODO(lucas): fully implement
@@ -2781,6 +2797,9 @@ i32 ir_compile_func(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_c
   Ast* body = ast->node[1];
   i32 id = ast->token.v.i;
   Symbol* symbol = &c->symbols[id];
+  if (symbol->ref_count == 0 && !disable_dce) {
+    return c->status;
+  }
   Function* func = &symbol->value.func;
   ir_push_ins(c, (Op) {
     .i = I_LABEL,
