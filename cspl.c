@@ -633,6 +633,7 @@ typedef struct Compile {
 typedef struct Options {
   i32 compile;
   i32 run;
+  i32 debug;
   char* filename;
 } Options;
 
@@ -770,6 +771,7 @@ i32 main(i32 argc, char** argv) {
   Options options = (Options) {
     .compile = 1,
     .run = 0,
+    .debug = 1,
     .filename = NULL,
   };
 
@@ -784,6 +786,9 @@ i32 main(i32 argc, char** argv) {
     }
     else if (!strncmp(*argv, "nocom", MAX_PATH_SIZE)) {
       options.compile = 0;
+    }
+    else if (!strncmp(*argv, "nodebug", MAX_PATH_SIZE)) {
+      options.debug = 0;
     }
     else {
       options.filename = *argv;
@@ -815,6 +820,17 @@ i32 spl_start(Options* options) {
       if (compile_state_init(&c) == NoError) {
         if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
+            if (options->debug) {
+              char debug_path[MAX_PATH_SIZE] = {0};
+              snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", options->filename);
+              FILE* debug = fopen(debug_path, "w");
+              if (debug) {
+                ast_print(p.ast, 0, debug);
+                ir_print(&c, debug);
+                compile_print_symbol_info(&c, debug);
+                fclose(debug);
+              }
+            }
             char path[MAX_PATH_SIZE] = {0};
             snprintf(path, MAX_PATH_SIZE, "%s.asm", options->filename);
             FILE* fp = fopen(path, "w");
@@ -830,17 +846,6 @@ i32 spl_start(Options* options) {
               print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
               (void)_dt;
             );
-#if 1
-            char debug_path[MAX_PATH_SIZE] = {0};
-            snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", options->filename);
-            FILE* debug = fopen(debug_path, "w");
-            if (debug) {
-              ast_print(p.ast, 0, debug);
-              ir_print(&c, debug);
-              compile_print_symbol_info(&c, debug);
-              fclose(debug);
-            }
-#endif
 #if 0
             {
               char ir_path[MAX_PATH_SIZE] = {0};
@@ -1411,8 +1416,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         return TypeNone;
       }
       if (ast->count == 2) {
-        ast_type = ast->node[1];
-        if (ast_type->count > 0) {
+        ast_type = ast->node[1];  // the type itself
+        if (ast_type->count > 0) {  // array specifier
           typecheck(c, block, fs, ast_type);
           Value value;
           vs_pop(c, &value);

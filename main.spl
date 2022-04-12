@@ -2,12 +2,8 @@
 
 // include "lib/common.spl"
 
-fn some_value -> u64 12;
-
 fn add(a : u64, b : u64) -> u64 + 2 3;
 
 fn main -> none {
-  let a : u64 3;
-  const b : u64 + a b;
-  print b;
+  let a : u64 add(2, 3);
 }
