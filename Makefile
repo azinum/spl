@@ -20,10 +20,11 @@ ${SPL_SRC}:
 
 examples: ${SPL_EXAMPLES}
 
+test: SPL_FLAGS+=run
 test: ${SPL_TEST}
 
 install:
 	chmod o+x ${PROG}
 	cp ${PROG} ${INSTALL_DIR}/${PROG}
 
-.PHONY: ${SRC} spl test main examples/*
+.PHONY: ${SRC} spl main test/* examples/*
