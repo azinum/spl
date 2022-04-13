@@ -639,7 +639,7 @@ typedef struct Options {
   char* filename;
 } Options;
 
-static i32 disable_warnings = 1;
+static i32 enable_warnings = 0;
 static i32 disable_dce = 0; // disable dead-code-elimination?
 
 static i32 spl_start(Options* options);
@@ -783,7 +783,7 @@ i32 main(i32 argc, char** argv) {
   };
 
   if (argc < 2) {
-    printf("Usage; %s [<filename> | run | no-com | no-debug | disable-warnings | disable-dce]\n", *argv);
+    printf("Usage; %s [<filename> | run | no-com | no-debug | enable-warnings | disable-dce]\n", *argv);
     return EXIT_SUCCESS;
   }
   ++argv;
@@ -797,8 +797,8 @@ i32 main(i32 argc, char** argv) {
     else if (!strncmp(*argv, "no-debug", MAX_PATH_SIZE)) {
       options.debug = 0;
     }
-    else if (!strncmp(*argv, "disable-warnings", MAX_PATH_SIZE)) {
-      disable_warnings = 1;
+    else if (!strncmp(*argv, "enable-warnings", MAX_PATH_SIZE)) {
+      enable_warnings = 1;
     }
     else if (!strncmp(*argv, "disable-dce", MAX_PATH_SIZE)) {
       disable_dce = 1;
@@ -1904,7 +1904,7 @@ u32 is_branch_konst_eval(Ast* ast) {
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
-  if (disable_warnings) {
+  if (!enable_warnings) {
     return;
   }
   (void)c; // unused
@@ -1919,7 +1919,7 @@ void ir_compile_warning(Compile* c, const char* fmt, ...) {
 }
 
 void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...) {
-  if (disable_warnings) {
+  if (!enable_warnings) {
     return;
   }
   char buffer[MAX_ERR_SIZE] = {0};
@@ -3453,6 +3453,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
+    if (s->ref_count == 0) {
+      continue;
+    }
     if (!(s->sym_type == SYM_LOCAL_VAR || s->sym_type == SYM_GLOBAL_VAR)) {
       continue;
     }
@@ -3481,6 +3484,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
+    if (s->ref_count == 0) {
+      continue;
+    }
     if ((s->sym_type == SYM_GLOBAL_VAR || s->sym_type == SYM_LOCAL_VAR) && s->konst == 0) {
       switch (s->type) {
         case TypeUnsigned64: {
