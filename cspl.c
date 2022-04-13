@@ -641,6 +641,7 @@ typedef struct Options {
 
 static i32 enable_warnings = 0;
 static i32 disable_dce = 0; // disable dead-code-elimination?
+static i32 dce_all = 0; // enable dce for everything?
 
 static i32 spl_start(Options* options);
 
@@ -783,7 +784,17 @@ i32 main(i32 argc, char** argv) {
   };
 
   if (argc < 2) {
-    printf("Usage; %s [<filename> | run | no-com | no-debug | enable-warnings | disable-dce]\n", *argv);
+    fprintf(stdout, "Usage; %s [OPTIONS]\n\n", *argv);
+    fprintf(stdout,
+      "OPTIONS:\n"
+      "  <filename>      - path to file\n"
+      "  run             - run program directly\n"
+      "  no-com          - do not compile target executable\n"
+      "  no-debug        - do not write debug information\n"
+      "  enable-warnings - enable basic warnings\n"
+      "  disable-dce     - disable dead code elimination\n"
+      "  dce-all         - eliminate all dead code, including all symbols\n"
+    );
     return EXIT_SUCCESS;
   }
   ++argv;
@@ -803,6 +814,9 @@ i32 main(i32 argc, char** argv) {
     else if (!strncmp(*argv, "disable-dce", MAX_PATH_SIZE)) {
       disable_dce = 1;
     }
+    else if (!strncmp(*argv, "dce-all", MAX_PATH_SIZE)) {
+      dce_all = 1;
+    }
     else {
       options.filename = *argv;
     }
@@ -816,6 +830,7 @@ i32 main(i32 argc, char** argv) {
 }
 
 i32 spl_start(Options* options) {
+  (void)ir_binary_output;
   i32 result = NoError;
   // read entry source file
   char* source = read_entire_file(options->filename);
@@ -844,23 +859,22 @@ i32 spl_start(Options* options) {
                 fclose(debug);
               }
             }
-            char path[MAX_PATH_SIZE] = {0};
-            snprintf(path, MAX_PATH_SIZE, "%s.asm", options->filename);
-            FILE* fp = fopen(path, "w");
-            Compile_target target = TARGET_LINUX_NASM_X86_64;
-#if MACHINE == MACHINE_WIN64
-            target = TARGET_WIN_NASM_X86_64;
-#endif
-            if (fp) {
-              compile(&c, target, fp);
-              fclose(fp);
-            }
-            REAL_TIMER_END(
-              print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
-              (void)_dt;
-            );
-            (void)ir_binary_output;
             if (options->compile) {
+              char path[MAX_PATH_SIZE] = {0};
+              snprintf(path, MAX_PATH_SIZE, "%s.asm", options->filename);
+              FILE* fp = fopen(path, "w");
+              Compile_target target = TARGET_LINUX_NASM_X86_64;
+#if MACHINE == MACHINE_WIN64
+              target = TARGET_WIN_NASM_X86_64;
+#endif
+              if (fp) {
+                compile(&c, target, fp);
+                fclose(fp);
+              }
+              REAL_TIMER_END(
+                print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
+                (void)_dt;
+              );
               char exec_path[MAX_PATH_SIZE] = {0};
               char o_path[MAX_PATH_SIZE] = {0};
               snprintf(exec_path, MAX_PATH_SIZE, "%.*s", first_dot(options->filename), options->filename);
@@ -1112,6 +1126,7 @@ i32 compile_create_syscall(Compile* c, const char* name, u32 argc) {
   symbol->sym_type = SYM_FUNC;
   symbol->type = TypeSyscallFunc;
   symbol->token.v.i = symbol_index;
+  symbol->ref_count = 1;
   Function* func = &symbol->value.func;
   func->ir_address = -1;
   func->label = -1;
@@ -1738,6 +1753,112 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   i32 num_elements = 1;
   Ast* rhs = ast->node[0];
   Ast* ast_type = NULL;
+  if (ast->count == 2) {
+    ast_type = ast->node[1];
+  }
+  // typecheck the rhs of the statement
+  typecheck_node_list(c, block, fs, rhs);
+  ast->konst = rhs->konst = is_branch_konst_eval(rhs);
+
+  // make sure that rhs actually produced any values
+  i32 ts_delta = c->ts_count - ts_count;
+  if (ts_delta == 0) {
+    typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
+    return TypeNone;
+  }
+
+  // typecheck explicit type, if there is one
+  Compile_type explicit_type = -1;
+  if (ast_type) {
+    explicit_type = token_to_compile_type(ast_type->token);
+    if (ast_type->count > 0) { // array specifier
+      typecheck(c, block, fs, ast_type);
+      Value value;
+      vs_pop(c, &value);
+      Compile_type array_specifier_type = ts_pop(c);
+      if (array_specifier_type != TypeUnsigned64) {
+        typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
+        return TypeNone;
+      }
+      num_elements = (i32)value.num;
+      if (ts_delta > num_elements) {
+        typecheck_error_at(c, ast_type->node[0]->token, "number of elements in rhs exceeded the array size specifier\n");
+        return TypeNone;
+      }
+    }
+  }
+
+  i32 imm = -1; // index to immediate value, in case this is a constant
+
+  Value value = vs_top(c);
+  Value prev_value = value;
+
+  Compile_type type = ts_top(c);
+  Compile_type prev_type = type;
+
+  if (konst && type != TypeUnsigned64) {
+    typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
+    return TypeNone;
+  }
+
+  for (i32 i = 0; i < ts_delta; ++i) {
+    type = ts_pop(c);
+    if (type != prev_type && explicit_type != TypeAny) {
+      typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+      return TypeNone;
+    }
+    prev_type = type;
+    vs_pop(c, &value);
+    if (type == TypeFunc && explicit_type != TypeAny) {
+      if (!check_func_signatures(c, &value.func, &prev_value.func)) {
+        typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
+        return TypeNone;
+      }
+    }
+    prev_value = value;
+    if (konst) {
+      imm = ir_push_value(c, &value.num, sizeof(value.num));
+    }
+  }
+
+  // if this is a const, make sure to update the immediate value index
+  if (konst) {
+    imm -= (ts_delta - 1) * compile_type_size[type];
+  }
+
+  // no array specifier was used, therefore num_elements is set to however many elements there was in the rhs
+  if (num_elements == 1) {
+    num_elements = ts_delta;
+  }
+  if ((i32)explicit_type != -1) {
+    type = explicit_type;
+  }
+
+  // store symbol
+  Symbol* symbol = NULL;
+  i32 symbol_index = -1;
+  if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
+    symbol->imm = imm;
+    symbol->size = num_elements * compile_type_size[type];
+    symbol->num_elemements_init = ts_delta;
+    symbol->konst = konst;
+    symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
+    symbol->type = type;
+    symbol->value = value;
+    ast->token.v.i = symbol_index;
+    return type;
+  }
+  compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
+  return TypeNone;
+}
+
+#if 0
+Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast) {
+  i32 konst = ast->type == AstConstStatement;
+  i32 ts_count = c->ts_count;
+  i32 num_elements = 1;
+  Ast* rhs = ast->node[0];
+  Ast* ast_type = NULL;
   typecheck_node_list(c, block, fs, rhs);
   ast->konst = rhs->konst = is_branch_konst_eval(rhs);
   i32 ts_delta = c->ts_count - ts_count;
@@ -1822,6 +1943,7 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
   return TypeNone;
 }
+#endif
 
 Compile_type ts_push(Compile* c, Compile_type type) {
   if (c->ts_count >= 0 && c->ts_count < MAX_TYPE_STACK) {
@@ -2263,7 +2385,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         case T_IDENTIFIER: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->ref_count == 0 && !disable_dce) {
+          if (symbol->ref_count == 0 && !disable_dce && dce_all) {
             break;
           }
           ir_push_symbol(c, fs, symbol, id, ins_count);
@@ -2272,7 +2394,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         case T_AT: {
           i32 id = ast->token.v.i;
           Symbol* symbol = &c->symbols[id];
-          if (symbol->ref_count == 0 && !disable_dce) {
+          if (symbol->ref_count == 0 && !disable_dce && dce_all) {
             break;
           }
           switch (symbol->sym_type) {
@@ -2440,7 +2562,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     case AstLetStatement: {
       i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
-      if (symbol->ref_count == 0 && !disable_dce) {
+      if (symbol->ref_count == 0 && !disable_dce && dce_all) {
         break;
       }
       Ast* node = ast->node[0];
@@ -2449,7 +2571,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         symbol->token = node->token;
       }
       if (symbol->type == TypeCString) {
-        // NOTE(lucas): we change the type from TypeCString -> TypeAny because symbol is pointing to a string
+        // NOTE(lucas): we change the type from CString -> Any because symbol is pointing to a string
         symbol->type = TypeAny;
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
@@ -2487,7 +2609,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     case AstFuncCall: {
       i32 id = ast->token.v.i;
       Symbol* symbol = &c->symbols[id];
-      if (symbol->ref_count == 0 && !disable_dce) {
+      if (symbol->ref_count == 0 && !disable_dce && dce_all) {
         break;
       }
       Function* func = &symbol->value.func;
@@ -3429,12 +3551,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("mov rax, 1 ; exit syscall\n");
   o("mov rdi, 0 ; return code\n");
   o("syscall\n");
-  o("ret\n");
 #else
   o("mov rax, 60 ; exit syscall\n");
   o("mov rdi, 0  ; return code\n");
   o("syscall\n");
 #endif
+  o("ret\n");
   o("section .data\n");
   // TODO(lucas): make strings constants
   for (u32 i = 0; i < c->cstring_count; ++i) {
@@ -3453,7 +3575,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->ref_count == 0) {
+    if (s->ref_count == 0 && !disable_dce && !dce_all) {
       continue;
     }
     if (!(s->sym_type == SYM_LOCAL_VAR || s->sym_type == SYM_GLOBAL_VAR)) {
@@ -3484,7 +3606,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->ref_count == 0) {
+    if (s->ref_count == 0 && !disable_dce && !dce_all) {
       continue;
     }
     if ((s->sym_type == SYM_GLOBAL_VAR || s->sym_type == SYM_LOCAL_VAR) && s->konst == 0) {
