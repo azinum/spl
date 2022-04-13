@@ -5,10 +5,10 @@ fn bar(x : u64) -> u64 * x x;
 fn baz(x : u64) -> u64 + x x;
 
 fn main -> none {
-  const count 3;
-  let funcs (foo, bar, baz);
-  let i 0;
-  let index 0;
+  const count : u64 3;
+  let funcs : any : (count) (foo, bar, baz);
+  let i : u64 0;
+  let index : u64 0;
   let func foo;
   while < i count {
     = @func load64 + index @funcs;

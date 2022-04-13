@@ -2,7 +2,7 @@
 
 fn main -> none {
   memory data 128;
-  let ptr @data;
+  let ptr : any @data;
   = ptr + 1 #ptr;
   = ptr + 1 #ptr;
   = ptr + 1 #ptr;
