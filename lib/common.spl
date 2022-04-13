@@ -20,7 +20,7 @@ const u8.max  UINT8_MAX;
 const i8.max  INT8_MAX;
 
 fn strlen(str : any) -> u64 {
-  let length 0;
+  let length : u64 0;
   while < 0 load8 str {
     if or eq load8 str 10 eq load8 str 13 { // `\n`, `\r`
       = @str + 1 str;
@@ -68,8 +68,8 @@ fn strncmp(a : any, b : any, count : u64) -> u64 {
   or neq load8 b 0 result;
 }
 
-fn memset(ptr : any, c : u64, n : u64) {
-  let count 0;
+fn memset(ptr : any, c : u64, n : u64) -> none {
+  let count : u64 0;
   while < count n {
     store8 ptr c;
     = @ptr   +1 ptr;
@@ -77,8 +77,8 @@ fn memset(ptr : any, c : u64, n : u64) {
   }
 }
 
-fn memset8(ptr : any, c : u64, n : u64) {
-  let count 0;
+fn memset8(ptr : any, c : u64, n : u64) -> none {
+  let count : u64 0;
   while < count n {
     store64 ptr c;
     = @ptr   + sizeof u64 ptr;
@@ -86,8 +86,8 @@ fn memset8(ptr : any, c : u64, n : u64) {
   }
 }
 
-fn memcpy(dest : any, src : any, n : u64) {
-  let count 0;
+fn memcpy(dest : any, src : any, n : u64) -> none {
+  let count : u64 0;
   while < count n {
     store8 dest load8 src;
     = @dest  +1 dest;
@@ -98,8 +98,8 @@ fn memcpy(dest : any, src : any, n : u64) {
 
 // TODO: sometimes yields wrong results, investigate
 fn digit_count(n : u64) {
-  let count 1;
-  let base 10;
+  const base : u64 10;
+  let count : u64 1;
   let i 1;
   if < n 10 {
     = @count 1;
@@ -114,9 +114,9 @@ fn digit_count(n : u64) {
 }
 
 fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
-  let count digit_count(n);
-  let i 0;
-  let base 10;
+  const base : u64 10;
+  let count : u64 digit_count(n);
+  let i : u64 0;
 
   = @str + str - count 1;
 
@@ -129,12 +129,12 @@ fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
   }
 }
 
-// TODO: implement parsing of hex numbers.
-// TODO: add error checking.
+// TODO: implement parsing of hex numbers
+// TODO: add error checking
 fn str_to_u64(str : any, length : u64) -> u64 {
-  let result 0;
-  let base 10;
-  let i 0;
+  const base : u64 10;
+  let result : u64 0;
+  let i : u64 0;
   while < i length {
     let ch load8 + str i;
     = @result + * result base - ch '0';
