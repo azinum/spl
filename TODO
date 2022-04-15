@@ -1,8 +1,7 @@
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
-- remove the ability to define inlined functions (causes undefined behaviour, crashes)
+- remove the ability, by ways of parsing, to define inlined functions (causes undefined behaviour, crashes)
 - compile time evaluation of `trival` functions
 
 - before i begin work on the self hosted compiler i would like to implement:
 	- user structs/types or some other method of creating structures e.g. expression matching or similar
-	- type casting
