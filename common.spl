@@ -33,7 +33,7 @@ fn common_init -> none {
 }
 
 fn tmp_push_cstr(str : any) -> none {
-  let length strlen(str);
+  let length strlen(cast str cstr);
   if < (+ tmp_it length) tmp_end {
     if > length 0 {
       memcpy(tmp_it, str, length);

@@ -185,97 +185,99 @@ fn lexer_read_symbol -> none {
   }
   = @token.length - l.index token.buffer;
 
-  if eq 0 strncmp(token.buffer, "pop", token.length) {
+  let buffer : cstr cast token.buffer cstr;
+
+  if eq 0 strncmp(buffer, "pop", token.length) {
     = @token.type T_POP;
   }
-  else if eq 0 strncmp(token.buffer, "print", token.length) {
+  else if eq 0 strncmp(buffer, "print", token.length) {
     = @token.type T_PRINT;
   }
-  else if eq 0 strncmp(token.buffer, "include", token.length) {
+  else if eq 0 strncmp(buffer, "include", token.length) {
     = @token.type T_INCLUDE;
   }
-  else if eq 0 strncmp(token.buffer, "const", token.length) {
+  else if eq 0 strncmp(buffer, "const", token.length) {
     = @token.type T_CONST;
   }
-  else if eq 0 strncmp(token.buffer, "let", token.length) {
+  else if eq 0 strncmp(buffer, "let", token.length) {
     = @token.type T_LET;
   }
-  else if eq 0 strncmp(token.buffer, "memory", token.length) {
+  else if eq 0 strncmp(buffer, "memory", token.length) {
     = @token.type T_MEMORY;
   }
-  else if eq 0 strncmp(token.buffer, "fn", token.length) {
+  else if eq 0 strncmp(buffer, "fn", token.length) {
     = @token.type T_FN;
   }
-  else if eq 0 strncmp(token.buffer, "while", token.length) {
+  else if eq 0 strncmp(buffer, "while", token.length) {
     = @token.type T_WHILE;
   }
-  else if eq 0 strncmp(token.buffer, "if", token.length) {
+  else if eq 0 strncmp(buffer, "if", token.length) {
     = @token.type T_IF;
   }
-  else if eq 0 strncmp(token.buffer, "else", token.length) {
+  else if eq 0 strncmp(buffer, "else", token.length) {
     = @token.type T_ELSE;
   }
-  else if eq 0 strncmp(token.buffer, "store64", token.length) {
+  else if eq 0 strncmp(buffer, "store64", token.length) {
     = @token.type T_STORE64;
   }
-  else if eq 0 strncmp(token.buffer, "store32", token.length) {
+  else if eq 0 strncmp(buffer, "store32", token.length) {
     = @token.type T_STORE32;
   }
-  else if eq 0 strncmp(token.buffer, "store16", token.length) {
+  else if eq 0 strncmp(buffer, "store16", token.length) {
     = @token.type T_STORE16;
   }
-  else if eq 0 strncmp(token.buffer, "store8", token.length) {
+  else if eq 0 strncmp(buffer, "store8", token.length) {
     = @token.type T_STORE8;
   }
-  else if eq 0 strncmp(token.buffer, "load64", token.length) {
+  else if eq 0 strncmp(buffer, "load64", token.length) {
     = @token.type T_LOAD64;
   }
-  else if eq 0 strncmp(token.buffer, "load32", token.length) {
+  else if eq 0 strncmp(buffer, "load32", token.length) {
     = @token.type T_LOAD32;
   }
-  else if eq 0 strncmp(token.buffer, "load16", token.length) {
+  else if eq 0 strncmp(buffer, "load16", token.length) {
     = @token.type T_LOAD16;
   }
-  else if eq 0 strncmp(token.buffer, "load8", token.length) {
+  else if eq 0 strncmp(buffer, "load8", token.length) {
     = @token.type T_LOAD8;
   }
-  else if eq 0 strncmp(token.buffer, "and", token.length) {
+  else if eq 0 strncmp(buffer, "and", token.length) {
     = @token.type T_AND;
   }
-  else if eq 0 strncmp(token.buffer, "not", token.length) {
+  else if eq 0 strncmp(buffer, "not", token.length) {
     = @token.type T_LOGICAL_NOT;
   }
-  else if eq 0 strncmp(token.buffer, "or", token.length) {
+  else if eq 0 strncmp(buffer, "or", token.length) {
     = @token.type T_OR;
   }
-  else if eq 0 strncmp(token.buffer, "eq", token.length) {
+  else if eq 0 strncmp(buffer, "eq", token.length) {
     = @token.type T_EQ;
   }
-  else if eq 0 strncmp(token.buffer, "neq", token.length) {
+  else if eq 0 strncmp(buffer, "neq", token.length) {
     = @token.type T_NEQ;
   }
-  else if eq 0 strncmp(token.buffer, "lshift", token.length) {
+  else if eq 0 strncmp(buffer, "lshift", token.length) {
     = @token.type T_LSHIFT;
   }
-  else if eq 0 strncmp(token.buffer, "rshift", token.length) {
+  else if eq 0 strncmp(buffer, "rshift", token.length) {
     = @token.type T_RSHIFT;
   }
-  else if eq 0 strncmp(token.buffer, "sizeof", token.length) {
+  else if eq 0 strncmp(buffer, "sizeof", token.length) {
     = @token.type T_SIZEOF;
   }
-  else if eq 0 strncmp(token.buffer, "enum", token.length) {
+  else if eq 0 strncmp(buffer, "enum", token.length) {
     = @token.type T_ENUM;
   }
-  else if eq 0 strncmp(token.buffer, "none", token.length) {
+  else if eq 0 strncmp(buffer, "none", token.length) {
     = @token.type T_NONE;
   }
-  else if eq 0 strncmp(token.buffer, "any", token.length) {
+  else if eq 0 strncmp(buffer, "any", token.length) {
     = @token.type T_ANY;
   }
-  else if eq 0 strncmp(token.buffer, "u64", token.length) {
+  else if eq 0 strncmp(buffer, "u64", token.length) {
     = @token.type T_UNSIGNED64;
   }
-  else if eq 0 strncmp(token.buffer, "cstr", token.length) {
+  else if eq 0 strncmp(buffer, "cstr", token.length) {
     = @token.type T_CSTR;
   }
   else {
@@ -500,7 +502,7 @@ fn lexer_next -> none {
       }
       else if is_digit(ch) {
         lexer_read_number();
-        let number str_to_u64(token.buffer, token.length);
+        let number str_to_u64(cast token.buffer cstr, token.length);
         = @token.v number;
         = @done 1;
       }

@@ -154,6 +154,7 @@ typedef enum Token_type {
   T_SIZEOF,
   T_ENUM,
   T_ALIAS,
+  T_CAST,
 
   // built-in types
   T_NONE,
@@ -218,6 +219,7 @@ static const char* token_type_str[] = {
   "T_SIZEOF",
   "T_ENUM",
   "T_ALIAS",
+  "T_CAST",
 
   "T_NONE",
   "T_ANY",
@@ -277,6 +279,7 @@ typedef enum Ast_type {
   AstType,
   AstSizeof,
   AstEnum,
+  AstCastExpression,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -304,6 +307,7 @@ static const char* ast_type_str[] = {
   "AstType",
   "AstSizeof",
   "AstEnum",
+  "AstCastExpression",
 };
 
 typedef struct Ast {
@@ -1559,7 +1563,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         }
         ast->token.v.i = symbol_index;
         for (i32 i = arg_list->count - 1; i >= 0; --i) {
-          Compile_type arg_type = typecheck(c, block, fs, arg_list->node[i]);
+          typecheck(c, block, fs, arg_list->node[i]);
+          Compile_type arg_type = ts_top(c);
           if (symbol->type == TypeSyscallFunc) {
             // any type is allowed here
             // we still want to type check the arguments of the call,
@@ -1568,7 +1573,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           else {
             Symbol* arg = &c->symbols[func->args[i]];
             if (arg->type != arg_type && arg->type != TypeAny) {
-              typecheck_error_at(c, ast->token, "type mismatch in function call\n");
+              typecheck_error_at(c, ast->token, "type mismatch in function call, got `%s`, but `%s` was expected\n", compile_type_str[arg_type], compile_type_str[arg->type]);
               c->status = NoError; // to print additional error message
               typecheck_error_at(c, arg->token, "from function `%s`\n", symbol->name);
               return TypeNone;
@@ -1699,7 +1704,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value v = { .num = size, .konst = 1, };
       vs_push(c, v);
       t->v.num = size;
-      ast->konst = 1; // is_branch_konst_eval(ast);
+      ast->konst = 1;
       return ts_push(c, TypeUnsigned64);
     }
     case AstEnum: {
@@ -1730,6 +1735,15 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       if (ast->count > 0) {
         typecheck_node_list(c, block, fs, ast);
       }
+      break;
+    }
+    case AstCastExpression: {
+      Ast* expr = ast->node[0];
+      Ast* type_expr = ast->node[1];
+      typecheck(c, block, fs, expr);
+      Compile_type type = ts_pop(c);
+      Compile_type cast_type = token_to_compile_type(type_expr->token);
+      ts_push(c, cast_type);
       break;
     }
     default: {
@@ -2858,6 +2872,10 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     case AstEnum:
     case AstType:
       break;
+    case AstCastExpression: {
+      ir_compile(c, block, fs, ast->node[0], ins_count);
+      break;
+    }
     default: {
       compile_error(c, "invalid or unhandled AST branch type `%d`\n", ast->type);
       c->status = Error;
@@ -2887,7 +2905,7 @@ i32 ir_compile_func_args(Compile* c, Block* block, Function* fs, Ast* ast, u32* 
 
 i32 ir_compile_binop(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count) {
   if (ast->count < 2) {
-    compile_error_at(c, ast->token, "expected 2 arguments in binary operator action\n");
+    compile_error_at(c, ast->token, "expected 2 arguments in binary operator expression\n");
     return c->status;
   }
   for (u32 i = 0; i < ast->count; ++i) {
@@ -4226,6 +4244,15 @@ Ast* parse_expr(Parser* p) {
       parser_error(p, "unexpected closing `)` parenthesis in expression\n");
       return NULL;
     }
+    case T_CAST: {
+      lexer_next(&p->l); // skip `cast`
+      Ast* expr = ast_create(AstCastExpression);
+      Ast* inner_expr = ast_create(AstExpression);
+      expr->token = t;
+      ast_push(expr, ast_push(inner_expr, parse_expr(p)));
+      ast_push(expr, parse_type(p));
+      return expr;
+    }
     default: {
       parser_error(p, "unexpected `%.*s` in expression\n", t.length, t.buffer);
       p->status = Error;
@@ -4601,6 +4628,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "alias")) {
     l->token.type = T_ALIAS;
+  }
+  else if (compare(l->token, "cast")) {
+    l->token.type = T_CAST;
   }
   else if (compare(l->token, "none")) {
     l->token.type = T_NONE;
