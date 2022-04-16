@@ -160,6 +160,7 @@ typedef enum Token_type {
   T_NONE,
   T_ANY,
   T_UNSIGNED64,
+  T_UNSIGNED32,
   T_CSTR,
 
   MAX_TOKEN_TYPE,
@@ -224,6 +225,7 @@ static const char* token_type_str[] = {
   "T_NONE",
   "T_ANY",
   "T_UNSIGNED64",
+  "T_UNSIGNED32",
   "T_CSTR",
 };
 
@@ -342,8 +344,8 @@ typedef struct Parser {
 typedef enum Ir_code {
   I_NOP = 0,
   I_POP,
-  I_MOVE, // <id, offset, x>
-  I_MOVE_LOCAL, // <local_id, x, x>
+  I_MOVE, // <type, id, offset>
+  I_MOVE_LOCAL, // <type, local_id, x>
   I_STORE64,
   I_STORE32,
   I_STORE16,
@@ -459,6 +461,7 @@ typedef enum Compile_type {
   TypeNone = 0,
   TypeAny,
   TypeUnsigned64,
+  TypeUnsigned32,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
@@ -470,6 +473,7 @@ static const char* compile_type_str[] = {
   "None",
   "Any",
   "Unsigned64",
+  "TypeUnsigned32",
   "CString",
   "Func",
   "SyscallFunc",
@@ -479,6 +483,7 @@ static u64 compile_type_size[] = {
   0,
   sizeof(u64),
   sizeof(u64),
+  sizeof(u32),
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
@@ -673,6 +678,7 @@ static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
 static Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast);
+static u32 typecheck_is_numerical(Compile* c, Compile_type type);
 static Compile_type ts_push(Compile* c, Compile_type type);
 static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
@@ -1339,7 +1345,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck_node_list(c, block, fs, ast);
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
-      if ((a == TypeUnsigned64 || a == TypeAny || a == TypeCString || a == TypeFunc) && (b == TypeUnsigned64 || b == TypeAny || b == TypeCString || b == TypeFunc)) {
+      if (
+          (typecheck_is_numerical(c, a) || a == TypeAny || a == TypeCString) &&
+          (typecheck_is_numerical(c, b) || b == TypeAny || b == TypeCString)
+        ) {
         Value va;
         Value vb;
         vs_pop(c, &vb);
@@ -1599,7 +1608,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
-      if (type == TypeUnsigned64) {
+      if (typecheck_is_numerical(c, type)) {
         Block local_block;
         block_init(&local_block, block);
         typecheck(c, &local_block, fs, body);
@@ -1615,7 +1624,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
-      if (type == TypeUnsigned64) {
+      if (typecheck_is_numerical(c, type)) {
         Block local_block;
         block_init(&local_block, block);
         typecheck(c, &local_block, fs, body);
@@ -1636,7 +1645,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       i32 symbol_index = -1;
       Ast* node = ast->node[0];
       Compile_type type = typecheck(c, block, fs, node);
-      if (type == TypeUnsigned64) {
+      if (typecheck_is_numerical(c, type)) {
         ts_pop(c);
         Value value;
         vs_pop(c, &value);
@@ -1660,14 +1669,14 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstAssignment: {
       Compile_type a = typecheck(c, block, fs, ast->node[0]);
       Compile_type b = typecheck(c, block, fs, ast->node[1]);
-      if (a != b && a != TypeUnsigned64 && (a != TypeAny && b != TypeAny)) {
-        typecheck_error_at(c, ast->token, "type mismatch in assignment expression\n");
-        return TypeNone;
+      if ((a == TypeUnsigned64 || a == TypeAny) && (typecheck_is_numerical(c, b) || b == TypeAny)) {
+        vs_pop(c, NULL);
+        vs_pop(c, NULL);
+        ts_pop(c);
+        return ts_pop(c);
       }
-      vs_pop(c, NULL);
-      vs_pop(c, NULL);
-      ts_pop(c);
-      return ts_pop(c);
+      typecheck_error_at(c, ast->token, "type mismatch in assignment expression\n");
+      return TypeNone;
     }
     // TODO(lucas): does the sizeof operator always yield a constant value?
     case AstSizeof: {
@@ -1689,6 +1698,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         case T_UNSIGNED64:
         case T_NUMBER: {
           size = sizeof(u64);
+          break;
+        }
+        case T_UNSIGNED32: {
+          size = sizeof(u32);
           break;
         }
         case T_CSTRING:
@@ -1741,7 +1754,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Ast* expr = ast->node[0];
       Ast* type_expr = ast->node[1];
       typecheck(c, block, fs, expr);
-      Compile_type type = ts_pop(c);
+      ts_pop(c);
       Compile_type cast_type = token_to_compile_type(type_expr->token);
       ts_push(c, cast_type);
       break;
@@ -1751,7 +1764,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       break;
     }
   }
-  return TypeNone;
+  return ts_top(c);
 }
 
 Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* ast) {
@@ -1810,11 +1823,12 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   Compile_type type = ts_top(c);
   Compile_type prev_type = type;
 
-  if (konst && type != TypeUnsigned64) {
+  if (konst && !typecheck_is_numerical(c, type)) {
     typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
     return TypeNone;
   }
 
+  // TODO(lucas): storing of constants of different types. right now only unsigned 64-bit integers works properly
   for (i32 i = 0; i < ts_delta; ++i) {
     type = ts_pop(c);
     if (type != prev_type && explicit_type != TypeAny) {
@@ -1866,98 +1880,10 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   return TypeNone;
 }
 
-#if 0
-Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast) {
-  i32 konst = ast->type == AstConstStatement;
-  i32 ts_count = c->ts_count;
-  i32 num_elements = 1;
-  Ast* rhs = ast->node[0];
-  Ast* ast_type = NULL;
-  typecheck_node_list(c, block, fs, rhs);
-  ast->konst = rhs->konst = is_branch_konst_eval(rhs);
-  i32 ts_delta = c->ts_count - ts_count;
-  if (ts_delta == 0) {
-    typecheck_error_at(c, ast->token, "no value was produced in the rhs of the let statement\n");
-    return TypeNone;
-  }
-  Compile_type explicit_type = -1;
-  if (ast->count == 2) {
-    ast_type = ast->node[1];  // the type itself
-    if (ast_type->count > 0) {  // array specifier
-      typecheck(c, block, fs, ast_type);
-      Value value;
-      vs_pop(c, &value);
-      Compile_type type = ts_pop(c);
-      if (type != TypeUnsigned64) {
-        typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
-        return TypeNone;
-      }
-      num_elements = value.num;
-      if (ts_delta > num_elements) {
-        typecheck_error_at(c, ast_type->node[0]->token, "number of elements in rhs exceeded the array size specifier\n");
-        return TypeNone;
-      }
-      explicit_type = token_to_compile_type(ast_type->token);
-      if (type != explicit_type && explicit_type != TypeAny) {
-        typecheck_error_at(c, ast_type->token, "explicit type does not match rhs type\n");
-        return TypeNone;
-      }
-    }
-  }
-  i32 imm = -1;
-  Value value = vs_top(c);
-  Value prev_value = value;
-  Compile_type type = ts_top(c);
-  Compile_type prev_type = type;
-  if (type != TypeUnsigned64 && konst) {
-    typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
-    return TypeNone;
-  }
-  for (i32 i = 0; i < ts_delta; ++i) {
-    type = ts_pop(c);
-    if (type != prev_type && explicit_type != TypeAny) {
-      typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
-      return TypeNone;
-    }
-    prev_type = type;
-    vs_pop(c, &value);
-    if (type == TypeFunc) {
-      if (!check_func_signatures(c, &value.func, &prev_value.func)) {
-        typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
-        return TypeNone;
-      }
-    }
-    prev_value = value;
-    if (konst) {
-      imm = ir_push_value(c, &value.num, sizeof(value.num));
-    }
-  }
-  if (konst) {
-    imm -= (ts_delta - 1) * compile_type_size[type];
-    if (!rhs->konst) {
-      typecheck_error_at(c, ast->token, "tried to assign a runtime value to a constant value\n");
-    }
-  }
-  if (num_elements == 1) {
-    num_elements = ts_delta;
-  }
-  Symbol* symbol = NULL;
-  i32 symbol_index = -1;
-  if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
-    symbol->imm = imm;
-    symbol->size = num_elements * compile_type_size[type];
-    symbol->num_elemements_init = ts_delta;
-    symbol->konst = konst;
-    symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
-    symbol->type = type;
-    symbol->value = value;
-    ast->token.v.i = symbol_index;
-    return type;
-  }
-  compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
-  return TypeNone;
+u32 typecheck_is_numerical(Compile* c, Compile_type type) {
+  (void)c; // unused for now
+  return type == TypeUnsigned64 || type == TypeUnsigned32;
 }
-#endif
 
 Compile_type ts_push(Compile* c, Compile_type type) {
   if (c->ts_count >= 0 && c->ts_count < MAX_TYPE_STACK) {
@@ -2590,16 +2516,19 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
+      // TODO(lucas): align to a 8 byte boundary
       if (fs != NULL) {
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
           u32 type_size = compile_type_size[symbol->type];
-          fs->locals_offset_counter += symbol->size;
+          u32 count = symbol->size / type_size;
+          // fs->locals_offset_counter += type_size * count;
+          fs->locals_offset_counter += sizeof(u64) * count;
           for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
               .i = I_MOVE_LOCAL,
-              .dest = ((1 + fs->argc) * 0x8) + local_id,
-              .src0 = -1,
+              .dest = symbol->type,
+              .src0 = ((1 + fs->argc) * 0x8) + local_id,
               .src1 = -1,
             }, ins_count);
             symbol->local_id = local_id;
@@ -3047,14 +2976,42 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_MOVE: {
         vo("; I_MOVE\n");
-        o("pop rax\n");
-        o("mov [v%d+%d], rax\n", op->dest, op->src0);
+        switch (op->dest) {
+          case TypeUnsigned64: {
+            o("pop rax\n");
+            o("mov [v%d+%d], rax\n", op->src0, op->src1);
+            break;
+          }
+          case TypeUnsigned32: {
+            o("pop rax\n");
+            o("mov [v%d+%d], eax\n", op->src0, op->src1);
+            break;
+          }
+          default: {
+            assert("type not implemented yet" && 0);
+            break;
+          }
+        }
         break;
       }
       case I_MOVE_LOCAL: {
         vo("; I_MOVE_LOCAL\n");
-        o("pop rax\n");
-        o("mov [rbp-0x%x], rax\n", op->dest);
+        switch (op->dest) {
+          case TypeUnsigned64: {
+            o("pop rax\n");
+            o("mov [rbp-%d], rax\n", op->src0);
+            break;
+          }
+          case TypeUnsigned32: {
+            o("pop rax\n");
+            o("mov [rbp-%d], eax\n", op->src0);
+            break;
+          }
+          default: {
+            assert("type not implemented yet" && 0);
+            break;
+          }
+        }
         break;
       }
       case I_STORE64: {
@@ -3145,8 +3102,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypeAny:
           case TypeCString:
           case TypeFunc:
-          case TypeUnsigned64: {
-            o("lea rax, [rbp-0x%x]\n", op->src0);
+          case TypeUnsigned64:
+          case TypeUnsigned32: {
+            o("lea rax, [rbp-%d]\n", op->src0);
             o("push rax\n");
             break;
           }
@@ -3163,6 +3121,11 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             case TypeAny:
             case TypeUnsigned64: {
               o("mov rax, [v%d]\n", op->src0);
+              o("push rax\n");
+              break;
+            }
+            case TypeUnsigned32: {
+              o("mov eax, [v%d]\n", op->src0);
               o("push rax\n");
               break;
             }
@@ -3191,7 +3154,12 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned64: {
-            o("push QWORD [rbp-0x%x]\n", op->src0);
+            o("push QWORD [rbp-%d]\n", op->src0);
+            break;
+          }
+          case TypeUnsigned32: {
+            o("mov eax, [rbp-%d]\n", op->src0);
+            o("push rax\n");
             break;
           }
           default: {
@@ -3593,7 +3561,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   }
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->ref_count == 0 && !disable_dce && !dce_all) {
+    if (s->ref_count == 0 && !disable_dce && dce_all) {
       continue;
     }
     if (!(s->sym_type == SYM_LOCAL_VAR || s->sym_type == SYM_GLOBAL_VAR)) {
@@ -3614,6 +3582,17 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o(" ; `%s`\n", s->name);
           break;
         }
+        case TypeUnsigned32: {
+          assert(s->imm >= 0);
+          i32 imm = s->imm + s->size - size;
+          o("v%d: dw", i);
+          for (u32 v = 0; v < count; ++v, imm -= size) {
+            u32 value = *(u32*)&c->imm[imm];
+            o(" %d,", value);
+          }
+          o(" ; `%s`\n", s->name);
+          break;
+        }
         default: {
           assert("type not implemented yet" && 0);
           break;
@@ -3624,25 +3603,29 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
   o("section .bss\n");
   for (u32 i = 0; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->ref_count == 0 && !disable_dce && !dce_all) {
+    if (s->ref_count == 0 && !disable_dce && dce_all) {
       continue;
     }
     if ((s->sym_type == SYM_GLOBAL_VAR || s->sym_type == SYM_LOCAL_VAR) && s->konst == 0) {
       switch (s->type) {
         case TypeUnsigned64: {
-          o("v%d: resb %d ; `%s` : TypeUnsigned64\n", i, s->size, s->name);
+          o("v%d: resb %d ; `%s` : Unsigned64\n", i, s->size, s->name);
+          break;
+        }
+        case TypeUnsigned32: {
+          o("v%d: resb %d ; `%s` : Unsigned32\n", i, s->size, s->name);
           break;
         }
         case TypeCString: {
-          o("v%d: resb %d ; `%s` : TypeCString\n", i, s->size, s->name);
+          o("v%d: resb %d ; `%s` : CString\n", i, s->size, s->name);
           break;
         }
         case TypeFunc: {
-          o("v%d: resb %d ; `%s` : TypeFunc\n", i, s->size, s->name);
+          o("v%d: resb %d ; `%s` : Func\n", i, s->size, s->name);
           break;
         }
         case TypeAny: {
-          o("v%d: resb %d ; `%s` : TypeAny\n", i, s->size, s->name);
+          o("v%d: resb %d ; `%s` : Any\n", i, s->size, s->name);
         }
         case TypeNone:
         case TypeSyscallFunc:
@@ -4212,6 +4195,7 @@ Ast* parse_expr(Parser* p) {
         case T_NUMBER:
         case T_CSTRING:
         case T_UNSIGNED64:
+        case T_UNSIGNED32:
         case T_CSTR:
         case T_ANY: {
           ok = 1;
@@ -4409,7 +4393,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_NONE || t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_CSTR) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_CSTR) {
     Ast* type = ast_create(AstType);
     type->token = t;
     t = lexer_next(&p->l); // skip type
@@ -4640,6 +4624,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "u64")) {
     l->token.type = T_UNSIGNED64;
+  }
+  else if (compare(l->token, "u32")) {
+    l->token.type = T_UNSIGNED32;
   }
   else if (compare(l->token, "cstr")) {
     l->token.type = T_CSTR;
@@ -4888,6 +4875,7 @@ Compile_type token_to_compile_type(Token t) {
   switch (t.type) {
     case T_ANY:         return TypeAny;
     case T_UNSIGNED64:  return TypeUnsigned64;
+    case T_UNSIGNED32:  return TypeUnsigned32;
     case T_CSTRING:
     case T_CSTR:        return TypeCString;
     default: break;
