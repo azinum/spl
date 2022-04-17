@@ -473,7 +473,7 @@ static const char* compile_type_str[] = {
   "None",
   "Any",
   "Unsigned64",
-  "TypeUnsigned32",
+  "Unsigned32",
   "CString",
   "Func",
   "SyscallFunc",
@@ -2980,6 +2980,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_MOVE: {
         vo("; I_MOVE\n");
         switch (op->dest) {
+          case TypeAny:
+          case TypeCString:
+          case TypeFunc:
           case TypeUnsigned64: {
             o("pop rax\n");
             o("mov [v%d+%d], rax\n", op->src0, op->src1);
@@ -3000,6 +3003,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_MOVE_LOCAL: {
         vo("; I_MOVE_LOCAL\n");
         switch (op->dest) {
+          case TypeAny:
+          case TypeCString:
+          case TypeFunc:
           case TypeUnsigned64: {
             o("pop rax\n");
             o("mov [rbp-%d], rax\n", op->src0);
