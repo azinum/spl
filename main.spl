@@ -1,26 +1,9 @@
 // main.spl
 
-// include "lib/common.spl"
-
-// fn add(a : u64, b : u64) -> u64 + a b;
+include "lib/common.spl"
 
 fn add(a : u32, b : u32) -> u32 cast + a b u32;
 
 fn main -> none {
-  const value : u32 2;
-  // print add(cast 2 u32,  cast 3 u32);
-  print add(value,  cast 3 u32);
-
-  // let a : u32 9, 8, 7, 6, 5, 4, 3, 2, 1, 0;
-  // let b : u32 0, 1, 2, 3, 4, 5, 6, 7, 8, 9;
-  // print load32 @a;
-  // print load32 + @b * 1 sizeof u32;
-  // print load32 + @b * 2 sizeof u32;
-  // print load32 + @b * 3 sizeof u32;
-  // print load32 + @b * 4 sizeof u32;
-  // print load32 + @b * 5 sizeof u32;
-  // print load32 + @b * 6 sizeof u32;
-  // print load32 + @b * 7 sizeof u32;
-  // print load32 + @b * 8 sizeof u32;
-  // print load32 + @b * 9 sizeof u32;
+  print add(cast 2 u32,  cast 3 u32);
 }

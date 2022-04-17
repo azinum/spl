@@ -784,7 +784,6 @@ i32 main(i32 argc, char** argv) {
 
   (void)symbol_print; // unused
   (void)ir_pop_ins; // unused
-  (void)ir_compile_warning_at; // unused
   i32 exit_status = EXIT_SUCCESS;
   Options options = (Options) {
     .compile = 1,
@@ -1231,10 +1230,14 @@ i32 typecheck_program(Compile* c, Ast* ast) {
 }
 
 void typecheck_print_unused(Compile* c) {
+  if (disable_dce) {
+    // may be redundant because why would this function be called if dce is disabled?
+    return;
+  }
   for (u32 i = MAX_SYSCALL_FUNCTION; i < c->symbol_count; ++i) {
     Symbol* s = &c->symbols[i];
-    if (s->ref_count == 0) {
-      ir_compile_warning_at(c, s->token, "unused symbol\n");
+    if (s->ref_count == 0 && (s->sym_type == SYM_FUNC || dce_all)) {
+      ir_compile_warning_at(c, s->token, "`%s` defined but not used\n", s->name);
     }
   }
 }
@@ -1984,6 +1987,7 @@ void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...) {
   if (!enable_warnings) {
     return;
   }
+  (void)c; // unused
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -1993,7 +1997,6 @@ void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...) {
   FILE* fp = stdout;
   fprintf(fp, "[ir-compile-warning]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
   printline(fp, token.source, token.buffer + token.length, token.length, 1, 1);
-  c->status = Error;
 }
 
 void ir_print(Compile* c, FILE* fp) {
