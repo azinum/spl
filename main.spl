@@ -1,8 +1,8 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 
-fn add(a : u32, b : u32) -> u32 cast + a b u32;
+fn add(a : u32, b : u32) -> u32 + a b;
 
 fn main -> none {
   print add(cast 2 u32,  cast 3 u32);
