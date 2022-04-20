@@ -73,8 +73,8 @@ fn ast_print_node(fd : u64, ast : any) -> none {
 }
 
 fn ast_push(ast : any, node : any) -> none {
-  assert(neq ast 0, "null ast node\n");
-  if neq node 0 {
+  assert(neq 0 ast, "null ast node\n");
+  if neq 0 node {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
     let count + Ast.count ast;
     = + + Ast.node ast * #count sizeof any node;
@@ -96,7 +96,7 @@ fn ast_count(ast : u64) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
 fn ast_child_count(ast : any) -> u64 # + Ast.count ast;
 
 fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
-  if neq ast 0 {
+  if neq 0 ast {
     let it tmp_it;
     let p tmp_push_cstr;
     let iter 0;

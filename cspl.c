@@ -1641,7 +1641,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ast->konst = is_branch_konst_eval(ast);
         return TypeNone;
       }
-      typecheck_error(c, "invalid type in if statement condition\n");
+      typecheck_error_at(c, cond->token, "invalid type in if statement condition\n");
       return TypeNone;
     }
     case AstMemoryStatement: {
@@ -1672,17 +1672,16 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     }
     case AstAssignment: {
       Compile_type a = typecheck(c, block, fs, ast->node[0]);
-      Compile_type b = typecheck(c, block, fs, ast->node[1]);
-      if ((a == TypeUnsigned64 || a == TypeAny) && (typecheck_is_numerical(c, b) || b == TypeAny)) {
+      typecheck(c, block, fs, ast->node[1]);
+      if (a == TypeUnsigned64 || a == TypeAny) {
         vs_pop(c, NULL);
         vs_pop(c, NULL);
         ts_pop(c);
         return ts_pop(c);
       }
-      typecheck_error_at(c, ast->token, "type mismatch in assignment expression\n");
+      typecheck_error_at(c, ast->node[0]->token, "type mismatch in assignment expression\n");
       return TypeNone;
     }
-    // TODO(lucas): does the sizeof operator always yield a constant value?
     case AstSizeof: {
       Token* t = &ast->token;
       u64 size = 0;
@@ -4016,7 +4015,9 @@ Ast* parse_statement(Parser* p) {
     case T_WHILE: {
       lexer_next(&p->l); // skip `while`
       Ast* while_stmt = ast_create(AstWhileStatement);
+      while_stmt->token = t;
       Ast* cond = ast_create(AstExpression);
+      cond->token = lexer_peek(&p->l);
       ast_push(cond, parse_expr(p));
       ast_push(while_stmt, cond);
       t = lexer_peek(&p->l);
@@ -4038,7 +4039,9 @@ Ast* parse_statement(Parser* p) {
     case T_IF: {
       lexer_next(&p->l); // skip `if`
       Ast* if_stmt = ast_create(AstIfStatement);
+      if_stmt->token = t;
       Ast* cond = ast_create(AstExpression);
+      cond->token = lexer_peek(&p->l);
       ast_push(cond, parse_expr(p));
       ast_push(if_stmt, cond);
       t = lexer_peek(&p->l);
