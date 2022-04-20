@@ -2521,6 +2521,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
       // TODO(lucas): align to an 8 byte boundary
+      // TODO(lucas): FIXME: cannot use the type size to change the locals offset counter, because the stack grows down (in the negative direction, if you will)
       if (fs != NULL) {
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
@@ -3014,7 +3015,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           }
           case TypeUnsigned32: {
             o("pop rax\n");
-            o("mov [rbp-%d], eax\n", op->src0);
+            o("mov DWORD [rbp-%d], eax\n", op->src0);
             break;
           }
           default: {
@@ -3072,11 +3073,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       }
       case I_LOAD32: {
         vo("; I_LOAD32\n");
-        o(
-        "pop rax\n"
-        "movzx ebx, WORD [rax]\n"
-        "push rbx\n"
-        );
+        o("pop rax\n");
+#if 1
+        o("xor rbx, rbx\n");
+        o("mov ebx, [rax]\n");
+#else
+        o("movzx ebx, WORD [rax]\n"); // i want to use DWORD here, but it does not seem to work? why?
+#endif
+        o("push rbx\n");
         break;
       }
       case I_LOAD16: {
@@ -3111,8 +3115,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypeAny:
           case TypeCString:
           case TypeFunc:
-          case TypeUnsigned64:
-          case TypeUnsigned32: {
+          case TypeUnsigned32:
+          case TypeUnsigned64: {
             o("lea rax, [rbp-%d]\n", op->src0);
             o("push rax\n");
             break;
@@ -3346,7 +3350,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         i32 frame_size = op->src0;
         o("pop rax\n");
         o("pop rbp\n");
-        o("add rsp, 0x%x\n", frame_size);
+        o("add rsp, %d\n", frame_size);
         o("ret\n");
         break;
       }
@@ -3354,7 +3358,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_NORET\n");
         i32 frame_size = op->src0;
         o("pop rbp\n");
-        o("add rsp, 0x%x\n", frame_size);
+        o("add rsp, %d\n", frame_size);
         o("ret\n");
         break;
       }
@@ -3430,9 +3434,9 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         // NOTE(lucas): can pack argc and frame_size into a single integer
         i32 argc = op->src0;
         i32 frame_size = op->src1;
-        o("sub rsp, 0x%x\n", frame_size);
+        o("sub rsp, %d\n", frame_size);
         for (i32 arg = 0; arg < argc; ++arg) {
-          o("mov [rbp-0x%x], %s\n", (arg + 1) * 0x8, func_call_regs_x86_64[arg]); // +1 because we have pushed rbp onto stack
+          o("mov [rbp-%d], %s\n", (arg + 1) * 0x8, func_call_regs_x86_64[arg]); // +1 because we have pushed rbp onto stack
         }
         break;
       }
