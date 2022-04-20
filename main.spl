@@ -5,5 +5,7 @@
 fn add(a : u32, b : u32) -> u32 + a b;
 
 fn main -> none {
-  print add(cast 2 u32,  cast 3 u32);
+  const a : u32 3, 4, 5, 6;
+  // print load32 + @a * 3 sizeof u32;
+  print add(a, cast load32 + @a sizeof u32 u32);
 }

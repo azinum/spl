@@ -1853,17 +1853,17 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
     }
   }
 
-  // if this is a const, make sure to update the immediate value index
-  if (konst) {
-    imm -= (ts_delta - 1) * compile_type_size[type];
-  }
-
   // no array specifier was used, therefore num_elements is set to however many elements there was in the rhs
   if (num_elements == 1) {
     num_elements = ts_delta;
   }
   if ((i32)explicit_type != -1) {
     type = explicit_type;
+  }
+
+  // if this is a const, make sure to update the immediate value index
+  if (konst) {
+    imm -= (ts_delta - 1) * compile_type_size[TypeUnsigned64];
   }
 
   // store symbol
@@ -2396,7 +2396,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           break;
         }
         default: {
-          assert("value token not implemented" && 0);
+          assert(!"value token not implemented");
           break;
         }
       }
@@ -2452,7 +2452,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           ir_push_ins(c, OP(I_NEQ), ins_count);
         }
         else {
-          assert("operation not implemented yet" && 0); // TODO: handle
+          assert(!"operation not implemented yet");
         }
       }
       else {
@@ -2486,7 +2486,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
           ir_push_ins(c, OP(I_LOGICAL_NOT), ins_count);
         }
         else {
-          assert("operation not implemented yet" && 0); // TODO: handle
+          assert(!"operation not implemented yet");
         }
       }
       else {
@@ -2520,14 +2520,14 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
-      // TODO(lucas): align to a 8 byte boundary
+      // TODO(lucas): align to an 8 byte boundary
       if (fs != NULL) {
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
           u32 type_size = compile_type_size[symbol->type];
           u32 count = symbol->size / type_size;
           // fs->locals_offset_counter += type_size * count;
-          fs->locals_offset_counter += sizeof(u64) * count;
+          fs->locals_offset_counter += sizeof(u64) * count; // NOTE(lucas): this is a quick fix to align the memory to an 8 byte boundary
           for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
               .i = I_MOVE_LOCAL,
@@ -2915,7 +2915,7 @@ i32 compile(Compile* c, Compile_target target, FILE* fp) {
     );
   }
   else {
-    assert("invalid compile target" && 0);
+    assert(!"invalid compile target");
   }
   return c->status;
 }
@@ -3074,8 +3074,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_LOAD32\n");
         o(
         "pop rax\n"
-        "xor rbx, rbx\n"
-        "mov ebx, [rax]\n"
+        "movzx ebx, WORD [rax]\n"
         "push rbx\n"
         );
         break;
@@ -3095,7 +3094,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         o(
         "pop rax\n"
         "xor rbx, rbx\n"
-        "mov bl, [rax]\n" // move contents of rax into the lower bits of rbx
+        "mov bl, [rax]\n"
         "push rbx\n"
         );
         break;
@@ -3592,12 +3591,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o(" ; `%s`\n", s->name);
           break;
         }
+        // TODO(lucas): all values are stored in 8 byte chunks even though a type might specify a size which is less than that. change this to reduce waste of storage.
         case TypeUnsigned32: {
           assert(s->imm >= 0);
-          i32 imm = s->imm + s->size - size;
-          o("v%d: dw", i);
+          size = sizeof(u64);
+          i32 imm = s->imm + (count * size) - size;
+          o("v%d: dd", i);
           for (u32 v = 0; v < count; ++v, imm -= size) {
-            u32 value = *(u32*)&c->imm[imm];
+            u32 value = (u32)(*(u64*)&c->imm[imm]);
             o(" %d,", value);
           }
           o(" ; `%s`\n", s->name);

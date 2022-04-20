@@ -1,0 +1,30 @@
+// text-game.spl
+
+include "lib/common.spl"
+include "common.spl"
+
+enum (
+  ENTITY_NONE,
+  ENTITY_PLAYER,
+
+  MAX_ENTITY_TYPE
+);
+
+const MAX_ENTITY : u64 512;
+let entity_count : u64 0;
+
+let entity.id    : u64 : MAX_ENTITY 0;
+let entity.type  : u64 : MAX_ENTITY 0;
+
+let game.entity_id : u64 0;
+
+fn game_init -> none {
+  store64 @entity_count 0;
+  store64 @game.entity_id 1;
+}
+
+fn game_entity_push -> none assert(0, "game_entity_add: not implemented yet\n");
+
+fn main -> none {
+  game_init();
+}
