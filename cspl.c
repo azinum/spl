@@ -2517,15 +2517,14 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
-      // TODO(lucas): align to an 8 byte boundary
-      // TODO(lucas): FIXME: cannot use the type size to change the locals offset counter, because the stack grows down (in the negative direction, if you will)
       if (fs != NULL) {
         i32 local_id = fs->locals_offset_counter;
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
           u32 type_size = compile_type_size[symbol->type];
           u32 count = symbol->size / type_size;
-          // fs->locals_offset_counter += type_size * count;
-          fs->locals_offset_counter += sizeof(u64) * count; // NOTE(lucas): this is a quick fix to align the memory to an 8 byte boundary
+          u32 remainder = (count * type_size) % sizeof(u64);
+          fs->locals_offset_counter += (type_size * count) + remainder;
+
           for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
               .i = I_MOVE_LOCAL,
