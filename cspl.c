@@ -89,14 +89,6 @@ typedef uint8_t u8;
 
 #define HERE printf("%s:%d: HERE\n", __FUNCTION__, __LINE__)
 
-#define VERBOSE 1
-
-#if VERBOSE
-  #define v_printf(...) fprintf(stdout, __VA_ARGS__)
-#else
-  #define v_printf(...)
-#endif
-
 #define Error (-1)
 #define NoError (0)
 
@@ -651,6 +643,9 @@ typedef struct Options {
 static i32 enable_warnings = 0;
 static i32 disable_dce = 0; // disable dead-code-elimination?
 static i32 dce_all = 0; // enable dce for everything?
+static i32 no_verbose = 0;
+
+#define v_fprintf(...) if (!no_verbose) fprintf(__VA_ARGS__)
 
 static i32 spl_start(Options* options);
 
@@ -825,6 +820,9 @@ i32 main(i32 argc, char** argv) {
     }
     else if (!strncmp(*argv, "dce-all", MAX_PATH_SIZE)) {
       dce_all = 1;
+    }
+    else if (!strncmp(*argv, "no-verbose", MAX_PATH_SIZE)) {
+      no_verbose = 1;
     }
     else {
       options.filename = *argv;
@@ -2911,7 +2909,6 @@ i32 compile(Compile* c, Compile_target target, FILE* fp) {
     compile_targets[target](c, fp);
     REAL_TIMER_END(
       print_info("code generation for `%s` took %lf seconds\n", compile_target_str[target], _dt);
-      (void)_dt;
     );
   }
   else {
@@ -4950,7 +4947,6 @@ void printline(FILE* fp, char* source, char* index, i32 token_length, i32 print_
 }
 
 void print_info(const char* fmt, ...) {
-#if VERBOSE
   char buffer[MAX_ERR_SIZE] = {0};
   va_list args;
   va_start(args, fmt);
@@ -4958,8 +4954,7 @@ void print_info(const char* fmt, ...) {
   va_end(args);
 
   FILE* fp = stdout;
-  fprintf(fp, "[info]: %s", buffer);
-#endif
+  v_fprintf(fp, "[info]: %s", buffer);
 }
 
 // TODO(lucas): clean up
@@ -5113,7 +5108,7 @@ i32 exec_command(const char* fmt, ...) {
   vsnprintf(command, MAX_COMMAND_SIZE, fmt, args);
   va_end(args);
 
-  fprintf(stdout, "[cmd]: %s\n", command);
+  v_fprintf(stdout, "[cmd]: %s\n", command);
   FILE* fp = popen(command, "w");
   if (!fp) {
     return Error;
