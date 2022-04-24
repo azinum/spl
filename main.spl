@@ -4,10 +4,5 @@
 
 // fn add(a : u32, b : u32) -> u32 + a b;
 
-fn f(x : u64) -> u64 * x x;
-fn g(x : u64, y : u64) -> u64 * x y;
-
 fn main -> none {
-  let a : u64 12;
-  let b @f;
 }
