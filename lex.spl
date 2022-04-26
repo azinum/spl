@@ -1,7 +1,7 @@
 // lex.spl
 
 // Token_type
-enum (
+enum u64 (
   T_EOF,
 
   T_IDENTIFIER,

@@ -1,6 +1,6 @@
 // ast.spl
 
-enum (
+enum u64 (
   AstNone,
   AstRoot,
   AstValue,

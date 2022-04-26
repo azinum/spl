@@ -1,7 +1,7 @@
 // ir.spl
 
 // Ir_code
-enum (
+enum u64 (
   I_NOP,
   I_POP,
   I_MOVE, // <id, offset, x>
@@ -57,7 +57,7 @@ enum (
 
 let ir_code_str : cstr : MAX_IR_CODE "";
 
-enum (
+enum u64 (
   TypeNone,
   TypeAny,
   TypeUnsigned64,

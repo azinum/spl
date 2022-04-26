@@ -4,5 +4,12 @@
 
 // fn add(a : u32, b : u32) -> u32 + a b;
 
+enum u32 (
+  A, B, C
+);
+
 fn main -> none {
+  print A;
+  print B;
+  print C;
 }

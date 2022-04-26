@@ -673,7 +673,6 @@ static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
 static Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast);
-static u32 typecheck_is_numerical(Compile* c, Compile_type type);
 static Compile_type ts_push(Compile* c, Compile_type type);
 static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
@@ -682,6 +681,7 @@ static i32 vs_pop(Compile* c, Value* v);
 static Value vs_top(Compile* c);
 static i32 check_func_signatures(Compile* c, Function* a, Function* b);
 static u32 is_branch_konst_eval(Ast* ast);
+static u32 is_numerical(Compile* c, Compile_type type);
 
 static void ir_compile_warning(Compile* c, const char* fmt, ...);
 static void ir_compile_warning_at(Compile* c, Token token, const char* fmt, ...);
@@ -1347,8 +1347,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
       if (
-          (typecheck_is_numerical(c, a) || a == TypeAny || a == TypeCString) &&
-          (typecheck_is_numerical(c, b) || b == TypeAny || b == TypeCString)
+          (is_numerical(c, a) || a == TypeAny || a == TypeCString) &&
+          (is_numerical(c, b) || b == TypeAny || b == TypeCString)
         ) {
         Value va;
         Value vb;
@@ -1610,7 +1610,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
-      if (typecheck_is_numerical(c, type)) {
+      if (is_numerical(c, type)) {
         Block local_block;
         block_init(&local_block, block);
         typecheck(c, &local_block, fs, body);
@@ -1626,7 +1626,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type type = typecheck(c, block, fs, cond);
       ts_pop(c); // pop condition result
       vs_pop(c, NULL);
-      if (typecheck_is_numerical(c, type)) {
+      if (is_numerical(c, type)) {
         Block local_block;
         block_init(&local_block, block);
         typecheck(c, &local_block, fs, body);
@@ -1647,7 +1647,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       i32 symbol_index = -1;
       Ast* node = ast->node[0];
       Compile_type type = typecheck(c, block, fs, node);
-      if (typecheck_is_numerical(c, type)) {
+      if (is_numerical(c, type)) {
         ts_pop(c);
         Value value;
         vs_pop(c, &value);
@@ -1722,13 +1722,18 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       return ts_push(c, TypeUnsigned64);
     }
     case AstEnum: {
-      Ast* enum_node = ast->node[0];
+      Ast* type_node = ast->node[0];
+      Ast* enum_node = ast->node[1];
       Value value = { .num = 0, };
       for (u32 i = 0; i < enum_node->count; ++i, ++value.num) {
         Ast* node = enum_node->node[i];
         Symbol* symbol = NULL;
         i32 symbol_index = -1;
-        Compile_type type = TypeUnsigned64;
+        Compile_type type = token_to_compile_type(type_node->token);
+        if (!is_numerical(c, type)) {
+          typecheck_error_at(c, type_node->token, "expected numerical type in enum expression\n");
+          return TypeNone;
+        }
         i32 imm = ir_push_value(c, &value.num, sizeof(value.num));
         if (compile_declare_value(c, block, fs, node->token, &symbol, node, &symbol_index) == NoError) {
           symbol->imm = imm;
@@ -1804,7 +1809,7 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
       Value value;
       vs_pop(c, &value);
       Compile_type array_specifier_type = ts_pop(c);
-      if (!typecheck_is_numerical(c, array_specifier_type)) {
+      if (!is_numerical(c, array_specifier_type)) {
         typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
         return TypeNone;
       }
@@ -1824,7 +1829,7 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   Compile_type type = ts_top(c);
   Compile_type prev_type = type;
 
-  if (konst && !typecheck_is_numerical(c, type)) {
+  if (konst && !is_numerical(c, type)) {
     typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
     return TypeNone;
   }
@@ -1878,11 +1883,6 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   }
   compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
   return TypeNone;
-}
-
-u32 typecheck_is_numerical(Compile* c, Compile_type type) {
-  (void)c; // unused for now
-  return type == TypeUnsigned64 || type == TypeUnsigned32;
 }
 
 Compile_type ts_push(Compile* c, Compile_type type) {
@@ -1963,6 +1963,11 @@ u32 is_branch_konst_eval(Ast* ast) {
     }
   }
   return konst;
+}
+
+u32 is_numerical(Compile* c, Compile_type type) {
+  (void)c; // unused for now
+  return type == TypeUnsigned64 || type == TypeUnsigned32;
 }
 
 void ir_compile_warning(Compile* c, const char* fmt, ...) {
@@ -4079,6 +4084,14 @@ Ast* parse_statement(Parser* p) {
     case T_ENUM: {
       Ast* enum_expr = ast_create(AstEnum);
       t = lexer_next(&p->l); // skip `enum`
+      Ast* type = parse_type(p);
+      if (type == NULL) {
+        t = lexer_peek(&p->l);
+        parser_error(p, "expected type in enum expression, but got `%.*s`\n", t.length, t.buffer);
+        return enum_expr;
+      }
+      ast_push(enum_expr, type);
+      t = lexer_peek(&p->l);
       if (t.type == T_LEFT_P) {
         lexer_next(&p->l); // skip `(`
         ast_push(enum_expr, parse_ident_list(p));
@@ -4406,7 +4419,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_NONE || t.type == T_ANY || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_CSTR) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32) {
     Ast* type = ast_create(AstType);
     type->token = t;
     t = lexer_next(&p->l); // skip type

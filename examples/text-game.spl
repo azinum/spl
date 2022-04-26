@@ -3,7 +3,7 @@
 include "lib/common.spl"
 include "common.spl"
 
-enum (
+enum u64 (
   ENTITY_NONE,
   ENTITY_PLAYER,
 
