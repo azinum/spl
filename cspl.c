@@ -481,6 +481,18 @@ static u64 compile_type_size[] = {
   sizeof(u64),
 };
 
+// type signature which contains a stack of primitive or user-defined types
+#define MAX_TYPE_SIGNATURE 8
+
+typedef union Type_info {
+  struct {
+    Compile_type signature[MAX_TYPE_SIGNATURE];
+    u32 signature_count;
+  };
+  u32 func_id;
+  u32 struct_id;
+} Type_info;
+
 // intermidiate representation of the instructions which are to be generated or interpreted
 typedef struct Op {
   Ir_code i;
@@ -1762,6 +1774,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       typecheck(c, block, fs, expr);
       ts_pop(c);
       Compile_type cast_type = token_to_compile_type(type_expr->token);
+      if (cast_type == TypeNone) {
+        typecheck_error_at(c, type_expr->token, "can not cast to type none\n");
+        return TypeNone;
+      }
       ts_push(c, cast_type);
       break;
     }
@@ -3372,7 +3388,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_LABEL: {
         assert((u32)op->dest < c->symbol_count);
         Symbol* symbol = &c->symbols[op->dest];
-        if (strcmp(symbol->name, "main") == 0) {
+        if (!strcmp(symbol->name, "main")) {
           o("%s:\n", symbol->name);
         }
         else {
@@ -3404,7 +3420,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o("pop %s\n", func_call_regs_x86_64[arg]);
         }
         o("push rbp\n");
-        // o("mov rbx, [v%d]\n", op->dest);
         o("call rax\n");
         o("pop rbp\n");
         if (op->src1 >= 0) {
