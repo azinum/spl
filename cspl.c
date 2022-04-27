@@ -458,10 +458,12 @@ typedef enum Compile_type {
   TypeFunc,
   TypeSyscallFunc,
 
-  MAX_COMPILE_TYPE,
+  MAX_PRIMITIVE_TYPE,
+
+  MAX_COMPILE_TYPE = 255,
 } Compile_type;
 
-static const char* compile_type_str[] = {
+static const char* compile_type_str[MAX_COMPILE_TYPE] = {
   "None",
   "Any",
   "Unsigned64",
@@ -471,7 +473,7 @@ static const char* compile_type_str[] = {
   "SyscallFunc",
 };
 
-static u64 compile_type_size[] = {
+static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   0,
   sizeof(u64),
   sizeof(u64),
@@ -490,7 +492,7 @@ typedef union Type_info {
     u32 signature_count;
   };
   u32 func_id;
-  u32 struct_id;
+  Compile_type alias;
 } Type_info;
 
 // intermidiate representation of the instructions which are to be generated or interpreted
@@ -643,6 +645,8 @@ typedef struct Compile {
 
   Value vs[MAX_VALUE_STACK];  // sometimes we need to grab values in the type checking phase, therefore we also have a value stack. this will probably be changed later
   i32 vs_count;
+
+  u32 type_count; // how many types are there, both primitive and user defined types?
 } Compile;
 
 typedef struct Options {
@@ -1051,6 +1055,7 @@ i32 compile_state_init(Compile* c) {
   c->entry_point_address = 0;
   c->ts_count = 0;
   c->vs_count = 0;
+  c->type_count = MAX_PRIMITIVE_TYPE;
 
   compile_create_syscall(c, "syscall0", 0);
   compile_create_syscall(c, "syscall1", 1);
