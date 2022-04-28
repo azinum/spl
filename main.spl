@@ -2,10 +2,8 @@
 
 // include "lib/common.spl"
 
-// fn add(a : u32, b : u32) -> u32 + a b;
-
-// fn hello(a : u64) -> none {}
+fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  let a : u64 2;
+  let thing : add add;
 }

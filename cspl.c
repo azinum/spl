@@ -471,6 +471,8 @@ static const char* compile_type_str[MAX_COMPILE_TYPE] = {
   "CString",
   "Func",
   "SyscallFunc",
+
+  "",
 };
 
 static u64 compile_type_size[MAX_COMPILE_TYPE] = {
@@ -481,6 +483,8 @@ static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   sizeof(u64),
   sizeof(u64),
   sizeof(u64),
+
+  0,
 };
 
 // type signature which contains a stack of primitive or user-defined types
@@ -491,9 +495,10 @@ typedef union Type_info {
     Compile_type signature[MAX_TYPE_SIGNATURE];
     u32 signature_count;
   };
-  u32 func_id;
   Compile_type alias;
 } Type_info;
+
+static Type_info type_infos[MAX_COMPILE_TYPE];
 
 // intermidiate representation of the instructions which are to be generated or interpreted
 typedef struct Op {
@@ -1780,8 +1785,22 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_pop(c);
       Compile_type cast_type = token_to_compile_type(type_expr->token);
       if (cast_type == TypeNone) {
-        typecheck_error_at(c, type_expr->token, "can not cast to type none\n");
-        return TypeNone;
+        if (type_expr->token.type == T_IDENTIFIER) {
+          Symbol* symbol = NULL;
+          i32 symbol_index = -1;
+          if (compile_lookup_value(c, block, fs, type_expr->token, &symbol, &symbol_index, NULL) == NoError) {
+            vs_pop(c, NULL);
+            vs_push(c, symbol->value);
+            ts_push(c, symbol->type);
+            break;
+          }
+          typecheck_error_at(c, type_expr->token, "symbol `%.*s` not defined\n", type_expr->token.length, type_expr->token.buffer);
+          return TypeNone;
+        }
+        else {
+          typecheck_error_at(c, type_expr->token, "can not cast to type none\n");
+          return TypeNone;
+        }
       }
       ts_push(c, cast_type);
       break;
@@ -1825,6 +1844,18 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   Compile_type explicit_type = -1;
   if (ast_type) {
     explicit_type = token_to_compile_type(ast_type->token);
+    Token token = ast_type->token;
+    if (explicit_type == TypeNone && token.type == T_IDENTIFIER) {
+      Symbol* symbol = NULL;
+      i32 symbol_index = -1;
+      if (compile_lookup_value(c, block, fs, token, &symbol, &symbol_index, NULL) == NoError) {
+        explicit_type = symbol->type;
+      }
+      else {
+        typecheck_error_at(c, token, "symbol `%.*s` not defined\n", token.length, token.buffer);
+        return TypeNone;
+      }
+    }
     if (ast_type->count > 0) { // array specifier
       typecheck(c, block, fs, ast_type);
       Value value;
@@ -4439,7 +4470,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_NONE || t.type == T_ANY || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_IDENTIFIER) {
     Ast* type = ast_create(AstType);
     type->token = t;
     t = lexer_next(&p->l); // skip type
