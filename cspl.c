@@ -123,6 +123,7 @@ typedef enum Token_type {
   T_LET,
   T_MEMORY,
   T_PRINT,
+  T_STATIC_ASSERT,
   T_INCLUDE,
   T_FN,
   T_ARROW,
@@ -189,6 +190,7 @@ static const char* token_type_str[] = {
   "T_LET",
   "T_MEMORY",
   "T_PRINT",
+  "T_STATIC_ASSERT",
   "T_INCLUDE",
   "T_FN",
   "T_ARROW",
@@ -274,6 +276,7 @@ typedef enum Ast_type {
   AstSizeof,
   AstEnum,
   AstCastExpression,
+  AstStaticAssert,
 
   MAX_AST_TYPE,
 } Ast_type;
@@ -302,6 +305,7 @@ static const char* ast_type_str[] = {
   "Sizeof",
   "Enum",
   "CastExpression",
+  "StaticAssert",
 };
 
 typedef struct Ast {
@@ -1805,6 +1809,23 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       ts_push(c, cast_type);
       break;
     }
+    case AstStaticAssert: {
+      Ast* expr = ast->node[0];
+      Ast* node = ast->node[1];
+      typecheck(c, block, fs, expr);
+      ts_pop(c);
+      Value value;
+      vs_pop(c, &value);
+      if (!value.konst) {
+        typecheck_error_at(c, expr->token, "can not do static assert on an expression which is evaluated in runtime\n");
+        return TypeNone;
+      }
+      if (value.num == 0) {
+        compile_error_at(c, expr->token, "assertion failed: %.*s\n", node->token.length, node->token.buffer);
+        return TypeNone;
+      }
+      break;
+    }
     default: {
       assert(0);
       break;
@@ -2857,6 +2878,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
     }
     case AstEnum:
     case AstType:
+    case AstStaticAssert:
       break;
     case AstCastExpression: {
       ir_compile(c, block, fs, ast->node[0], ins_count);
@@ -4163,6 +4185,23 @@ Ast* parse_statement(Parser* p) {
       lexer_next(&p->l); // skip `;`
       return enum_expr;
     }
+    case T_STATIC_ASSERT: {
+      lexer_next(&p->l); // skip `static_assert`
+      Ast* expr = ast_create(AstStaticAssert);
+      expr->token = t;
+      // ast_push(expr, ast_push(ast_create(AstExpression), parse_expr(p)));
+      ast_push(expr, parse_expr(p));
+      t = lexer_peek(&p->l);
+      if (t.type != T_CSTRING) {
+        parser_error(p, "expected string in static assert statement, but got `%.*s`\n", t.length, t.buffer);
+        return expr;
+      }
+      Ast* node = ast_create(AstValue);
+      node->token = t;
+      ast_push(expr, node);
+      lexer_next(&p->l); // skip string
+      return expr;
+    }
     default: {
       Ast* expr = parse_expr(p);
       t = lexer_peek(&p->l);
@@ -4611,6 +4650,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "print")) {
     l->token.type = T_PRINT;
+  }
+  else if (compare(l->token, "static_assert")) {
+    l->token.type = T_STATIC_ASSERT;
   }
   else if (compare(l->token, "include")) {
     l->token.type = T_INCLUDE;
