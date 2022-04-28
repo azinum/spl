@@ -2,9 +2,9 @@
 
 // include "lib/common.spl"
 
-fn add(a : u64, b : u64) -> u64 + a b;
+// fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  let a : u64 add(2, 3);
-  static_assert not a "hello there";
+  let a : u64 3;
+  let b : ptr @a;
 }

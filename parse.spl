@@ -390,7 +390,7 @@ fn parse_include -> u64 {
 
     let filename_path tmp_it;
     tmp_push_str(path, + 1 path_length);
-    store8 + filename_path path_length 0;
+    store8 cast (+ filename_path path_length) ptr 0;
     let fd open(filename_path, 0, O_RDONLY);
     if neq fd ERROR {
       let file_source tmp_it;

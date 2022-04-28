@@ -152,6 +152,7 @@ typedef enum Token_type {
   // built-in types
   T_NONE,
   T_ANY,
+  T_PTR,
   T_UNSIGNED64,
   T_UNSIGNED32,
   T_CSTR,
@@ -218,6 +219,7 @@ static const char* token_type_str[] = {
 
   "T_NONE",
   "T_ANY",
+  "T_PTR",
   "T_UNSIGNED64",
   "T_UNSIGNED32",
   "T_CSTR",
@@ -456,6 +458,7 @@ static const char* func_call_regs_x86_64[] = {
 typedef enum Compile_type {
   TypeNone = 0,
   TypeAny,
+  TypePtr,
   TypeUnsigned64,
   TypeUnsigned32,
   TypeCString,
@@ -470,6 +473,7 @@ typedef enum Compile_type {
 static const char* compile_type_str[MAX_COMPILE_TYPE] = {
   "None",
   "Any",
+  "Ptr",
   "Unsigned64",
   "Unsigned32",
   "CString",
@@ -481,12 +485,13 @@ static const char* compile_type_str[MAX_COMPILE_TYPE] = {
 
 static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   0,
-  sizeof(u64),
+  sizeof(void*),
+  sizeof(void*),
   sizeof(u64),
   sizeof(u32),
-  sizeof(u64),
-  sizeof(u64),
-  sizeof(u64),
+  sizeof(void*),
+  sizeof(void*),
+  sizeof(void*),
 
   0,
 };
@@ -1344,13 +1349,13 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             }
             ast->token.v.i = symbol_index;
             vs_push(c, symbol->value);
-            return ts_push(c, TypeUnsigned64); // pointers are handled as 64-bit unsigned integers for now
+            return ts_push(c, TypePtr);
           }
           compile_error_at(c, ast->token, "symbol `%.*s` not defined\n", ast->token.length, ast->token.buffer);
           return TypeNone;
         }
         default: {
-          assert(0); // TODO: handle
+          assert(0);
           break;
         }
       }
@@ -1373,8 +1378,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Compile_type b = ts_pop(c);
       Compile_type a = ts_pop(c);
       if (
-          (is_numerical(c, a) || a == TypeAny || a == TypeCString) &&
-          (is_numerical(c, b) || b == TypeAny || b == TypeCString)
+          (is_numerical(c, a) || a == TypeAny || a == TypePtr || a == TypeCString) &&
+          (is_numerical(c, b) || b == TypeAny || b == TypePtr || b == TypeCString)
         ) {
         Value va;
         Value vb;
@@ -1441,7 +1446,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             break;
         }
         vs_push(c, (Value) { .num = num, .konst = ast->konst, });
-        // return ts_push(c, TypeUnsigned64);
         return ts_push(c, a);
       }
       typecheck_error_at(c, ast->token, "type mismatch in binary operator expression\n");
@@ -1697,7 +1701,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstAssignment: {
       Compile_type a = typecheck(c, block, fs, ast->node[0]);
       typecheck(c, block, fs, ast->node[1]);
-      if (a == TypeUnsigned64 || a == TypeAny) {
+      if (a == TypePtr || a == TypeAny) {
         vs_pop(c, NULL);
         vs_pop(c, NULL);
         ts_pop(c);
@@ -1901,6 +1905,10 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
 
   Compile_type type = ts_top(c);
   Compile_type prev_type = type;
+
+  if ((i32)explicit_type != -1) {
+    prev_type = explicit_type;
+  }
 
   if (konst && !is_numerical(c, type)) {
     typecheck_error_at(c, ast->token, "only numeric values are allowed in constants\n");
@@ -3056,6 +3064,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_MOVE\n");
         switch (op->dest) {
           case TypeAny:
+          case TypePtr:
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned64: {
@@ -3079,6 +3088,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_MOVE_LOCAL\n");
         switch (op->dest) {
           case TypeAny:
+          case TypePtr:
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned64: {
@@ -3186,6 +3196,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_PUSH_LOCAL_ADDR_OF\n");
         switch (op->dest) {
           case TypeAny:
+          case TypePtr:
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned32:
@@ -3205,6 +3216,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         if (op->src0 >= 0) {
           switch (op->dest) {
             case TypeAny:
+            case TypePtr:
             case TypeUnsigned64: {
               o("mov rax, [v%d]\n", op->src0);
               o("push rax\n");
@@ -3237,6 +3249,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         vo("; I_PUSH_LOCAL\n");
         switch (op->dest) {
           case TypeAny:
+          case TypePtr:
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned64: {
@@ -3695,6 +3708,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
     }
     if ((s->sym_type == SYM_GLOBAL_VAR || s->sym_type == SYM_LOCAL_VAR) && s->konst == 0) {
       switch (s->type) {
+        case TypeAny: {
+          o("v%d: resb %d ; `%s` : Any\n", i, s->size, s->name);
+          break;
+        }
+        case TypePtr: {
+          o("v%d: resb %d ; `%s` : Ptr\n", i, s->size, s->name);
+          break;
+        }
         case TypeUnsigned64: {
           o("v%d: resb %d ; `%s` : Unsigned64\n", i, s->size, s->name);
           break;
@@ -3710,9 +3731,6 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         case TypeFunc: {
           o("v%d: resb %d ; `%s` : Func\n", i, s->size, s->name);
           break;
-        }
-        case TypeAny: {
-          o("v%d: resb %d ; `%s` : Any\n", i, s->size, s->name);
         }
         case TypeNone:
         case TypeSyscallFunc:
@@ -4509,7 +4527,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_NONE || t.type == T_ANY || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_IDENTIFIER) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_PTR || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_IDENTIFIER) {
     Ast* type = ast_create(AstType);
     type->token = t;
     t = lexer_next(&p->l); // skip type
@@ -4740,6 +4758,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "any")) {
     l->token.type = T_ANY;
+  }
+  else if (compare(l->token, "ptr")) {
+    l->token.type = T_PTR;
   }
   else if (compare(l->token, "u64")) {
     l->token.type = T_UNSIGNED64;
@@ -4993,6 +5014,7 @@ Token lexer_peek(Lexer* l) {
 Compile_type token_to_compile_type(Token t) {
   switch (t.type) {
     case T_ANY:         return TypeAny;
+    case T_PTR:         return TypePtr;
     case T_UNSIGNED64:  return TypeUnsigned64;
     case T_UNSIGNED32:  return TypeUnsigned32;
     case T_CSTRING:

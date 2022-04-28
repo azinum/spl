@@ -87,12 +87,12 @@ const Token.column + Token.line sizeof u64;
 const Token.size + Token.column sizeof u64;
 
 // struct Lexer {
-let l.filename "";
-let l.source "";
-let l.index 0;
-let l.line 0;
-let l.column 0;
-let l.status 0;
+let l.filename : cstr "";
+let l.source : cstr "";
+let l.index : ptr cast 0 ptr;
+let l.line : u64 0;
+let l.column : u64 0;
+let l.status : u64 0;
 // };
 
 fn token_init(token : any, buffer : any, length : u64, type : u64, filename : any, source : any) -> none {

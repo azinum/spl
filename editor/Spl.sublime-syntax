@@ -18,7 +18,7 @@ file_extensions:
 
 variables:
   keywords: (include|print|const|let|fn|memory|if|else|while|and|or|not|eq|neq|lshift|rshift|sizeof|store64|store32|store16|store8|load64|load32|load16|load8|enum|alias|struct|cast|static_assert)
-  predeclared_type: (none|any|cstr|u64|i64|u32|i32|u16|i16|u8|i8)
+  predeclared_type: (none|any|ptr|cstr|u64|i64|u32|i32|u16|i16|u8|i8)
   char_escape: \\[nr\\"']
   number: ([0-9]+)
 

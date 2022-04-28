@@ -68,20 +68,20 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
   or neq load8 b 0 result;
 }
 
-fn memset(ptr : any, c : u64, n : u64) -> none {
+fn memset(mem : ptr, c : u64, n : u64) -> none {
   let count : u64 0;
   while < count n {
-    store8 ptr c;
-    = @ptr   +1 ptr;
+    store8 mem c;
+    = @mem   +1 mem;
     = @count +1 count;
   }
 }
 
-fn memset8(ptr : any, c : u64, n : u64) -> none {
+fn memset8(mem : any, c : u64, n : u64) -> none {
   let count : u64 0;
   while < count n {
-    store64 ptr c;
-    = @ptr   + sizeof u64 ptr;
+    store64 mem c;
+    = @mem   + sizeof u64 mem;
     = @count + sizeof u64 count;
   }
 }
