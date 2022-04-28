@@ -1,12 +1,12 @@
 // hello-world.spl
 
-fn write(fd : u64, buf : any, count : u64) -> none { let _ syscall3(1, fd, buf, count); }
+include "lib/common.spl"
 
 fn version1 -> none {
   memory hello-world 16;
-  = (+0 @hello-world) 6278066737626506568;
-  = (+8 @hello-world) 7792634774869013103;
-  let size 13;
+  = (@hello-world) 6278066737626506568;
+  = (+ @hello-world sizeof u64) 7792634774869013103;
+  let size : u64 13;
   write(1, @hello-world, size);
 }
 
@@ -26,7 +26,7 @@ fn version2 -> none {
   store8 str 'l'; = @str +1 str;
   store8 str 'd'; = @str +1 str;
   store8 str 10 ; = @str +1 str;
-  let count - str @hello-world;
+  let count : u64 cast - str @hello-world u64;
   write(1, @hello-world, count);
 }
 

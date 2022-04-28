@@ -23,8 +23,8 @@ fn ca_init(codep : any, map : any, map.w : u64, map.h : u64) -> none {
   store8 codep 72; = @codep +1 codep;
   // randomize map
   memory value_map 2;
-  store8    @value_map ' ';
-  store8 +1 @value_map 'x';
+  store8 @value_map     ' ';
+  store8 @value_map + 1 'x';
   let seed time();
   let x 0;
   let y 0;
@@ -104,7 +104,7 @@ fn main -> none {
   memory timespec * 2 sizeof u64;
   let ts @timespec;
   = ts 0;
-  = + sizeof u64 ts 500000000;
+  = + ts sizeof u64 500000000;
 
   let running 1;
 
