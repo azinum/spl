@@ -5,6 +5,7 @@
 // fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  let a : u64 3;
+  let a : u64 12;
   let b : ptr @a;
+  print b;
 }

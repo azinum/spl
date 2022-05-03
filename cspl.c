@@ -909,7 +909,7 @@ i32 spl_start(Options* options) {
                 fclose(fp);
               }
               REAL_TIMER_END(
-                print_info("compilation took %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
+                print_info("total compilation time was %lf seconds (%d loc, %d file(s))\n", _dt, p.total_lines, p.source_count);
                 (void)_dt;
               );
               char exec_path[MAX_PATH_SIZE] = {0};
@@ -4207,7 +4207,6 @@ Ast* parse_statement(Parser* p) {
       lexer_next(&p->l); // skip `static_assert`
       Ast* expr = ast_create(AstStaticAssert);
       expr->token = t;
-      // ast_push(expr, ast_push(ast_create(AstExpression), parse_expr(p)));
       ast_push(expr, parse_expr(p));
       t = lexer_peek(&p->l);
       if (t.type != T_CSTRING) {
