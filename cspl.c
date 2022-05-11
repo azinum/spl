@@ -148,6 +148,7 @@ typedef enum Token_type {
   T_ENUM,
   T_ALIAS,
   T_CAST,
+  T_STRUCT,
 
   // built-in types
   T_NONE,
@@ -216,6 +217,7 @@ static const char* token_type_str[] = {
   "T_ENUM",
   "T_ALIAS",
   "T_CAST",
+  "T_STRUCT",
 
   "T_NONE",
   "T_ANY",
@@ -277,6 +279,7 @@ typedef enum Ast_type {
   AstType,
   AstSizeof,
   AstEnum,
+  AstStruct,
   AstCastExpression,
   AstStaticAssert,
 
@@ -306,6 +309,7 @@ static const char* ast_type_str[] = {
   "Type",
   "Sizeof",
   "Enum",
+  "Struct",
   "CastExpression",
   "StaticAssert",
 };
@@ -464,6 +468,7 @@ typedef enum Compile_type {
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
+  TypeStruct,
 
   MAX_PRIMITIVE_TYPE,
 
@@ -479,6 +484,7 @@ static const char* compile_type_str[MAX_COMPILE_TYPE] = {
   "CString",
   "Func",
   "SyscallFunc",
+  "Struct",
 
   "",
 };
@@ -492,6 +498,7 @@ static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   sizeof(void*),
   sizeof(void*),
   sizeof(void*),
+  0,
 
   0,
 };
@@ -1780,6 +1787,49 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       }
       break;
     }
+    case AstStruct: {
+      Ast* fields = ast->node[0];
+      u64 field_offset = 0;
+      Value value = { .num = 0, };
+      for (u32 i = 0; i < fields->count; ++i) {
+        Ast* field = fields->node[i];
+        Token field_ident = field->node[0]->token;
+
+        Symbol* symbol = NULL;
+        i32 symbol_index = -1;
+        i32 imm = ir_push_value(c, &field_offset, sizeof(field_offset));
+        if (compile_declare_value(c, block, fs, field_ident, &symbol, field, &symbol_index) == NoError) {
+          symbol->imm = imm;
+          symbol->size = compile_type_size[TypeUnsigned64];
+          symbol->konst = 1;
+          symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
+          symbol->type = TypeUnsigned64;
+          symbol->value = value;
+        }
+        else {
+          compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field_ident.length, field_ident.buffer);
+          return TypeNone;
+        }
+        Compile_type type = token_to_compile_type(field->token);
+        field_offset += compile_type_size[type];
+      }
+      // struct symbol definition
+      Symbol* symbol = NULL;
+      i32 symbol_index = -1;
+      i32 imm = ir_push_value(c, &field_offset, sizeof(field_offset));
+      if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
+        symbol->imm = imm;
+        symbol->size = compile_type_size[TypeUnsigned64];
+        symbol->konst = 1;
+        symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
+        symbol->type = TypeUnsigned64; // FIXME: temp hack
+        symbol->value = value;
+        symbol->token.v.i = symbol_index;
+        return TypeNone;
+      }
+      compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
+      return TypeNone;
+    }
     case AstType: {
       if (ast->count > 0) {
         typecheck_node_list(c, block, fs, ast);
@@ -2885,6 +2935,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       break;
     }
     case AstEnum:
+    case AstStruct:
     case AstType:
     case AstStaticAssert:
       break;
@@ -4203,6 +4254,39 @@ Ast* parse_statement(Parser* p) {
       lexer_next(&p->l); // skip `;`
       return enum_expr;
     }
+    case T_STRUCT: {
+      Ast* struct_expr = ast_create(AstStruct);
+      t = lexer_next(&p->l); // skip `struct`
+      if (t.type != T_IDENTIFIER) {
+        parser_error(p, "expected identifier in struct definition, but got `%.*s`\n", t.length, t.buffer);
+        return struct_expr;
+      }
+      struct_expr->token = t;
+      t = lexer_next(&p->l); // skip identifier
+      if (t.type == T_LEFT_P) {
+        lexer_next(&p->l); // skip `(`
+        ast_push(struct_expr, parse_param_list(p));
+        if (p->status == Error) {
+          return struct_expr;
+        }
+        t = lexer_peek(&p->l);
+        if (t.type != T_RIGHT_P) {
+          parser_error(p, "expected closing `)` parenthesis after struct field list, but got `%.*s`\n", t.length, t.buffer);
+          return struct_expr;
+        }
+        lexer_next(&p->l); // skip `)`
+      }
+      else {
+        parser_error(p, "expected open `(` parenthesis to begin struct field list, but got `%.*s`\n", t.length, t.buffer);
+        return struct_expr;
+      }
+      t = lexer_peek(&p->l);
+      if (t.type != T_SEMICOLON) {
+        parser_error(p, "expected `;` after struct definition, but got `%.*s`\n", t.length, t.buffer);
+      }
+      lexer_next(&p->l); // skip `;`
+      return struct_expr;
+    }
     case T_STATIC_ASSERT: {
       lexer_next(&p->l); // skip `static_assert`
       Ast* expr = ast_create(AstStaticAssert);
@@ -4229,7 +4313,7 @@ Ast* parse_statement(Parser* p) {
       return expr;
     }
   }
-  assert("something went wrong" && 0);
+  assert(!"something went wrong");
   return NULL;
 }
 
@@ -4400,7 +4484,7 @@ Ast* parse_func_def(Parser* p) {
       }
       t = lexer_peek(&p->l);
       if (t.type != T_RIGHT_P) {
-        parser_error(p, "expected `)` right parenthesis in function parameter list, but got `%.*s`\n", t.length, t.buffer);
+        parser_error(p, "expected closing `)` parenthesis in function parameter list, but got `%.*s`\n", t.length, t.buffer);
         return func_def;
       }
       lexer_next(&p->l); // skip `)`
@@ -4751,6 +4835,9 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "cast")) {
     l->token.type = T_CAST;
+  }
+  else if (compare(l->token, "struct")) {
+    l->token.type = T_STRUCT;
   }
   else if (compare(l->token, "none")) {
     l->token.type = T_NONE;
