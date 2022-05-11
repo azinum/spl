@@ -1816,13 +1816,12 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       // struct symbol definition
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      i32 imm = ir_push_value(c, &field_offset, sizeof(field_offset));
       if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
-        symbol->imm = imm;
-        symbol->size = compile_type_size[TypeUnsigned64];
-        symbol->konst = 1;
+        symbol->imm = -1;
+        symbol->size = field_offset;
+        symbol->konst = 0;
         symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
-        symbol->type = TypeUnsigned64; // FIXME: temp hack
+        symbol->type = TypeStruct;
         symbol->value = value;
         symbol->token.v.i = symbol_index;
         return TypeNone;
@@ -3745,7 +3744,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           break;
         }
         default: {
-          assert("type not implemented yet" && 0);
+          assert(!"type not implemented");
           break;
         }
       }
@@ -3786,6 +3785,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         case TypeNone:
         case TypeSyscallFunc:
           break;
+        case TypeStruct: {
+          o("v%d: resb %d ; `%s` : Struct\n", i, s->size, s->name);
+          break;
+        }
         default: {
           assert("type not implemented yet" && 0);
           break;
