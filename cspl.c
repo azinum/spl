@@ -498,7 +498,7 @@ static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   sizeof(void*),
   sizeof(void*),
   sizeof(void*),
-  0,
+  1,
 
   0,
 };
@@ -1749,6 +1749,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           break;
         }
         default: {
+          assert(!"type not implemented yet");
           break;
         }
       }
@@ -1814,6 +1815,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         field_offset += compile_type_size[type];
       }
       // struct symbol definition
+      // TODO(lucas): store struct fields somewhere, for a sort of struct type signature, and find a way to use them in the type system
       Symbol* symbol = NULL;
       i32 symbol_index = -1;
       if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
@@ -1870,7 +1872,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value value;
       vs_pop(c, &value);
       if (!value.konst) {
-        typecheck_error_at(c, expr->token, "can not do static assert on an expression which is evaluated in runtime\n");
+        typecheck_error_at(c, expr->token, "can not do static assert on an expression that is evaluated at runtime\n");
         return TypeNone;
       }
       if (value.num == 0) {
@@ -1894,6 +1896,7 @@ Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* as
   return TypeNone;
 }
 
+// TODO(lucas): implement constant structs
 Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast) {
   i32 konst = ast->type == AstConstStatement;
   i32 ts_count = c->ts_count;
@@ -1914,16 +1917,17 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
     return TypeNone;
   }
 
+  Symbol* expl_type_symbol = NULL;
+
   // typecheck explicit type, if there is one
   Compile_type explicit_type = -1;
   if (ast_type) {
     explicit_type = token_to_compile_type(ast_type->token);
     Token token = ast_type->token;
     if (explicit_type == TypeNone && token.type == T_IDENTIFIER) {
-      Symbol* symbol = NULL;
       i32 symbol_index = -1;
-      if (compile_lookup_value(c, block, fs, token, &symbol, &symbol_index, NULL) == NoError) {
-        explicit_type = symbol->type;
+      if (compile_lookup_value(c, block, fs, token, &expl_type_symbol, &symbol_index, NULL) == NoError) {
+        explicit_type = expl_type_symbol->type;
       }
       else {
         typecheck_error_at(c, token, "symbol `%.*s` not defined\n", token.length, token.buffer);
@@ -1966,7 +1970,7 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
 
   for (i32 i = 0; i < ts_delta; ++i) {
     type = ts_pop(c);
-    if (type != prev_type && explicit_type != TypeAny) {
+    if (type != prev_type && explicit_type != TypeAny && explicit_type != TypeStruct) {
       typecheck_error_at(c, ast->token, "incompatible type in expression list\n");
       return TypeNone;
     }
@@ -1992,9 +1996,14 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
     type = explicit_type;
   }
 
-  // if this is a const, make sure to update the immediate value index
+  // if this is a constant, make sure to update the immediate value index
   if (konst) {
     imm -= (ts_delta - 1) * compile_type_size[TypeUnsigned64];
+  }
+
+  u32 type_size = compile_type_size[type];
+  if (type == TypeStruct && expl_type_symbol) {
+    type_size = expl_type_symbol->size;
   }
 
   // store symbol
@@ -2002,7 +2011,7 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   i32 symbol_index = -1;
   if (compile_declare_value(c, block, fs, ast->token, &symbol, ast, &symbol_index) == NoError) {
     symbol->imm = imm;
-    symbol->size = num_elements * compile_type_size[type];
+    symbol->size = num_elements * type_size;
     symbol->num_elemements_init = ts_delta;
     symbol->konst = konst;
     symbol->sym_type = (const Symbol_type[]){SYM_LOCAL_VAR, SYM_GLOBAL_VAR}[block == &c->global];
@@ -2653,12 +2662,15 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
       if (fs != NULL) {
         i32 local_id = fs->locals_offset_counter;
+        u32 type_size = compile_type_size[symbol->type];
+        u32 count = symbol->size / type_size;
+        u32 remainder = (count * type_size) % sizeof(u64);
+        fs->locals_offset_counter += (type_size * count) + remainder;
+        if (symbol->type == TypeStruct) {
+          symbol->local_id = fs->locals_offset_counter - sizeof(u64);
+          break;
+        }
         if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
-          u32 type_size = compile_type_size[symbol->type];
-          u32 count = symbol->size / type_size;
-          u32 remainder = (count * type_size) % sizeof(u64);
-          fs->locals_offset_counter += (type_size * count) + remainder;
-
           for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
             ir_push_ins(c, (Op) {
               .i = I_MOVE_LOCAL,
@@ -2692,7 +2704,6 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
       }
       Function* func = &symbol->value.func;
       ir_compile_func_args(c, block, fs, ast->node[0], ins_count); // compile function args in reverse order
-      // TODO(lucas): fully implement
       switch (symbol->type) {
         case TypeAny:
         case TypeFunc: {
@@ -3128,7 +3139,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             break;
           }
           default: {
-            assert("type not implemented yet" && 0);
+            assert(!"type not implemented yet");
             break;
           }
         }
@@ -3152,7 +3163,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             break;
           }
           default: {
-            assert("type not implemented yet" && 0);
+            assert(!"type not implemented yet");
             break;
           }
         }
@@ -3250,7 +3261,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypeCString:
           case TypeFunc:
           case TypeUnsigned32:
-          case TypeUnsigned64: {
+          case TypeUnsigned64:
+          case TypeStruct: {
             o("lea rax, [rbp-%d]\n", op->src0);
             o("push rax\n");
             break;
@@ -3802,7 +3814,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
 }
 
 i32 compile_win_nasm_x86_64(Compile* c, FILE* fp) {
-  assert("compile_win_nasm_x86_64 not implemented yet" && 0);
+  assert(!"compile_win_nasm_x86_64 not implemented yet");
   (void)fp; // unused
   return c->status;
 }
@@ -4268,7 +4280,12 @@ Ast* parse_statement(Parser* p) {
       t = lexer_next(&p->l); // skip identifier
       if (t.type == T_LEFT_P) {
         lexer_next(&p->l); // skip `(`
-        ast_push(struct_expr, parse_param_list(p));
+        Ast* fields = parse_param_list(p);
+        ast_push(struct_expr, fields);
+        if (!fields->count) {
+          parser_error(p, "missing struct fields\n");
+          return struct_expr;
+        }
         if (p->status == Error) {
           return struct_expr;
         }

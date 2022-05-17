@@ -4,11 +4,16 @@
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
+// TODO(lucas): concatinate field names to the structure that they belong to e.g. a will become T.a
 struct T (
   a : u64,
-  b : u64
+  b : u32
 );
 
 fn main -> none {
-
+  let t : T 0;
+  store64 + @t a 12;
+  store32 + @t b 14;
+  print load64 + @t a;
+  print load32 + @t b;
 }
