@@ -39,7 +39,7 @@ const MAX_INTERNAL_NODE : u64 16; // how many nodes each node can hold
 
 // ast node offsets
 struct Ast (
-  node  : ptr,
+  node  : ptr : MAX_INTERNAL_NODE,
   count : u64,
   type  : u64,
   token : Token,

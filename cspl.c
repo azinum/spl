@@ -1801,8 +1801,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value value = { .num = 0, };
       for (u32 i = 0; i < fields->count; ++i) {
         Ast* field = fields->node[i];
+        Ast* field_type = field->node[0];
         Token field_token = field->token;
-        Token field_type = field->node[0]->token;
 
         char* it = tmp_it;
         char* start_it = it;
@@ -1829,17 +1829,24 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field->token.length, field->token.buffer);
           return TypeNone;
         }
+        // TODO(lucas): implement compile time evaluation of expressions for the array size specifiers
         Symbol* field_symbol = NULL;
-        Compile_type type = token_to_compile_type(c, block, fs, field_type, &field_symbol);
+        Compile_type type = token_to_compile_type(c, block, fs, field_type->token, &field_symbol);
+        u64 field_size = 0;
         if (type == TypeStruct && field_symbol) {
-          field_offset += field_symbol->size;
+          field_size += field_symbol->size;
         }
         else if (type == TypeNone) {
-          compile_error_at(c, field_type, "type `%.*s` does not exist\n", field_type.length, field_type.buffer);
+          compile_error_at(c, field_type->token, "type `%.*s` does not exist\n", field_type->token.length, field_type->token.buffer);
+          return TypeNone;
         }
         else {
-          field_offset += compile_type_size[type];
+          field_size = compile_type_size[type];
         }
+        if (field_type->count != 0) {
+          field_size *= field_type->node[0]->token.v.num;
+        }
+        field_offset += field_size;
       }
       // struct symbol definition
       // TODO(lucas): store struct fields somewhere, for a sort of struct type signature, and find a way to use them in the type system

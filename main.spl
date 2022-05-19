@@ -6,16 +6,16 @@
 
 struct A (
   a : u64,
-  b : u64,
-  c : u32
+  b : u32
 );
 
+const NUM_ELEMENTS 8;
+
 struct B (
-  a : A,
+  a : A : NUM_ELEMENTS,
   b : u64
 );
 
 fn main -> none {
-  print sizeof A;
   print sizeof B;
 }
