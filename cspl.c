@@ -1805,13 +1805,14 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Token field_type = field->node[0]->token;
 
         char* it = tmp_it;
+        char* start_it = it;
         field->token.buffer = it;
 
         strncpy(it, ast->token.buffer, ast->token.length); it += ast->token.length;
         strcpy(it, "."); it++;
         strncpy(it, field_token.buffer, field_token.length); it += field_token.length;
 
-        field->token.length = ast->token.length + 1 + field_token.length;
+        field->token.length = it - start_it;
 
         Symbol* symbol = NULL;
         i32 symbol_index = -1;
