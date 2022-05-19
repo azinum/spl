@@ -6,9 +6,9 @@
 
 include "lib/common.spl"
 include "common.spl"
-include "lex.spl"
+include "lexer.spl"
 include "ast.spl"
-include "parse.spl"
+include "parser.spl"
 include "typecheck.spl"
 include "ir.spl"
 include "compile.spl"
@@ -18,7 +18,14 @@ fn usage(prog : any) -> none {
   let p tmp_push_cstr;
   p("Usage; ");
   p(prog);
-  p(" [-t <filename>]\n");
+  p(" [OPTIONS]\n\nOPTIONS:\n");
+  p("  <filename>      - path to file\n");
+  p("  run             - run program directly\n");
+  p("  no-com          - do not compile target executable\n");
+  p("  no-debug        - do not write debug information\n");
+  p("  enable-warnings - enable basic warnings\n");
+  p("  disable-dce     - disable dead code elimination\n");
+  p("  dce-all         - eliminate all dead code, including all symbols\n");
   puts(STDOUT_FILENO, it);
   = @tmp_it it;
 }
@@ -33,7 +40,7 @@ fn spl_start(filename : any) -> u64 {
     = @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
       = @result parse();
-      if and eq p.status NoError eq l.status NoError {
+      if and eq load64 + @p p.status NoError eq l.status NoError {
         // ast_print(p.ast, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           compile_state_free();
@@ -71,7 +78,7 @@ fn main(argc : u64, argv : any) -> none {
   }
   else {
     = @arg + sizeof any arg;
-    let filename #arg;
+    let filename cast cstr #arg;
     let result spl_start(filename);
   }
 }

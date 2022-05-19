@@ -1,17 +1,19 @@
-// parse.spl
+// parser.spl
 
-// struct Parser {
-let p.ast 0;
-let p.status 0;
-// };
+struct Parser (
+  p.ast : ptr,
+  p.status : u64
+);
+
+let p : Parser 0;
 
 fn parser_function -> u64 0;
-let statement parser_function;
+let statement  parser_function;
 let statements parser_function;
-let expr_list parser_function;
+let expr_list  parser_function;
 
 fn parser_error(message : cstr) -> none {
-  if eq p.status NoError {
+  if eq load64 + @p p.status NoError {
     let it tmp_it;
     tmp_push_cstr("[parse-error]: ");
     tmp_push_cstr(token.filename);
@@ -23,7 +25,7 @@ fn parser_error(message : cstr) -> none {
     tmp_push_cstr(message);
     puts(STDERR_FILENO, it);
     = @tmp_it it;
-    = @p.status Error;
+    store64 + @p p.status Error;
   }
 }
 
@@ -138,7 +140,7 @@ fn parse_expr_list -> u64 {
       }
     }
   }
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse_statement -> u64 {
@@ -271,10 +273,10 @@ fn parse_type -> u64 {
     // TODO: push type to ast
   }
   else {
-    = @p.status Error;
+    store64 + @p p.status Error;
   }
   lexer_next(); // skip type
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse_param_list -> u64 {
@@ -317,7 +319,7 @@ fn parse_param_list -> u64 {
       }
     }
   }
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse_func_def -> u64 {
@@ -366,7 +368,7 @@ fn parse_func_def -> u64 {
   else {
     parser_error("expected identifier in function definition\n");
   }
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse_include -> u64 {
@@ -390,7 +392,7 @@ fn parse_include -> u64 {
 
     let filename_path tmp_it;
     tmp_push_str(path, + 1 path_length);
-    store8 cast (+ filename_path path_length) ptr 0;
+    store8 cast ptr (+ filename_path path_length) 0;
     let fd open(filename_path, 0, O_RDONLY);
     if neq fd ERROR {
       let file_source tmp_it;
@@ -419,11 +421,11 @@ fn parse_include -> u64 {
     = @l.column column;
     = @l.status status;
   }
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse_statements -> u64 {
-  let done 0;
+  let done : u64 0;
   while eq done 0 {
     if eq token.type T_EOF {
       = @done 1;
@@ -435,11 +437,9 @@ fn parse_statements -> u64 {
       = @done 1;
     }
     else if eq token.type T_FN {
-      let prev done;
       if neq parse_func_def() NoError {
         = @done 1;
       }
-      = @done prev;
     }
     else if eq token.type T_INCLUDE {
       if eq parse_include() Error {
@@ -450,19 +450,19 @@ fn parse_statements -> u64 {
       let _ parse_statement();
     }
   }
-  p.status;
+  load64 + @p p.status;
 }
 
 fn parse -> u64 {
   lexer_next();
-  // let _ parse_statements();
-  p.status;
+  let _ parse_statements();
+  load64 + @p p.status;
 }
 
 fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
-  = @p.ast ast_create(AstRoot);
-  = @p.status NoError;
+  = + @p p.ast ast_create(AstRoot);
+  = + @p p.status NoError;
 
   = @statement parse_statement;
   = @statements parse_statements;

@@ -22,9 +22,6 @@ const i8.max  INT8_MAX;
 fn strlen(str : cstr) -> u64 {
   let length : u64 0;
   while < 0 load8 str {
-    if or eq load8 str 10 eq load8 str 13 { // `\n`, `\r`
-      = @str + 1 str;
-    }
     = @length + 1 length;
     = @str    + 1 str;
   }
@@ -72,8 +69,8 @@ fn memset(mem : ptr, c : u64, n : u64) -> none {
   let count : u64 0;
   while < count n {
     store8 mem c;
-    = @mem   +1 mem;
-    = @count +1 count;
+    = @mem   + 1 mem;
+    = @count + 1 count;
   }
 }
 
@@ -90,9 +87,9 @@ fn memcpy(dest : any, src : any, n : u64) -> none {
   let count : u64 0;
   while < count n {
     store8 dest load8 src;
-    = @dest  +1 dest;
-    = @src   +1 src;
-    = @count +1 count;
+    = @dest  + 1 dest;
+    = @src   + 1 src;
+    = @count + 1 count;
   }
 }
 

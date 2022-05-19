@@ -1,4 +1,4 @@
-// lex.spl
+// lexer.spl
 
 // Token_type
 enum u64 (
@@ -32,6 +32,7 @@ enum u64 (
   T_LET,
   T_MEMORY,
   T_PRINT,
+  T_STATIC_ASSERT,
   T_INCLUDE,
   T_FN,
   T_ARROW,
@@ -54,14 +55,19 @@ enum u64 (
   T_LOAD8,
   T_SIZEOF,
   T_ENUM,
+  T_ALIAS,
+  T_CAST,
+  T_STRUCT,
 
   // built-in types
   T_NONE,
   T_ANY,
+  T_PTR,
   T_UNSIGNED64,
+  T_UNSIGNED32,
   T_CSTR,
 
-  MAX_TOKEN_TYPE
+  MAX_TOKEN_TYPE,
 );
 
 let token_type_str : cstr : MAX_TOKEN_TYPE "";
@@ -89,7 +95,7 @@ const Token.size + Token.column sizeof u64;
 // struct Lexer {
 let l.filename : cstr "";
 let l.source : cstr "";
-let l.index : ptr cast 0 ptr;
+let l.index : ptr cast ptr 0;
 let l.line : u64 0;
 let l.column : u64 0;
 let l.status : u64 0;
@@ -185,7 +191,7 @@ fn lexer_read_symbol -> none {
   }
   = @token.length - l.index token.buffer;
 
-  let buffer : cstr cast token.buffer cstr;
+  let buffer : cstr cast cstr token.buffer;
 
   if eq 0 strncmp(buffer, "pop", token.length) {
     = @token.type T_POP;
@@ -502,7 +508,7 @@ fn lexer_next -> none {
       }
       else if is_digit(ch) {
         lexer_read_number();
-        let number str_to_u64(cast token.buffer cstr, token.length);
+        let number str_to_u64(cast cstr token.buffer, token.length);
         = @token.v number;
         = @done 1;
       }
@@ -592,8 +598,15 @@ fn lexer_init(filename : any, source : any) -> none {
   = + @token_type_str * T_LOAD8         sizeof cstr "T_LOAD8";
   = + @token_type_str * T_SIZEOF        sizeof cstr "T_SIZEOF";
   = + @token_type_str * T_ENUM          sizeof cstr "T_ENUM";
+  = + @token_type_str * T_ALIAS         sizeof cstr "T_ALIAS";
+  = + @token_type_str * T_CAST          sizeof cstr "T_CAST";
+  = + @token_type_str * T_STRUCT        sizeof cstr "T_STRUCT";
+
+  // built-in types
   = + @token_type_str * T_NONE          sizeof cstr "T_NONE";
   = + @token_type_str * T_ANY           sizeof cstr "T_ANY";
+  = + @token_type_str * T_PTR           sizeof cstr "T_PTR";
   = + @token_type_str * T_UNSIGNED64    sizeof cstr "T_UNSIGNED64";
+  = + @token_type_str * T_UNSIGNED32    sizeof cstr "T_UNSIGNED32";
   = + @token_type_str * T_CSTR          sizeof cstr "T_CSTR";
 }
