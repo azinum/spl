@@ -1,4 +1,4 @@
-// cellular-automata.spl
+// ca.spl
 // TODO(lucas): something is broken here, but can't be bothered to fix it right now
 
 include "lib/common.spl"

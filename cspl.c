@@ -92,6 +92,11 @@ typedef uint8_t u8;
 #define Error (-1)
 #define NoError (0)
 
+// TODO(lucas): boundary checks
+#define SCRATCH_BUFFER_SIZE (1 << 16)
+char scratch_buffer[SCRATCH_BUFFER_SIZE] = {0};
+char* tmp_it = &scratch_buffer[0];
+
 typedef enum Token_type {
   T_EOF,
 
@@ -1230,11 +1235,11 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
           fprintf(fp, ", ");
         }
       }
-      fprintf(fp, ") -> %s (konst = %d, value.konst = %d)", compile_type_str[func->rtype], symbol->konst, symbol->value.konst);
+      fprintf(fp, ") -> %s (konst = %d, value.konst = %d, ref_count = %d)", compile_type_str[func->rtype], symbol->konst, symbol->value.konst, symbol->ref_count);
       fprintf(fp, " - %s:%d:%d\n", symbol->token.filename, symbol->token.line, symbol->token.column);
       continue;
     }
-    fprintf(fp, "%3u: `%s` (type = %s, size = %d, konst = %d, value.konst = %d) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->konst, symbol->value.konst, symbol->token.filename, symbol->token.line, symbol->token.column);
+    fprintf(fp, "%3u: `%s` (type = %s, size = %d, konst = %d, value.konst = %d, ref_count = %d) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->konst, symbol->value.konst, symbol->ref_count, symbol->token.filename, symbol->token.line, symbol->token.column);
   }
 }
 
@@ -1796,12 +1801,22 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value value = { .num = 0, };
       for (u32 i = 0; i < fields->count; ++i) {
         Ast* field = fields->node[i];
-        Token field_ident = field->node[0]->token;
+        Token field_token = field->token;
+        Token field_type = field->node[0]->token;
+
+        char* it = tmp_it;
+        field->token.buffer = it;
+
+        strncpy(it, ast->token.buffer, ast->token.length); it += ast->token.length;
+        strcpy(it, "."); it++;
+        strncpy(it, field_token.buffer, field_token.length); it += field_token.length;
+
+        field->token.length = ast->token.length + 1 + field_token.length;
 
         Symbol* symbol = NULL;
         i32 symbol_index = -1;
         i32 imm = ir_push_value(c, &field_offset, sizeof(field_offset));
-        if (compile_declare_value(c, block, fs, field_ident, &symbol, field, &symbol_index) == NoError) {
+        if (compile_declare_value(c, block, fs, field->token, &symbol, field, &symbol_index) == NoError) {
           symbol->imm = imm;
           symbol->size = compile_type_size[TypeUnsigned64];
           symbol->konst = 1;
@@ -1810,10 +1825,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           symbol->value = value;
         }
         else {
-          compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field_ident.length, field_ident.buffer);
+          compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field->token.length, field->token.buffer);
           return TypeNone;
         }
-        Compile_type type = token_to_compile_type(c, block, fs, field->token, NULL);
+        Compile_type type = token_to_compile_type(c, block, fs, field_type, NULL);
         field_offset += compile_type_size[type];
       }
       // struct symbol definition

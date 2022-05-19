@@ -2,14 +2,16 @@
 
 // include "lib/common.spl"
 
-// fn add(a : u64, b : u64) -> u64 + a b;
+fn add(a : u64, b : u64) -> u64 + a b;
 
 struct T (
   a : u64,
   b : u32
 );
 
-fn hello(a : T) -> none {}
-
 fn main -> none {
+  let t : T 0;
+  store64 + @t T.a 2;
+  store32 + @t T.b 3;
+  print add(load64 @t, load32 + @t T.b);
 }

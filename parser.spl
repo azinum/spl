@@ -1,8 +1,8 @@
 // parser.spl
 
 struct Parser (
-  p.ast : ptr,
-  p.status : u64
+  ast : ptr,
+  status : u64
 );
 
 let p : Parser 0;
@@ -13,7 +13,7 @@ let statements parser_function;
 let expr_list  parser_function;
 
 fn parser_error(message : cstr) -> none {
-  if eq load64 + @p p.status NoError {
+  if eq load64 + @p Parser.status NoError {
     let it tmp_it;
     tmp_push_cstr("[parse-error]: ");
     tmp_push_cstr(token.filename);
@@ -25,7 +25,7 @@ fn parser_error(message : cstr) -> none {
     tmp_push_cstr(message);
     puts(STDERR_FILENO, it);
     = @tmp_it it;
-    store64 + @p p.status Error;
+    store64 + @p Parser.status Error;
   }
 }
 
@@ -140,7 +140,7 @@ fn parse_expr_list -> u64 {
       }
     }
   }
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse_statement -> u64 {
@@ -273,10 +273,10 @@ fn parse_type -> u64 {
     // TODO: push type to ast
   }
   else {
-    store64 + @p p.status Error;
+    store64 + @p Parser.status Error;
   }
   lexer_next(); // skip type
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse_param_list -> u64 {
@@ -319,7 +319,7 @@ fn parse_param_list -> u64 {
       }
     }
   }
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse_func_def -> u64 {
@@ -368,7 +368,7 @@ fn parse_func_def -> u64 {
   else {
     parser_error("expected identifier in function definition\n");
   }
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse_include -> u64 {
@@ -421,7 +421,7 @@ fn parse_include -> u64 {
     = @l.column column;
     = @l.status status;
   }
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse_statements -> u64 {
@@ -450,19 +450,19 @@ fn parse_statements -> u64 {
       let _ parse_statement();
     }
   }
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parse -> u64 {
   lexer_next();
   let _ parse_statements();
-  load64 + @p p.status;
+  load64 + @p Parser.status;
 }
 
 fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
-  = + @p p.ast ast_create(AstRoot);
-  = + @p p.status NoError;
+  = + @p Parser.ast ast_create(AstRoot);
+  = + @p Parser.status NoError;
 
   = @statement parse_statement;
   = @statements parse_statements;
