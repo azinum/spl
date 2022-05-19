@@ -23,8 +23,11 @@ enum u64 (
   AstType,
   AstSizeof,
   AstEnum,
+  AstStruct,
+  AstCastExpression,
+  AstStaticAssert,
 
-  MAX_AST_TYPE
+  MAX_AST_TYPE,
 );
 
 let ast_type_str : cstr : MAX_AST_TYPE "";
@@ -41,7 +44,7 @@ const Ast.token  : u64 + Ast.type sizeof u64;
 const Ast.size   : u64 + Ast.token Token.size;
 
 memory ast_node_memory * Ast.size MAX_AST_NODE;
-let ast_node : ptr cast 0 ptr;
+let ast_node : ptr cast ptr 0;
 
 fn ast_create(type : u64) -> ptr {
   let node : ptr ast_node;
@@ -126,28 +129,31 @@ fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
 fn ast_print(ast : any, fd : u64) -> none _ast_print(ast, 0, # + Ast.count ast, 0, fd);
 
 fn ast_init -> none {
-  = + @ast_type_str * AstNone            sizeof cstr "AstNone";
-  = + @ast_type_str * AstRoot            sizeof cstr "AstRoot";
-  = + @ast_type_str * AstValue           sizeof cstr "AstValue";
-  = + @ast_type_str * AstExpression      sizeof cstr "AstExpression";
-  = + @ast_type_str * AstExprList        sizeof cstr "AstExprList";
-  = + @ast_type_str * AstStatement       sizeof cstr "AstStatement";
-  = + @ast_type_str * AstStatementList   sizeof cstr "AstStatementList";
-  = + @ast_type_str * AstBlockStatement  sizeof cstr "AstBlockStatement";
-  = + @ast_type_str * AstBinopExpression sizeof cstr "AstBinopExpression";
-  = + @ast_type_str * AstUopExpression   sizeof cstr "AstUopExpression";
-  = + @ast_type_str * AstConstStatement  sizeof cstr "AstConstStatement";
-  = + @ast_type_str * AstLetStatement    sizeof cstr "AstLetStatement";
-  = + @ast_type_str * AstFuncDefinition  sizeof cstr "AstFuncDefinition";
-  = + @ast_type_str * AstFuncCall        sizeof cstr "AstFuncCall";
-  = + @ast_type_str * AstParamList       sizeof cstr "AstParamList";
-  = + @ast_type_str * AstMemoryStatement sizeof cstr "AstMemoryStatement";
-  = + @ast_type_str * AstAssignment      sizeof cstr "AstAssignment";
-  = + @ast_type_str * AstWhileStatement  sizeof cstr "AstWhileStatement";
-  = + @ast_type_str * AstIfStatement     sizeof cstr "AstIfStatement";
-  = + @ast_type_str * AstType            sizeof cstr "AstType";
-  = + @ast_type_str * AstSizeof          sizeof cstr "AstSizeof";
-  = + @ast_type_str * AstEnum            sizeof cstr "AstEnum";
+  = + @ast_type_str * AstNone            sizeof cstr "None";
+  = + @ast_type_str * AstRoot            sizeof cstr "Root";
+  = + @ast_type_str * AstValue           sizeof cstr "Value";
+  = + @ast_type_str * AstExpression      sizeof cstr "Expression";
+  = + @ast_type_str * AstExprList        sizeof cstr "ExprList";
+  = + @ast_type_str * AstStatement       sizeof cstr "Statement";
+  = + @ast_type_str * AstStatementList   sizeof cstr "StatementList";
+  = + @ast_type_str * AstBlockStatement  sizeof cstr "BlockStatement";
+  = + @ast_type_str * AstBinopExpression sizeof cstr "BinopExpression";
+  = + @ast_type_str * AstUopExpression   sizeof cstr "UopExpression";
+  = + @ast_type_str * AstConstStatement  sizeof cstr "ConstStatement";
+  = + @ast_type_str * AstLetStatement    sizeof cstr "LetStatement";
+  = + @ast_type_str * AstFuncDefinition  sizeof cstr "FuncDefinition";
+  = + @ast_type_str * AstFuncCall        sizeof cstr "FuncCall";
+  = + @ast_type_str * AstParamList       sizeof cstr "ParamList";
+  = + @ast_type_str * AstMemoryStatement sizeof cstr "MemoryStatement";
+  = + @ast_type_str * AstAssignment      sizeof cstr "Assignment";
+  = + @ast_type_str * AstWhileStatement  sizeof cstr "WhileStatement";
+  = + @ast_type_str * AstIfStatement     sizeof cstr "IfStatement";
+  = + @ast_type_str * AstType            sizeof cstr "Type";
+  = + @ast_type_str * AstSizeof          sizeof cstr "Sizeof";
+  = + @ast_type_str * AstEnum            sizeof cstr "Enum";
+  = + @ast_type_str * AstStruct          sizeof cstr "Struct";
+  = + @ast_type_str * AstCastExpression  sizeof cstr "CastExpression";
+  = + @ast_type_str * AstStaticAssert    sizeof cstr "StaticAssert";
 
   = @ast_node @ast_node_memory;
 }
