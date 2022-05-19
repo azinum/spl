@@ -26,6 +26,7 @@ enum u64 (
   AstStruct,
   AstCastExpression,
   AstStaticAssert,
+  AstArg,
 
   MAX_AST_TYPE,
 );
@@ -37,11 +38,13 @@ const MAX_AST_PTR : u64 2048;
 const MAX_INTERNAL_NODE : u64 16; // how many nodes each node can hold
 
 // ast node offsets
-const Ast.node   : u64 0;
-const Ast.count  : u64 * sizeof any MAX_INTERNAL_NODE;
-const Ast.type   : u64 + Ast.count sizeof u64;
-const Ast.token  : u64 + Ast.type sizeof u64;
-const Ast.size   : u64 + Ast.token Token.size;
+struct Ast (
+  node  : ptr,
+  count : u64,
+  type  : u64,
+  token : Token,
+  size  : u64
+);
 
 memory ast_node_memory * Ast.size MAX_AST_NODE;
 let ast_node : ptr cast ptr 0;
@@ -129,6 +132,8 @@ fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
 fn ast_print(ast : any, fd : u64) -> none _ast_print(ast, 0, # + Ast.count ast, 0, fd);
 
 fn ast_init -> none {
+  print sizeof Ast;
+  print sizeof Token;
   = + @ast_type_str * AstNone            sizeof cstr "None";
   = + @ast_type_str * AstRoot            sizeof cstr "Root";
   = + @ast_type_str * AstValue           sizeof cstr "Value";
@@ -154,6 +159,7 @@ fn ast_init -> none {
   = + @ast_type_str * AstStruct          sizeof cstr "Struct";
   = + @ast_type_str * AstCastExpression  sizeof cstr "CastExpression";
   = + @ast_type_str * AstStaticAssert    sizeof cstr "StaticAssert";
+  = + @ast_type_str * AstArg             sizeof cstr "Arg";
 
   = @ast_node @ast_node_memory;
 }

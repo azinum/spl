@@ -1829,8 +1829,17 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field->token.length, field->token.buffer);
           return TypeNone;
         }
-        Compile_type type = token_to_compile_type(c, block, fs, field_type, NULL);
-        field_offset += compile_type_size[type];
+        Symbol* field_symbol = NULL;
+        Compile_type type = token_to_compile_type(c, block, fs, field_type, &field_symbol);
+        if (type == TypeStruct && field_symbol) {
+          field_offset += field_symbol->size;
+        }
+        else if (type == TypeNone) {
+          compile_error_at(c, field_type, "type `%.*s` does not exist\n", field_type.length, field_type.buffer);
+        }
+        else {
+          field_offset += compile_type_size[type];
+        }
       }
       // struct symbol definition
       // TODO(lucas): store struct fields somewhere, for a sort of struct type signature, and find a way to use them in the type system

@@ -82,15 +82,17 @@ let token.line 0;
 let token.column 0;
 
 // token struct offsets
-const Token.buffer 0;
-const Token.length sizeof u64;
-const Token.type + Token.length sizeof u64;
-const Token.v + Token.type sizeof u64;
-const Token.filename + Token.v sizeof cstr;
-const Token.source + Token.filename sizeof cstr;
-const Token.line + Token.source sizeof u64;
-const Token.column + Token.line sizeof u64;
-const Token.size + Token.column sizeof u64;
+struct Token (
+  buffer   : ptr,
+  length   : u64,
+  type     : u64,
+  v        : u64,
+  filename : ptr,
+  source   : ptr,
+  line     : u64,
+  column   : u64,
+  size     : u64
+);
 
 // struct Lexer {
 let l.filename : cstr "";
