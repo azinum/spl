@@ -281,8 +281,14 @@ fn lexer_read_symbol -> none {
   else if eq 0 strncmp(buffer, "any", token.length) {
     = @token.type T_ANY;
   }
+  else if eq 0 strncmp(buffer, "ptr", token.length) {
+    = @token.type T_PTR;
+  }
   else if eq 0 strncmp(buffer, "u64", token.length) {
     = @token.type T_UNSIGNED64;
+  }
+  else if eq 0 strncmp(buffer, "u32", token.length) {
+    = @token.type T_UNSIGNED32;
   }
   else if eq 0 strncmp(buffer, "cstr", token.length) {
     = @token.type T_CSTR;
@@ -448,6 +454,10 @@ fn lexer_next -> none {
     }
     else if eq ch '>' {
       = @token.type T_GT;
+      = @done 1;
+    }
+    else if eq ch ':' {
+      = @token.type T_COLON;
       = @done 1;
     }
     else if eq ch ';' {
