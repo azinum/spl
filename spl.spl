@@ -71,14 +71,24 @@ fn spl_start(filename : any) -> u64 {
 fn main(argc : u64, argv : any) -> none {
   common_init();
   ast_init();
-  let arg argv;
-  let i 0;
-  if < argc 2 {
-    usage(#arg);
-  }
-  else {
-    = @arg + sizeof any arg;
-    let filename cast cstr #arg;
-    let result spl_start(filename);
-  }
+
+  lexer_init("", "");
+
+  let ast ast_create(AstRoot);
+  let expr ast_create(AstExpression);
+  ast_push(expr, ast_create(AstValue));
+  ast_push(ast, expr);
+  ast_push(ast, ast_create(AstValue));
+  ast_print(ast, 0, STDOUT_FILENO);
+
+  // let arg argv;
+  // let i 0;
+  // if < argc 2 {
+  //   usage(#arg);
+  // }
+  // else {
+  //   = @arg + sizeof any arg;
+  //   let filename cast cstr #arg;
+  //   let result spl_start(filename);
+  // }
 }

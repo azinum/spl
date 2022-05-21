@@ -81,7 +81,6 @@ let token.source "";
 let token.line 0;
 let token.column 0;
 
-// token struct offsets
 struct Token (
   buffer   : ptr,
   length   : u64,
@@ -153,7 +152,7 @@ fn token_print(token : any) -> none {
   p("column   = "); tmp_push_u64(column);
   p("\n");
 
-  puts(STDOUT_FILENO, tmp);
+  putsn(STDOUT_FILENO, tmp, - tmp_it tmp);
   = @tmp_it tmp;
 }
 

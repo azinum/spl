@@ -34,46 +34,44 @@ enum u64 (
 let ast_type_str : cstr : MAX_AST_TYPE "";
 
 const MAX_AST_NODE : u64 2048;
-const MAX_AST_PTR : u64 2048;
-const MAX_INTERNAL_NODE : u64 16; // how many nodes each node can hold
+const MAX_INTERNAL_NODE : u64 16; // how many nodes can each node hold?
 
-// ast node offsets
 struct Ast (
   node  : ptr : MAX_INTERNAL_NODE,
   count : u64,
   type  : u64,
   token : Token,
-  size  : u64
+  konst : u64
 );
 
-memory ast_node_memory * Ast.size MAX_AST_NODE;
+memory ast_node_memory * sizeof Ast MAX_AST_NODE;
 let ast_node : ptr cast ptr 0;
 
 fn ast_create(type : u64) -> ptr {
   let node : ptr ast_node;
-  = @ast_node + Ast.size ast_node;
+  = @ast_node + sizeof Ast ast_node;
 
   = + node Ast.node 0;
   = + node Ast.count 0;
   = + node Ast.type type;
+  = + node Ast.konst 0;
 
   token_init(+ Ast.token node, "T_EOF", 5, T_EOF, l.filename, l.source);
   node;
 }
 
-fn ast_print_node(fd : u64, ast : any) -> none {
+fn ast_print_node(ast : any, fd : u64) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
   let count # + Ast.count ast;
   let type  # + Ast.type ast;
   let token + Ast.token ast;
-
   p("count = "); tmp_push_u64(count);
   p("\n");
   p("type  = "); tmp_push_u64(type);
   p("\n");
-  puts(fd, tmp);
+  putsn(fd, tmp, - tmp_it tmp);
   = @tmp_it tmp;
   token_print(token);
 }
@@ -88,52 +86,56 @@ fn ast_push(ast : ptr, node : ptr) -> none {
   }
 }
 
-fn _ast_count(ast : any, i : u64, count : u64, ast.count : u64) -> u64 {
-  while < i ast.count {
-    let node # + + Ast.node ast * i sizeof any;
-    = @count + count _ast_count(node, 1, 1, # + Ast.count node);
+fn ast_count(ast : any) -> u64 {
+  let count 1;
+  let i 0;
+  while < i load64 + ast Ast.count {
+    let node # + + ast Ast.node * i sizeof any;
+    = @count + count ast_count(node);
     = @i + 1 i;
   }
   count;
 }
 
-fn ast_count(ast : u64) -> u64 _ast_count(ast, 0, 1, # + Ast.count ast);
-
 fn ast_child_count(ast : any) -> u64 # + Ast.count ast;
 
-fn _ast_print(ast : any, i : u64, count : u64, level : u64, fd : u64) -> none {
+fn ast_print(ast : any, level : u64, fd : u64) -> none {
   if neq 0 ast {
-    let it tmp_it;
+    let tmp tmp_it;
     let p tmp_push_cstr;
-    let iter 0;
-    while < iter level {
-      p("    ");
-      = @iter + 1 iter;
+    {
+      let i 0;
+      while < i level {
+        p("    ");
+        = @i + 1 i;
+      }
     }
+    let type : u64 load64 + ast Ast.type;
+    let token : ptr cast ptr + ast Ast.token;
     p("<");
-    p(table_fetch(ast_type_str, # + Ast.type ast));
+    p(load64 + @ast_type_str * type sizeof cstr);
     p(", ");
-    let token + Ast.token ast;
-    p(table_fetch(token_type_str, # + Token.type token));
+    p(load64 + @token_type_str * load64 + token Token.type sizeof cstr);
+    p(", ");
+    tmp_push_u64(load64 + ast Ast.konst);
     p(">: `");
-    tmp_push_str(# + Token.buffer token, # + Token.length token);
+    tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
     p("`\n");
-    puts(fd, it);
-    = @tmp_it it;
-
-    while < i count {
-      let node # + + Ast.node ast * i sizeof any;
-      _ast_print(node, 0, # + Ast.count node, + 1 level, fd);
-      = @i + 1 i;
+    putsn(fd, tmp, - tmp_it tmp);
+    = @tmp_it tmp;
+    {
+      let i 0;
+      let count load64 + ast Ast.count;
+      while < i count {
+        let node # + + ast Ast.node * i sizeof any;
+        ast_print(node, + 1 level, fd);
+        = @i + 1 i;
+      }
     }
   }
 }
 
-fn ast_print(ast : any, fd : u64) -> none _ast_print(ast, 0, # + Ast.count ast, 0, fd);
-
 fn ast_init -> none {
-  print sizeof Ast;
-  print sizeof Token;
   = + @ast_type_str * AstNone            sizeof cstr "None";
   = + @ast_type_str * AstRoot            sizeof cstr "Root";
   = + @ast_type_str * AstValue           sizeof cstr "Value";

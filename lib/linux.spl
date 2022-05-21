@@ -350,15 +350,12 @@ fn putc(fd : u64, ch : u64) -> none {
 }
 
 fn puts(fd : u64, str : any) -> none {
-  while neq 0 load8 str {
-    let ch load8 str;
-    let _ syscall3(SYS_write, fd, @ch, 1);
-    = @str +1 str;
-  }
+  let n : u64 strlen(cast cstr str);
+  write(fd, str, n);
 }
 
 fn putsn(fd : u64, str : any, n : u64) -> none {
-  let _ syscall3(SYS_write, fd, str, n);
+  write(fd, str, n);
 }
 
 fn putu(fd : u64, n : u64) -> none {

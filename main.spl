@@ -17,5 +17,4 @@ struct B (
 );
 
 fn main -> none {
-  print sizeof B;
 }
