@@ -2782,6 +2782,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
             }
             case SYM_LOCAL_VAR: {
               if (symbol->konst) {
+                assert(!"something went very wrong");
                 ir_push_ins(c, (Op) {
                   .i = I_PUSH,
                   .dest = symbol->type,
@@ -2812,6 +2813,7 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
                 .src0 = id,
                 .src1 = -1,
               }, ins_count);
+              ir_push_ins(c, OP(I_LOAD64), ins_count); // NOTE(lucas): dereference the variable and get access to the function pointer
               ir_push_ins(c, (Op) {
                 .i = I_ADDR_CALL,
                 .dest = -1,
@@ -3281,12 +3283,8 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
       case I_LOAD32: {
         vo("; I_LOAD32\n");
         o("pop rax\n");
-#if 1
         o("xor rbx, rbx\n");
         o("mov ebx, [rax]\n");
-#else
-        o("movzx ebx, WORD [rax]\n"); // i want to use DWORD here, but it does not seem to work? why?
-#endif
         o("push rbx\n");
         break;
       }
