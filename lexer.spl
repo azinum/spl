@@ -546,7 +546,6 @@ fn lexer_next -> none {
         = @done 1;
       }
     }
-    = @done 1;
   }
   = + @token Token.line l.line;
 }

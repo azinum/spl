@@ -24,11 +24,140 @@ fn parser_error(message : cstr) -> none {
   }
 }
 
-fn parse_statements() -> ptr {
+fn parse_expr -> ptr {
+  let expr : ptr NULL;
+  let type load64 + @token Token.type;
+  if or or
+    eq type T_POP
+    eq type T_NUMBER
+    eq type T_CSTRING {
+    = @expr ast_create(AstValue);
+    memcpy(+ expr Ast.token, @token, sizeof Token);
+    lexer_next();
+  }
+  else if eq type T_IDENTIFIER {
+
+  }
+  else if or or or or or or or or or or or or
+    eq type T_ADD
+    eq type T_SUB
+    eq type T_MUL
+    eq type T_DIV
+    eq type T_DIVMOD
+    eq type T_LSHIFT
+    eq type T_RSHIFT
+    eq type T_LT
+    eq type T_GT
+    eq type T_AND
+    eq type T_OR
+    eq type T_EQ
+    eq type T_NEQ {
+    = @expr ast_create(AstBinopExpression);
+    memcpy(+ expr Ast.token, @token, sizeof Token);
+    lexer_next(); // skip operator
+    ast_push(expr, parse_expr());
+    ast_push(expr, parse_expr());
+  }
+  else if eq type T_AT {
+
+  }
+  else if or or or or or or
+    eq type T_DEREF
+    eq type T_LOAD64
+    eq type T_LOAD32
+    eq type T_LOAD16
+    eq type T_LOAD8
+    eq type T_PRINT
+    eq type T_LOGICAL_NOT {
+
+  }
+  else if eq type T_SIZEOF {
+
+  }
+  else if eq type T_LEFT_P {
+
+  }
+  else if eq type T_RIGHT_P {
+
+  }
+  else if eq type T_CAST {
+
+  }
+  else {
+    parser_error("unexpected token `?` in expression\n");
+    = + @p Parser.status Error;
+  }
+  expr;
+}
+
+fn parse_statement -> ptr {
+  let stmt : ptr NULL;
+  let type load64 + @token Token.type;
+  if or eq type T_CONST eq type T_LET {
+
+  }
+  else if eq type T_MEMORY {
+
+  }
+  else if eq type T_LEFT_CURLY {
+
+  }
+  else if or or or or
+    eq type T_ASSIGN
+    eq type T_STORE64
+    eq type T_STORE32
+    eq type T_STORE16
+    eq type T_STORE8 {
+
+  }
+  else if eq type T_WHILE {
+
+  }
+  else if eq type T_IF {
+
+  }
+  else if eq type T_ENUM {
+
+  }
+  else if eq type T_STRUCT {
+
+  }
+  else if eq type T_STATIC_ASSERT {
+
+  }
+  else {
+    = @stmt parse_expr();
+    = @type load64 + @token Token.type;
+    if neq type T_SEMICOLON {
+      parser_error("expected `;` semicolon after statement, but got `?`\n");
+    }
+    else {
+      lexer_next(); // skip `;`
+    }
+  }
+  stmt;
+}
+
+fn parse_statements -> ptr {
   let stmts ast_create(AstStatementList);
   let done 0;
   while eq done 0 {
-    = @done 1;
+    let type load64 + @token Token.type;
+    if eq type T_EOF {
+      = @done 1;
+    }
+    else if eq type T_SEMICOLON {
+      lexer_next();
+    }
+    else {
+      let stmt parse_statement();
+      if eq cast u64 stmt NULL {
+        = @done 1;
+      }
+      else {
+        ast_push(stmts, stmt);
+      }
+    }
   }
   stmts;
 }
