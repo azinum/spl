@@ -60,10 +60,13 @@ let ir_code_str : cstr : MAX_IR_CODE "";
 enum u64 (
   TypeNone,
   TypeAny,
+  TypePtr,
   TypeUnsigned64,
+  TypeUnsigned32,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
+  TypeStruct,
 
   MAX_COMPILE_TYPE
 );
@@ -124,17 +127,24 @@ fn compile_state_init -> u64 {
 
   = + @compile_type_str * TypeNone        sizeof cstr "None";
   = + @compile_type_str * TypeAny         sizeof cstr "Any";
+  = + @compile_type_str * TypePtr         sizeof cstr "Ptr";
   = + @compile_type_str * TypeUnsigned64  sizeof cstr "Unsigned64";
+  = + @compile_type_str * TypeUnsigned32  sizeof cstr "Unsigned32";
   = + @compile_type_str * TypeCString     sizeof cstr "CString";
   = + @compile_type_str * TypeFunc        sizeof cstr "Func";
   = + @compile_type_str * TypeSyscallFunc sizeof cstr "SyscallFunc";
+  = + @compile_type_str * TypeStruct      sizeof cstr "Struct";
 
-  = + @compile_type_size * TypeNone        sizeof u64 0;
-  = + @compile_type_size * TypeAny         sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeUnsigned64  sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeCString     sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeFunc        sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeSyscallFunc sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeNone         sizeof u64 0;
+  = + @compile_type_size * TypeAny          sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypePtr          sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeUnsigned64   sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeUnsigned32   sizeof u64 sizeof u32;
+  = + @compile_type_size * TypeCString      sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeFunc         sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeSyscallFunc  sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeStruct       sizeof u64 1;
+  = + @compile_type_size * MAX_COMPILE_TYPE sizeof u64 0;
 
   NoError;
 }

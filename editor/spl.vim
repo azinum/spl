@@ -20,6 +20,9 @@ syntax region CommentLine start="//" end="$"   contains=Todos
 syntax region String start=/\v"/ skip=/\v\\./ end=/\v"/
 syntax region String start=/\v'/ skip=/\v\\./ end=/\v'/
 
+" Values
+syntax keyword Numbers NULL
+
 " Numbers
 " syntax match Numbers "\d\+\(u\=l\{0,2}\|ll\=u\)\>"
 " syntax match Numbers "0x\x\+\(u\=l\{0,2}\|ll\=u\)\>"

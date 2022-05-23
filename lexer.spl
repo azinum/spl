@@ -72,14 +72,14 @@ enum u64 (
 
 let token_type_str : cstr : MAX_TOKEN_TYPE "";
 
-let token.buffer 0;
-let token.length 0;
-let token.type 0;
-let token.v 0;
-let token.filename "";
-let token.source "";
-let token.line 0;
-let token.column 0;
+// let token.buffer 0;
+// let token.length 0;
+// let token.type 0;
+// let token.v 0;
+// let token.filename "";
+// let token.source "";
+// let token.line 0;
+// let token.column 0;
 
 struct Token (
   buffer   : ptr,
@@ -89,9 +89,10 @@ struct Token (
   filename : ptr,
   source   : ptr,
   line     : u64,
-  column   : u64,
-  size     : u64
+  column   : u64
 );
+
+let token : Token 0;
 
 // struct Lexer {
 let l.filename : cstr "";
@@ -114,14 +115,14 @@ fn token_init(token : any, buffer : any, length : u64, type : u64, filename : an
 }
 
 fn copy_token_into_memory(mem : any) -> none {
-  = + mem Token.buffer   token.buffer;
-  = + mem Token.length   token.length;
-  = + mem Token.type     token.type;
-  = + mem Token.v        token.v;
-  = + mem Token.filename token.filename;
-  = + mem Token.source   token.source;
-  = + mem Token.line     token.line;
-  = + mem Token.column   token.column;
+  = + mem Token.buffer   + @token Token.buffer;
+  = + mem Token.length   + @token Token.length;
+  = + mem Token.type     + @token Token.type;
+  = + mem Token.v        + @token Token.v;
+  = + mem Token.filename + @token Token.filename;
+  = + mem Token.source   + @token Token.source;
+  = + mem Token.line     + @token Token.line;
+  = + mem Token.column   + @token Token.column;
 }
 
 fn token_print(token : any) -> none {
@@ -190,111 +191,121 @@ fn lexer_read_symbol -> none {
     = @l.index + 1 l.index;
     = @l.column + 1 l.column;
   }
-  = @token.length - l.index token.buffer;
+  = + @token Token.length - l.index load64 + @token Token.buffer;
 
-  let buffer : cstr cast cstr token.buffer;
+  let buffer cast cstr load64 + @token Token.buffer;
+  let length : u64 load64 + @token Token.length;
 
-  if eq 0 strncmp(buffer, "pop", token.length) {
-    = @token.type T_POP;
+  if eq 0 strncmp(buffer, "pop", length) {
+    = + @token Token.type T_POP;
   }
-  else if eq 0 strncmp(buffer, "print", token.length) {
-    = @token.type T_PRINT;
+  else if eq 0 strncmp(buffer, "print", length) {
+    = + @token Token.type T_PRINT;
   }
-  else if eq 0 strncmp(buffer, "include", token.length) {
-    = @token.type T_INCLUDE;
+  else if eq 0 strncmp(buffer, "include", length) {
+    = + @token Token.type T_INCLUDE;
   }
-  else if eq 0 strncmp(buffer, "const", token.length) {
-    = @token.type T_CONST;
+  else if eq 0 strncmp(buffer, "const", length) {
+    = + @token Token.type T_CONST;
   }
-  else if eq 0 strncmp(buffer, "let", token.length) {
-    = @token.type T_LET;
+  else if eq 0 strncmp(buffer, "let", length) {
+    = + @token Token.type T_LET;
   }
-  else if eq 0 strncmp(buffer, "memory", token.length) {
-    = @token.type T_MEMORY;
+  else if eq 0 strncmp(buffer, "memory", length) {
+    = + @token Token.type T_MEMORY;
   }
-  else if eq 0 strncmp(buffer, "fn", token.length) {
-    = @token.type T_FN;
+  else if eq 0 strncmp(buffer, "fn", length) {
+    = + @token Token.type T_FN;
   }
-  else if eq 0 strncmp(buffer, "while", token.length) {
-    = @token.type T_WHILE;
+  else if eq 0 strncmp(buffer, "while", length) {
+    = + @token Token.type T_WHILE;
   }
-  else if eq 0 strncmp(buffer, "if", token.length) {
-    = @token.type T_IF;
+  else if eq 0 strncmp(buffer, "if", length) {
+    = + @token Token.type T_IF;
   }
-  else if eq 0 strncmp(buffer, "else", token.length) {
-    = @token.type T_ELSE;
+  else if eq 0 strncmp(buffer, "else", length) {
+    = + @token Token.type T_ELSE;
   }
-  else if eq 0 strncmp(buffer, "store64", token.length) {
-    = @token.type T_STORE64;
+  else if eq 0 strncmp(buffer, "store64", length) {
+    = + @token Token.type T_STORE64;
   }
-  else if eq 0 strncmp(buffer, "store32", token.length) {
-    = @token.type T_STORE32;
+  else if eq 0 strncmp(buffer, "store32", length) {
+    = + @token Token.type T_STORE32;
   }
-  else if eq 0 strncmp(buffer, "store16", token.length) {
-    = @token.type T_STORE16;
+  else if eq 0 strncmp(buffer, "store16", length) {
+    = + @token Token.type T_STORE16;
   }
-  else if eq 0 strncmp(buffer, "store8", token.length) {
-    = @token.type T_STORE8;
+  else if eq 0 strncmp(buffer, "store8", length) {
+    = + @token Token.type T_STORE8;
   }
-  else if eq 0 strncmp(buffer, "load64", token.length) {
-    = @token.type T_LOAD64;
+  else if eq 0 strncmp(buffer, "load64", length) {
+    = + @token Token.type T_LOAD64;
   }
-  else if eq 0 strncmp(buffer, "load32", token.length) {
-    = @token.type T_LOAD32;
+  else if eq 0 strncmp(buffer, "load32", length) {
+    = + @token Token.type T_LOAD32;
   }
-  else if eq 0 strncmp(buffer, "load16", token.length) {
-    = @token.type T_LOAD16;
+  else if eq 0 strncmp(buffer, "load16", length) {
+    = + @token Token.type T_LOAD16;
   }
-  else if eq 0 strncmp(buffer, "load8", token.length) {
-    = @token.type T_LOAD8;
+  else if eq 0 strncmp(buffer, "load8", length) {
+    = + @token Token.type T_LOAD8;
   }
-  else if eq 0 strncmp(buffer, "and", token.length) {
-    = @token.type T_AND;
+  else if eq 0 strncmp(buffer, "and", length) {
+    = + @token Token.type T_AND;
   }
-  else if eq 0 strncmp(buffer, "not", token.length) {
-    = @token.type T_LOGICAL_NOT;
+  else if eq 0 strncmp(buffer, "not", length) {
+    = + @token Token.type T_LOGICAL_NOT;
   }
-  else if eq 0 strncmp(buffer, "or", token.length) {
-    = @token.type T_OR;
+  else if eq 0 strncmp(buffer, "or", length) {
+    = + @token Token.type T_OR;
   }
-  else if eq 0 strncmp(buffer, "eq", token.length) {
-    = @token.type T_EQ;
+  else if eq 0 strncmp(buffer, "eq", length) {
+    = + @token Token.type T_EQ;
   }
-  else if eq 0 strncmp(buffer, "neq", token.length) {
-    = @token.type T_NEQ;
+  else if eq 0 strncmp(buffer, "neq", length) {
+    = + @token Token.type T_NEQ;
   }
-  else if eq 0 strncmp(buffer, "lshift", token.length) {
-    = @token.type T_LSHIFT;
+  else if eq 0 strncmp(buffer, "lshift", length) {
+    = + @token Token.type T_LSHIFT;
   }
-  else if eq 0 strncmp(buffer, "rshift", token.length) {
-    = @token.type T_RSHIFT;
+  else if eq 0 strncmp(buffer, "rshift", length) {
+    = + @token Token.type T_RSHIFT;
   }
-  else if eq 0 strncmp(buffer, "sizeof", token.length) {
-    = @token.type T_SIZEOF;
+  else if eq 0 strncmp(buffer, "sizeof", length) {
+    = + @token Token.type T_SIZEOF;
   }
-  else if eq 0 strncmp(buffer, "enum", token.length) {
-    = @token.type T_ENUM;
+  else if eq 0 strncmp(buffer, "enum", length) {
+    = + @token Token.type T_ENUM;
   }
-  else if eq 0 strncmp(buffer, "none", token.length) {
-    = @token.type T_NONE;
+  else if eq 0 strncmp(buffer, "alias", length) {
+    = + @token Token.type T_ALIAS;
   }
-  else if eq 0 strncmp(buffer, "any", token.length) {
-    = @token.type T_ANY;
+  else if eq 0 strncmp(buffer, "cast", length) {
+    = + @token Token.type T_CAST;
   }
-  else if eq 0 strncmp(buffer, "ptr", token.length) {
-    = @token.type T_PTR;
+  else if eq 0 strncmp(buffer, "struct", length) {
+    = + @token Token.type T_STRUCT;
   }
-  else if eq 0 strncmp(buffer, "u64", token.length) {
-    = @token.type T_UNSIGNED64;
+  else if eq 0 strncmp(buffer, "none", length) {
+    = + @token Token.type T_NONE;
   }
-  else if eq 0 strncmp(buffer, "u32", token.length) {
-    = @token.type T_UNSIGNED32;
+  else if eq 0 strncmp(buffer, "any", length) {
+    = + @token Token.type T_ANY;
   }
-  else if eq 0 strncmp(buffer, "cstr", token.length) {
-    = @token.type T_CSTR;
+  else if eq 0 strncmp(buffer, "ptr", length) {
+    = + @token Token.type T_PTR;
+  }
+  else if eq 0 strncmp(buffer, "u64", length) {
+    = + @token Token.type T_UNSIGNED64;
+  }
+  else if eq 0 strncmp(buffer, "u32", length) {
+    = + @token Token.type T_UNSIGNED32;
+  }
+  else if eq 0 strncmp(buffer, "cstr", length) {
+    = + @token Token.type T_CSTR;
   }
   else {
-    = @token.type T_IDENTIFIER;
+    = + @token Token.type T_IDENTIFIER;
   }
 }
 
@@ -303,34 +314,34 @@ fn lexer_read_number -> none {
     = @l.index + 1 l.index;
     = @l.column + 1 l.column;
   }
-  = @token.length - l.index token.buffer;
-  = @token.type T_NUMBER;
+  = + @token Token.length - l.index load64 + @token Token.buffer;
+  = + @token Token.type T_NUMBER;
 }
 
 fn lexer_error(message : cstr) -> none {
   if eq l.status NoError {
-    let it tmp_it;
+    let tmp tmp_it;
     // a bit noisey, but this will do for now
-    // TODO: varadic functions to the rescue
+    // TODO(lucas): varadic functions to the rescue
     tmp_push_cstr("[lex-error]: ");
-    tmp_push_cstr(token.filename);
+    tmp_push_cstr(load64 + @token Token.filename);
     tmp_push_cstr(":");
-    tmp_push_u64(token.line);
+    tmp_push_u64(load64 + @token Token.line);
     tmp_push_cstr(":");
-    tmp_push_u64(token.column);
+    tmp_push_u64(load64 + @token Token.column);
     tmp_push_cstr(": ");
     tmp_push_cstr(message);
-    puts(STDERR_FILENO, it);
-    = @tmp_it it;
+    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
+    = @tmp_it tmp;
     = @l.status Error;
   }
 }
 
 fn next -> none {
-  = @token.buffer l.index;
-  = @token.length 1;
-  = @token.line l.line;
-  = @token.column l.column;
+  = + @token Token.buffer l.index;
+  = + @token Token.length 1;
+  = + @token Token.line l.line;
+  = + @token Token.column l.column;
 }
 
 fn lexer_next -> none {
@@ -338,10 +349,10 @@ fn lexer_next -> none {
   let ch 0;
   while not done {
     next();
-    = @ch load8 token.buffer;
-    = @token.filename l.filename;
-    = @token.source l.source;
-    = @token.column l.column;
+    = @ch load8 load64 + @token Token.buffer;
+    = + @token Token.filename l.filename;
+    = + @token Token.source l.source;
+    = + @token Token.column l.column;
     = @l.index + 1 l.index;
     = @l.column + 1 l.column;
 
@@ -350,23 +361,23 @@ fn lexer_next -> none {
       if neq 10 load8 l.index {
         = @l.line + 1 l.line
       }
-      = @token.column l.column;
+      = + @token Token.column l.column;
     }
     else if eq ch 10 { // `\n`
       = @l.line + 1 l.line;
       = @l.column 1;
-      = @token.column l.column;
+      = + @token Token.column l.column;
     }
     else if eq ch '/' {
       if eq '/' load8 l.index {
         while and neq load8 l.index 10 neq load8 l.index 0 {
           = @l.index + 1 l.index;
           = @l.column + 1 l.column;
-          = @token.column l.column;
+          = + @token Token.column l.column;
         }
       }
       else {
-        = @token.type T_DIV;
+        = + @token Token.type T_DIV;
         = @done 1;
       }
     }
@@ -376,7 +387,7 @@ fn lexer_next -> none {
       while eq loop_done 0 {
         if eq load8 l.index 0 {
           lexer_error("unfinished string\n");
-          = @token.type T_EOF;
+          = + @token Token.type T_EOF;
           = @loop_done 1;
           = @done 1;
         }
@@ -400,115 +411,115 @@ fn lexer_next -> none {
           = @l.column + 1 l.column;
         }
       }
-      = @token.buffer + 1 token.buffer;
+      = + @token Token.buffer + 1 load64 + @token Token.buffer;
       = @l.column + 1 l.column;
-      = @token.type T_CSTRING;
-      = @token.length - l.index token.buffer;
+      = + @token Token.type T_CSTRING;
+      = + @token Token.length - l.index load64 + @token Token.buffer;
       = @l.index + 1 l.index;
       = @done 1;
     }
     else if eq ch '=' {
-      = @token.type T_ASSIGN;
+      = + @token Token.type T_ASSIGN;
       = @done 1;
     }
     else if eq ch ',' {
-      = @token.type T_COMMA;
+      = + @token Token.type T_COMMA;
       = @done 1;
     }
     else if eq ch '@' {
-      = @token.type T_AT;
+      = + @token Token.type T_AT;
       = @done 1;
     }
     else if eq ch '#' {
-      = @token.type T_DEREF;
+      = + @token Token.type T_DEREF;
       = @done 1;
     }
     else if eq ch '+' {
-      = @token.type T_ADD;
+      = + @token Token.type T_ADD;
       = @done 1;
     }
     else if eq ch '-' {
       if eq load8 l.index '>' {
         = @l.index + 1 l.index;
         = @l.column + 1 l.column;
-        = @token.length + 1 token.length;
-        = @token.type T_ARROW;
+        = + @token Token.length + 1 load64 + @token Token.length;
+        = + @token Token.type T_ARROW;
         = @done 1;
       }
       else {
-        = @token.type T_SUB;
+        = + @token Token.type T_SUB;
         = @done 1;
       }
     }
     else if eq ch '*' {
-      = @token.type T_MUL;
+      = + @token Token.type T_MUL;
       = @done 1;
     }
     else if eq ch '%' {
-      = @token.type T_DIVMOD;
+      = + @token Token.type T_DIVMOD;
       = @done 1;
     }
     else if eq ch '<' {
-      = @token.type T_LT;
+      = + @token Token.type T_LT;
       = @done 1;
     }
     else if eq ch '>' {
-      = @token.type T_GT;
+      = + @token Token.type T_GT;
       = @done 1;
     }
     else if eq ch ':' {
-      = @token.type T_COLON;
+      = + @token Token.type T_COLON;
       = @done 1;
     }
     else if eq ch ';' {
-      = @token.type T_SEMICOLON;
+      = + @token Token.type T_SEMICOLON;
       = @done 1;
     }
     else if eq ch '(' {
-      = @token.type T_LEFT_P;
+      = + @token Token.type T_LEFT_P;
       = @done 1;
     }
     else if eq ch ')' {
-      = @token.type T_RIGHT_P;
+      = + @token Token.type T_RIGHT_P;
       = @done 1;
     }
     else if eq ch '[' {
-      = @token.type T_LEFT_BRACKET;
+      = + @token Token.type T_LEFT_BRACKET;
       = @done 1;
     }
     else if eq ch ']' {
-      = @token.type T_RIGHT_BRACKET;
+      = + @token Token.type T_RIGHT_BRACKET;
       = @done 1;
     }
     else if eq ch '{' {
-      = @token.type T_LEFT_CURLY;
+      = + @token Token.type T_LEFT_CURLY;
       = @done 1;
     }
     else if eq ch '}' {
-      = @token.type T_RIGHT_CURLY;
+      = + @token Token.type T_RIGHT_CURLY;
       = @done 1;
     }
     else if or or or eq ch ' ' eq ch 9 eq ch 11 eq ch 12 { // ` `, `\t`, `\v`, `\f`
     }
     else if eq ch 0 {
-      = @token.type T_EOF;
+      = + @token Token.type T_EOF;
       = @done 1;
     }
     else if eq ch 39 { // `\'`
       = @ch load8 l.index;
-      = @token.buffer l.index;
+      = + @token Token.buffer l.index;
       = @l.index + 1 l.index;
       = @l.column + 1 l.column;
       if neq load8 l.index 39 {
-        = @token.type T_EOF;
+        = + @token Token.type T_EOF;
         lexer_error("missing closing `'`\n");
       }
       else {
         = @l.index + 1 l.index;
         = @l.column + 1 l.column;
-        = @token.v ch;
-        = @token.type T_NUMBER;
-        = @token.length 1;
+        = + @token Token.v ch;
+        = + @token Token.type T_NUMBER;
+        = + @token Token.length 1;
       }
       = @done 1;
     }
@@ -519,24 +530,25 @@ fn lexer_next -> none {
       }
       else if is_digit(ch) {
         lexer_read_number();
-        let number str_to_u64(cast cstr token.buffer, token.length);
-        = @token.v number;
+        let number str_to_u64(cast cstr load64 + @token Token.buffer, load64 + @token Token.length);
+        = + @token Token.v number;
         = @done 1;
       }
       else {
-        let it "";
-        = @it tmp_it;
+        let tmp tmp_it;
         tmp_push_cstr("unrecognized token `");
-        tmp_push_str(token.buffer, token.length);
+        tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("`\n");
-        lexer_error(it);
-        = @tmp_it it;
-        = @token.type T_EOF;
+        tmp_push_byte(0); // null-terminator
+        lexer_error(cast cstr tmp);
+        = @tmp_it tmp;
+        = + @token Token.type T_EOF;
         = @done 1;
       }
     }
+    = @done 1;
   }
-  = @token.line l.line;
+  = + @token Token.line l.line;
 }
 
 fn lexer_init(filename : any, source : any) -> none {
@@ -549,14 +561,14 @@ fn lexer_init(filename : any, source : any) -> none {
   = @l.status NoError;
 
   // initialize lexer token
-  = @token.buffer source;
-  = @token.length 0;
-  = @token.type T_EOF;
-  = @token.v 0;
-  = @token.filename filename;
-  = @token.source source;
-  = @token.line 1;
-  = @token.column 1;
+  = + @token Token.buffer source;
+  = + @token Token.length 0;
+  = + @token Token.type T_EOF;
+  = + @token Token.v 0;
+  = + @token Token.filename filename;
+  = + @token Token.source source;
+  = + @token Token.line 1;
+  = + @token Token.column 1;
 
   = + @token_type_str * T_EOF           sizeof cstr "T_EOF";
   = + @token_type_str * T_IDENTIFIER    sizeof cstr "T_IDENTIFIER";

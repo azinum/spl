@@ -715,6 +715,7 @@ static void typecheck_error_at(Compile* c, Token token, const char* fmt, ...);
 static Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_node_list(Compile* c, Block* block, Function* fs, Ast* ast);
 static Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast* ast);
+static void typecheck_print_stack(Compile* c, FILE* fp);
 static Compile_type ts_push(Compile* c, Compile_type type);
 static Compile_type ts_pop(Compile* c);
 static Compile_type ts_top(Compile* c);
@@ -1262,6 +1263,7 @@ i32 typecheck_program(Compile* c, Ast* ast) {
   if (c->status == NoError) {
     typecheck_print_unused(c);
   }
+  typecheck_print_stack(c, stdout);
   REAL_TIMER_END(
     print_info("type checking took %lf seconds\n", _dt);
     (void)_dt;
@@ -1728,6 +1730,22 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Token* t = &ast->token;
       u64 size = 0;
       switch (t->type) {
+        case T_UNSIGNED64:
+        case T_NUMBER: {
+          size = sizeof(u64);
+          break;
+        }
+        case T_UNSIGNED32: {
+          size = sizeof(u32);
+          break;
+        }
+        case T_PTR:
+        case T_CSTRING:
+        case T_CSTR:
+        case T_ANY: {
+          size = sizeof(void*);
+          break;
+        }
         case T_IDENTIFIER: {
           Symbol* symbol = NULL;
           i32 symbol_index = -1;
@@ -1738,21 +1756,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
             typecheck_error_at(c, *t, "symbol `%.*s` not defined\n", t->length, t->buffer);
             return TypeNone;
           }
-          break;
-        }
-        case T_UNSIGNED64:
-        case T_NUMBER: {
-          size = sizeof(u64);
-          break;
-        }
-        case T_UNSIGNED32: {
-          size = sizeof(u32);
-          break;
-        }
-        case T_CSTRING:
-        case T_CSTR:
-        case T_ANY: {
-          size = sizeof(void*);
           break;
         }
         default: {
@@ -2050,6 +2053,14 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
   }
   compile_error_at(c, ast->token, "symbol `%.*s` has already been declared\n", ast->token.length, ast->token.buffer);
   return TypeNone;
+}
+
+void typecheck_print_stack(Compile* c, FILE* fp) {
+  for (i32 i = 0; i < c->ts_count && c->vs_count; ++i) {
+    Compile_type type = c->ts[i];
+    Value value = c->vs[i];
+    fprintf(fp, "%3d: `%s`, %ld\n", i, compile_type_str[type], value.num);
+  }
 }
 
 Compile_type ts_push(Compile* c, Compile_type type) {
@@ -4480,13 +4491,14 @@ Ast* parse_expr(Parser* p) {
       u8 ok = 0;
       t = lexer_next(&p->l); // skip `sizeof`
       switch (t.type) {
-        case T_IDENTIFIER:
-        case T_NUMBER:
-        case T_CSTRING:
+        case T_ANY:
+        case T_PTR:
         case T_UNSIGNED64:
         case T_UNSIGNED32:
+        case T_CSTRING:
         case T_CSTR:
-        case T_ANY: {
+        case T_STRUCT:
+        case T_IDENTIFIER: {
           ok = 1;
           break;
         }
