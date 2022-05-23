@@ -103,7 +103,19 @@ fn parse_expr -> ptr {
     ast_push(expr, parse_expr());
   }
   else if eq type T_AT {
-
+    lexer_next();
+    let t : Token 0;
+    memcpy(@t, @token, sizeof Token);
+    let type load64 + @t Token.type;
+    if eq type T_IDENTIFIER {
+      = @expr ast_create(AstValue);
+      = + @t Token.type T_AT;
+      memcpy(+ expr Ast.token, @t, sizeof Token);
+      lexer_next(); // skip identifier
+    }
+    else {
+      parser_error("expected identifier after `@`, but got `?`\n");
+    }
   }
   else if or or or or or or
     eq type T_DEREF
