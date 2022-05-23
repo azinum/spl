@@ -7,6 +7,9 @@ struct Parser (
 
 let p : Parser 0;
 
+fn parser_function -> ptr NULL;
+let expression parser_function;
+
 fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
     let tmp tmp_it;
@@ -24,6 +27,27 @@ fn parser_error(message : cstr) -> none {
   }
 }
 
+// L : `(` expr `,` ... `)`
+//   | `(` empty `)`
+fn parse_expr_list -> ptr {
+  let expr_list ast_create(AstExprList);
+  let type load64 + @token Token.type;
+  if neq type T_RIGHT_P {
+    let done 0;
+    while eq done 0 {
+      ast_push(expr_list, expression());
+      = @type load64 + @token Token.type;
+      if eq type T_COMMA {
+        lexer_next();
+      }
+      else {
+        = @done 1;
+      }
+    }
+  }
+  expr_list;
+}
+
 fn parse_expr -> ptr {
   let expr : ptr NULL;
   let type load64 + @token Token.type;
@@ -36,7 +60,27 @@ fn parse_expr -> ptr {
     lexer_next();
   }
   else if eq type T_IDENTIFIER {
-
+    let t : Token 0;
+    memcpy(@t, @token, sizeof Token);
+    lexer_next();
+    = @type load64 + @token Token.type;
+    if eq type T_LEFT_P { // function call
+      lexer_next(); // skip `(`
+      = @expr ast_create(AstFuncCall);
+      memcpy(+ expr Ast.token, @t, sizeof Token);
+      ast_push(expr, parse_expr_list());
+      = @type load64 + @token Token.type;
+      if neq type T_RIGHT_P {
+        parser_error("expected closing `)` parenthesis in function call, but got `?`\n");
+      }
+      else {
+        lexer_next(); // skip `)`
+      }
+    }
+    else {
+      = @expr ast_create(AstValue);
+      memcpy(+ expr Ast.token, @t, sizeof Token);
+    }
   }
   else if or or or or or or or or or or or or
     eq type T_ADD
@@ -173,6 +217,7 @@ fn parser_init(filename : any, source : any) -> u64 {
   = + @p Parser.ast ast_create(AstRoot);
   = + @p Parser.status NoError;
 
+  = @expression parse_expr;
   // = @statement parse_statement;
   // = @statements parse_statements;
   // = @expr_list parse_expr_list;
