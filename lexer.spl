@@ -72,15 +72,6 @@ enum u64 (
 
 let token_type_str : cstr : MAX_TOKEN_TYPE "";
 
-// let token.buffer 0;
-// let token.length 0;
-// let token.type 0;
-// let token.v 0;
-// let token.filename "";
-// let token.source "";
-// let token.line 0;
-// let token.column 0;
-
 struct Token (
   buffer   : ptr,
   length   : u64,

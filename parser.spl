@@ -48,6 +48,29 @@ fn parse_expr_list -> ptr {
   expr_list;
 }
 
+fn parse_type -> ptr {
+  let type_expr : ptr NULL;
+  let type load64 + @token Token.type;
+  if or or or or or or
+    eq type T_NONE
+    eq type T_ANY
+    eq type T_PTR
+    eq type T_CSTR
+    eq type T_UNSIGNED64
+    eq type T_UNSIGNED32
+    eq type T_IDENTIFIER {
+    = @type_expr ast_create(AstType);
+    memcpy(+ type_expr Ast.token, @token, sizeof Token);
+    lexer_next(); // skip type
+    = @type load64 + @token Token.type;
+    if eq type T_COLON {
+      lexer_next(); // skip `:`
+      ast_push(type_expr, expression());
+    }
+  }
+  type_expr;
+}
+
 fn parse_expr -> ptr {
   let expr : ptr NULL;
   let type load64 + @token Token.type;
@@ -125,19 +148,58 @@ fn parse_expr -> ptr {
     eq type T_LOAD8
     eq type T_PRINT
     eq type T_LOGICAL_NOT {
-
+    let t : Token 0;
+    memcpy(@t, @token, sizeof Token);
+    lexer_next();
+    = @expr ast_create(AstUopExpression);
+    memcpy(+ expr Ast.token, @t, sizeof Token);
+    ast_push(expr, parse_expr());
   }
   else if eq type T_SIZEOF {
+    lexer_next();
+    let type load64 + @token Token.type;
+    let ok or or or or or or or or
+      eq type T_ANY
+      eq type T_PTR
+      eq type T_NUMBER
+      eq type T_UNSIGNED64
+      eq type T_UNSIGNED32
+      eq type T_CSTRING
+      eq type T_CSTR
+      eq type T_STRUCT
+      eq type T_IDENTIFIER;
 
+    if eq ok 0 {
+      parser_error("expected type in sizeof operator, but got `?`\n");
+    }
+    else {
+      = @expr ast_create(AstSizeof);
+      memcpy(+ expr Ast.token, @token, sizeof Token);
+      lexer_next(); // skip type
+    }
   }
   else if eq type T_LEFT_P {
-
+    lexer_next(); // skip `(`
+    = @expr parse_expr();
+    let type load64 + @token Token.type;
+    if neq type T_RIGHT_P {
+      parser_error("missing closing `)` parenthesis in expression\n");
+    }
+    else {
+      lexer_next(); // skip `)`
+    }
   }
   else if eq type T_RIGHT_P {
-
+    parser_error("unexpected closing `)` parenthesis in expression\n");
   }
   else if eq type T_CAST {
-
+    = @expr ast_create(AstCastExpression);
+    memcpy(+ expr Ast.token, @token, sizeof Token);
+    lexer_next(); // skip `cast`
+    let inner_expr ast_create(AstExpression);
+    ast_push(expr, parse_type());
+    ast_push(inner_expr, parse_expr());
+    ast_push(expr, inner_expr);
   }
   else {
     parser_error("unexpected token `?` in expression\n");
