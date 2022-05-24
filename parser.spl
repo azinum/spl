@@ -9,6 +9,7 @@ let p : Parser 0;
 
 fn parser_function -> ptr NULL;
 let expression parser_function;
+let statements parser_function;
 
 fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
@@ -215,10 +216,39 @@ fn parse_statement -> ptr {
 
   }
   else if eq type T_MEMORY {
-
+    lexer_next(); // skip `memory`
+    = @type load64 + @token Token.type;
+    if neq type T_IDENTIFIER {
+      parser_error("expected identifier in memory statement, but got `?`\n");
+    }
+    else {
+      = @stmt ast_create(AstMemoryStatement);
+      memcpy(+ stmt Ast.token, @token, sizeof Token); // copy identifier token
+      lexer_next(); // skip identifier
+      ast_push(stmt, parse_expr());
+      = @type load64 + @token Token.type;
+      if neq type T_SEMICOLON {
+        parser_error("expected `;` semicolon after memory statement, but got `?`\n");
+      }
+      else {
+        lexer_next(); // skip `;`
+      }
+    }
   }
   else if eq type T_LEFT_CURLY {
-
+    lexer_next(); // skip `{`
+    = @stmt ast_create(AstBlockStatement);
+    let sub_stmts statements();
+    if neq cast u64 sub_stmts NULL {
+      ast_push(stmt, sub_stmts);
+      = @type load64 + @token Token.type;
+      if neq type T_RIGHT_CURLY {
+        parser_error("expected closing `}` curly bracket in block, but got `?`\n");
+      }
+      else {
+        lexer_next(); // skip `}`
+      }
+    }
   }
   else if or or or or
     eq type T_ASSIGN
@@ -267,6 +297,9 @@ fn parse_statements -> ptr {
     else if eq type T_SEMICOLON {
       lexer_next();
     }
+    else if eq type T_RIGHT_CURLY {
+      = @done 1;
+    }
     else {
       let stmt parse_statement();
       if eq cast u64 stmt NULL {
@@ -292,9 +325,8 @@ fn parser_init(filename : any, source : any) -> u64 {
   = + @p Parser.status NoError;
 
   = @expression parse_expr;
-  // = @statement parse_statement;
-  // = @statements parse_statements;
-  // = @expr_list parse_expr_list;
+  = @statements parse_statements;
+
   NoError;
 }
 
