@@ -256,22 +256,92 @@ fn parse_statement -> ptr {
     eq type T_STORE32
     eq type T_STORE16
     eq type T_STORE8 {
-
+    = @stmt ast_create(AstAssignment);
+    memcpy(+ stmt Ast.token, @token, sizeof Token);
+    lexer_next(); // skip assignment/store operator
+    ast_push(stmt, parse_expr());
+    ast_push(stmt, parse_expr());
   }
   else if eq type T_WHILE {
-
+    = @stmt ast_create(AstWhileStatement);
+    memcpy(+ stmt Ast.token, @token, sizeof Token);
+    lexer_next(); // skip `while`
+    let cond ast_create(AstExpression);
+    memcpy(+ cond Ast.token, @token, sizeof Token);
+    ast_push(cond, parse_expr());
+    ast_push(stmt, cond);
+    = @type load64 + @token Token.type;
+    if eq type T_LEFT_CURLY {
+      lexer_next(); // skip `{`
+      ast_push(stmt, statements());
+      = @type load64 + @token Token.type;
+      if neq type T_RIGHT_CURLY {
+        parser_error("expected closing `}` curly bracket in while statement body, but got `?`\n");
+      }
+      else {
+        lexer_next(); // skip `}`
+      }
+    }
+    else {
+      ast_push(stmt, parse_statement());
+    }
   }
   else if eq type T_IF {
-
+    = @stmt ast_create(AstIfStatement);
+    memcpy(+ stmt Ast.token, @token, sizeof Token);
+    lexer_next(); // skip `if`
+    let cond ast_create(AstExpression);
+    memcpy(+ cond Ast.token, @token, sizeof Token); // copy what ever token that is after `if`
+    ast_push(cond, parse_expr());
+    ast_push(stmt, cond);
+    = @type load64 + @token Token.type;
+    if eq type T_LEFT_CURLY {
+      lexer_next(); // skip `{`
+      ast_push(stmt, statements());
+      = @type load64 + @token Token.type;
+      if neq type T_RIGHT_CURLY {
+        parser_error("expected closing `}` curly bracket in if statement body, but got `?`\n");
+      }
+      else {
+        lexer_next(); // skip `}`
+      }
+    }
+    else {
+      let if_body ast_create(AstStatementList);
+      ast_push(if_body, parse_statement());
+      ast_push(stmt, if_body);
+    }
+    // parsing of else statements
+    = @type load64 + @token Token.type;
+    if eq type T_ELSE {
+      lexer_next(); // skip `else`
+      = @type load64 + @token Token.type;
+      if eq type T_LEFT_CURLY {
+        lexer_next(); // skip `{`
+        ast_push(stmt, statements()); // parse else body
+        = @type load64 + @token Token.type;
+        if neq type T_RIGHT_CURLY {
+          parser_error("expected closing `}` curly bracket in else body, but got `?`\n");
+        }
+        else {
+          lexer_next(); // skip `}`
+        }
+      }
+      else {
+        let else_body ast_create(AstStatementList);
+        ast_push(else_body, parse_statement());
+        ast_push(stmt, else_body);
+      }
+    }
   }
   else if eq type T_ENUM {
-
+    assert(0, "T_ENUM: not implemented yet\n");
   }
   else if eq type T_STRUCT {
-
+    assert(0, "T_STRUCT: not implemented yet\n");
   }
   else if eq type T_STATIC_ASSERT {
-
+    assert(0, "T_STATIC_ASSERT: not implemented yet\n");
   }
   else {
     = @stmt parse_expr();
@@ -299,6 +369,12 @@ fn parse_statements -> ptr {
     }
     else if eq type T_RIGHT_CURLY {
       = @done 1;
+    }
+    else if eq type T_FN {
+      assert(0, "T_FN: not implemented yet\n");
+    }
+    else if eq type T_INCLUDE {
+      assert(0, "T_INCLUDE: not implemented yet\n");
     }
     else {
       let stmt parse_statement();

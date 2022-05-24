@@ -1,4 +1,10 @@
-{
-  memory a 128;
-  + 2 3;
+
+if 1 {
+  print 1;
+}
+else if 2 {
+  print 2;
+}
+else {
+  print 3;
 }
