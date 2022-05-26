@@ -75,7 +75,7 @@ fn ast_print_node(ast : any, fd : u64) -> none {
   p("\n");
   putsn(fd, tmp, - tmp_it tmp);
   = @tmp_it tmp;
-  token_print(token);
+  token_print(cast ptr token);
 }
 
 fn ast_push(ast : ptr, node : ptr) -> none {

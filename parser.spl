@@ -28,6 +28,16 @@ fn parser_error(message : cstr) -> none {
   }
 }
 
+fn expect_semicolon -> none {
+  let type load64 + @token Token.type;
+  if neq type T_SEMICOLON {
+    parser_error("expected `;` semicolon after statement, but got `?`\n");
+  }
+  else {
+    lexer_next(); // skip `;`
+  }
+}
+
 // L : `(` expr `,` ... `)`
 //   | `(` empty `)`
 fn parse_expr_list -> ptr {
@@ -341,17 +351,25 @@ fn parse_statement -> ptr {
     assert(0, "T_STRUCT: not implemented yet\n");
   }
   else if eq type T_STATIC_ASSERT {
-    assert(0, "T_STATIC_ASSERT: not implemented yet\n");
+    = @stmt ast_create(AstStaticAssert);
+    // memcpy(+ stmt Ast.token, @token, sizeof Token);
+    lexer_next(); // skip `static_assert`
+    ast_push(stmt, parse_expr());
+    = @type load64 + @token Token.type;
+    if neq type T_CSTRING {
+      parser_error("expected string in static assert statement, but got `?`\n");
+    }
+    else {
+      let node ast_create(AstValue);
+      memcpy(+ node Ast.token, @token, sizeof Token);
+      ast_push(stmt, node);
+      lexer_next(); // skip string
+    }
+    expect_semicolon();
   }
   else {
     = @stmt parse_expr();
-    = @type load64 + @token Token.type;
-    if neq type T_SEMICOLON {
-      parser_error("expected `;` semicolon after statement, but got `?`\n");
-    }
-    else {
-      lexer_next(); // skip `;`
-    }
+    expect_semicolon();
   }
   stmt;
 }

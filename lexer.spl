@@ -116,7 +116,7 @@ fn copy_token_into_memory(mem : any) -> none {
   = + mem Token.column   + @token Token.column;
 }
 
-fn token_print(token : any) -> none {
+fn token_print(token : ptr) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
@@ -192,6 +192,9 @@ fn lexer_read_symbol -> none {
   }
   else if eq 0 strncmp(buffer, "print", length) {
     = + @token Token.type T_PRINT;
+  }
+  else if eq 0 strncmp(buffer, "static_assert", length) {
+    = + @token Token.type T_STATIC_ASSERT;
   }
   else if eq 0 strncmp(buffer, "include", length) {
     = + @token Token.type T_INCLUDE;
