@@ -219,6 +219,35 @@ fn parse_expr -> ptr {
   expr;
 }
 
+fn parse_ident_list -> ptr {
+  let ident_list : ptr ast_create(AstExprList);
+  let type T_NONE;
+  let t : Token 0;
+  let done 0;
+  while not done {
+    memcpy(@t, @token, sizeof Token);
+    = @type load64 + @token Token.type;
+    if eq type T_IDENTIFIER {
+      ast_push_node(ident_list, AstValue, @t);
+      lexer_next(); // skip identifier
+    }
+    else {
+      parser_error("expected identifier in identifier list, but got `?`\n");
+      = @done 1;
+    }
+
+    = @type load64 + @token Token.type;
+    if eq type T_COMMA {
+      lexer_next(); // skip `,`
+    }
+    else {
+      // we're done here if there was no comma
+      = @done 1;
+    }
+  }
+  ident_list;
+}
+
 fn parse_statement -> ptr {
   let stmt : ptr NULL;
   let type load64 + @token Token.type;
@@ -395,7 +424,29 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_ENUM {
-    assert(0, "T_ENUM: not implemented yet\n");
+    = @stmt ast_create(AstEnum);
+    lexer_next(); // skip `enum`
+    let type_branch : ptr parse_type();
+    if eq cast u64 type_branch NULL {
+      parser_error("expected type in enum expression, but got `?`\n");
+    }
+    else {
+      ast_push(stmt, type_branch);
+      = @type load64 + @token Token.type;
+      if eq type T_LEFT_P {
+        lexer_next(); // skip `(`
+        ast_push(stmt, parse_ident_list());
+        = @type load64 + @token Token.type;
+        if neq type T_RIGHT_P {
+          parser_error("expected closing `)` parenthesis in enum expression, but got `?`\n");
+        }
+        lexer_next(); // skip `)`
+      }
+      else {
+        ast_push(stmt, parse_ident_list());
+      }
+      expect_semicolon();
+    }
   }
   else if eq type T_STRUCT {
     assert(0, "T_STRUCT: not implemented yet\n");

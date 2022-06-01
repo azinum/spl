@@ -88,6 +88,15 @@ fn ast_push(ast : ptr, node : ptr) -> none {
   }
 }
 
+fn ast_push_node(ast : ptr, type : u64, token : ptr) -> none {
+  if eq cast u64 ast NULL {
+    assert(0, "invalid pointer (NULL) to ast\n");
+  }
+  let node : ptr ast_create(type);
+  memcpy(+ node Ast.token, token, sizeof Token);
+  ast_push(ast, node);
+}
+
 fn ast_count(ast : any) -> u64 {
   let count 1;
   let i 0;
