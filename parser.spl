@@ -223,7 +223,57 @@ fn parse_statement -> ptr {
   let stmt : ptr NULL;
   let type load64 + @token Token.type;
   if or eq type T_CONST eq type T_LET {
+    let branch_type : u64 type;
+    let t : Token 0;
+    lexer_next(); // skip const/let
+    memcpy(@t, @token, sizeof Token);
+    = @type load64 + @token Token.type;
+    if neq type T_IDENTIFIER {
+      parser_error("expected identifier in let/const statement, but got `?`\n");
+    }
+    else {
+      lexer_next(); // skip identifier
+      if eq branch_type T_LET {
+        = @stmt ast_create(AstLetStatement);
+      }
+      else {
+        = @stmt ast_create(AstConstStatement);
+      }
+      let explicit_type : ptr NULL;
+      memcpy(+ stmt Ast.token, @t, sizeof Token); // copy identifier token
+      = @type load64 + @token Token.type;
+      if eq type T_COLON { // explicit type
+        lexer_next(); // skip `:`
+        = @explicit_type parse_type();
+        if eq cast u64 explicit_type NULL {
+          parser_error("expected type after `:`, but got `?`\n");
+        }
+        else {
+          = @type load64 + + explicit_type Ast.token Token.type;
+          if eq type T_NONE {
+            parser_error("explicit type cannot be `none`\n");
+          }
+        }
+      }
 
+      // rhs of let/const statement
+      = @type load64 + @token Token.type;
+      if eq type T_LEFT_P {
+        lexer_next(); // skip `(`
+        ast_push(stmt, parse_expr_list());
+        = @type load64 + @token Token.type;
+        if neq type T_RIGHT_P {
+          parser_error("expected closing `)` parenthesis in expression list, but got `?`\n");
+        }
+        lexer_next(); // skip `)`
+      }
+      else {
+        ast_push(stmt, parse_expr_list());
+      }
+
+      ast_push(stmt, explicit_type);
+      expect_semicolon();
+    }
   }
   else if eq type T_MEMORY {
     lexer_next(); // skip `memory`
@@ -352,7 +402,7 @@ fn parse_statement -> ptr {
   }
   else if eq type T_STATIC_ASSERT {
     = @stmt ast_create(AstStaticAssert);
-    // memcpy(+ stmt Ast.token, @token, sizeof Token);
+    // memcpy(+ stmt Ast.token, @token, sizeof Token); // TODO(lucas): some strange behaviour happens here, bug, investigate!! could it something wrong with the token which is being copied here?
     lexer_next(); // skip `static_assert`
     ast_push(stmt, parse_expr());
     = @type load64 + @token Token.type;

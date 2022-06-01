@@ -1,2 +1,2 @@
 
-static_assert 1 "";
+const a : u32 0;
