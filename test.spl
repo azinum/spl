@@ -1,4 +1,4 @@
 
-const a : u32 2;
-let b : u64 0;
-enum u64 (A, B, C);
+fn add(a : u64, b : u64) -> u64 + a b;
+
+fn main -> none {}

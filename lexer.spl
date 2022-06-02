@@ -171,6 +171,8 @@ fn to_lower(ch : u64) -> u64 {
   ch;
 }
 
+fn lexer_token_type -> u64 load64 + @token Token.type;
+
 fn lexer_read_symbol -> none {
   while or or or or or
     is_alpha(load8 l.index)

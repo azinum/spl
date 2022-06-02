@@ -248,6 +248,45 @@ fn parse_ident_list -> ptr {
   ident_list;
 }
 
+fn parse_param_list -> ptr {
+  let param_list : ptr ast_create(AstParamList);
+  let type lexer_token_type();
+  if neq type T_RIGHT_P {
+    let done 0;
+    while not done {
+      = @type lexer_token_type();
+      if eq type T_IDENTIFIER {
+        let ident : Token 0;
+        memcpy(@ident, @token, sizeof Token);
+        lexer_next(); // skip argument identifier
+        = @type lexer_token_type();
+        if neq type T_COLON {
+          parser_error("expected `:` colon after argument identifier, but got `?`\n");
+          = @done 1;
+        }
+        else {
+          lexer_next(); // skip `:`
+          let arg : ptr ast_create(AstArg);
+          memcpy(+ arg Ast.token, @ident, sizeof Token);
+          ast_push(arg, parse_type());
+          ast_push(param_list, arg);
+          = @type lexer_token_type();
+          if eq type T_COMMA {
+            lexer_next(); // skip `,`
+          }
+          else {
+            = @done 1;
+          }
+        }
+      }
+      else {
+        = @done 1;
+      }
+    }
+  }
+  param_list;
+}
+
 fn parse_statement -> ptr {
   let stmt : ptr NULL;
   let type load64 + @token Token.type;
@@ -475,6 +514,66 @@ fn parse_statement -> ptr {
   stmt;
 }
 
+fn parse_func_def -> ptr {
+  let func : ptr NULL;
+  let rtype : ptr NULL;
+  let type : u64 T_NONE;
+  lexer_next(); // skip `fn`
+  = @type lexer_token_type();
+  if neq type T_IDENTIFIER {
+    parser_error("expected identifier after `fn`, but got `?`\n");
+  }
+  else {
+    = @func ast_create(AstFuncDefinition);
+    memcpy(+ func Ast.token, @token, sizeof Token);
+    lexer_next(); // skip function name
+
+    // parse function parameter list
+    = @type lexer_token_type();
+    if eq type T_LEFT_P {
+      lexer_next(); // skip `(`
+      ast_push(func, parse_param_list());
+      = @type lexer_token_type();
+      if neq type T_RIGHT_P {
+        parser_error("expected closing `)` parenthesis in function parameter list, but got `?`\n");
+      }
+      lexer_next();
+    }
+    else {
+      ast_push(func, ast_create(AstParamList)); // push empty parameter list
+    }
+
+    // parse function return type
+    = @type lexer_token_type();
+    if eq type T_ARROW {
+      lexer_next(); // skip `->`
+      = @rtype parse_type();
+      if eq cast u64 rtype NULL {
+        parser_error("expected type after `->`, but got `?`\n");
+      }
+    }
+    // parse function body
+    = @type lexer_token_type();
+    if eq type T_LEFT_CURLY {
+      lexer_next(); // skip `{`
+      ast_push(func, statements());
+      = @type lexer_token_type();
+      if neq type T_RIGHT_CURLY {
+        parser_error("expected closing `}` curly bracket in function body, but got `?`\n");
+      }
+      lexer_next(); // skip `}`
+    }
+    else {
+      let stmts : ptr ast_create(AstStatementList);
+      ast_push(stmts, parse_expr());
+      ast_push(func, stmts);
+      expect_semicolon();
+    }
+    ast_push(func, rtype);
+  }
+  func;
+}
+
 fn parse_statements -> ptr {
   let stmts ast_create(AstStatementList);
   let done 0;
@@ -490,7 +589,8 @@ fn parse_statements -> ptr {
       = @done 1;
     }
     else if eq type T_FN {
-      assert(0, "T_FN: not implemented yet\n");
+      let func_def : ptr parse_func_def();
+      if eq cast u64 func_def NULL = @done 1 else ast_push(stmts, func_def);
     }
     else if eq type T_INCLUDE {
       assert(0, "T_INCLUDE: not implemented yet\n");

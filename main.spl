@@ -4,17 +4,5 @@
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
-struct A (
-  a : u64,
-  b : u32
-);
-
-const NUM_ELEMENTS 8;
-
-struct B (
-  a : A : NUM_ELEMENTS,
-  b : u64
-);
-
 fn main -> none {
 }
