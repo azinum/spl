@@ -33,10 +33,10 @@ enum u64 (
 
 let ast_type_str : cstr : MAX_AST_TYPE "";
 
-const MAX_AST_NODE : u64 2048;
 // NOTE(lucas): it's very inefficient to use a constant number of internal nodes for the ast, but this will do for now
 // TODO(lucas): come back here and rework all of this when the self hosted compiler is complete
-const MAX_INTERNAL_NODE : u64 16; // how many nodes can each node hold?
+const MAX_INTERNAL_NODE : u64 128; // how many nodes can each node hold?
+const MAX_AST_NODE : u64 * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
 struct Ast (
   node  : ptr : MAX_INTERNAL_NODE,
@@ -47,18 +47,26 @@ struct Ast (
 );
 
 memory ast_node_memory * sizeof Ast MAX_AST_NODE;
-let ast_node : ptr cast ptr 0;
+let ast_node : ptr NULL;
+let ast_node_end : ptr NULL;
 
 fn ast_create(type : u64) -> ptr {
   let node : ptr ast_node;
-  = @ast_node + sizeof Ast ast_node;
 
-  = + node Ast.node 0;
-  = + node Ast.count 0;
-  = + node Ast.type type;
-  = + node Ast.konst 0;
+  if < cast u64 node ast_node_end {
+    = @ast_node + sizeof Ast ast_node;
 
-  token_init(+ Ast.token node, "T_EOF", 5, T_EOF, l.filename, l.source);
+    = + node Ast.node 0;
+    = + node Ast.count 0;
+    = + node Ast.type type;
+    = + node Ast.konst 0;
+
+    token_init(+ Ast.token node, "T_EOF", 5, T_EOF, l.filename, l.source);
+  }
+  else {
+    assert(0, "ast node capacity reached\n");
+    = @node NULL;
+  }
   node;
 }
 
@@ -117,7 +125,7 @@ fn ast_print(ast : any, level : u64, fd : u64) -> none {
     {
       let i 0;
       while < i level {
-        p("    ");
+        p("  ");
         = @i + 1 i;
       }
     }
@@ -175,4 +183,5 @@ fn ast_init -> none {
   = + @ast_type_str * AstArg             sizeof cstr "Arg";
 
   = @ast_node @ast_node_memory;
+  = @ast_node_end + ast_node * sizeof Ast MAX_AST_NODE;
 }
