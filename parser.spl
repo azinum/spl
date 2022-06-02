@@ -268,14 +268,21 @@ fn parse_param_list -> ptr {
           lexer_next(); // skip `:`
           let arg : ptr ast_create(AstArg);
           memcpy(+ arg Ast.token, @ident, sizeof Token);
-          ast_push(arg, parse_type());
-          ast_push(param_list, arg);
-          = @type lexer_token_type();
-          if eq type T_COMMA {
-            lexer_next(); // skip `,`
+          let arg_type parse_type();
+          if eq cast u64 arg_type NULL {
+            parser_error("expected type after `:`, but got `?`\n");
+            = @done 1;
           }
           else {
-            = @done 1;
+            ast_push(arg, arg_type);
+            ast_push(param_list, arg);
+            = @type lexer_token_type();
+            if eq type T_COMMA {
+              lexer_next(); // skip `,`
+            }
+            else {
+              = @done 1;
+            }
           }
         }
       }
@@ -287,9 +294,43 @@ fn parse_param_list -> ptr {
   param_list;
 }
 
+fn parse_struct -> ptr {
+  let struct_expr : ptr ast_create(AstStruct);
+  lexer_next(); // skip `struct`
+  let type lexer_token_type();
+  if neq type T_IDENTIFIER {
+    parser_error("expected identifier after `struct` token, but got `?`\n");
+  }
+  else {
+    memcpy(+ struct_expr Ast.token, @token, sizeof Token);
+    lexer_next(); // skip struct name
+    = @type lexer_token_type();
+    if eq type T_LEFT_P {
+      lexer_next(); // skip `(`
+      let fields : ptr parse_param_list();
+      ast_push(struct_expr, fields);
+      if eq load64 + fields Ast.count 0 {
+        parser_error("missing struct fields\n");
+      }
+      else {
+        = @type lexer_token_type();
+        if neq type T_RIGHT_P {
+          parser_error("expected closing `)` parenthesis after struct field list, but got `?`\n");
+        }
+        lexer_next(); // skip `)`
+      }
+    }
+    else {
+      parser_error("expected open `(` parenthesis to begin struct field list, but got `?`\n");
+    }
+    expect_semicolon();
+  }
+  struct_expr;
+}
+
 fn parse_statement -> ptr {
   let stmt : ptr NULL;
-  let type load64 + @token Token.type;
+  let type lexer_token_type();
   if or eq type T_CONST eq type T_LET {
     let branch_type : u64 type;
     let t : Token 0;
@@ -488,7 +529,7 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_STRUCT {
-    assert(0, "T_STRUCT: not implemented yet\n");
+    = @stmt parse_struct();
   }
   else if eq type T_STATIC_ASSERT {
     = @stmt ast_create(AstStaticAssert);
