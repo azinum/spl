@@ -5,9 +5,12 @@ struct Parser (
   status : u64
 );
 
+let include_count : u64 0;
+
 let p : Parser 0;
 
 fn parser_function -> ptr NULL;
+let parse_entry parser_function;
 let expression parser_function;
 let statements parser_function;
 
@@ -31,7 +34,7 @@ fn parser_error(message : cstr) -> none {
 fn expect_semicolon -> none {
   let type load64 + @token Token.type;
   if neq type T_SEMICOLON {
-    parser_error("expected `;` semicolon after statement, but got `?`\n");
+    parser_error("expected `;` semicolon, but got `?`\n");
   }
   else {
     lexer_next(); // skip `;`
@@ -103,7 +106,7 @@ fn parse_expr -> ptr {
       = @expr ast_create(AstFuncCall);
       memcpy(+ expr Ast.token, @t, sizeof Token);
       ast_push(expr, parse_expr_list());
-      = @type load64 + @token Token.type;
+      = @type lexer_token_type();
       if neq type T_RIGHT_P {
         parser_error("expected closing `)` parenthesis in function call, but got `?`\n");
       }
@@ -212,7 +215,7 @@ fn parse_expr -> ptr {
     ast_push(inner_expr, parse_expr());
     ast_push(expr, inner_expr);
   }
-  else {
+  else if neq type T_EOF {
     parser_error("unexpected token `?` in expression\n");
     = + @p Parser.status Error;
   }
@@ -548,9 +551,9 @@ fn parse_statement -> ptr {
     }
     expect_semicolon();
   }
-  else {
+  else if neq type T_EOF {
     = @stmt parse_expr();
-    expect_semicolon();
+    // expect_semicolon();
   }
   stmt;
 }
@@ -615,11 +618,71 @@ fn parse_func_def -> ptr {
   func;
 }
 
+fn parse_include -> ptr {
+  let include_body : ptr NULL;
+  lexer_next(); // skip `include`
+  if eq lexer_token_type() T_CSTRING {
+    let path load64 + @token Token.buffer;
+    let path_length load64 + @token Token.length;
+    let token_copy : Token 0;
+
+    lexer_next(); // skip path string
+
+    memcpy(@token_copy, @token, sizeof Token);
+
+    // copy current lexer state
+    let filename l.filename;
+    let source l.source;
+    let index l.index;
+    let line l.line;
+    let column l.column;
+    let status l.status;
+
+    let filename_path tmp_it;
+    tmp_push_str(path, + 1 path_length);
+    store8 cast ptr (+ filename_path path_length) 0;
+    let fd open(filename_path, 0, O_RDONLY);
+    if neq fd ERROR {
+      let file_source tmp_it;
+      let size read_file_into_buffer_and_null_terminate(fd, file_source);
+      = @tmp_it + tmp_it size;
+      lexer_init(filename_path, file_source);
+      = @include_body parse_entry();
+      = @include_count + 1 include_count;
+      close(fd);
+    }
+    else {
+      let message "";
+      = @message tmp_it;
+      tmp_push_cstr("failed to include source file `");
+      tmp_push_str(path, path_length);
+      tmp_push_cstr("`\n");
+      parser_error(message);
+      = @tmp_it message;
+    }
+
+    // restore lexer state
+    = @l.filename filename;
+    = @l.source source;
+    = @l.index index;
+    = @l.line line;
+    = @l.column column;
+    = @l.status status;
+
+    // restore lexer token
+    memcpy(@token, @token_copy, sizeof Token);
+  }
+  else {
+    parser_error("expected string after `include` keyword\n");
+  }
+  include_body;
+}
+
 fn parse_statements -> ptr {
   let stmts ast_create(AstStatementList);
   let done 0;
   while eq done 0 {
-    let type load64 + @token Token.type;
+    let type lexer_token_type();
     if eq type T_EOF {
       = @done 1;
     }
@@ -631,10 +694,21 @@ fn parse_statements -> ptr {
     }
     else if eq type T_FN {
       let func_def : ptr parse_func_def();
-      if eq cast u64 func_def NULL = @done 1 else ast_push(stmts, func_def);
+      if eq cast u64 func_def NULL {
+        = @done 1;
+      }
+      else {
+        ast_push(stmts, func_def);
+      }
     }
     else if eq type T_INCLUDE {
-      assert(0, "T_INCLUDE: not implemented yet\n");
+      let include_body : ptr parse_include();
+      if eq cast u64 include_body NULL {
+        = @done 1;
+      }
+      else {
+        ast_push(stmts, include_body);
+      }
     }
     else {
       let stmt parse_statement();
@@ -660,6 +734,9 @@ fn parser_init(filename : any, source : any) -> u64 {
   = + @p Parser.ast ast_create(AstRoot);
   = + @p Parser.status NoError;
 
+  = @include_count 0;
+
+  = @parse_entry parse;
   = @expression parse_expr;
   = @statements parse_statements;
 

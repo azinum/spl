@@ -67,7 +67,7 @@ enum u64 (
   T_UNSIGNED32,
   T_CSTR,
 
-  MAX_TOKEN_TYPE,
+  MAX_TOKEN_TYPE
 );
 
 let token_type_str : cstr : MAX_TOKEN_TYPE "";

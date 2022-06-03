@@ -68,7 +68,7 @@ fn spl_start(filename : any) -> u64 {
         parse()
       );
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
-        ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
+        // ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           compile_state_free();
         }

@@ -337,11 +337,22 @@ fn time -> u64 {
 }
 
 fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
-  let n 0;
+  let n : u64 0;
   while neq 0 read(fd, buf, 1) {
-    = @buf +1 buf;
-    = @n   +1 n;
+    = @buf + 1 buf;
+    = @n   + 1 n;
   }
+  n;
+}
+
+fn read_file_into_buffer_and_null_terminate(fd : u64, buf : any) -> u64 {
+  let n : u64 0;
+  while neq 0 read(fd, buf, 1) {
+    = @buf + 1 buf;
+    = @n   + 1 n;
+  }
+  store8 buf 0;
+  = @n + 1 n;
   n;
 }
 

@@ -28,14 +28,14 @@ enum u64 (
   AstStaticAssert,
   AstArg,
 
-  MAX_AST_TYPE,
+  MAX_AST_TYPE
 );
 
 let ast_type_str : cstr : MAX_AST_TYPE "";
 
-// NOTE(lucas): it's very inefficient to use a constant number of internal nodes for the ast, but this will do for now
+// NOTE(lucas): it's VERY inefficient to use a constant number of internal nodes for the ast, but this will do for now
 // TODO(lucas): come back here and rework all of this when the self hosted compiler is complete
-const MAX_INTERNAL_NODE : u64 128; // how many nodes can each node hold?
+const MAX_INTERNAL_NODE : u64 512; // how many nodes can each node hold?
 const MAX_AST_NODE : u64 * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
 struct Ast (
@@ -125,7 +125,7 @@ fn ast_print(ast : any, level : u64, fd : u64) -> none {
     {
       let i 0;
       while < i level {
-        p("  ");
+        p("    ");
         = @i + 1 i;
       }
     }
