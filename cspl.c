@@ -161,6 +161,8 @@ typedef enum Token_type {
   T_PTR,
   T_UNSIGNED64,
   T_UNSIGNED32,
+  T_UNSIGNED16,
+  T_UNSIGNED8,
   T_CSTR,
 
   MAX_TOKEN_TYPE,
@@ -229,6 +231,8 @@ static const char* token_type_str[] = {
   "T_PTR",
   "T_UNSIGNED64",
   "T_UNSIGNED32",
+  "T_UNSIGNED16",
+  "T_UNSIGNED8",
   "T_CSTR",
 };
 
@@ -472,6 +476,8 @@ typedef enum Compile_type {
   TypePtr,
   TypeUnsigned64,
   TypeUnsigned32,
+  TypeUnsigned16,
+  TypeUnsigned8,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
@@ -488,6 +494,8 @@ static const char* compile_type_str[MAX_COMPILE_TYPE] = {
   "Ptr",
   "Unsigned64",
   "Unsigned32",
+  "Unsigned16",
+  "Unsigned8",
   "CString",
   "Func",
   "SyscallFunc",
@@ -502,6 +510,8 @@ static u64 compile_type_size[MAX_COMPILE_TYPE] = {
   sizeof(void*),
   sizeof(u64),
   sizeof(u32),
+  sizeof(u16),
+  sizeof(u8),
   sizeof(void*),
   sizeof(void*),
   sizeof(void*),
@@ -1739,6 +1749,14 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           size = sizeof(u32);
           break;
         }
+        case T_UNSIGNED16: {
+          size = sizeof(u16);
+          break;
+        }
+        case T_UNSIGNED8: {
+          size = sizeof(u8);
+          break;
+        }
         case T_PTR:
         case T_CSTRING:
         case T_CSTR:
@@ -2145,7 +2163,7 @@ u32 is_branch_konst_eval(Ast* ast) {
 
 u32 is_numerical(Compile* c, Compile_type type) {
   (void)c; // unused for now
-  return type == TypeUnsigned64 || type == TypeUnsigned32;
+  return type == TypeUnsigned64 || type == TypeUnsigned32 || type == TypeUnsigned16 || type == TypeUnsigned8;
 }
 
 Compile_type token_to_compile_type(Compile* c, Block* block, Function* fs, Token t, Symbol** symbol_out) {
@@ -2155,6 +2173,8 @@ Compile_type token_to_compile_type(Compile* c, Block* block, Function* fs, Token
     case T_PTR:         return TypePtr;
     case T_UNSIGNED64:  return TypeUnsigned64;
     case T_UNSIGNED32:  return TypeUnsigned32;
+    case T_UNSIGNED16:  return TypeUnsigned16;
+    case T_UNSIGNED8:   return TypeUnsigned8;
     case T_CSTRING:
     case T_CSTR:        return TypeCString;
     case T_IDENTIFIER: {
@@ -2727,8 +2747,9 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         i32 local_id = fs->locals_offset_counter;
         u32 type_size = compile_type_size[symbol->type];
         u32 count = symbol->size / type_size;
-        u32 remainder = (count * type_size) % sizeof(u64);
-        fs->locals_offset_counter += (type_size * count) + remainder;
+        u32 spill = (count * type_size) % sizeof(u64);
+        spill = (sizeof(u64) - spill); // how many bytes were spilled? this is used for stack alignment of a certain boundary, which in this case is a 64-bit boundary. TODO(lucas): look into which minimum boundary size there is, 16-bits? i dunno.
+        fs->locals_offset_counter += (type_size * count) + spill;
         if (symbol->type == TypeStruct) {
           symbol->local_id = fs->locals_offset_counter - sizeof(u64);
           break;
@@ -3203,6 +3224,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
             o("mov [v%d+%d], eax\n", op->src0, op->src1);
             break;
           }
+          case TypeUnsigned16: {
+            o("pop rax\n");
+            o("mov [v%d+%d], ax\n", op->src0, op->src1);
+            break;
+          }
+          case TypeUnsigned8: {
+            o("pop rax\n");
+            o("mov [v%d+%d], al\n", op->src0, op->src1);
+            break;
+          }
           default: {
             assert(!"type not implemented yet");
             break;
@@ -3225,6 +3256,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypeUnsigned32: {
             o("pop rax\n");
             o("mov DWORD [rbp-%d], eax\n", op->src0);
+            break;
+          }
+          case TypeUnsigned16: {
+            o("pop rax\n");
+            o("mov WORD [rbp-%d], ax\n", op->src0);
+            break;
+          }
+          case TypeUnsigned8: {
+            o("pop rax\n");
+            o("mov BYTE [rbp-%d], al\n", op->src0);
             break;
           }
           default: {
@@ -3321,8 +3362,10 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           case TypePtr:
           case TypeCString:
           case TypeFunc:
-          case TypeUnsigned32:
           case TypeUnsigned64:
+          case TypeUnsigned32:
+          case TypeUnsigned16:
+          case TypeUnsigned8:
           case TypeStruct: {
             o("lea rax, [rbp-%d]\n", op->src0);
             o("push rax\n");
@@ -3346,7 +3389,20 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
               break;
             }
             case TypeUnsigned32: {
+              o("xor rax, rax\n");
               o("mov eax, [v%d]\n", op->src0);
+              o("push rax\n");
+              break;
+            }
+            case TypeUnsigned16: {
+              o("xor rax, rax\n");
+              o("mov ax, [v%d]\n", op->src0);
+              o("push rax\n");
+              break;
+            }
+            case TypeUnsigned8: {
+              o("xor rax, rax\n");
+              o("mov al, [v%d]\n", op->src0);
               o("push rax\n");
               break;
             }
@@ -3381,6 +3437,16 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           }
           case TypeUnsigned32: {
             o("mov eax, [rbp-%d]\n", op->src0);
+            o("push rax\n");
+            break;
+          }
+          case TypeUnsigned16: {
+            o("mov ax, [rbp-%d]\n", op->src0);
+            o("push rax\n");
+            break;
+          }
+          case TypeUnsigned8: {
+            o("mov al, [rbp-%d]\n", op->src0);
             o("push rax\n");
             break;
           }
@@ -3816,6 +3882,30 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           o(" ; `%s`\n", s->name);
           break;
         }
+        case TypeUnsigned16: {
+          assert(s->imm >= 0);
+          size = sizeof(u64);
+          i32 imm = s->imm + (count * size) - size;
+          o("v%d: dd", i);
+          for (u32 v = 0; v < count; ++v, imm -= size) {
+            u16 value = (u16)(*(u64*)&c->imm[imm]);
+            o(" %d,", value);
+          }
+          o(" ; `%s`\n", s->name);
+          break;
+        }
+        case TypeUnsigned8: {
+          assert(s->imm >= 0);
+          size = sizeof(u64);
+          i32 imm = s->imm + (count * size) - size;
+          o("v%d: dd", i);
+          for (u32 v = 0; v < count; ++v, imm -= size) {
+            u8 value = (u8)(*(u64*)&c->imm[imm]);
+            o(" %d,", value);
+          }
+          o(" ; `%s`\n", s->name);
+          break;
+        }
         default: {
           assert(!"type not implemented");
           break;
@@ -3845,6 +3935,14 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         }
         case TypeUnsigned32: {
           o("v%d: resb %d ; `%s` : Unsigned32\n", i, s->size, s->name);
+          break;
+        }
+        case TypeUnsigned16: {
+          o("v%d: resb %d ; `%s` : Unsigned16\n", i, s->size, s->name);
+          break;
+        }
+        case TypeUnsigned8: {
+          o("v%d: resb %d ; `%s` : Unsigned8\n", i, s->size, s->name);
           break;
         }
         case TypeCString: {
@@ -4493,6 +4591,8 @@ Ast* parse_expr(Parser* p) {
         case T_PTR:
         case T_UNSIGNED64:
         case T_UNSIGNED32:
+        case T_UNSIGNED16:
+        case T_UNSIGNED8:
         case T_CSTRING:
         case T_CSTR:
         case T_STRUCT:
@@ -4688,7 +4788,7 @@ Ast* parse_param_list(Parser* p) {
 
 Ast* parse_type(Parser* p) {
   Token t = lexer_peek(&p->l);
-  if (t.type == T_NONE || t.type == T_ANY || t.type == T_PTR || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_IDENTIFIER) {
+  if (t.type == T_NONE || t.type == T_ANY || t.type == T_PTR || t.type == T_CSTR || t.type == T_UNSIGNED64 || t.type == T_UNSIGNED32 || t.type == T_UNSIGNED16 || t.type == T_UNSIGNED8 || t.type == T_IDENTIFIER) {
     Ast* type = ast_create(AstType);
     type->token = t;
     t = lexer_next(&p->l); // skip type
@@ -4931,6 +5031,12 @@ Token lexer_read_symbol(Lexer* l) {
   }
   else if (compare(l->token, "u32")) {
     l->token.type = T_UNSIGNED32;
+  }
+  else if (compare(l->token, "u16")) {
+    l->token.type = T_UNSIGNED16;
+  }
+  else if (compare(l->token, "u8")) {
+    l->token.type = T_UNSIGNED8;
   }
   else if (compare(l->token, "cstr")) {
     l->token.type = T_CSTR;
