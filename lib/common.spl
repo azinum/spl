@@ -99,19 +99,12 @@ fn memcpy(dest : any, src : any, n : u64) -> none {
   }
 }
 
-// TODO: sometimes yields wrong results, investigate
-fn digit_count(n : u64) {
+fn digit_count(n : u64) -> u64 {
   const base : u64 10;
   let count : u64 1;
-  let i 1;
-  if < n 10 {
-    = @count 1;
-  }
-  else {
-    while < i n {
-      = @i * i base;
-      = @count + 1 count;
-    }
+  while > n 9 {
+    = @n / n base;
+    = @count + 1 count;
   }
   count;
 }
