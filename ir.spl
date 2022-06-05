@@ -55,8 +55,6 @@ enum u64 (
   MAX_IR_CODE
 );
 
-let ir_code_str : cstr : MAX_IR_CODE "";
-
 enum u64 (
   TypeNone,
   TypeAny,
@@ -71,9 +69,112 @@ enum u64 (
   MAX_COMPILE_TYPE
 );
 
-let compile_type_str : cstr : MAX_COMPILE_TYPE "";
+// symbol types
+enum u64 (
+  SYM_FUNC_ARG,
+  SYM_FUNC,
+  SYM_LOCAL_VAR,
+  SYM_GLOBAL_VAR
+);
 
+const MAX_FUNC_ARGC 6; // TODO(lucas): temp
+
+struct Function (
+  ir_address            : u64,
+  label                 : u64,
+  argc                  : u64,
+  locals_offset_counter : u64,
+  rtype                 : u64,
+  args                  : u64 : MAX_FUNC_ARGC
+);
+
+struct Value (
+  func  : Function,
+  num   : u64,
+  konst : u64
+);
+
+const MAX_NAME_SIZE 64;
+
+struct Symbol (
+  name                : u8 : MAX_NAME_SIZE,
+  imm                 : u64,
+  size                : u64,
+  num_elemements_init : u64,
+  konst               : u64,
+  local_id            : u64,
+  sym_type            : u64,
+  type                : u64,
+  token               : Token,
+  value               : Value,
+  ref_count           : u64
+);
+
+const MAX_SYMBOL 1024;
+const MAX_STATIC_DATA * 32 1024;
+const MAX_CSTRING 512;
+
+struct Block (
+  symbols      : u64 : MAX_SYMBOL, // index into compile state symbols
+  symbol_count : u64,
+  parent       : ptr
+);
+
+const MAX_TYPE_STACK 256;
+
+struct Compile (
+  ins              : ptr, // Op*
+  ins_count        : u64,
+
+  imm              : u8 : MAX_STATIC_DATA,
+  imm_index        : u64,
+
+  symbols          : Symbol : MAX_SYMBOL,
+  symbol_count     : u64,
+
+  cstrings         : u64 : MAX_CSTRING,
+  cstring_count    : u64,
+
+  global           : Block,
+
+  label_count      : u64,  // labels that are used for branching
+
+  status           : u64,
+  entry_point      : u64,
+
+  ts               : u64 : MAX_TYPE_STACK, // type stack
+  ts_count         : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
+
+  vs               : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
+  vs_count         : u64,
+
+  type_count       : u64  // how many types are there, including primitive and user defined types?
+);
+
+let ir_code_str : cstr : MAX_IR_CODE "";
+let compile_type_str : cstr : MAX_COMPILE_TYPE "";
 let compile_type_size : u64 : MAX_COMPILE_TYPE 0;
+
+struct Op (
+  i    : u64,
+  dest : u64,
+  src0 : u64,
+  src1 : u64
+);
+
+fn OP(i : u64, op : ptr) -> none {
+  = + op Op.i    i;
+  = + op Op.dest NONE;
+  = + op Op.src0 NONE;
+  = + op Op.src1 NONE;
+}
+
+fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
+  = + op Op.i    i;
+  = + op Op.dest dest;
+  = + op Op.src0 src0;
+  = + op Op.src1 src1;
+}
 
 fn compile_state_init -> u64 {
   = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";

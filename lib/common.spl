@@ -1,6 +1,8 @@
 // common.spl
 // platform independent common/standard library
 
+const ERROR - 0 2;
+const NONE - 0 2;
 const NoError 0;
 const Error 1;
 let NULL cast ptr 0;
