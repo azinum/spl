@@ -27,7 +27,6 @@ enum u64 (
   T_NEQ,
   T_COLON,
   T_SEMICOLON,
-  T_POP,
   T_CONST,
   T_LET,
   T_MEMORY,
@@ -166,10 +165,7 @@ fn lexer_read_symbol -> none {
   let buffer cast cstr load64 + @token Token.buffer;
   let length : u64 load64 + @token Token.length;
 
-  if eq 0 strncmp(buffer, "pop", length) {
-    = + @token Token.type T_POP;
-  }
-  else if eq 0 strncmp(buffer, "print", length) {
+  if eq 0 strncmp(buffer, "print", length) {
     = + @token Token.type T_PRINT;
   }
   else if eq 0 strncmp(buffer, "static_assert", length) {
@@ -566,7 +562,6 @@ fn lexer_init(filename : any, source : any) -> none {
   = + @token_type_str * T_NEQ           sizeof cstr "T_NEQ";
   = + @token_type_str * T_COLON         sizeof cstr "T_COLON";
   = + @token_type_str * T_SEMICOLON     sizeof cstr "T_SEMICOLON";
-  = + @token_type_str * T_POP           sizeof cstr "T_POP";
   = + @token_type_str * T_CONST         sizeof cstr "T_CONST";
   = + @token_type_str * T_LET           sizeof cstr "T_LET";
   = + @token_type_str * T_MEMORY        sizeof cstr "T_MEMORY";

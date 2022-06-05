@@ -87,8 +87,7 @@ fn parse_type -> ptr {
 fn parse_expr -> ptr {
   let expr : ptr NULL;
   let type load64 + @token Token.type;
-  if or or
-    eq type T_POP
+  if or
     eq type T_NUMBER
     eq type T_CSTRING {
     = @expr ast_create(AstValue);
