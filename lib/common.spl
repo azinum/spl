@@ -125,16 +125,64 @@ fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
   }
 }
 
-// TODO: implement parsing of hex numbers
-// TODO: add error checking
+fn is_digit(ch : u64) -> u64 {
+  and > ch - '0' 1 < ch + '9' 1;
+}
+
+fn is_hex(ch : u64) -> u64 {
+  or or is_digit(ch) (and > ch - 'a' 1 < ch + 'f' 1) (and > ch - 'A' 1 < ch + 'F' 1);
+}
+
+fn is_alpha(ch : u64) -> u64 {
+  or (and > ch - 'a' 1 < ch + 'z' 1) (and > ch - 'A' 1 < ch + 'Z' 1);
+}
+
+fn is_extended_ascii(ch : u64) -> u64 {
+  and > ch 127 < ch 255;
+}
+
+fn to_lower(ch : u64) -> u64 {
+  if and > ch - 'A' 1 < ch + 'Z' 1 {
+    = @ch + 32 ch;
+  }
+  ch;
+}
+
 fn str_to_u64(str : cstr, length : u64) -> u64 {
-  const base : u64 10;
-  let result : u64 0;
-  let i : u64 0;
-  while < i length {
-    let ch load8 + str i;
-    = @result + * result base - ch '0';
-    = @i + 1 i;
+  let result   : u64 0;
+  let base     : u64 10;
+  let i        : u64 0;
+  let done     : u64 0;
+  let hex_done : u64 0;
+
+  if > length 2 {
+    if eq strncmp(str, "0x", 2) 0 {
+      = @base 16;
+      = @i 2;
+      while and < i length not hex_done {
+        let ch to_lower(load8 + str i);
+        if is_digit(ch) {
+          = @result + * result base - ch '0';
+        }
+        else if is_hex(ch) {
+          = @result + * result base + 10 - ch 'a';
+        }
+        else {
+          = @result UINT64_MAX;
+          = @hex_done 1;
+        }
+        = @i + 1 i;
+      }
+      = @done 1;
+    }
+  }
+  if not done {
+    = @i 0;
+    while < i length {
+      let ch load8 + str i;
+      = @result + * result base - ch '0';
+      = @i + 1 i;
+    }
   }
   result;
 }

@@ -1,10 +1,5 @@
 // typecheck.spl
 
-fn typecheck_program(ast : ptr) -> u64 {
-  print_info("type checking took ? seconds\n");
-  load64 + @c Compile.status;
-}
-
 fn typecheck_print_unused -> none {
   assert(0, "typecheck_print_unused(): not implemented yet\n");
 }
@@ -79,4 +74,9 @@ fn is_numerical(type : u64) -> u64 {
 fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -> u64 {
   assert(0, "token_to_compile_type(): not implemented yet\n");
   TypeNone;
+}
+
+fn typecheck_program(ast : ptr) -> u64 {
+  print_info("type checking took ? seconds\n");
+  load64 + @c Compile.status;
 }
