@@ -1,11 +1,10 @@
 // parser.spl
 
 struct Parser (
-  ast : ptr,
-  status : u64
+  ast          : ptr,
+  status       : u64,
+  source_count : u64
 );
-
-let include_count : u64 0;
 
 let p : Parser 0;
 
@@ -553,7 +552,7 @@ fn parse_statement -> ptr {
   }
   else if neq type T_EOF {
     = @stmt parse_expr();
-    // expect_semicolon();
+    expect_semicolon();
   }
   stmt;
 }
@@ -648,7 +647,7 @@ fn parse_include -> ptr {
       = @tmp_it + tmp_it size;
       lexer_init(filename_path, file_source);
       = @include_body parse_entry();
-      = @include_count + 1 include_count;
+      = + @p Parser.source_count + 1 load64 + @p Parser.source_count;
       close(fd);
     }
     else {
@@ -681,7 +680,7 @@ fn parse_include -> ptr {
 fn parse_statements -> ptr {
   let stmts ast_create(AstStatementList);
   let done 0;
-  while eq done 0 {
+  while not done {
     let type lexer_token_type();
     if eq type T_EOF {
       = @done 1;
@@ -725,7 +724,7 @@ fn parse_statements -> ptr {
 
 fn parse -> ptr {
   lexer_next();
-  let ast parse_statements();
+  let ast : ptr parse_statements();
   ast;
 }
 
@@ -733,8 +732,7 @@ fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
   = + @p Parser.ast ast_create(AstRoot);
   = + @p Parser.status NoError;
-
-  = @include_count 0;
+  = + @p Parser.source_count 0;
 
   = @parse_entry parse;
   = @expression parse_expr;

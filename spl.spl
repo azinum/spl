@@ -60,7 +60,7 @@ fn spl_start(filename : any) -> u64 {
   let fd open(filename, 0, O_RDONLY);
   if neq fd ERROR {
     let source tmp_it;
-    let size read_file_into_buffer(fd, source);
+    let size read_file_into_buffer_and_null_terminate(fd, source);
     = @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
       ast_push(

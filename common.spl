@@ -1,9 +1,5 @@
 // common.spl
 
-const NoError 0;
-const Error 1;
-let NULL cast ptr 0;
-
 // temporary `scratch` buffer
 const TMP_SIZE * 8 32768;
 memory tmp TMP_SIZE;
@@ -72,5 +68,3 @@ fn tmp_push_u64(n : u64) -> none {
   u64_to_str(n, @buf, max_size);
   tmp_push_cstr(@buf);
 }
-
-fn table_fetch(table : any, index : u64) #(+ table * sizeof any index);

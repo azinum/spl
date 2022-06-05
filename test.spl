@@ -1,5 +1,3 @@
 // test.spl
 
-fn main -> none {
-
-}
+const hello 12;

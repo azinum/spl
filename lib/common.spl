@@ -1,6 +1,10 @@
 // common.spl
 // platform independent common/standard library
 
+const NoError 0;
+const Error 1;
+let NULL cast ptr 0;
+
 const UINT64_MAX 0xffffffffffffffff;
 const INT64_MAX  0x7fffffffffffffff;
 const UINT32_MAX 0xffffffff;
@@ -104,7 +108,7 @@ fn digit_count(n : u64) {
   else {
     while < i n {
       = @i * i base;
-      = @count +1 count;
+      = @count + 1 count;
     }
   }
   count;
