@@ -1,12 +1,9 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  let a (cast u8 12, cast u8 7);
-  const b cast u16 17;
-  print load8 + @a 1;
-  print b;
+
 }

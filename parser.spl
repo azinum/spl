@@ -725,6 +725,15 @@ fn parse_statements -> ptr {
 fn parse -> ptr {
   lexer_next();
   let ast : ptr parse_statements();
+
+  let message tmp_it;
+  tmp_push_cstr("parsing of `");
+  tmp_push_cstr(l.filename);
+  tmp_push_cstr("` took ? seconds\n");
+  tmp_push_byte(0);
+  puts(STDOUT_FILENO, message);
+  = @tmp_it message;
+
   ast;
 }
 

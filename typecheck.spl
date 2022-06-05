@@ -1,1 +1,82 @@
 // typecheck.spl
+
+fn typecheck_program(ast : ptr) -> u64 {
+  assert(0, "typecheck_program(): not implemented yet\n");
+  NoError;
+}
+
+fn typecheck_print_unused -> none {
+  assert(0, "typecheck_print_unused(): not implemented yet\n");
+}
+
+fn typecheck_error(message : cstr) -> none {
+  assert(0, "typecheck_error(): not implemented yet\n");
+}
+
+fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  assert(0, "typecheck(): not implemented yet\n");
+  NoError;
+}
+
+fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  assert(0, "typecheck_node_list(): not implemented yet\n");
+  NoError;
+}
+
+fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  assert(0, "typecheck_node_list(): not implemented yet\n");
+  NoError;
+}
+
+fn typecheck_print_stack(fd : u64) -> none {
+  assert(0, "typecheck_print_stack(): not implemented yet\n");
+}
+
+fn ts_push(type : u64) -> u64 {
+  assert(0, "ts_push(): not implemented yet\n");
+  TypeNone;
+}
+
+fn ts_pop -> u64 {
+  assert(0, "ts_pop(): not implemented yet\n");
+  TypeNone;
+}
+
+fn ts_top -> u64 {
+  assert(0, "ts_top(): not implemented yet\n");
+  TypeNone;
+}
+
+fn vs_push(value : ptr) -> u64 {
+  assert(0, "vs_push(): not implemented yet\n");
+  NoError;
+}
+
+fn vs_pop(value : ptr) -> u64 {
+  assert(0, "vs_pop(): not implemented yet\n");
+  NoError;
+}
+
+fn vs_top(value : ptr) -> none {
+  assert(0, "vs_top(): not implemented yet\n");
+}
+
+fn check_func_signatures(a : ptr, b : ptr) -> u64 {
+  assert(0, "check_func_signatures(): not implemented yet\n");
+  0;
+}
+
+fn is_branch_konst_eval(ast : ptr) -> u64 {
+  assert(0, "is_branch_konst_eval(): not implemented yet\n");
+  0;
+}
+
+fn is_numerical(type : u64) -> u64 {
+  assert(0, "is_numerical(): not implemented yet\n");
+  0;
+}
+
+fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -> u64 {
+  assert(0, "token_to_compile_type(): not implemented yet\n");
+  TypeNone;
+}

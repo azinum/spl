@@ -61,6 +61,8 @@ enum u64 (
   TypePtr,
   TypeUnsigned64,
   TypeUnsigned32,
+  TypeUnsigned16,
+  TypeUnsigned8,
   TypeCString,
   TypeFunc,
   TypeSyscallFunc,
@@ -162,6 +164,13 @@ struct Op (
   src1 : u64
 );
 
+enum u64 (
+  TARGET_LINUX_NASM_X86_64,
+  MAX_COMPILE_TARGET
+);
+
+let c : Compile 0;
+
 fn OP(i : u64, op : ptr) -> none {
   = + op Op.i    i;
   = + op Op.dest NONE;
@@ -176,80 +185,70 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
   = + op Op.src1 src1;
 }
 
-fn compile_state_init -> u64 {
-  = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
-  = + @ir_code_str * I_POP                sizeof cstr "I_POP";
-  = + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
-  = + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";
-  = + @ir_code_str * I_STORE64            sizeof cstr "I_STORE64";
-  = + @ir_code_str * I_STORE32            sizeof cstr "I_STORE32";
-  = + @ir_code_str * I_STORE16            sizeof cstr "I_STORE16";
-  = + @ir_code_str * I_STORE8             sizeof cstr "I_STORE8";
-  = + @ir_code_str * I_LOAD64             sizeof cstr "I_LOAD64";
-  = + @ir_code_str * I_LOAD32             sizeof cstr "I_LOAD32";
-  = + @ir_code_str * I_LOAD16             sizeof cstr "I_LOAD16";
-  = + @ir_code_str * I_LOAD8              sizeof cstr "I_LOAD8";
-  = + @ir_code_str * I_PUSH_ADDR_OF       sizeof cstr "I_PUSH_ADDR_OF";
-  = + @ir_code_str * I_PUSH_LOCAL_ADDR_OF sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
-  = + @ir_code_str * I_PUSH               sizeof cstr "I_PUSH";
-  = + @ir_code_str * I_PUSH_LOCAL         sizeof cstr "I_PUSH_LOCAL";
-  = + @ir_code_str * I_PUSH_IMM           sizeof cstr "I_PUSH_IMM";
-  = + @ir_code_str * I_ADD                sizeof cstr "I_ADD";
-  = + @ir_code_str * I_SUB                sizeof cstr "I_SUB";
-  = + @ir_code_str * I_MUL                sizeof cstr "I_MUL";
-  = + @ir_code_str * I_LSHIFT             sizeof cstr "I_LSHIFT";
-  = + @ir_code_str * I_RSHIFT             sizeof cstr "I_RSHIFT";
-  = + @ir_code_str * I_DIV                sizeof cstr "I_DIV";
-  = + @ir_code_str * I_DIVMOD             sizeof cstr "I_DIVMOD";
-  = + @ir_code_str * I_LT                 sizeof cstr "I_LT";
-  = + @ir_code_str * I_GT                 sizeof cstr "I_GT";
-  = + @ir_code_str * I_AND                sizeof cstr "I_AND";
-  = + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
-  = + @ir_code_str * I_OR                 sizeof cstr "I_OR";
-  = + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
-  = + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";
-  = + @ir_code_str * I_RET                sizeof cstr "I_RET";
-  = + @ir_code_str * I_NORET              sizeof cstr "I_NORET";
-  = + @ir_code_str * I_PRINT              sizeof cstr "I_PRINT";
-  = + @ir_code_str * I_LABEL              sizeof cstr "I_LABEL";
-  = + @ir_code_str * I_CALL               sizeof cstr "I_CALL";
-  = + @ir_code_str * I_ADDR_CALL          sizeof cstr "I_ADDR_CALL";
-  = + @ir_code_str * I_JMP                sizeof cstr "I_JMP";
-  = + @ir_code_str * I_JZ                 sizeof cstr "I_JZ";
-  = + @ir_code_str * I_BEGIN_FUNC         sizeof cstr "I_BEGIN_FUNC";
-  = + @ir_code_str * I_LOOP_LABEL         sizeof cstr "I_LOOP_LABEL";
-  = + @ir_code_str * I_SYSCALL0           sizeof cstr "I_SYSCALL0";
-  = + @ir_code_str * I_SYSCALL1           sizeof cstr "I_SYSCALL1";
-  = + @ir_code_str * I_SYSCALL2           sizeof cstr "I_SYSCALL2";
-  = + @ir_code_str * I_SYSCALL3           sizeof cstr "I_SYSCALL3";
-  = + @ir_code_str * I_SYSCALL4           sizeof cstr "I_SYSCALL4";
-  = + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
-  = + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
+fn ir_compile_warning(message : cstr) -> none {
+  assert(0, "ir_compile_warning(): not implemented yet\n");
+}
 
-  = + @compile_type_str * TypeNone        sizeof cstr "None";
-  = + @compile_type_str * TypeAny         sizeof cstr "Any";
-  = + @compile_type_str * TypePtr         sizeof cstr "Ptr";
-  = + @compile_type_str * TypeUnsigned64  sizeof cstr "Unsigned64";
-  = + @compile_type_str * TypeUnsigned32  sizeof cstr "Unsigned32";
-  = + @compile_type_str * TypeCString     sizeof cstr "CString";
-  = + @compile_type_str * TypeFunc        sizeof cstr "Func";
-  = + @compile_type_str * TypeSyscallFunc sizeof cstr "SyscallFunc";
-  = + @compile_type_str * TypeStruct      sizeof cstr "Struct";
+fn ir_print(fd : u64) -> none {
+  assert(0, "ir_print(): not implemented yet\n");
+}
 
-  = + @compile_type_size * TypeNone         sizeof u64 0;
-  = + @compile_type_size * TypeAny          sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypePtr          sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeUnsigned64   sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeUnsigned32   sizeof u64 sizeof u32;
-  = + @compile_type_size * TypeCString      sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeFunc         sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeSyscallFunc  sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeStruct       sizeof u64 1;
-  = + @compile_type_size * MAX_COMPILE_TYPE sizeof u64 0;
-
+fn ir_start_compile(ast : ptr) -> u64 {
+  assert(0, "ir_start_compile(): not implemented yet\n");
   NoError;
 }
 
-fn compile_state_free -> none {
+fn ir_push_ins(op : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_push_ins(): not implemented yet\n");
+  NoError;
+}
 
+fn ir_pop_ins(op : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_pop_ins(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_push_value(value : ptr, size : u64) -> u64 {
+  assert(0, "ir_push_value(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
+  assert(0, "ir_push_cstring(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
+  assert(0, "ir_push_symbol(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile_stmts(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile_func_args(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile_func_args(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile_binop(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile_binop(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile_uop(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile_uop(): not implemented yet\n");
+  NoError;
+}
+
+fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(0, "ir_compile_func(): not implemented yet\n");
+  NoError;
 }
