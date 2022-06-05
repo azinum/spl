@@ -850,6 +850,7 @@ i32 main(i32 argc, char** argv) {
       "  enable-warnings - enable basic warnings\n"
       "  disable-dce     - disable dead code elimination\n"
       "  dce-all         - eliminate all dead code, including all symbols\n"
+      "  no-verbose      - disable verbose output\n"
     );
     return EXIT_SUCCESS;
   }
@@ -4111,14 +4112,13 @@ void parser_error(Parser* p, const char* fmt, ...) {
 
 Ast* parse(Parser* p) {
   Ast* ast = NULL;
-  if (preprocess(p) == NoError) {
-    REAL_TIMER_START();
-    lexer_next(&p->l);
-    ast = parse_statements(p);
-    REAL_TIMER_END(
-      print_info("parsing of `%s` took %lf seconds\n", p->l.filename, _dt);
-    );
-  }
+  (void)preprocess; // TODO(lucas): unused, remove
+  REAL_TIMER_START();
+  lexer_next(&p->l);
+  ast = parse_statements(p);
+  REAL_TIMER_END(
+    print_info("parsing of `%s` took %lf seconds\n", p->l.filename, _dt);
+  );
   return ast;
 }
 
