@@ -1,6 +1,71 @@
 // compile.spl
 
+fn symbol_init(symbol : ptr) -> none {
+  assert(0, "symbol_init(): not implemented yet\n");
+}
+
+fn symbol_print(symbol : ptr) -> none {
+  assert(0, "symbol_print(): not implemented yet\n");
+}
+
+fn block_init(block : ptr, parent : ptr) -> none {
+  = + block Block.symbol_count 0;
+  = + block Block.parent parent;
+}
+
+fn compile_error(message : cstr) -> none {
+  assert(0, "compile_error(): not implemented yet\n");
+}
+
+fn compile_declare_value(block : ptr, func : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+  assert(0, "compile_declare_value(): not implemented yet\n");
+  NoError;
+}
+
+fn compile_lookup_value(block : ptr, func : ptr, name : cstr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
+  assert(0, "compile_lookup_value(): not implemented yet\n");
+  NoError;
+}
+
+fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
+  NoError;
+}
+
+fn compile_print_symbol_info(fd : u64) -> none {
+  assert(0, "compile_print_symbol_info(): not implemented yet\n");
+}
+
+fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
+  assert(0, "compile_linux_nasm_x86_64(): not implemented yet\n");
+  NoError;
+}
+
+fn compile(target : u64, fd : u64) -> u64 {
+  assert(0, "compile(): not implemented yet\n");
+  NoError;
+}
+
 fn compile_state_init -> u64 {
+  = + @c Compile.ins_count 0;
+  = + @c Compile.imm_index 0;
+  = + @c Compile.symbol_count 0;
+  = + @c Compile.cstring_count 0;
+  block_init(+ @c Compile.global, NULL);
+  = + @c Compile.label_count 0;
+  = + @c Compile.status NoError;
+  = + @c Compile.entry_point 0;
+  = + @c Compile.ts_count 0;
+  = + @c Compile.vs_count 0;
+  = + @c Compile.type_count MAX_PRIMITIVE_TYPE;
+
+  { let _ compile_create_syscall("syscall0", 0); }
+  { let _ compile_create_syscall("syscall1", 1); }
+  { let _ compile_create_syscall("syscall2", 2); }
+  { let _ compile_create_syscall("syscall3", 3); }
+  { let _ compile_create_syscall("syscall4", 4); }
+  { let _ compile_create_syscall("syscall5", 5); }
+  { let _ compile_create_syscall("syscall6", 6); }
+
   = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   = + @ir_code_str * I_POP                sizeof cstr "I_POP";
   = + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
@@ -50,67 +115,35 @@ fn compile_state_init -> u64 {
   = + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
   = + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
 
-  = + @compile_type_str * TypeNone        sizeof cstr "None";
-  = + @compile_type_str * TypeAny         sizeof cstr "Any";
-  = + @compile_type_str * TypePtr         sizeof cstr "Ptr";
-  = + @compile_type_str * TypeUnsigned64  sizeof cstr "Unsigned64";
-  = + @compile_type_str * TypeUnsigned32  sizeof cstr "Unsigned32";
-  = + @compile_type_str * TypeUnsigned16  sizeof cstr "Unsigned16";
-  = + @compile_type_str * TypeUnsigned8   sizeof cstr "Unsigned8";
-  = + @compile_type_str * TypeCString     sizeof cstr "CString";
-  = + @compile_type_str * TypeFunc        sizeof cstr "Func";
-  = + @compile_type_str * TypeSyscallFunc sizeof cstr "SyscallFunc";
-  = + @compile_type_str * TypeStruct      sizeof cstr "Struct";
+  = + @compile_type_str * TypeNone           sizeof cstr "None";
+  = + @compile_type_str * TypeAny            sizeof cstr "Any";
+  = + @compile_type_str * TypePtr            sizeof cstr "Ptr";
+  = + @compile_type_str * TypeUnsigned64     sizeof cstr "Unsigned64";
+  = + @compile_type_str * TypeUnsigned32     sizeof cstr "Unsigned32";
+  = + @compile_type_str * TypeUnsigned16     sizeof cstr "Unsigned16";
+  = + @compile_type_str * TypeUnsigned8      sizeof cstr "Unsigned8";
+  = + @compile_type_str * TypeCString        sizeof cstr "CString";
+  = + @compile_type_str * TypeFunc           sizeof cstr "Func";
+  = + @compile_type_str * TypeSyscallFunc    sizeof cstr "SyscallFunc";
+  = + @compile_type_str * TypeStruct         sizeof cstr "Struct";
+  = + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  = + @compile_type_size * TypeNone         sizeof u64 0;
-  = + @compile_type_size * TypeAny          sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypePtr          sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeUnsigned64   sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeUnsigned32   sizeof u64 sizeof u32;
-  = + @compile_type_size * TypeUnsigned16   sizeof u64 sizeof u16;
-  = + @compile_type_size * TypeUnsigned8    sizeof u64 sizeof u8;
-  = + @compile_type_size * TypeCString      sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeFunc         sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeSyscallFunc  sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeStruct       sizeof u64 1;
-  = + @compile_type_size * MAX_COMPILE_TYPE sizeof u64 0;
+  = + @compile_type_size * TypeNone           sizeof u64 0;
+  = + @compile_type_size * TypeAny            sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypePtr            sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeUnsigned64     sizeof u64 sizeof u64;
+  = + @compile_type_size * TypeUnsigned32     sizeof u64 sizeof u32;
+  = + @compile_type_size * TypeUnsigned16     sizeof u64 sizeof u16;
+  = + @compile_type_size * TypeUnsigned8      sizeof u64 sizeof u8;
+  = + @compile_type_size * TypeCString        sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeFunc           sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeSyscallFunc    sizeof u64 sizeof ptr;
+  = + @compile_type_size * TypeStruct         sizeof u64 1;
+  = + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
 
   NoError;
 }
 
 fn compile_state_free -> none {
 
-}
-
-fn compile_error(message : cstr) -> none {
-  assert(0, "compile_error(): not implemented yet\n");
-}
-
-fn compile_declare_value(block : ptr, func : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
-  assert(0, "compile_declare_value(): not implemented yet\n");
-  NoError;
-}
-
-fn compile_lookup_value(block : ptr, func : ptr, name : cstr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
-  assert(0, "compile_lookup_value(): not implemented yet\n");
-  NoError;
-}
-
-fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
-  assert(0, "compile_create_syscall(): not implemented yet\n");
-  NoError;
-}
-
-fn compile_print_symbol_info(fd : u64) -> none {
-  assert(0, "compile_print_symbol_info(): not implemented yet\n");
-}
-
-fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  assert(0, "compile_linux_nasm_x86_64(): not implemented yet\n");
-  NoError;
-}
-
-fn compile(target : u64, fd : u64) -> u64 {
-  assert(0, "compile(): not implemented yet\n");
-  NoError;
 }

@@ -544,8 +544,8 @@ typedef struct Op {
 #define MAX_STATIC_DATA (KB(32)) // temp
 
 #define MAX_NAME_SIZE 64
-#define MAX_SYMBOL 1024
-#define MAX_FUNC 1024
+#define MAX_SYMBOL 2048
+#define MAX_FUNC MAX_SYMBOL
 #define MAX_FUNC_ARGC 6 // temp
 
 typedef enum Compile_target {
@@ -1160,7 +1160,7 @@ i32 compile_declare_value(Compile* c, Block* block, Function* fs, Token token, S
     s->node = node;
     return NoError;
   }
-  assert("symbol capacity exceeded" && 0);
+  assert(!"symbol capacity exceeded");
   return Error;
 }
 

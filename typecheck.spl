@@ -1,7 +1,6 @@
 // typecheck.spl
 
 fn typecheck_program(ast : ptr) -> u64 {
-  assert(0, "typecheck_program(): not implemented yet\n");
   NoError;
 }
 

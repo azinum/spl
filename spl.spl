@@ -70,6 +70,23 @@ fn spl_start(filename : any) -> u64 {
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
         // ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
+          if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
+            if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
+              if load64 + @options Options.debug {
+                // TODO: implement
+              }
+              if load64 + @options Options.compile {
+                // TODO: implement
+                let message tmp_it;
+                tmp_push_cstr("total compilation time was `?` seconds (? loc, ");
+                tmp_push_u64(load64 + @p Parser.source_count);
+                tmp_push_cstr(" file(s))\n");
+                tmp_push_byte(0);
+                puts(STDOUT_FILENO, message);
+                = @tmp_it message;
+              }
+            }
+          }
           compile_state_free();
         }
       }
@@ -89,6 +106,7 @@ fn spl_start(filename : any) -> u64 {
     p("failed to open file `");
     p(filename);
     p("`\n");
+    tmp_push_byte(0);
     err(message);
     = @tmp_it message;
   }

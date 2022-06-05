@@ -68,8 +68,10 @@ enum u64 (
   TypeSyscallFunc,
   TypeStruct,
 
-  MAX_COMPILE_TYPE
+  MAX_PRIMITIVE_TYPE
 );
+
+const MAX_COMPILE_TYPE 255;
 
 // symbol types
 enum u64 (
@@ -122,10 +124,18 @@ struct Block (
   parent       : ptr
 );
 
+struct Op (
+  i    : u64,
+  dest : u64,
+  src0 : u64,
+  src1 : u64
+);
+
 const MAX_TYPE_STACK 256;
+const MAX_INS * 32 1024;  // TODO(lucas): temp
 
 struct Compile (
-  ins              : ptr, // Op*
+  ins              : Op : MAX_INS,
   ins_count        : u64,
 
   imm              : u8 : MAX_STATIC_DATA,
@@ -157,13 +167,6 @@ let ir_code_str : cstr : MAX_IR_CODE "";
 let compile_type_str : cstr : MAX_COMPILE_TYPE "";
 let compile_type_size : u64 : MAX_COMPILE_TYPE 0;
 
-struct Op (
-  i    : u64,
-  dest : u64,
-  src0 : u64,
-  src1 : u64
-);
-
 enum u64 (
   TARGET_LINUX_NASM_X86_64,
   MAX_COMPILE_TARGET
@@ -194,7 +197,7 @@ fn ir_print(fd : u64) -> none {
 }
 
 fn ir_start_compile(ast : ptr) -> u64 {
-  assert(0, "ir_start_compile(): not implemented yet\n");
+  // assert(0, "ir_start_compile(): not implemented yet\n");
   NoError;
 }
 
