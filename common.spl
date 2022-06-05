@@ -16,6 +16,13 @@ fn error(message : any) -> none {
   exit(1);
 }
 
+fn print_info(message : cstr) -> none {
+  if not load64 + @options Options.no_verbose {
+    puts(STDOUT_FILENO, "[info]: ");
+    puts(STDOUT_FILENO, message);
+  }
+}
+
 fn assert(cond : u64, message : cstr) -> none {
   if eq 0 cond {
     puts(STDERR_FILENO, "[assertion failed]: ");

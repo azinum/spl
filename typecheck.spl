@@ -1,7 +1,8 @@
 // typecheck.spl
 
 fn typecheck_program(ast : ptr) -> u64 {
-  NoError;
+  print_info("type checking took ? seconds\n");
+  load64 + @c Compile.status;
 }
 
 fn typecheck_print_unused -> none {

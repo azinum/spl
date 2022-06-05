@@ -41,8 +41,14 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
 }
 
 fn compile(target : u64, fd : u64) -> u64 {
-  assert(0, "compile(): not implemented yet\n");
-  NoError;
+  let result NoError;
+  if eq target TARGET_LINUX_NASM_X86_64 {
+    = @result compile_linux_nasm_x86_64(fd);
+  }
+  else {
+    assert(0, "invalid compile target\n");
+  }
+  result;
 }
 
 fn compile_state_init -> u64 {
