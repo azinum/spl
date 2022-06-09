@@ -64,6 +64,8 @@ enum u64 (
   T_PTR,
   T_UNSIGNED64,
   T_UNSIGNED32,
+  T_UNSIGNED16,
+  T_UNSIGNED8,
   T_CSTR,
 
   MAX_TOKEN_TYPE
@@ -269,6 +271,12 @@ fn lexer_read_symbol -> none {
   }
   else if eq 0 strncmp(buffer, "u32", length) {
     = + @token Token.type T_UNSIGNED32;
+  }
+  else if eq 0 strncmp(buffer, "u16", length) {
+    = + @token Token.type T_UNSIGNED16;
+  }
+  else if eq 0 strncmp(buffer, "u8", length) {
+    = + @token Token.type T_UNSIGNED8;
   }
   else if eq 0 strncmp(buffer, "cstr", length) {
     = + @token Token.type T_CSTR;
@@ -598,5 +606,7 @@ fn lexer_init(filename : any, source : any) -> none {
   = + @token_type_str * T_PTR           sizeof cstr "T_PTR";
   = + @token_type_str * T_UNSIGNED64    sizeof cstr "T_UNSIGNED64";
   = + @token_type_str * T_UNSIGNED32    sizeof cstr "T_UNSIGNED32";
+  = + @token_type_str * T_UNSIGNED16    sizeof cstr "T_UNSIGNED16";
+  = + @token_type_str * T_UNSIGNED8     sizeof cstr "T_UNSIGNED8";
   = + @token_type_str * T_CSTR          sizeof cstr "T_CSTR";
 }

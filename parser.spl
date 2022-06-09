@@ -3,6 +3,7 @@
 struct Parser (
   ast          : ptr,
   status       : u64,
+  line_count   : u64,
   source_count : u64
 );
 
@@ -64,13 +65,15 @@ fn parse_expr_list -> ptr {
 fn parse_type -> ptr {
   let type_expr : ptr NULL;
   let type load64 + @token Token.type;
-  if or or or or or or
+  if or or or or or or or or
     eq type T_NONE
     eq type T_ANY
     eq type T_PTR
     eq type T_CSTR
     eq type T_UNSIGNED64
     eq type T_UNSIGNED32
+    eq type T_UNSIGNED16
+    eq type T_UNSIGNED8
     eq type T_IDENTIFIER {
     = @type_expr ast_create(AstType);
     memcpy(+ type_expr Ast.token, @token, sizeof Token);
@@ -170,12 +173,14 @@ fn parse_expr -> ptr {
   else if eq type T_SIZEOF {
     lexer_next();
     let type load64 + @token Token.type;
-    let ok or or or or or or or or
+    let ok or or or or or or or or or or
       eq type T_ANY
       eq type T_PTR
       eq type T_NUMBER
       eq type T_UNSIGNED64
       eq type T_UNSIGNED32
+      eq type T_UNSIGNED16
+      eq type T_UNSIGNED8
       eq type T_CSTRING
       eq type T_CSTR
       eq type T_STRUCT
@@ -726,14 +731,14 @@ fn parse -> ptr {
   let ast : ptr parse_statements();
 
   let message cast cstr tmp_it;
-  let p tmp_push_cstr;
-  p("parsing of `");
-  p(l.filename);
-  p("` took ? seconds\n");
+  tmp_push_cstr("parsing of `");
+  tmp_push_cstr(l.filename);
+  tmp_push_cstr("` took ? seconds\n");
   tmp_push_byte(0);
   print_info(message);
   = @tmp_it message;
 
+  = + @p Parser.line_count + load64 + @p Parser.line_count l.line;
   ast;
 }
 
@@ -741,7 +746,8 @@ fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
   = + @p Parser.ast ast_create(AstRoot);
   = + @p Parser.status NoError;
-  = + @p Parser.source_count 0;
+  = + @p Parser.line_count 0;
+  = + @p Parser.source_count 1;
 
   = @parse_entry parse;
   = @expression parse_expr;

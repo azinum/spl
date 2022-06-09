@@ -25,6 +25,16 @@ const i16.max INT16_MAX;
 const u8.max  UINT8_MAX;
 const i8.max  INT8_MAX;
 
+struct Buffer (
+  data : ptr,
+  length : u64
+);
+
+fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
+  = + buffer Buffer.data data;
+  = + buffer Buffer.length length;
+}
+
 fn strlen(str : cstr) -> u64 {
   let length : u64 0;
   while < 0 load8 str {

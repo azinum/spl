@@ -117,6 +117,7 @@ struct Symbol (
 const MAX_SYMBOL 1024;
 const MAX_STATIC_DATA * 32 1024;
 const MAX_CSTRING 512;
+const MAX_SYSCALL_FUNCTION 7;
 
 struct Block (
   symbols      : u64 : MAX_SYMBOL, // index into compile state symbols
@@ -189,6 +190,10 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
 }
 
 fn ir_compile_warning(message : cstr) -> none {
+  assert(0, "ir_compile_warning(): not implemented yet\n");
+}
+
+fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
   assert(0, "ir_compile_warning(): not implemented yet\n");
 }
 

@@ -4116,6 +4116,7 @@ Ast* parse(Parser* p) {
   REAL_TIMER_START();
   lexer_next(&p->l);
   ast = parse_statements(p);
+  p->total_lines += p->l.line;
   REAL_TIMER_END(
     print_info("parsing of `%s` took %lf seconds\n", p->l.filename, _dt);
   );

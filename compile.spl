@@ -17,12 +17,14 @@ fn compile_error(message : cstr) -> none {
   assert(0, "compile_error(): not implemented yet\n");
 }
 
-fn compile_declare_value(block : ptr, func : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+// block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
+fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
   assert(0, "compile_declare_value(): not implemented yet\n");
   NoError;
 }
 
-fn compile_lookup_value(block : ptr, func : ptr, name : cstr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
+// block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
+fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   assert(0, "compile_lookup_value(): not implemented yet\n");
   NoError;
 }

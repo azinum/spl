@@ -1,7 +1,20 @@
 // typecheck.spl
 
 fn typecheck_print_unused -> none {
-  assert(0, "typecheck_print_unused(): not implemented yet\n");
+  if not load64 + @options Options.disable_dce {
+    let i MAX_SYSCALL_FUNCTION;
+    let count load64 + @c Compile.symbol_count;
+    while < i count {
+      let symbol : Symbol 0;
+      memcpy(@symbol, + + @c Compile.symbols * sizeof Symbol i, sizeof Symbol);
+      let ref_count load64 + @symbol Symbol.ref_count;
+      let sym_type load64 + @symbol Symbol.sym_type;
+      if and eq ref_count 0 or eq sym_type SYM_FUNC load64 + @options Options.dce_all {
+        ir_compile_warning_at(+ @symbol Symbol.token, "`?` defined but not used\n");
+      }
+      = @i + 1 i;
+    }
+  }
 }
 
 fn typecheck_error(message : cstr) -> none {
@@ -9,8 +22,10 @@ fn typecheck_error(message : cstr) -> none {
 }
 
 fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  assert(0, "typecheck(): not implemented yet\n");
-  NoError;
+  if eq load64 + @c Compile.status NoError {
+
+  }
+  load64 + @c Compile.status;
 }
 
 fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
@@ -24,59 +39,211 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 }
 
 fn typecheck_print_stack(fd : u64) -> none {
-  assert(0, "typecheck_print_stack(): not implemented yet\n");
+  let i 0;
+  let count load64 + @c Compile.ts_count;
+  while < i count {
+    let type : u64 load64 + + @c Compile.ts * sizeof u64 i;
+    let value : Value 0;
+    memcpy(@value, + + @c Compile.vs * sizeof Value i, sizeof Value);
+    let message tmp_it;
+    tmp_push_u64(i);
+    tmp_push_cstr(": `");
+    tmp_push_cstr(load64 + @compile_type_str * sizeof cstr type);
+    tmp_push_cstr("`, ");
+    tmp_push_u64(load64 + @value Value.num);
+    tmp_push_cstr("\n");
+    tmp_push_byte(0);
+    puts(fd, message);
+    = @tmp_it message;
+    = @i + 1 i;
+  }
 }
 
 fn ts_push(type : u64) -> u64 {
-  assert(0, "ts_push(): not implemented yet\n");
-  TypeNone;
+  let result TypeNone;
+  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
+    = + + @c Compile.ts * sizeof result load64 + @c Compile.ts_count type;
+    = + @c Compile.ts_count + 1 load64 + @c Compile.ts_count;
+    = @result type;
+  }
+  else {
+    assert(0, "type stack overflow\n");
+  }
+  result;
 }
 
 fn ts_pop -> u64 {
-  assert(0, "ts_pop(): not implemented yet\n");
-  TypeNone;
+  let result TypeNone;
+  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
+    = + @c Compile.ts_count - load64 + @c Compile.ts_count 1;
+    = @result load64 + + @c Compile.ts * sizeof u64 load64 + @c Compile.ts_count;
+  }
+  else {
+    assert(0, "type stack underflow\n");
+  }
+  result;
 }
 
 fn ts_top -> u64 {
-  assert(0, "ts_top(): not implemented yet\n");
-  TypeNone;
+  let result TypeNone;
+  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
+    = @result load64 + + @c Compile.ts * sizeof u64 - load64 + @c Compile.ts_count 1;
+  }
+  result;
 }
 
+// value : Value*
 fn vs_push(value : ptr) -> u64 {
-  assert(0, "vs_push(): not implemented yet\n");
-  NoError;
+  let result NoError;
+  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
+    memcpy(+ + @c Compile.vs * sizeof Value load64 + @c Compile.vs_count, value, sizeof Value);
+    = + @c Compile.vs_count + 1 load64 + @c Compile.vs_count;
+  }
+  else {
+    assert(0, "value stack overflow\n");
+    = @result Error;
+  }
+  result;
 }
 
-fn vs_pop(value : ptr) -> u64 {
-  assert(0, "vs_pop(): not implemented yet\n");
-  NoError;
+fn vs_top(value_out : ptr) -> none {
+  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
+    if cast u64 value_out {
+      memcpy(value_out, + + @c Compile.vs * sizeof Value - load64 + @c Compile.vs_count 1, sizeof Value);
+    }
+  }
+  else {
+    if cast u64 value_out {
+      = @value_out NULL;
+    }
+  }
 }
 
-fn vs_top(value : ptr) -> none {
-  assert(0, "vs_top(): not implemented yet\n");
+fn vs_pop(value_out : ptr) -> u64 {
+  let result NoError;
+  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
+    if cast u64 value_out {
+      vs_top(value_out);
+    }
+    = + @c Compile.vs_count - load64 + @c Compile.vs_count 1;
+  }
+  else {
+    assert(0, "value stack underflow\n");
+    = @result Error;
+  }
+  result;
 }
 
 fn check_func_signatures(a : ptr, b : ptr) -> u64 {
-  assert(0, "check_func_signatures(): not implemented yet\n");
-  0;
+  let result 1;
+  if and
+    eq load64 + a Function.argc load64 + b Function.argc
+    eq load64 + a Function.rtype load64 + b Function.rtype {
+
+    let i 0;
+    let argc load64 + a Function.argc;
+    while < i argc {
+      // TODO(lucas): not sure if this works, testing needs to be done. indexing like this is tough man...
+      let arg_a : u64 load64 + + a Function.argc * sizeof u64 i;
+      let arg_b : u64 load64 + + b Function.argc * sizeof u64 i;
+      let type_a : u64 load64 + + + @c Compile.symbols * sizeof Symbol arg_a Symbol.type;
+      let type_b : u64 load64 + + + @c Compile.symbols * sizeof Symbol arg_b Symbol.type;
+      if neq type_a type_b {
+        = @result 0;
+        = @i argc; // break out of the loop
+      }
+      = @i + 1 i;
+    }
+  }
+  else {
+    = @result 0;
+  }
+
+  result;
 }
 
 fn is_branch_konst_eval(ast : ptr) -> u64 {
-  assert(0, "is_branch_konst_eval(): not implemented yet\n");
-  0;
+  let konst 1;
+  let i 0;
+  let count load64 + ast Ast.count;
+  while < i count {
+    let node cast ptr load64 + + ast Ast.node * sizeof ptr i;
+    if eq load64 + node Ast.konst 0 {
+      = @konst 0;
+      = @i count;
+    }
+    = @i + 1 i;
+  }
+  konst;
 }
 
 fn is_numerical(type : u64) -> u64 {
-  assert(0, "is_numerical(): not implemented yet\n");
-  0;
+  or or or
+    eq type TypeUnsigned64
+    eq type TypeUnsigned32
+    eq type TypeUnsigned16
+    eq type TypeUnsigned8;
 }
 
 fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -> u64 {
-  assert(0, "token_to_compile_type(): not implemented yet\n");
-  TypeNone;
+  let result TypeNone;
+  let type load64 + token Token.type;
+  if eq type T_ANY {
+    = @type TypeAny;
+  }
+  else if eq type T_PTR {
+    = @type TypePtr;
+  }
+  else if eq type T_UNSIGNED64 {
+    = @type TypeUnsigned64;
+  }
+  else if eq type T_UNSIGNED32 {
+    = @type TypeUnsigned32;
+  }
+  else if eq type T_UNSIGNED16 {
+    = @type TypeUnsigned16;
+  }
+  else if eq type T_UNSIGNED8 {
+    = @type TypeUnsigned8;
+  }
+  else if or eq type T_CSTRING eq type T_CSTR {
+    = @type TypeCString;
+  }
+  else if eq type T_IDENTIFIER {
+    let symbol NULL;
+    let buffer : Buffer 0;
+    buffer_init(@buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
+    if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
+      if cast u64 symbol_out {
+        memcpy(symbol_out, symbol, sizeof Symbol);
+      }
+      = @result load64 + symbol Symbol.type;
+    }
+  }
+  result;
 }
 
 fn typecheck_program(ast : ptr) -> u64 {
+  assert(cast u64 ast, "something went very wrong\n");
+
+  let i 0;
+  let count load64 + ast Ast.count;
+  while < i count {
+    if eq typecheck(+ @c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i) Error {
+      = @i count;
+    }
+    = @i + 1 i;
+  }
+
+  let value : Value 0;
+  = + @value Value.num 12;
+  { let _ vs_push(@value); }
+  { let _ ts_push(TypeUnsigned64); }
+  = + @value Value.num 17;
+  { let _ vs_push(@value); }
+  { let _ ts_push(TypeUnsigned64); }
+  typecheck_print_stack(STDOUT_FILENO);
+
   print_info("type checking took ? seconds\n");
   load64 + @c Compile.status;
 }

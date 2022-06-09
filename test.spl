@@ -1,3 +1,13 @@
 // test.spl
 
-const hello 12;
+enum u8 (
+  A, B, C
+);
+
+fn hello -> A {
+  + B C;
+}
+
+fn main -> none {
+  print hello();
+}

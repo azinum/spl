@@ -27,4 +27,4 @@ install:
 	chmod o+x ${PROG}
 	cp ${PROG} ${INSTALL_DIR}/${PROG}
 
-.PHONY: ${SRC} spl main test/* examples/*
+.PHONY: ${SRC} spl main test examples/*

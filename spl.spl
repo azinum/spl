@@ -80,7 +80,9 @@ fn spl_start(filename : any) -> u64 {
                 // TODO: implement
 
                 let message cast cstr tmp_it;
-                tmp_push_cstr("total compilation time was ? seconds (? loc, ");
+                tmp_push_cstr("total compilation time was ? seconds (");
+                tmp_push_u64(load64 + @p Parser.line_count);
+                tmp_push_cstr(" loc, ");
                 tmp_push_u64(load64 + @p Parser.source_count);
                 tmp_push_cstr(" file(s))\n");
                 tmp_push_byte(0);
@@ -104,10 +106,9 @@ fn spl_start(filename : any) -> u64 {
   }
   else {
     let message tmp_it;
-    let p tmp_push_cstr;
-    p("failed to open file `");
-    p(filename);
-    p("`\n");
+    tmp_push_cstr("failed to open file `");
+    tmp_push_cstr(filename);
+    tmp_push_cstr("`\n");
     tmp_push_byte(0);
     err(message);
     = @tmp_it message;
@@ -159,7 +160,7 @@ fn main(argc : u64, argv : any) -> none {
       let result spl_start(load64 + @options Options.filename);
     }
     else {
-      puts(STDERR_FILENO, "[error]: no input file was specified\n");
+      err("no input file was specified\n");
     }
   }
 }
