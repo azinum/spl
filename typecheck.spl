@@ -1,5 +1,8 @@
 // typecheck.spl
 
+fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
+let typecheck.typecheck typecheck_function;
+
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
     let i MAX_SYSCALL_FUNCTION;
@@ -18,24 +21,32 @@ fn typecheck_print_unused -> none {
 }
 
 fn typecheck_error(message : cstr) -> none {
-  assert(0, "typecheck_error(): not implemented yet\n");
-}
-
-fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
   if eq load64 + @c Compile.status NoError {
-
+    let tmp tmp_it;
+    tmp_push_cstr("[typecheck-error]: ");
+    tmp_push_cstr(message);
+    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
+    = @tmp_it tmp;
+    store64 + @c Compile.status Error;
   }
-  load64 + @c Compile.status;
 }
 
-fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  assert(0, "typecheck_node_list(): not implemented yet\n");
-  NoError;
-}
-
-fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  assert(0, "typecheck_node_list(): not implemented yet\n");
-  NoError;
+// token : Token*
+fn typecheck_error_at(token : ptr, message : cstr) -> none {
+  if eq load64 + @c Compile.status NoError {
+    let tmp tmp_it;
+    tmp_push_cstr("[typecheck-error]: ");
+    tmp_push_cstr(load64 + @token Token.filename);
+    tmp_push_cstr(":");
+    tmp_push_cstr(load64 + @token Token.line);
+    tmp_push_cstr(":");
+    tmp_push_cstr(load64 + @token Token.column);
+    tmp_push_cstr(":");
+    tmp_push_cstr(message);
+    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
+    = @tmp_it tmp;
+    store64 + @c Compile.status Error;
+  }
 }
 
 fn typecheck_print_stack(fd : u64) -> none {
@@ -223,25 +234,93 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
   result;
 }
 
+fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  let i 0;
+  let count load64 + ast Ast.count;
+  while < i count {
+    let _ typecheck.typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
+    = @i + 1 i;
+  }
+  NoError;
+}
+
+fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  assert(0, "typecheck_let_statement(): not implemented yet\n");
+  NoError;
+}
+
+fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
+  if eq load64 + @c Compile.status NoError {
+    let type load64 + ast Ast.type;
+    if eq type AstValue {
+    }
+    else if eq type AstExpression {
+    }
+    else if or or eq type AstExprList eq type AstStatement eq type AstStatementList {
+    }
+    else if eq type AstBinopExpression {
+    }
+    else if eq type AstUopExpression {
+    }
+    else if or eq type AstLetStatement eq type AstConstStatement {
+    }
+    else if eq type AstBlockStatement {
+    }
+    else if eq type AstFuncDefinition {
+    }
+    else if eq type AstFuncCall {
+    }
+    else if eq type AstWhileStatement {
+    }
+    else if eq type AstIfStatement {
+    }
+    else if eq type AstMemoryStatement {
+    }
+    else if eq type AstAssignment {
+    }
+    else if eq type AstSizeof {
+    }
+    else if eq type AstEnum {
+    }
+    else if eq type AstStruct {
+    }
+    else if eq type AstType {
+    }
+    else if eq type AstCastExpression {
+    }
+    else if eq type AstStaticAssert {
+    }
+    else {
+      assert(0, "unreachable\n");
+    }
+  }
+  ts_top();
+}
+
 fn typecheck_program(ast : ptr) -> u64 {
   assert(cast u64 ast, "something went very wrong\n");
+
+  = @typecheck.typecheck typecheck;
 
   let i 0;
   let count load64 + ast Ast.count;
   while < i count {
-    if eq typecheck(+ @c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i) Error {
-      = @i count;
-    }
+    let _ typecheck(+ @c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     = @i + 1 i;
   }
 
-  let value : Value 0;
-  = + @value Value.num 12;
-  { let _ vs_push(@value); }
-  { let _ ts_push(TypeUnsigned64); }
-  = + @value Value.num 17;
-  { let _ vs_push(@value); }
-  { let _ ts_push(TypeUnsigned64); }
+  if neq load64 + @c Compile.vs_count 0 {
+    typecheck_error("unhandled data on the value stack\n");
+  }
+
+  if and neq load64 + @c Compile.ts_count 0 eq load64 + @c Compile.status NoError {
+    typecheck_error("unhandled data on the type stack\n");
+  }
+
+  if eq load64 + @c Compile.status NoError {
+    typecheck_print_unused();
+  }
+
   typecheck_print_stack(STDOUT_FILENO);
 
   print_info("type checking took ? seconds\n");
