@@ -14,7 +14,34 @@ fn block_init(block : ptr, parent : ptr) -> none {
 }
 
 fn compile_error(message : cstr) -> none {
-  assert(0, "compile_error(): not implemented yet\n");
+  if eq load64 + @c Compile.status NoError {
+    let tmp tmp_it;
+    tmp_push_cstr("[compile-error]: ");
+    tmp_push_cstr(message);
+    tmp_push_byte(0);
+    puts(STDERR_FILENO, tmp);
+    = @tmp_it tmp;
+    store64 + @c Compile.status Error;
+  }
+}
+
+// token : Token*
+fn compile_error_at(token : ptr, message : cstr) -> none {
+  if eq load64 + @c Compile.status NoError {
+    let tmp tmp_it;
+    tmp_push_cstr("[compile-error]: ");
+    tmp_push_cstr(load64 + token Token.filename);
+    tmp_push_cstr(":");
+    tmp_push_cstr(load64 + token Token.line);
+    tmp_push_cstr(":");
+    tmp_push_cstr(load64 + token Token.column);
+    tmp_push_cstr(":");
+    tmp_push_cstr(message);
+    tmp_push_byte(0);
+    puts(STDERR_FILENO, tmp);
+    = @tmp_it tmp;
+    store64 + @c Compile.status Error;
+  }
 }
 
 // block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*

@@ -1734,7 +1734,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         ts_pop(c);
         return ts_pop(c);
       }
-      typecheck_error_at(c, ast->node[0]->token, "type mismatch in assignment expression\n");
+      typecheck_error_at(c, ast->node[0]->token, "type mismatch in assignment statement\n");
       return TypeNone;
     }
     case AstSizeof: {

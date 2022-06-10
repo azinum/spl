@@ -36,11 +36,11 @@ fn typecheck_error_at(token : ptr, message : cstr) -> none {
   if eq load64 + @c Compile.status NoError {
     let tmp tmp_it;
     tmp_push_cstr("[typecheck-error]: ");
-    tmp_push_cstr(load64 + @token Token.filename);
+    tmp_push_cstr(load64 + token Token.filename);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + @token Token.line);
+    tmp_push_cstr(load64 + token Token.line);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + @token Token.column);
+    tmp_push_cstr(load64 + token Token.column);
     tmp_push_cstr(":");
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
@@ -386,6 +386,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           { let _ ts_push(TypeUnsigned64); }
         }
         else if eq token_type T_LOGICAL_NOT {
+          let value : Value 0;
+          { let _ vs_pop(@value); }
+          = + @value Value.num not load64 + @value Value.num;
+          { let _ vs_push(@value); }
         }
       }
       else {
@@ -395,30 +399,143 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
     else if or eq type AstLetStatement eq type AstConstStatement {
     }
     else if eq type AstBlockStatement {
+      let local_block : Block 0;
+      block_init(@local_block, block);
+      { let _ typecheck_node_list(@local_block, fs, ast); }
+      = + ast Ast.konst is_branch_konst_eval(ast);
     }
     else if eq type AstFuncDefinition {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstFuncCall {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstWhileStatement {
+      let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ typecheck(block, fs, cond); }
+      let type ts_pop(); // pop condition result
+      { let _ vs_pop(NULL); } // pop condition result
+      if is_numerical(type) {
+        let local_block : Block 0;
+        block_init(@local_block, block);
+        { let _ typecheck(@local_block, fs, body); }
+        = + ast Ast.konst is_branch_konst_eval(ast);
+      }
+      else {
+        typecheck_error("invalid type in while statement condition\n");
+      }
     }
     else if eq type AstIfStatement {
+      let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ typecheck(block, fs, cond); }
+      let type ts_pop(); // pop condition result
+      { let _ vs_pop(NULL); } // pop condition result
+      if is_numerical(type) {
+        let local_block : Block 0;
+        block_init(@local_block, block);
+        { let _ typecheck(@local_block, fs, body); }
+        if eq load64 + ast Ast.count 3 {
+          let else_body cast ptr load64 + + ast Ast.node * sizeof ptr 2;
+          let local_block : Block 0;
+          block_init(@local_block, block);
+        { let _ typecheck(@local_block, fs, else_body); }
+        }
+        = + ast Ast.konst is_branch_konst_eval(ast);
+      }
+      else {
+        typecheck_error("invalid type in if statement condition\n");
+      }
     }
     else if eq type AstMemoryStatement {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstAssignment {
+      let first cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let second cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ typecheck(block, fs, first); }
+      { let _ typecheck(block, fs, second); }
+      let b ts_pop();
+      let a ts_pop();
+      if or eq a TypePtr eq a TypeAny {
+        { let _ vs_pop(NULL); }
+        { let _ vs_pop(NULL); }
+      }
+      else {
+        typecheck_error("type mismatch in assignment statement\n");
+      }
     }
     else if eq type AstSizeof {
+      let t cast ptr + ast Ast.token;
+      let size : u64 0;
+      let token_type load64 + t Token.type;
+      if or eq token_type T_UNSIGNED64 eq token_type T_NUMBER {
+        = @size sizeof u64;
+      }
+      else if eq token_type T_UNSIGNED32 {
+        = @size sizeof u32;
+      }
+      else if eq token_type T_UNSIGNED16 {
+        = @size sizeof u16;
+      }
+      else if eq token_type T_UNSIGNED8 {
+        = @size sizeof u8;
+      }
+      else if or or or
+        eq token_type T_PTR
+        eq token_type T_CSTRING
+        eq token_type T_CSTR
+        eq token_type T_ANY {
+        = @size sizeof ptr;
+      }
+      else if eq token_type T_IDENTIFIER {
+        // TODO(lucas): implement
+      }
+      else {
+        assert(0, "type not implemented yet\n");
+      }
+      let value : Value 0;
+      = + @value Value.num size;
+      = + @value Value.konst 1;
+      { let _ vs_push(@value); }
+      = + t Token.v size;
+      = + ast Ast.konst 1;
+      { let _ ts_push(TypeUnsigned64); }
     }
     else if eq type AstEnum {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstStruct {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstType {
+      if > load64 + ast Ast.count 0 {
+        { let _ typecheck_node_list(block, fs, ast); }
+      }
     }
     else if eq type AstCastExpression {
+      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
     }
     else if eq type AstStaticAssert {
+      let expr cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let node cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ typecheck(block, fs, expr); }
+      { let _ ts_pop(); }
+      let value : Value 0;
+      { let _ vs_pop(@value); }
+      if eq load64 + @value Value.konst 0 {
+        typecheck_error("can not do static on an expression that is evaluated at runtime\n");
+      }
+      else {
+        let node_token cast ptr + node Ast.token;
+        let message cast cstr tmp_it;
+        tmp_push_cstr("assertion failed: ");
+        tmp_push_str(load64 + node_token Token.buffer, load64 + node_token Token.length);
+        tmp_push_byte(0);
+        compile_error(message);
+        = @tmp_it message;
+      }
     }
     else {
       assert(0, "unreachable\n");

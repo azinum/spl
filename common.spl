@@ -37,6 +37,7 @@ fn common_init -> none {
   = @NULL 0;
 }
 
+// TODO(lucas): handle escape sequences
 fn tmp_push_cstr(str : any) -> none {
   let length strlen(cast cstr str);
   if > length 0 {
