@@ -1426,7 +1426,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_DIV: {
             u64 nozero[] = {vb.num, 1};
             num = va.num / nozero[vb.num == 0];
-            if (vb.num == 0) {
+            if (vb.num == 0 && vb.konst) { // can only detect this error at compile time if vb is a constant
               typecheck_error_at(c, ast->token, "divide by zero arithmetic error\n");
               return TypeNone;
             }
@@ -1435,7 +1435,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           case T_DIVMOD: {
             u64 nozero[] = {vb.num, 1};
             num = va.num % nozero[vb.num == 0];
-            if (vb.num == 0) {
+            if (vb.num == 0 && vb.konst) {
               typecheck_error_at(c, ast->token, "modulo by zero arithmetic error\n");
               return TypeNone;
             }

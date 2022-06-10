@@ -1,13 +1,3 @@
 // test.spl
 
-enum u8 (
-  A, B, C
-);
-
-fn hello -> A {
-  + B C;
-}
-
-fn main -> none {
-  print hello();
-}
++ 2 3;

@@ -253,12 +253,117 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
   if eq load64 + @c Compile.status NoError {
     let type load64 + ast Ast.type;
     if eq type AstValue {
+      let token_type load64 + + ast Ast.token Token.type;
+      if eq token_type T_NUMBER {
+        let value : Value 0;
+        = + @value Value.num load64 + + ast Ast.token Token.v;
+        = + @value Value.konst 1;
+        = + ast Ast.konst 1;
+        { let _ vs_push(@value); }
+        { let _ ts_push(TypeUnsigned64); }
+      }
+      else if eq token_type T_CSTRING {
+        let value : Value 0;
+        memset(@value, 0, sizeof Value);
+        { let _ vs_push(@value); }
+        { let _ ts_push(TypeCString); }
+      }
+      else if eq token_type T_IDENTIFIER {
+        // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      }
+      else if eq token_type T_AT {
+        // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      }
+      else {
+        assert(0, "invalid token type\n");
+      }
     }
     else if eq type AstExpression {
+      { let _ typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0); }
+      let konst is_branch_konst_eval(ast);
+      = + ast Ast.konst konst;
     }
     else if or or eq type AstExprList eq type AstStatement eq type AstStatementList {
+      let _ typecheck_node_list(block, fs, ast);
+      let konst is_branch_konst_eval(ast);
+      = + ast Ast.konst konst;
     }
     else if eq type AstBinopExpression {
+      { let _ typecheck_node_list(block, fs, ast); }
+      let a ts_pop();
+      let b ts_pop();
+      if and
+        or or or is_numerical(a) eq a TypeAny eq a TypePtr eq a TypeCString
+        or or or is_numerical(b) eq b TypeAny eq b TypePtr eq b TypeCString {
+        let va : Value 0;
+        let vb : Value 0;
+        { let _ vs_pop(@vb); }
+        { let _ vs_pop(@va); }
+        = + ast Ast.konst and load64 + @va Value.konst load64 + @vb Value.konst;
+
+        let num : u64 0;
+        let token_type load64 + + ast Ast.token Token.type;
+        if eq token_type T_ADD {
+          = @num + load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_SUB {
+          = @num - load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_MUL {
+          = @num * load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_DIV {
+          if and eq load64 + @vb Value.num 0 load64 + @vb Value.konst {
+            typecheck_error("divide by zero arithmetic error\n");
+          }
+          else {
+            = @num / load64 + @va Value.num load64 + @vb Value.num;
+          }
+        }
+        else if eq token_type T_DIVMOD {
+          if and eq load64 + @vb Value.num 0 load64 + @vb Value.konst {
+            typecheck_error("modulo by zero arithmetic error\n");
+          }
+          else {
+            = @num % load64 + @va Value.num load64 + @vb Value.num;
+          }
+        }
+        else if eq token_type T_LSHIFT {
+          assert(0, "T_LSHIFT: not implemented yet\n");
+        }
+        else if eq token_type T_RSHIFT {
+          assert(0, "T_RSHIFT: not implemented yet\n");
+        }
+        else if eq token_type T_LT {
+          = @num < load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_GT {
+          = @num > load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_AND {
+          = @num and load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_OR {
+          = @num or load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_EQ {
+          = @num eq load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else if eq token_type T_NEQ {
+          = @num neq load64 + @va Value.num load64 + @vb Value.num;
+        }
+        else {
+          assert(0, "unhandled operator\n");
+        }
+        let value : Value 0;
+        = + @value Value.num num;
+        = + @value Value.konst load64 + ast Ast.konst;
+        { let _ vs_push(@value); }
+        { let _ ts_push(a); }
+      }
+      else {
+        typecheck_error("type mismatch in binary operator expression\n");
+      }
     }
     else if eq type AstUopExpression {
     }
