@@ -366,6 +366,31 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq type AstUopExpression {
+      let ts_count : u64 load64 + @c Compile.ts_count;
+      { let _ typecheck_node_list(block, fs, ast); }
+      = + ast Ast.konst is_branch_konst_eval(ast);
+      let ts_delta : u64 - load64 + @c Compile.ts_count ts_count;
+      if neq ts_delta 0 {
+        let token_type load64 + + ast Ast.token Token.type;
+        if eq token_type T_PRINT {
+          { let _ vs_pop(NULL); }
+          { let _ ts_pop(); }
+        }
+        else if or or or or
+          eq token_type T_DEREF
+          eq token_type T_LOAD64
+          eq token_type T_LOAD32
+          eq token_type T_LOAD16
+          eq token_type T_LOAD8 {
+          { let _ ts_pop(); }
+          { let _ ts_push(TypeUnsigned64); }
+        }
+        else if eq token_type T_LOGICAL_NOT {
+        }
+      }
+      else {
+        typecheck_error("no value was produced in the rhs of the unary expression\n");
+      }
     }
     else if or eq type AstLetStatement eq type AstConstStatement {
     }
