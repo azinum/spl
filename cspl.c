@@ -28,6 +28,7 @@ typedef uint8_t u8;
 #define KB(n) (n * 1024)
 #define MB(n) (KB(n * 1024))
 #define GB(n) (MB(n * 1024))
+#define ALIGN(N, ALIGNMENT) ((N % ALIGNMENT) ? (N + ALIGNMENT - (N % ALIGNMENT)) : N)
 
 #define REAL_TIMER_START(...) \
   struct timeval _end = {0}; \
@@ -2748,25 +2749,23 @@ i32 ir_compile(Compile* c, Block* block, Function* fs, Ast* ast, u32* ins_count)
         i32 local_id = fs->locals_offset_counter;
         u32 type_size = compile_type_size[symbol->type];
         u32 count = symbol->size / type_size;
-        u32 spill = (count * type_size) % sizeof(u64);
-        spill = (sizeof(u64) - spill); // how many bytes were spilled? this is used for stack alignment of a certain boundary, which in this case is a 64-bit boundary. TODO(lucas): look into which minimum boundary size there is, 16-bits? i dunno.
-        fs->locals_offset_counter += (type_size * count) + spill;
-        if (symbol->type == TypeStruct) {
-          symbol->local_id = fs->locals_offset_counter - sizeof(u64);
-          break;
-        }
-        if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
-          for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
-            ir_push_ins(c, (Op) {
-              .i = I_MOVE_LOCAL,
-              .dest = symbol->type,
-              .src0 = ((1 + fs->argc) * 0x8) + local_id,
-              .src1 = -1,
-            }, ins_count);
-            symbol->local_id = local_id;
-            local_id += type_size;
+        const u64 boundary_size = sizeof(u64);
+        u32 total_size = ALIGN((count * type_size), boundary_size);
+        fs->locals_offset_counter += total_size;
+        if (symbol->type != TypeStruct) {
+          if (ir_compile_stmts(c, block, fs, ast, ins_count) == NoError) {
+            for (u32 i = 0; i < symbol->num_elemements_init; ++i) {
+              ir_push_ins(c, (Op) {
+                .i = I_MOVE_LOCAL,
+                .dest = symbol->type,
+                .src0 = ((1 + fs->argc) * 0x8) + local_id,
+                .src1 = -1,
+              }, ins_count);
+              local_id += type_size;
+            }
           }
         }
+        symbol->local_id = fs->locals_offset_counter - sizeof(u64);
       }
       break;
     }
