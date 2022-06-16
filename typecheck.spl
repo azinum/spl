@@ -225,7 +225,7 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
     let buffer : Buffer 0;
     buffer_init(@buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
     if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
-      if cast u64 symbol_out {
+      if neq cast u64 symbol_out NULL {
         memcpy(symbol_out, symbol, sizeof Symbol);
       }
       = @result load64 + symbol Symbol.type;

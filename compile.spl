@@ -66,8 +66,8 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
       let index load64 + + block Block.symbols * sizeof u64 i;
       let sym + + @c Compile.symbols * sizeof Symbol index;
       if eq 0 strncmp(cast cstr @copy, cast cstr + sym Symbol.name, MAX_NAME_SIZE) {
-        if neq load64 symbol NULL {
-          = symbol sym;
+        if neq cast u64 symbol NULL {
+          store64 symbol sym;
         }
         if neq cast u64 symbol_index NULL {
           = symbol_index index;
@@ -96,11 +96,17 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
       let token_buffer : Buffer 0;
       = + @token_buffer Buffer.data load64 + token Token.buffer;
       = + @token_buffer Buffer.length load64 + token Token.length;
+
       // we are only allowed to create a new symbol if none was found in the current block
-      if and
-        eq compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels) NoError
-        eq levels 0 {
-        = + @c Compile.status Error;
+      let lookup_result compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
+      if and eq lookup_result NoError eq levels 0 {
+        let message cast cstr tmp_it;
+        tmp_push_cstr("symbol `");
+        tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
+        tmp_push_cstr("` already exists\n");
+        tmp_push_byte(0);
+        compile_error(message);
+        = @tmp_it message;
       }
       else {
         let index load64 + @c Compile.symbol_count;
@@ -311,9 +317,6 @@ fn compile_state_init -> u64 {
   { let _ compile_create_syscall("syscall4", 4); }
   { let _ compile_create_syscall("syscall5", 5); }
   { let _ compile_create_syscall("syscall6", 6); }
-  { let _ compile_create_syscall("syscall6", 6); }
-
-  compile_print_symbol_info(STDOUT_FILENO);
 
   NoError;
 }
