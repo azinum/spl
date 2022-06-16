@@ -291,7 +291,37 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
       }
       else if eq token_type T_AT {
-        // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+        let symbol : ptr NULL;
+        let symbol_index UINT64_MAX;
+        let token_buffer : Buffer 0;
+        buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+        if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
+          = + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
+          = + + ast Ast.token Token.v symbol_index;
+          let symbol_type load64 + symbol Symbol.type;
+          if eq symbol_type TypeNone {
+            let message tmp_it;
+            tmp_push_cstr("can not take the address of the type `");
+            tmp_push_cstr(+ @compile_type_str * sizeof cstr symbol_type);
+            tmp_push_cstr("`\n");
+            tmp_push_byte(0);
+            typecheck_error_at(+ ast Ast.token, cast cstr message);
+            = @tmp_it message;
+          }
+          else {
+            { let _ vs_push(+ symbol Symbol.value); }
+            { let _ ts_push(symbol_type); }
+          }
+        }
+        else {
+          let message tmp_it;
+          tmp_push_cstr("symbol `");
+          tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+          tmp_push_cstr("` not defined\n");
+          tmp_push_byte(0);
+          compile_error_at(+ ast Ast.token, cast cstr message);
+          = @tmp_it message;
+        }
       }
       else {
         assert(0, "invalid token type\n");
