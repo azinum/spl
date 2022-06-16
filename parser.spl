@@ -65,11 +65,12 @@ fn parse_expr_list -> ptr {
 fn parse_type -> ptr {
   let type_expr : ptr NULL;
   let type load64 + @token Token.type;
-  if or or or or or or or or
+  if or or or or or or or or or
     eq type T_NONE
     eq type T_ANY
     eq type T_PTR
     eq type T_CSTR
+    eq type T_CSTRING
     eq type T_UNSIGNED64
     eq type T_UNSIGNED32
     eq type T_UNSIGNED16

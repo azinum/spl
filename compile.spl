@@ -1,7 +1,14 @@
 // compile.spl
 
 fn symbol_init(symbol : ptr) -> none {
-  assert(0, "symbol_init(): not implemented yet\n");
+  memset(symbol, 0, sizeof Symbol);
+  store64 + symbol Symbol.imm UINT64_MAX;
+  store64 + symbol Symbol.size 0;
+  store64 + symbol Symbol.num_elemements_init 0;
+  store64 + symbol Symbol.konst 0;
+  store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+  store64 + symbol Symbol.type TypeNone;
+  store64 + symbol Symbol.ref_count 0;
 }
 
 fn symbol_print(symbol : ptr) -> none {
@@ -32,10 +39,10 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
     tmp_push_cstr("[compile-error]: ");
     tmp_push_cstr(load64 + token Token.filename);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + token Token.line);
+    tmp_push_u64(load64 + token Token.line);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + token Token.column);
-    tmp_push_cstr(":");
+    tmp_push_u64(load64 + token Token.column);
+    tmp_push_cstr(": ");
     tmp_push_cstr(message);
     tmp_push_byte(0);
     puts(STDERR_FILENO, tmp);
@@ -44,24 +51,153 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
   }
 }
 
-// block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
-fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
-  assert(0, "compile_declare_value(): not implemented yet\n");
-  NoError;
-}
-
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
-  assert(0, "compile_lookup_value(): not implemented yet\n");
-  NoError;
+  let result Error;
+  if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
+    let copy : u8 : MAX_NAME_SIZE cast u8 0;
+    memset(@copy, 0, MAX_NAME_SIZE);
+    strncpy(cast cstr @copy, cast cstr load64 + name Buffer.data, load64 + name Buffer.length);
+    let i 0;
+    let count load64 + block Block.symbol_count;
+    let found 0;
+    let done 0;
+    while and not done < i count {
+      let index load64 + + block Block.symbols * sizeof u64 i;
+      let sym + + @c Compile.symbols * sizeof Symbol index;
+      if eq 0 strncmp(cast cstr @copy, cast cstr + sym Symbol.name, MAX_NAME_SIZE) {
+        if neq load64 symbol NULL {
+          = symbol sym;
+        }
+        if neq cast u64 symbol_index NULL {
+          = symbol_index index;
+        }
+        = @result NoError;
+        = @done 1;
+      }
+      = @i + 1 i;
+    }
+    if eq done 0 {
+      if neq cast u64 levels_descend NULL {
+        = levels_descend + 1 load64 levels_descend;
+      }
+      = @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
+    }
+  }
+  result;
+}
+
+// block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
+fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+  let result Error;
+  if < load64 + token Token.length MAX_NAME_SIZE {
+    if < load64 + block Block.symbol_count MAX_SYMBOL {
+      let levels 0; // how many levels did we descend before we found a symbol?
+      let token_buffer : Buffer 0;
+      = + @token_buffer Buffer.data load64 + token Token.buffer;
+      = + @token_buffer Buffer.length load64 + token Token.length;
+      // we are only allowed to create a new symbol if none was found in the current block
+      if and
+        eq compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels) NoError
+        eq levels 0 {
+        = + @c Compile.status Error;
+      }
+      else {
+        let index load64 + @c Compile.symbol_count;
+        if neq cast u64 symbol_index NULL {
+          = symbol_index index;
+        }
+
+        = + + block Block.symbols * sizeof u64 load64 + block Block.symbol_count index;
+        = symbol + + @c Compile.symbols * sizeof Symbol index;
+
+        = + @c Compile.symbol_count + 1 load64 + @c Compile.symbol_count;
+        = + block Block.symbol_count + 1 load64 + block Block.symbol_count;
+
+        let s cast ptr load64 symbol;
+        symbol_init(s);
+        memcpy(+ s Symbol.token, token, sizeof Token);
+        memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
+        = @result NoError;
+      }
+    }
+  }
+  else {
+    assert(0, "symbol capacity reached\n");
+  }
+  result;
 }
 
 fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
-  NoError;
+  let result NoError;
+  let block + @c Compile.global;
+  let token : Token 0;
+  store64 + @token Token.buffer name;
+  store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
+  store64 + @token Token.type T_IDENTIFIER;
+  store64 + @token Token.filename NULL;
+  store64 + @token Token.source NULL;
+  store64 + @token Token.line 0;
+  store64 + @token Token.column 0;
+
+  let symbol : ptr NULL;
+  let symbol_index UINT64_MAX;
+  if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
+    store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeSyscallFunc;
+    store64 + symbol Symbol.sym_type SYM_FUNC;
+    store64 + symbol Symbol.type TypeSyscallFunc;
+    store64 + + symbol Symbol.token Token.v symbol_index;
+    store64 + symbol Symbol.ref_count 1;
+    let func + + symbol Symbol.value Value.func;
+    store64 + func Function.ir_address UINT64_MAX;
+    store64 + func Function.label UINT64_MAX;
+    store64 + func Function.argc + 1 argc;
+    store64 + func Function.locals_offset_counter 0;
+    store64 + func Function.rtype TypeUnsigned64;
+  }
+  else {
+    compile_error("symbol already exists\n");
+    = @result Error;
+  }
+  result;
 }
 
+// TODO(lucas): fully implement
 fn compile_print_symbol_info(fd : u64) -> none {
-  assert(0, "compile_print_symbol_info(): not implemented yet\n");
+  let message tmp_it;
+  let count : u64 load64 + @c Compile.symbol_count;
+  let i : u64 0;
+  while < i count {
+    let symbol + + @c Compile.symbols * sizeof Symbol i;
+    let type load64 + symbol Symbol.type;
+    let num_i_digits : u64 digit_count(i);
+    let j : u64 0;
+
+    while < j - 3 num_i_digits {
+      tmp_push_cstr("0");
+      = @j + 1 j;
+    }
+    tmp_push_u64(i);
+    tmp_push_cstr(": ");
+
+    if eq type TypeSyscallFunc {
+      // do nothing
+      tmp_push_cstr("`");
+      tmp_push_cstr(cast cstr + symbol Symbol.name);
+      tmp_push_cstr("`");
+    }
+    else if eq type TypeFunc {
+    
+    }
+    else {
+    
+    }
+    tmp_push_cstr("\n");
+    = @i + 1 i;
+  }
+  tmp_push_byte(0);
+  puts(fd, message);
+  = @tmp_it message;
 }
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
@@ -92,14 +228,6 @@ fn compile_state_init -> u64 {
   = + @c Compile.ts_count 0;
   = + @c Compile.vs_count 0;
   = + @c Compile.type_count MAX_PRIMITIVE_TYPE;
-
-  { let _ compile_create_syscall("syscall0", 0); }
-  { let _ compile_create_syscall("syscall1", 1); }
-  { let _ compile_create_syscall("syscall2", 2); }
-  { let _ compile_create_syscall("syscall3", 3); }
-  { let _ compile_create_syscall("syscall4", 4); }
-  { let _ compile_create_syscall("syscall5", 5); }
-  { let _ compile_create_syscall("syscall6", 6); }
 
   = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   = + @ir_code_str * I_POP                sizeof cstr "I_POP";
@@ -175,6 +303,17 @@ fn compile_state_init -> u64 {
   = + @compile_type_size * TypeSyscallFunc    sizeof u64 sizeof ptr;
   = + @compile_type_size * TypeStruct         sizeof u64 1;
   = + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
+
+  { let _ compile_create_syscall("syscall0", 0); }
+  { let _ compile_create_syscall("syscall1", 1); }
+  { let _ compile_create_syscall("syscall2", 2); }
+  { let _ compile_create_syscall("syscall3", 3); }
+  { let _ compile_create_syscall("syscall4", 4); }
+  { let _ compile_create_syscall("syscall5", 5); }
+  { let _ compile_create_syscall("syscall6", 6); }
+  { let _ compile_create_syscall("syscall6", 6); }
+
+  compile_print_symbol_info(STDOUT_FILENO);
 
   NoError;
 }

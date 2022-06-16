@@ -44,6 +44,15 @@ fn strlen(str : cstr) -> u64 {
   length;
 }
 
+fn strnlen(str : cstr, max_length : u64) -> u64 {
+  let length : u64 0;
+  while and < length max_length < 0 load8 str{
+    = @length + 1 length;
+    = @str    + 1 str;
+  }
+  length;
+}
+
 fn strcmp(a : cstr, b : cstr) -> u64 {
   let result 0;
   let done 0;
@@ -68,17 +77,32 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
   let i 0;
   let done 0;
   while and < i count eq done 0 {
-    if neq load8 a load8 b {
+    let a_ch load8 a;
+    let b_ch load8 b;
+    if neq a_ch b_ch {
       = @result 1;
       = @done 1;
     }
-    else {
-      = @a + 1 a;
-      = @b + 1 b;
-      = @i + 1 i;
+    else if or eq a_ch 0 eq b_ch 0 {
+      = @done 1;
     }
+    = @a + 1 a;
+    = @b + 1 b;
+    = @i + 1 i;
   }
-  or neq load8 b 0 result;
+  result;
+}
+
+fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
+  let count : u64 0;
+  let length strlen(src);
+  while and < count length < count n {
+    store8 cast ptr dest load8 cast ptr src;
+    = @dest  + 1 dest;
+    = @src   + 1 src;
+    = @count + 1 count;
+  }
+  store8 cast ptr dest 0;
 }
 
 fn memset(mem : ptr, c : u64, n : u64) -> none {
@@ -90,7 +114,7 @@ fn memset(mem : ptr, c : u64, n : u64) -> none {
   }
 }
 
-fn memset8(mem : any, c : u64, n : u64) -> none {
+fn memset64(mem : any, c : u64, n : u64) -> none {
   let count : u64 0;
   while < count n {
     store64 mem c;

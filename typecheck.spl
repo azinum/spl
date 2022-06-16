@@ -38,10 +38,10 @@ fn typecheck_error_at(token : ptr, message : cstr) -> none {
     tmp_push_cstr("[typecheck-error]: ");
     tmp_push_cstr(load64 + token Token.filename);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + token Token.line);
+    tmp_push_u64(load64 + token Token.line);
     tmp_push_cstr(":");
-    tmp_push_cstr(load64 + token Token.column);
-    tmp_push_cstr(":");
+    tmp_push_u64(load64 + token Token.column);
+    tmp_push_cstr(": ");
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
     = @tmp_it tmp;
@@ -269,7 +269,26 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         { let _ ts_push(TypeCString); }
       }
       else if eq token_type T_IDENTIFIER {
-        // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+        let symbol : ptr NULL;
+        let symbol_index UINT64_MAX;
+        let token_buffer : Buffer 0;
+        buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+        if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
+          = + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
+          = + + ast Ast.token Token.v symbol_index;
+          { let _ vs_push(+ symbol Symbol.value); }
+          = + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
+          { let _ ts_push(load64 + symbol Symbol.type); }
+        }
+        else {
+          let message tmp_it;
+          tmp_push_cstr("symbol `");
+          tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+          tmp_push_cstr("` not defined\n");
+          tmp_push_byte(0);
+          compile_error_at(+ ast Ast.token, cast cstr message);
+          = @tmp_it message;
+        }
       }
       else if eq token_type T_AT {
         // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
