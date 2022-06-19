@@ -151,6 +151,24 @@ fn token_print(token : ptr) -> none {
 
 fn lexer_token_type -> u64 load64 + @token Token.type;
 
+fn compare(a : cstr, b : cstr, length : u64) -> u64 {
+  let result 1;
+  let done 0;
+  let i 0;
+  while and eq done 0 < i length {
+    if neq load8 a load8 b {
+      = @done 1;
+      = @result 0;
+    }
+    else {
+      = @a + 1 a;
+      = @b + 1 b;
+    }
+    = @i + 1 i;
+  }
+  and eq result 1 eq load8 b 0;
+}
+
 fn lexer_read_symbol -> none {
   while or or or or or
     is_alpha(load8 l.index)
@@ -167,118 +185,118 @@ fn lexer_read_symbol -> none {
   let buffer cast cstr load64 + @token Token.buffer;
   let length : u64 load64 + @token Token.length;
 
-  if eq 0 strncmp(buffer, "print", length) {
+  if eq 1 compare(buffer, "print", length) {
     = + @token Token.type T_PRINT;
   }
-  else if eq 0 strncmp(buffer, "static_assert", length) {
+  else if eq 1 compare(buffer, "static_assert", length) {
     = + @token Token.type T_STATIC_ASSERT;
   }
-  else if eq 0 strncmp(buffer, "include", length) {
+  else if eq 1 compare(buffer, "include", length) {
     = + @token Token.type T_INCLUDE;
   }
-  else if eq 0 strncmp(buffer, "const", length) {
+  else if eq 1 compare(buffer, "const", length) {
     = + @token Token.type T_CONST;
   }
-  else if eq 0 strncmp(buffer, "let", length) {
+  else if eq 1 compare(buffer, "let", length) {
     = + @token Token.type T_LET;
   }
-  else if eq 0 strncmp(buffer, "memory", length) {
+  else if eq 1 compare(buffer, "memory", length) {
     = + @token Token.type T_MEMORY;
   }
-  else if eq 0 strncmp(buffer, "fn", length) {
+  else if eq 1 compare(buffer, "fn", length) {
     = + @token Token.type T_FN;
   }
-  else if eq 0 strncmp(buffer, "while", length) {
+  else if eq 1 compare(buffer, "while", length) {
     = + @token Token.type T_WHILE;
   }
-  else if eq 0 strncmp(buffer, "if", length) {
+  else if eq 1 compare(buffer, "if", length) {
     = + @token Token.type T_IF;
   }
-  else if eq 0 strncmp(buffer, "else", length) {
+  else if eq 1 compare(buffer, "else", length) {
     = + @token Token.type T_ELSE;
   }
-  else if eq 0 strncmp(buffer, "store64", length) {
+  else if eq 1 compare(buffer, "store64", length) {
     = + @token Token.type T_STORE64;
   }
-  else if eq 0 strncmp(buffer, "store32", length) {
+  else if eq 1 compare(buffer, "store32", length) {
     = + @token Token.type T_STORE32;
   }
-  else if eq 0 strncmp(buffer, "store16", length) {
+  else if eq 1 compare(buffer, "store16", length) {
     = + @token Token.type T_STORE16;
   }
-  else if eq 0 strncmp(buffer, "store8", length) {
+  else if eq 1 compare(buffer, "store8", length) {
     = + @token Token.type T_STORE8;
   }
-  else if eq 0 strncmp(buffer, "load64", length) {
+  else if eq 1 compare(buffer, "load64", length) {
     = + @token Token.type T_LOAD64;
   }
-  else if eq 0 strncmp(buffer, "load32", length) {
+  else if eq 1 compare(buffer, "load32", length) {
     = + @token Token.type T_LOAD32;
   }
-  else if eq 0 strncmp(buffer, "load16", length) {
+  else if eq 1 compare(buffer, "load16", length) {
     = + @token Token.type T_LOAD16;
   }
-  else if eq 0 strncmp(buffer, "load8", length) {
+  else if eq 1 compare(buffer, "load8", length) {
     = + @token Token.type T_LOAD8;
   }
-  else if eq 0 strncmp(buffer, "and", length) {
+  else if eq 1 compare(buffer, "and", length) {
     = + @token Token.type T_AND;
   }
-  else if eq 0 strncmp(buffer, "not", length) {
+  else if eq 1 compare(buffer, "not", length) {
     = + @token Token.type T_LOGICAL_NOT;
   }
-  else if eq 0 strncmp(buffer, "or", length) {
+  else if eq 1 compare(buffer, "or", length) {
     = + @token Token.type T_OR;
   }
-  else if eq 0 strncmp(buffer, "eq", length) {
+  else if eq 1 compare(buffer, "eq", length) {
     = + @token Token.type T_EQ;
   }
-  else if eq 0 strncmp(buffer, "neq", length) {
+  else if eq 1 compare(buffer, "neq", length) {
     = + @token Token.type T_NEQ;
   }
-  else if eq 0 strncmp(buffer, "lshift", length) {
+  else if eq 1 compare(buffer, "lshift", length) {
     = + @token Token.type T_LSHIFT;
   }
-  else if eq 0 strncmp(buffer, "rshift", length) {
+  else if eq 1 compare(buffer, "rshift", length) {
     = + @token Token.type T_RSHIFT;
   }
-  else if eq 0 strncmp(buffer, "sizeof", length) {
+  else if eq 1 compare(buffer, "sizeof", length) {
     = + @token Token.type T_SIZEOF;
   }
-  else if eq 0 strncmp(buffer, "enum", length) {
+  else if eq 1 compare(buffer, "enum", length) {
     = + @token Token.type T_ENUM;
   }
-  else if eq 0 strncmp(buffer, "alias", length) {
+  else if eq 1 compare(buffer, "alias", length) {
     = + @token Token.type T_ALIAS;
   }
-  else if eq 0 strncmp(buffer, "cast", length) {
+  else if eq 1 compare(buffer, "cast", length) {
     = + @token Token.type T_CAST;
   }
-  else if eq 0 strncmp(buffer, "struct", length) {
+  else if eq 1 compare(buffer, "struct", length) {
     = + @token Token.type T_STRUCT;
   }
-  else if eq 0 strncmp(buffer, "none", length) {
+  else if eq 1 compare(buffer, "none", length) {
     = + @token Token.type T_NONE;
   }
-  else if eq 0 strncmp(buffer, "any", length) {
+  else if eq 1 compare(buffer, "any", length) {
     = + @token Token.type T_ANY;
   }
-  else if eq 0 strncmp(buffer, "ptr", length) {
+  else if eq 1 compare(buffer, "ptr", length) {
     = + @token Token.type T_PTR;
   }
-  else if eq 0 strncmp(buffer, "u64", length) {
+  else if eq 1 compare(buffer, "u64", length) {
     = + @token Token.type T_UNSIGNED64;
   }
-  else if eq 0 strncmp(buffer, "u32", length) {
+  else if eq 1 compare(buffer, "u32", length) {
     = + @token Token.type T_UNSIGNED32;
   }
-  else if eq 0 strncmp(buffer, "u16", length) {
+  else if eq 1 compare(buffer, "u16", length) {
     = + @token Token.type T_UNSIGNED16;
   }
-  else if eq 0 strncmp(buffer, "u8", length) {
+  else if eq 1 compare(buffer, "u8", length) {
     = + @token Token.type T_UNSIGNED8;
   }
-  else if eq 0 strncmp(buffer, "cstr", length) {
+  else if eq 1 compare(buffer, "cstr", length) {
     = + @token Token.type T_CSTR;
   }
   else {
