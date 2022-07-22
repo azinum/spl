@@ -1,3 +1,6 @@
 // test.spl
 
-print @syscall2;
+let a : u64 2;
+let b : u64 3;
+
++ a b;

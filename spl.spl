@@ -78,7 +78,8 @@ fn spl_start(filename : any) -> u64 {
               }
               if load64 + @options Options.compile {
                 // TODO: implement
-
+                compile_print_symbol_info(STDOUT_FILENO);
+                compile_print_block(STDOUT_FILENO, + @c Compile.global);
                 let message cast cstr tmp_it;
                 tmp_push_cstr("total compilation time was ? seconds (");
                 tmp_push_u64(load64 + @p Parser.line_count);

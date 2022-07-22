@@ -260,7 +260,7 @@ fn parse_param_list -> ptr {
   let type lexer_token_type();
   if neq type T_RIGHT_P {
     let done 0;
-    while not done {
+    while eq done 0 {
       = @type lexer_token_type();
       if eq type T_IDENTIFIER {
         let ident : Token 0;

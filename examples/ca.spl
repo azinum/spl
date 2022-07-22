@@ -90,8 +90,8 @@ fn main -> none {
   const map.size * map.w map.h;
   memory map map.size;
   memory map_next map.size;
-  memset8(@map, 0, map.size);
-  memset8(@map_next, 0, map.size);
+  memset(@map, 0, map.size);
+  memset(@map_next, 0, map.size);
 
   // initialize map and clear code string
   let codep @code;

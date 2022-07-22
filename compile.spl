@@ -62,10 +62,10 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
     let count load64 + block Block.symbol_count;
     let found 0;
     let done 0;
-    while and not done < i count {
-      let index load64 + + block Block.symbols * sizeof u64 i;
+    while and eq done 0 < i count {
+      let index : u64 load64 + + block Block.symbols * sizeof u64 i;
       let sym + + @c Compile.symbols * sizeof Symbol index;
-      if eq 0 strncmp(cast cstr @copy, cast cstr + sym Symbol.name, MAX_NAME_SIZE) {
+      if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
         if neq cast u64 symbol NULL {
           store64 symbol sym;
         }
@@ -74,10 +74,11 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
         }
         = @result NoError;
         = @done 1;
+        = @found 1;
       }
       = @i + 1 i;
     }
-    if eq done 0 {
+    if eq found 0 {
       if neq cast u64 levels_descend NULL {
         = levels_descend + 1 load64 levels_descend;
       }
@@ -113,7 +114,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         if neq cast u64 symbol_index NULL {
           = symbol_index index;
         }
-
+        // block->symbols[block->symbol_count] = index;
         = + + block Block.symbols * sizeof u64 load64 + block Block.symbol_count index;
         = symbol + + @c Compile.symbols * sizeof Symbol index;
 
@@ -126,6 +127,9 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
         = @result NoError;
       }
+    }
+    else {
+      assert(0, "symbol capacity in block reached\n");
     }
   }
   else {
@@ -196,7 +200,13 @@ fn compile_print_symbol_info(fd : u64) -> none {
     
     }
     else {
-    
+      tmp_push_cstr("`");
+      tmp_push_cstr(cast cstr + symbol Symbol.name);
+      tmp_push_cstr("` (type = ");
+      tmp_push_u64(load64 + symbol Symbol.type);
+      tmp_push_cstr(", size = ");
+      tmp_push_u64(load64 + symbol Symbol.size);
+      tmp_push_cstr(")");
     }
     tmp_push_cstr("\n");
     = @i + 1 i;
@@ -204,6 +214,18 @@ fn compile_print_symbol_info(fd : u64) -> none {
   tmp_push_byte(0);
   puts(fd, message);
   = @tmp_it message;
+}
+
+// fd : u64, block : Block*
+fn compile_print_block(fd : u64, block : ptr) -> none {
+  let count load64 + block Block.symbol_count;
+  let i 0;
+  puts(fd, "compile_print_block:\n");
+  while < i count {
+    let index : u64 load64 + + block Block.symbols * sizeof u64 i;
+    print index;
+    = @i + 1 i;
+  }
 }
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
@@ -310,13 +332,13 @@ fn compile_state_init -> u64 {
   = + @compile_type_size * TypeStruct         sizeof u64 1;
   = + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
 
-  { let _ compile_create_syscall("syscall0", 0); }
-  { let _ compile_create_syscall("syscall1", 1); }
-  { let _ compile_create_syscall("syscall2", 2); }
-  { let _ compile_create_syscall("syscall3", 3); }
-  { let _ compile_create_syscall("syscall4", 4); }
-  { let _ compile_create_syscall("syscall5", 5); }
-  { let _ compile_create_syscall("syscall6", 6); }
+  // { let _ compile_create_syscall("syscall0", 0); }
+  // { let _ compile_create_syscall("syscall1", 1); }
+  // { let _ compile_create_syscall("syscall2", 2); }
+  // { let _ compile_create_syscall("syscall3", 3); }
+  // { let _ compile_create_syscall("syscall4", 4); }
+  // { let _ compile_create_syscall("syscall5", 5); }
+  // { let _ compile_create_syscall("syscall6", 6); }
 
   NoError;
 }

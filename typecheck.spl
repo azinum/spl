@@ -196,29 +196,30 @@ fn is_numerical(type : u64) -> u64 {
     eq type TypeUnsigned8;
 }
 
+// block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
 fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -> u64 {
   let result TypeNone;
   let type load64 + token Token.type;
   if eq type T_ANY {
-    = @type TypeAny;
+    = @result TypeAny;
   }
   else if eq type T_PTR {
-    = @type TypePtr;
+    = @result TypePtr;
   }
   else if eq type T_UNSIGNED64 {
-    = @type TypeUnsigned64;
+    = @result TypeUnsigned64;
   }
   else if eq type T_UNSIGNED32 {
-    = @type TypeUnsigned32;
+    = @result TypeUnsigned32;
   }
   else if eq type T_UNSIGNED16 {
-    = @type TypeUnsigned16;
+    = @result TypeUnsigned16;
   }
   else if eq type T_UNSIGNED8 {
-    = @type TypeUnsigned8;
+    = @result TypeUnsigned8;
   }
   else if or eq type T_CSTRING eq type T_CSTR {
-    = @type TypeCString;
+    = @result TypeCString;
   }
   else if eq type T_IDENTIFIER {
     let symbol NULL;
@@ -245,8 +246,148 @@ fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
 }
 
 fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  assert(0, "typecheck_let_statement(): not implemented yet\n");
-  NoError;
+  let result NoError;
+  let konst eq load64 + ast Ast.type AstConstStatement;
+  let ts_count load64 + @c Compile.ts_count;
+  let num_elements 1;
+  let rhs cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let ast_type NULL;
+  if eq load64 + ast Ast.count 2 {
+    = @ast_type cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  }
+
+  // typecheck the rhs of the statement
+  { let _ typecheck_node_list(block, fs, rhs); }
+  = + rhs Ast.konst is_branch_konst_eval(rhs);
+  = + ast Ast.konst is_branch_konst_eval(rhs);
+
+  // make sure that rhs actually produced any values
+  let ts_delta - load64 + @c Compile.ts_count ts_count;
+  if eq ts_delta 0 {
+    typecheck_error_at(+ ast Ast.token, "no value was produced in the rhs of the let statement\n");
+  }
+  else {
+    let expl_type_symbol NULL;
+
+    // typecheck explicit type, if there is one
+    let explicit_type TypeNone;
+    if neq cast u64 ast_type NULL {
+      = @explicit_type token_to_compile_type(block, fs, + ast_type Ast.token, @expl_type_symbol);
+      let token : Token 0;
+      memcpy(@token, + ast_type Ast.token, sizeof Token);
+      if eq explicit_type TypeNone {
+        let message tmp_it;
+        tmp_push_cstr("type `");
+        tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
+        tmp_push_cstr("` not defined\n");
+        tmp_push_byte(0);
+        typecheck_error_at(@token, cast cstr message);
+        = @tmp_it message;
+      }
+      else {
+        // array size specifier
+        if > load64 + ast_type Ast.count 0 {
+          { let _ typecheck.typecheck(block, fs, ast_type); }
+          let value : Value 0;
+          { let _ vs_pop(@value); }
+          let array_specifier_type ts_pop();
+          if eq is_numerical(array_specifier_type) 0 {
+            typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n");
+          }
+          else {
+            = @num_elements load64 + @value Value.num;
+            if > ts_delta num_elements {
+              typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n");
+            }
+          }
+        }
+      }
+    }
+
+    let imm UINT64_MAX; // index to immediate value, in case this is a constant
+
+    let value : Value 0;
+    let prev_value : Value 0;
+    vs_top(@value);
+    vs_top(@prev_value);
+
+    let type ts_top();
+    let prev_type ts_top();
+
+    if neq explicit_type TypeNone {
+      = @prev_type explicit_type;
+    }
+
+    if and eq konst 1 eq is_numerical(type) 0 {
+      typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n");
+    }
+    else {
+      let i 0;
+      let done 0;
+      while and not done < i ts_delta {
+        = @type ts_pop();
+        if and and neq type prev_type neq explicit_type TypeAny neq explicit_type TypeStruct {
+          typecheck_error_at(+ ast Ast.token, "incompatable type in expression list\n");
+          = @done 1;
+        }
+        else {
+          = @prev_type type;
+          { let _ vs_pop(@value); }
+          if and eq type TypeFunc neq type TypeAny {
+            if eq check_func_signatures(+ @value Value.func, + @prev_value Value.func) 0 {
+              typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n");
+              = @done 1;
+            }
+          }
+        }
+        memcpy(@prev_value, @value, sizeof Value);
+        if eq konst 1 {
+          = @imm ir_push_value(+ @value Value.num, sizeof u64); // TODO(lucas): implement ir_push_value
+        }
+        = @i + 1 i;
+      }
+    }
+
+    // no array specifier was used, therefore num_elements is set to however many elements there was in the rhs
+    if eq num_elements 1 {
+      = @num_elements ts_delta;
+    }
+
+    if neq explicit_type UINT64_MAX {
+      = @type explicit_type;
+    }
+
+    // if this is a constant, make sure to update the immediate value index
+    if eq konst 1 {
+      let decrement * - ts_delta 1 load64 + @compile_type_size * sizeof u64 TypeUnsigned64;
+      = @imm - imm decrement;
+    }
+
+    let type_size : u64 load64 + @compile_type_size * sizeof u64 type;
+    if and eq type TypeStruct neq expl_type_symbol NULL {
+      = @type_size load64 + expl_type_symbol Symbol.size;
+    }
+
+    let symbol : ptr NULL;
+    let symbol_index UINT64_MAX;
+    if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+      store64 + symbol Symbol.imm imm;
+      store64 + symbol Symbol.size * num_elements type_size;
+      store64 + symbol Symbol.num_elemements_init ts_delta;
+      store64 + symbol Symbol.konst konst;
+      if eq cast u64 block + @c Compile.global {
+        store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+      }
+      else {
+        store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+      }
+      store64 + symbol Symbol.type type;
+      memcpy(+ symbol Symbol.value, @value, sizeof Value);
+      store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): is this even used anymore? investigate...
+      = @result type;
+    }
+  }
+  result;
 }
 
 fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
@@ -446,6 +587,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if or eq type AstLetStatement eq type AstConstStatement {
+      { let _ typecheck_let_statement(block, fs, ast); }
     }
     else if eq type AstBlockStatement {
       let local_block : Block 0;
