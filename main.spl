@@ -4,9 +4,8 @@
 
 // fn add(a : u64, b : u64) -> u64 + a b;
 
-fn hello -> u64 8;
-
 fn main -> none {
-  let a : u8 : hello() cast u8 0;
+  let hello 8;
+  let a : u8 : hello cast u8 0;
   print sizeof a;
 }

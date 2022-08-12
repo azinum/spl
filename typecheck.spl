@@ -173,6 +173,7 @@ fn check_func_signatures(a : ptr, b : ptr) -> u64 {
   result;
 }
 
+// ast : Ast*
 fn is_branch_konst_eval(ast : ptr) -> u64 {
   let konst 1;
   let i 0;
@@ -663,16 +664,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let size : u64 0;
       let token_type load64 + t Token.type;
       if or eq token_type T_UNSIGNED64 eq token_type T_NUMBER {
-        = @size sizeof u64;
+        store64 @size sizeof u64;
       }
       else if eq token_type T_UNSIGNED32 {
-        = @size sizeof u32;
+        store64 @size sizeof u32;
       }
       else if eq token_type T_UNSIGNED16 {
-        = @size sizeof u16;
+        store64 @size sizeof u16;
       }
       else if eq token_type T_UNSIGNED8 {
-        = @size sizeof u8;
+        store64 @size sizeof u8;
       }
       else if or or or
         eq token_type T_PTR
@@ -682,7 +683,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         = @size sizeof ptr;
       }
       else if eq token_type T_IDENTIFIER {
-        // TODO(lucas): implement
+        let symbol NULL;
+        let buffer : Buffer 0;
+        buffer_init(@buffer, cast ptr load64 + t Token.buffer, load64 + t Token.length);
+        if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
+          store64 @size load64 + symbol Symbol.size;
+        }
+        else {
+          typecheck_error_at(cast ptr t, "symbol not defined\n");
+        }
       }
       else {
         assert(0, "type not implemented yet\n");
