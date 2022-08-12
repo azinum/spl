@@ -1802,7 +1802,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
     case AstEnum: {
       Ast* type_node = ast->node[0];
       Ast* enum_node = ast->node[1];
-      Value value = { .num = 0, };
+      Value value = { .num = 0, .konst = 1, };
       for (u32 i = 0; i < enum_node->count; ++i, ++value.num) {
         Ast* node = enum_node->node[i];
         Symbol* symbol = NULL;
@@ -2009,6 +2009,10 @@ Compile_type typecheck_let_statement(Compile* c, Block* block, Function* fs, Ast
       Compile_type array_specifier_type = ts_pop(c);
       if (!is_numerical(c, array_specifier_type)) {
         typecheck_error_at(c, ast_type->node[0]->token, "only numeric values are allowed in array size specifier\n");
+        return TypeNone;
+      }
+      if (!value.konst) {
+        compile_error_at(c, ast_type->node[0]->token, "array specifier must be a compile time constant\n");
         return TypeNone;
       }
       num_elements = (i32)value.num;
