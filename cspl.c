@@ -1881,6 +1881,10 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           Value array_specifier_value;
           vs_pop(c, &array_specifier_value);
           field_size *= array_specifier_value.num;
+          if (!array_specifier_value.konst) {
+            compile_error_at(c, field_type->token, "field array specifier must be a compile time constant\n");
+            return TypeNone;
+          }
         }
         field_offset += field_size;
       }
