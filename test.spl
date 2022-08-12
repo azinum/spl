@@ -1,6 +1,12 @@
 // test.spl
 
-let a : u64 2;
-let b : u64 3;
+let a : u64 0;
+let b : u64 1;
+let c : u64 2;
+let d : u64 3;
+let e : u64 4;
+let f : u64 5;
+let g : u64 6;
+let h : u64 7;
+let i : u64 8;
 
-+ a b;

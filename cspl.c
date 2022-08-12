@@ -718,6 +718,7 @@ static i32 compile_declare_value(Compile* c, Block* block, Function* func, Token
 static i32 compile_create_syscall(Compile* c, const char* name, u32 argc);
 static i32 compile_lookup_value(Compile* c, Block* block, Function* func, char* name, u32 length, Symbol** symbol, i32* symbol_index, u32* levels_descent);
 static void compile_print_symbol_info(Compile* c, FILE* fp);
+static void compile_print_block(Compile* c, Block* block, FILE* fp);
 
 static i32 typecheck_program(Compile* c, Ast* ast);
 static void typecheck_print_unused(Compile* c);
@@ -909,6 +910,7 @@ i32 spl_start(Options* options) {
       if (compile_state_init(&c) == NoError) {
         if (typecheck_program(&c, p.ast) == NoError) {
           if (ir_start_compile(&c, p.ast) == NoError) {
+            (void)compile_print_block;
             if (options->debug) {
               char debug_path[MAX_PATH_SIZE] = {0};
               snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", options->filename);
@@ -1253,6 +1255,14 @@ void compile_print_symbol_info(Compile* c, FILE* fp) {
       continue;
     }
     fprintf(fp, "%3u: `%s` (type = %s, size = %d, konst = %d, value.konst = %d, ref_count = %d) - %s:%d:%d\n", i, symbol->name, compile_type_str[symbol->type], symbol->size, symbol->konst, symbol->value.konst, symbol->ref_count, symbol->token.filename, symbol->token.line, symbol->token.column);
+  }
+}
+
+void compile_print_block(Compile* c, Block* block, FILE* fp) {
+  (void)c;
+  fprintf(fp, "%s:\n", __FUNCTION__);
+  for (u32 i = 0; i < block->symbol_count; ++i) {
+    fprintf(fp, "%d\n", block->symbols[i]);
   }
 }
 
@@ -1824,7 +1834,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       Value value = { .num = 0, };
       for (u32 i = 0; i < fields->count; ++i) {
         Ast* field = fields->node[i];
-        Ast* field_type = field->node[0];
+        Ast* field_type = field->node[0]; // type + array specifier
         Token field_token = field->token;
 
         char* it = tmp_it;
@@ -1852,7 +1862,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           compile_error_at(c, field->token, "symbol `%.*s` has already been declared\n", field->token.length, field->token.buffer);
           return TypeNone;
         }
-        // TODO(lucas): implement compile time evaluation of expressions for the array size specifiers
         Symbol* field_symbol = NULL;
         Compile_type type = token_to_compile_type(c, block, fs, field_type->token, &field_symbol);
         u64 field_size = 0;
@@ -1867,7 +1876,11 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           field_size = compile_type_size[type];
         }
         if (field_type->count != 0) {
-          field_size *= field_type->node[0]->token.v.num;
+          typecheck_node_list(c, block, fs, field_type);
+          ts_pop(c);
+          Value array_specifier_value;
+          vs_pop(c, &array_specifier_value);
+          field_size *= array_specifier_value.num;
         }
         field_offset += field_size;
       }

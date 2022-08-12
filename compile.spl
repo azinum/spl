@@ -16,8 +16,8 @@ fn symbol_print(symbol : ptr) -> none {
 }
 
 fn block_init(block : ptr, parent : ptr) -> none {
-  = + block Block.symbol_count 0;
-  = + block Block.parent parent;
+  store64 + block Block.symbol_count 0;
+  store64 + block Block.parent parent;
 }
 
 fn compile_error(message : cstr) -> none {
@@ -95,8 +95,8 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
     if < load64 + block Block.symbol_count MAX_SYMBOL {
       let levels 0; // how many levels did we descend before we found a symbol?
       let token_buffer : Buffer 0;
-      = + @token_buffer Buffer.data load64 + token Token.buffer;
-      = + @token_buffer Buffer.length load64 + token Token.length;
+      store64 + @token_buffer Buffer.data   load64 + token Token.buffer;
+      store64 + @token_buffer Buffer.length load64 + token Token.length;
 
       // we are only allowed to create a new symbol if none was found in the current block
       let lookup_result compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
@@ -112,14 +112,16 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
       else {
         let index load64 + @c Compile.symbol_count;
         if neq cast u64 symbol_index NULL {
-          = symbol_index index;
+          store64 symbol_index index;
         }
+        let block_index_address * load64 + block Block.symbol_count sizeof u64;
         // block->symbols[block->symbol_count] = index;
-        = + + block Block.symbols * sizeof u64 load64 + block Block.symbol_count index;
-        = symbol + + @c Compile.symbols * sizeof Symbol index;
+        store64 + + block Block.symbols block_index_address index;
+        // *symbol = &c->symbols[index];
+        store64 symbol + + @c Compile.symbols * sizeof Symbol index;
 
-        = + @c Compile.symbol_count + 1 load64 + @c Compile.symbol_count;
-        = + block Block.symbol_count + 1 load64 + block Block.symbol_count;
+        store64 + @c Compile.symbol_count + 1 load64 + @c Compile.symbol_count;
+        store64 + block Block.symbol_count + 1 load64 + block Block.symbol_count;
 
         let s cast ptr load64 symbol;
         symbol_init(s);
@@ -133,7 +135,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
     }
   }
   else {
-    assert(0, "symbol capacity reached\n");
+    assert(0, "value name too long\n");
   }
   result;
 }
@@ -332,13 +334,13 @@ fn compile_state_init -> u64 {
   = + @compile_type_size * TypeStruct         sizeof u64 1;
   = + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
 
-  // { let _ compile_create_syscall("syscall0", 0); }
-  // { let _ compile_create_syscall("syscall1", 1); }
-  // { let _ compile_create_syscall("syscall2", 2); }
-  // { let _ compile_create_syscall("syscall3", 3); }
-  // { let _ compile_create_syscall("syscall4", 4); }
-  // { let _ compile_create_syscall("syscall5", 5); }
-  // { let _ compile_create_syscall("syscall6", 6); }
+  { let _ compile_create_syscall("syscall0", 0); }
+  { let _ compile_create_syscall("syscall1", 1); }
+  { let _ compile_create_syscall("syscall2", 2); }
+  { let _ compile_create_syscall("syscall3", 3); }
+  { let _ compile_create_syscall("syscall4", 4); }
+  { let _ compile_create_syscall("syscall5", 5); }
+  { let _ compile_create_syscall("syscall6", 6); }
 
   NoError;
 }

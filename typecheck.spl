@@ -397,9 +397,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let token_type load64 + + ast Ast.token Token.type;
       if eq token_type T_NUMBER {
         let value : Value 0;
-        = + @value Value.num load64 + + ast Ast.token Token.v;
-        = + @value Value.konst 1;
-        = + ast Ast.konst 1;
+        store64 + @value Value.num load64 + + ast Ast.token Token.v;
+        store64 + @value Value.konst 1;
+        store64 + ast Ast.konst 1;
         { let _ vs_push(@value); }
         { let _ ts_push(TypeUnsigned64); }
       }
@@ -414,11 +414,12 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         let symbol_index UINT64_MAX;
         let token_buffer : Buffer 0;
         buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+
         if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
-          = + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
-          = + + ast Ast.token Token.v symbol_index;
+          store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
+          store64 + + ast Ast.token Token.v symbol_index;
           { let _ vs_push(+ symbol Symbol.value); }
-          = + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
+          store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
           { let _ ts_push(load64 + symbol Symbol.type); }
         }
         else {
@@ -546,8 +547,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           assert(0, "unhandled operator\n");
         }
         let value : Value 0;
-        = + @value Value.num num;
-        = + @value Value.konst load64 + ast Ast.konst;
+        store64 + @value Value.num num;
+        store64 + @value Value.konst load64 + ast Ast.konst;
         { let _ vs_push(@value); }
         { let _ ts_push(a); }
       }
@@ -578,7 +579,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         else if eq token_type T_LOGICAL_NOT {
           let value : Value 0;
           { let _ vs_pop(@value); }
-          = + @value Value.num not load64 + @value Value.num;
+          store64 + @value Value.num not load64 + @value Value.num;
           { let _ vs_push(@value); }
         }
       }

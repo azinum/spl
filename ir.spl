@@ -114,7 +114,7 @@ struct Symbol (
   ref_count           : u64
 );
 
-const MAX_SYMBOL 1024;
+const MAX_SYMBOL 2048;
 const MAX_STATIC_DATA * 32 1024;
 const MAX_CSTRING 512;
 const MAX_SYSCALL_FUNCTION 7;
