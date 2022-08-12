@@ -176,17 +176,17 @@ enum u64 (
 let c : Compile 0;
 
 fn OP(i : u64, op : ptr) -> none {
-  = + op Op.i    i;
-  = + op Op.dest NONE;
-  = + op Op.src0 NONE;
-  = + op Op.src1 NONE;
+  store64 + op Op.i    i;
+  store64 + op Op.dest NONE;
+  store64 + op Op.src0 NONE;
+  store64 + op Op.src1 NONE;
 }
 
 fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
-  = + op Op.i    i;
-  = + op Op.dest dest;
-  = + op Op.src0 src0;
-  = + op Op.src1 src1;
+  store64 + op Op.i    i;
+  store64 + op Op.dest dest;
+  store64 + op Op.src0 src0;
+  store64 + op Op.src1 src1;
 }
 
 fn ir_compile_warning(message : cstr) -> none {
@@ -202,7 +202,6 @@ fn ir_print(fd : u64) -> none {
 }
 
 fn ir_start_compile(ast : ptr) -> u64 {
-
   print_info("ir code generation took ? seconds\n");
   load64 + @c Compile.status;
 }

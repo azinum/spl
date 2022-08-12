@@ -26,7 +26,7 @@ fn parser_error(message : cstr) -> none {
     tmp_push_cstr(": ");
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
-    = @tmp_it tmp;
+    store64 @tmp_it tmp;
     store64 + @p Parser.status Error;
   }
 }
@@ -50,12 +50,12 @@ fn parse_expr_list -> ptr {
     let done 0;
     while eq done 0 {
       ast_push(expr_list, expression());
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if eq type T_COMMA {
         lexer_next();
       }
       else {
-        = @done 1;
+        store64 @done 1;
       }
     }
   }
@@ -76,10 +76,10 @@ fn parse_type -> ptr {
     eq type T_UNSIGNED16
     eq type T_UNSIGNED8
     eq type T_IDENTIFIER {
-    = @type_expr ast_create(AstType);
+    store64 @type_expr ast_create(AstType);
     memcpy(+ type_expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip type
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_COLON {
       lexer_next(); // skip `:`
       ast_push(type_expr, expression());
@@ -94,7 +94,7 @@ fn parse_expr -> ptr {
   if or
     eq type T_NUMBER
     eq type T_CSTRING {
-    = @expr ast_create(AstValue);
+    store64 @expr ast_create(AstValue);
     memcpy(+ expr Ast.token, @token, sizeof Token);
     lexer_next();
   }
@@ -102,13 +102,13 @@ fn parse_expr -> ptr {
     let t : Token 0;
     memcpy(@t, @token, sizeof Token);
     lexer_next();
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_LEFT_P { // function call
       lexer_next(); // skip `(`
-      = @expr ast_create(AstFuncCall);
+      store64 @expr ast_create(AstFuncCall);
       memcpy(+ expr Ast.token, @t, sizeof Token);
       ast_push(expr, parse_expr_list());
-      = @type lexer_token_type();
+      store64 @type lexer_token_type();
       if neq type T_RIGHT_P {
         parser_error("expected closing `)` parenthesis in function call, but got `?`\n");
       }
@@ -117,7 +117,7 @@ fn parse_expr -> ptr {
       }
     }
     else {
-      = @expr ast_create(AstValue);
+      store64 @expr ast_create(AstValue);
       memcpy(+ expr Ast.token, @t, sizeof Token);
     }
   }
@@ -135,7 +135,7 @@ fn parse_expr -> ptr {
     eq type T_OR
     eq type T_EQ
     eq type T_NEQ {
-    = @expr ast_create(AstBinopExpression);
+    store64 @expr ast_create(AstBinopExpression);
     memcpy(+ expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip operator
     ast_push(expr, parse_expr());
@@ -147,8 +147,8 @@ fn parse_expr -> ptr {
     memcpy(@t, @token, sizeof Token);
     let type load64 + @t Token.type;
     if eq type T_IDENTIFIER {
-      = @expr ast_create(AstValue);
-      = + @t Token.type T_AT;
+      store64 @expr ast_create(AstValue);
+      store64 + @t Token.type T_AT;
       memcpy(+ expr Ast.token, @t, sizeof Token);
       lexer_next(); // skip identifier
     }
@@ -167,7 +167,7 @@ fn parse_expr -> ptr {
     let t : Token 0;
     memcpy(@t, @token, sizeof Token);
     lexer_next();
-    = @expr ast_create(AstUopExpression);
+    store64 @expr ast_create(AstUopExpression);
     memcpy(+ expr Ast.token, @t, sizeof Token);
     ast_push(expr, parse_expr());
   }
@@ -191,14 +191,14 @@ fn parse_expr -> ptr {
       parser_error("expected type in sizeof operator, but got `?`\n");
     }
     else {
-      = @expr ast_create(AstSizeof);
+      store64 @expr ast_create(AstSizeof);
       memcpy(+ expr Ast.token, @token, sizeof Token);
       lexer_next(); // skip type
     }
   }
   else if eq type T_LEFT_P {
     lexer_next(); // skip `(`
-    = @expr parse_expr();
+    store64 @expr parse_expr();
     let type load64 + @token Token.type;
     if neq type T_RIGHT_P {
       parser_error("missing closing `)` parenthesis in expression\n");
@@ -211,7 +211,7 @@ fn parse_expr -> ptr {
     parser_error("unexpected closing `)` parenthesis in expression\n");
   }
   else if eq type T_CAST {
-    = @expr ast_create(AstCastExpression);
+    store64 @expr ast_create(AstCastExpression);
     memcpy(+ expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip `cast`
     let inner_expr ast_create(AstExpression);
@@ -221,7 +221,7 @@ fn parse_expr -> ptr {
   }
   else if neq type T_EOF {
     parser_error("unexpected token `?` in expression\n");
-    = + @p Parser.status Error;
+    store64 + @p Parser.status Error;
   }
   expr;
 }
@@ -233,23 +233,23 @@ fn parse_ident_list -> ptr {
   let done 0;
   while not done {
     memcpy(@t, @token, sizeof Token);
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_IDENTIFIER {
       ast_push_node(ident_list, AstValue, @t);
       lexer_next(); // skip identifier
     }
     else {
       parser_error("expected identifier in identifier list, but got `?`\n");
-      = @done 1;
+      store64 @done 1;
     }
 
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_COMMA {
       lexer_next(); // skip `,`
     }
     else {
       // we're done here if there was no comma
-      = @done 1;
+      store64 @done 1;
     }
   }
   ident_list;
@@ -261,15 +261,15 @@ fn parse_param_list -> ptr {
   if neq type T_RIGHT_P {
     let done 0;
     while eq done 0 {
-      = @type lexer_token_type();
+      store64 @type lexer_token_type();
       if eq type T_IDENTIFIER {
         let ident : Token 0;
         memcpy(@ident, @token, sizeof Token);
         lexer_next(); // skip argument identifier
-        = @type lexer_token_type();
+        store64 @type lexer_token_type();
         if neq type T_COLON {
           parser_error("expected `:` colon after argument identifier, but got `?`\n");
-          = @done 1;
+          store64 @done 1;
         }
         else {
           lexer_next(); // skip `:`
@@ -278,23 +278,23 @@ fn parse_param_list -> ptr {
           let arg_type parse_type();
           if eq cast u64 arg_type NULL {
             parser_error("expected type after `:`, but got `?`\n");
-            = @done 1;
+            store64 @done 1;
           }
           else {
             ast_push(arg, arg_type);
             ast_push(param_list, arg);
-            = @type lexer_token_type();
+            store64 @type lexer_token_type();
             if eq type T_COMMA {
               lexer_next(); // skip `,`
             }
             else {
-              = @done 1;
+              store64 @done 1;
             }
           }
         }
       }
       else {
-        = @done 1;
+        store64 @done 1;
       }
     }
   }
@@ -311,7 +311,7 @@ fn parse_struct -> ptr {
   else {
     memcpy(+ struct_expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip struct name
-    = @type lexer_token_type();
+    store64 @type lexer_token_type();
     if eq type T_LEFT_P {
       lexer_next(); // skip `(`
       let fields : ptr parse_param_list();
@@ -320,7 +320,7 @@ fn parse_struct -> ptr {
         parser_error("missing struct fields\n");
       }
       else {
-        = @type lexer_token_type();
+        store64 @type lexer_token_type();
         if neq type T_RIGHT_P {
           parser_error("expected closing `)` parenthesis after struct field list, but got `?`\n");
         }
@@ -343,29 +343,29 @@ fn parse_statement -> ptr {
     let t : Token 0;
     lexer_next(); // skip const/let
     memcpy(@t, @token, sizeof Token);
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if neq type T_IDENTIFIER {
       parser_error("expected identifier in let/const statement, but got `?`\n");
     }
     else {
       lexer_next(); // skip identifier
       if eq branch_type T_LET {
-        = @stmt ast_create(AstLetStatement);
+        store64 @stmt ast_create(AstLetStatement);
       }
       else {
-        = @stmt ast_create(AstConstStatement);
+        store64 @stmt ast_create(AstConstStatement);
       }
       let explicit_type : ptr NULL;
       memcpy(+ stmt Ast.token, @t, sizeof Token); // copy identifier token
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if eq type T_COLON { // explicit type
         lexer_next(); // skip `:`
-        = @explicit_type parse_type();
+        store64 @explicit_type parse_type();
         if eq cast u64 explicit_type NULL {
           parser_error("expected type after `:`, but got `?`\n");
         }
         else {
-          = @type load64 + + explicit_type Ast.token Token.type;
+          store64 @type load64 + + explicit_type Ast.token Token.type;
           if eq type T_NONE {
             parser_error("explicit type cannot be `none`\n");
           }
@@ -373,11 +373,11 @@ fn parse_statement -> ptr {
       }
 
       // rhs of let/const statement
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if eq type T_LEFT_P {
         lexer_next(); // skip `(`
         ast_push(stmt, parse_expr_list());
-        = @type load64 + @token Token.type;
+        store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_P {
           parser_error("expected closing `)` parenthesis in expression list, but got `?`\n");
         }
@@ -393,16 +393,16 @@ fn parse_statement -> ptr {
   }
   else if eq type T_MEMORY {
     lexer_next(); // skip `memory`
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if neq type T_IDENTIFIER {
       parser_error("expected identifier in memory statement, but got `?`\n");
     }
     else {
-      = @stmt ast_create(AstMemoryStatement);
+      store64 @stmt ast_create(AstMemoryStatement);
       memcpy(+ stmt Ast.token, @token, sizeof Token); // copy identifier token
       lexer_next(); // skip identifier
       ast_push(stmt, parse_expr());
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if neq type T_SEMICOLON {
         parser_error("expected `;` semicolon after memory statement, but got `?`\n");
       }
@@ -413,11 +413,11 @@ fn parse_statement -> ptr {
   }
   else if eq type T_LEFT_CURLY {
     lexer_next(); // skip `{`
-    = @stmt ast_create(AstBlockStatement);
+    store64 @stmt ast_create(AstBlockStatement);
     let sub_stmts statements();
     if neq cast u64 sub_stmts NULL {
       ast_push(stmt, sub_stmts);
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
         parser_error("expected closing `}` curly bracket in block, but got `?`\n");
       }
@@ -432,25 +432,25 @@ fn parse_statement -> ptr {
     eq type T_STORE32
     eq type T_STORE16
     eq type T_STORE8 {
-    = @stmt ast_create(AstAssignment);
+    store64 @stmt ast_create(AstAssignment);
     memcpy(+ stmt Ast.token, @token, sizeof Token);
     lexer_next(); // skip assignment/store operator
     ast_push(stmt, parse_expr());
     ast_push(stmt, parse_expr());
   }
   else if eq type T_WHILE {
-    = @stmt ast_create(AstWhileStatement);
+    store64 @stmt ast_create(AstWhileStatement);
     memcpy(+ stmt Ast.token, @token, sizeof Token);
     lexer_next(); // skip `while`
     let cond ast_create(AstExpression);
     memcpy(+ cond Ast.token, @token, sizeof Token);
     ast_push(cond, parse_expr());
     ast_push(stmt, cond);
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_LEFT_CURLY {
       lexer_next(); // skip `{`
       ast_push(stmt, statements());
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
         parser_error("expected closing `}` curly bracket in while statement body, but got `?`\n");
       }
@@ -463,18 +463,18 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_IF {
-    = @stmt ast_create(AstIfStatement);
+    store64 @stmt ast_create(AstIfStatement);
     memcpy(+ stmt Ast.token, @token, sizeof Token);
     lexer_next(); // skip `if`
     let cond ast_create(AstExpression);
     memcpy(+ cond Ast.token, @token, sizeof Token); // copy what ever token that is after `if`
     ast_push(cond, parse_expr());
     ast_push(stmt, cond);
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_LEFT_CURLY {
       lexer_next(); // skip `{`
       ast_push(stmt, statements());
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
         parser_error("expected closing `}` curly bracket in if statement body, but got `?`\n");
       }
@@ -488,14 +488,14 @@ fn parse_statement -> ptr {
       ast_push(stmt, if_body);
     }
     // parsing of else statements
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if eq type T_ELSE {
       lexer_next(); // skip `else`
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if eq type T_LEFT_CURLY {
         lexer_next(); // skip `{`
         ast_push(stmt, statements()); // parse else body
-        = @type load64 + @token Token.type;
+        store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_CURLY {
           parser_error("expected closing `}` curly bracket in else body, but got `?`\n");
         }
@@ -511,7 +511,7 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_ENUM {
-    = @stmt ast_create(AstEnum);
+    store64 @stmt ast_create(AstEnum);
     lexer_next(); // skip `enum`
     let type_branch : ptr parse_type();
     if eq cast u64 type_branch NULL {
@@ -519,11 +519,11 @@ fn parse_statement -> ptr {
     }
     else {
       ast_push(stmt, type_branch);
-      = @type load64 + @token Token.type;
+      store64 @type load64 + @token Token.type;
       if eq type T_LEFT_P {
         lexer_next(); // skip `(`
         ast_push(stmt, parse_ident_list());
-        = @type load64 + @token Token.type;
+        store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_P {
           parser_error("expected closing `)` parenthesis in enum expression, but got `?`\n");
         }
@@ -536,14 +536,14 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_STRUCT {
-    = @stmt parse_struct();
+    store64 @stmt parse_struct();
   }
   else if eq type T_STATIC_ASSERT {
-    = @stmt ast_create(AstStaticAssert);
+    store64 @stmt ast_create(AstStaticAssert);
     // memcpy(+ stmt Ast.token, @token, sizeof Token); // TODO(lucas): some strange behaviour happens here, bug, investigate!! could it something wrong with the token which is being copied here?
     lexer_next(); // skip `static_assert`
     ast_push(stmt, parse_expr());
-    = @type load64 + @token Token.type;
+    store64 @type load64 + @token Token.type;
     if neq type T_CSTRING {
       parser_error("expected string in static assert statement, but got `?`\n");
     }
@@ -556,7 +556,7 @@ fn parse_statement -> ptr {
     expect_semicolon();
   }
   else if neq type T_EOF {
-    = @stmt parse_expr();
+    store64 @stmt parse_expr();
     expect_semicolon();
   }
   stmt;
@@ -567,21 +567,21 @@ fn parse_func_def -> ptr {
   let rtype : ptr NULL;
   let type : u64 T_NONE;
   lexer_next(); // skip `fn`
-  = @type lexer_token_type();
+  store64 @type lexer_token_type();
   if neq type T_IDENTIFIER {
     parser_error("expected identifier after `fn`, but got `?`\n");
   }
   else {
-    = @func ast_create(AstFuncDefinition);
+    store64 @func ast_create(AstFuncDefinition);
     memcpy(+ func Ast.token, @token, sizeof Token);
     lexer_next(); // skip function name
 
     // parse function parameter list
-    = @type lexer_token_type();
+    store64 @type lexer_token_type();
     if eq type T_LEFT_P {
       lexer_next(); // skip `(`
       ast_push(func, parse_param_list());
-      = @type lexer_token_type();
+      store64 @type lexer_token_type();
       if neq type T_RIGHT_P {
         parser_error("expected closing `)` parenthesis in function parameter list, but got `?`\n");
       }
@@ -592,20 +592,20 @@ fn parse_func_def -> ptr {
     }
 
     // parse function return type
-    = @type lexer_token_type();
+    store64 @type lexer_token_type();
     if eq type T_ARROW {
       lexer_next(); // skip `->`
-      = @rtype parse_type();
+      store64 @rtype parse_type();
       if eq cast u64 rtype NULL {
         parser_error("expected type after `->`, but got `?`\n");
       }
     }
     // parse function body
-    = @type lexer_token_type();
+    store64 @type lexer_token_type();
     if eq type T_LEFT_CURLY {
       lexer_next(); // skip `{`
       ast_push(func, statements());
-      = @type lexer_token_type();
+      store64 @type lexer_token_type();
       if neq type T_RIGHT_CURLY {
         parser_error("expected closing `}` curly bracket in function body, but got `?`\n");
       }
@@ -649,29 +649,29 @@ fn parse_include -> ptr {
     if neq fd ERROR {
       let file_source tmp_it;
       let size read_file_into_buffer_and_null_terminate(fd, file_source);
-      = @tmp_it + tmp_it size;
+      store64 @tmp_it + tmp_it size;
       lexer_init(filename_path, file_source);
-      = @include_body parse_entry();
-      = + @p Parser.source_count + 1 load64 + @p Parser.source_count;
+      store64 @include_body parse_entry();
+      store64 + @p Parser.source_count + 1 load64 + @p Parser.source_count;
       close(fd);
     }
     else {
       let message "";
-      = @message tmp_it;
+      store64 @message tmp_it;
       tmp_push_cstr("failed to include source file `");
       tmp_push_str(path, path_length);
       tmp_push_cstr("`\n");
       parser_error(message);
-      = @tmp_it message;
+      store64 @tmp_it message;
     }
 
     // restore lexer state
-    = @l.filename filename;
-    = @l.source source;
-    = @l.index index;
-    = @l.line line;
-    = @l.column column;
-    = @l.status status;
+    store64 @l.filename filename;
+    store64 @l.source source;
+    store64 @l.index index;
+    store64 @l.line line;
+    store64 @l.column column;
+    store64 @l.status status;
 
     // restore lexer token
     memcpy(@token, @token_copy, sizeof Token);
@@ -688,18 +688,18 @@ fn parse_statements -> ptr {
   while not done {
     let type lexer_token_type();
     if eq type T_EOF {
-      = @done 1;
+      store64 @done 1;
     }
     else if eq type T_SEMICOLON {
       lexer_next();
     }
     else if eq type T_RIGHT_CURLY {
-      = @done 1;
+      store64 @done 1;
     }
     else if eq type T_FN {
       let func_def : ptr parse_func_def();
       if eq cast u64 func_def NULL {
-        = @done 1;
+        store64 @done 1;
       }
       else {
         ast_push(stmts, func_def);
@@ -708,7 +708,7 @@ fn parse_statements -> ptr {
     else if eq type T_INCLUDE {
       let include_body : ptr parse_include();
       if eq cast u64 include_body NULL {
-        = @done 1;
+        store64 @done 1;
       }
       else {
         ast_push(stmts, include_body);
@@ -717,7 +717,7 @@ fn parse_statements -> ptr {
     else {
       let stmt parse_statement();
       if eq cast u64 stmt NULL {
-        = @done 1;
+        store64 @done 1;
       }
       else {
         ast_push(stmts, stmt);
@@ -737,22 +737,22 @@ fn parse -> ptr {
   tmp_push_cstr("` took ? seconds\n");
   tmp_push_byte(0);
   print_info(message);
-  = @tmp_it message;
+  store64 @tmp_it message;
 
-  = + @p Parser.line_count + load64 + @p Parser.line_count l.line;
+  store64 + @p Parser.line_count + load64 + @p Parser.line_count l.line;
   ast;
 }
 
 fn parser_init(filename : any, source : any) -> u64 {
   lexer_init(filename, source);
-  = + @p Parser.ast ast_create(AstRoot);
-  = + @p Parser.status NoError;
-  = + @p Parser.line_count 0;
-  = + @p Parser.source_count 1;
+  store64 + @p Parser.ast ast_create(AstRoot);
+  store64 + @p Parser.status NoError;
+  store64 + @p Parser.line_count 0;
+  store64 + @p Parser.source_count 1;
 
-  = @parse_entry parse;
-  = @expression parse_expr;
-  = @statements parse_statements;
+  store64 @parse_entry parse;
+  store64 @expression parse_expr;
+  store64 @statements parse_statements;
 
   NoError;
 }

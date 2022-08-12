@@ -27,7 +27,7 @@ fn compile_error(message : cstr) -> none {
     tmp_push_cstr(message);
     tmp_push_byte(0);
     puts(STDERR_FILENO, tmp);
-    = @tmp_it tmp;
+    store64 @tmp_it tmp;
     store64 + @c Compile.status Error;
   }
 }
@@ -46,7 +46,7 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
     tmp_push_cstr(message);
     tmp_push_byte(0);
     puts(STDERR_FILENO, tmp);
-    = @tmp_it tmp;
+    store64 @tmp_it tmp;
     store64 + @c Compile.status Error;
   }
 }
@@ -70,19 +70,19 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
           store64 symbol sym;
         }
         if neq cast u64 symbol_index NULL {
-          = symbol_index index;
+          store64 symbol_index index;
         }
-        = @result NoError;
-        = @done 1;
-        = @found 1;
+        store64 @result NoError;
+        store64 @done 1;
+        store64 @found 1;
       }
-      = @i + 1 i;
+      store64 @i + 1 i;
     }
     if eq found 0 {
       if neq cast u64 levels_descend NULL {
-        = levels_descend + 1 load64 levels_descend;
+        store64 levels_descend + 1 load64 levels_descend;
       }
-      = @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
+      store64 @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
     }
   }
   result;
@@ -107,7 +107,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         tmp_push_cstr("` already exists\n");
         tmp_push_byte(0);
         compile_error(message);
-        = @tmp_it message;
+        store64 @tmp_it message;
       }
       else {
         let index load64 + @c Compile.symbol_count;
@@ -115,9 +115,9 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
           store64 symbol_index index;
         }
         let block_index_address * load64 + block Block.symbol_count sizeof u64;
-        // block->symbols[block->symbol_count] = index;
+        // block->symbols[block->symbol_count] store64 index;
         store64 + + block Block.symbols block_index_address index;
-        // *symbol = &c->symbols[index];
+        // *symbol store64 &c->symbols[index];
         store64 symbol + + @c Compile.symbols * sizeof Symbol index;
 
         store64 + @c Compile.symbol_count + 1 load64 + @c Compile.symbol_count;
@@ -127,7 +127,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         symbol_init(s);
         memcpy(+ s Symbol.token, token, sizeof Token);
         memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
-        = @result NoError;
+        store64 @result NoError;
       }
     }
     else {
@@ -169,7 +169,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   }
   else {
     compile_error("symbol already exists\n");
-    = @result Error;
+    store64 @result Error;
   }
   result;
 }
@@ -187,7 +187,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
 
     while < j - 3 num_i_digits {
       tmp_push_cstr("0");
-      = @j + 1 j;
+      store64 @j + 1 j;
     }
     tmp_push_u64(i);
     tmp_push_cstr(": ");
@@ -204,18 +204,18 @@ fn compile_print_symbol_info(fd : u64) -> none {
     else {
       tmp_push_cstr("`");
       tmp_push_cstr(cast cstr + symbol Symbol.name);
-      tmp_push_cstr("` (type = ");
+      tmp_push_cstr("` (type store64 ");
       tmp_push_u64(load64 + symbol Symbol.type);
-      tmp_push_cstr(", size = ");
+      tmp_push_cstr(", size store64 ");
       tmp_push_u64(load64 + symbol Symbol.size);
       tmp_push_cstr(")");
     }
     tmp_push_cstr("\n");
-    = @i + 1 i;
+    store64 @i + 1 i;
   }
   tmp_push_byte(0);
   puts(fd, message);
-  = @tmp_it message;
+  store64 @tmp_it message;
 }
 
 // fd : u64, block : Block*
@@ -226,7 +226,7 @@ fn compile_print_block(fd : u64, block : ptr) -> none {
   while < i count {
     let index : u64 load64 + + block Block.symbols * sizeof u64 i;
     print index;
-    = @i + 1 i;
+    store64 @i + 1 i;
   }
 }
 
@@ -238,7 +238,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
 fn compile(target : u64, fd : u64) -> u64 {
   let result NoError;
   if eq target TARGET_LINUX_NASM_X86_64 {
-    = @result compile_linux_nasm_x86_64(fd);
+    store64 @result compile_linux_nasm_x86_64(fd);
   }
   else {
     assert(0, "invalid compile target\n");
@@ -247,92 +247,92 @@ fn compile(target : u64, fd : u64) -> u64 {
 }
 
 fn compile_state_init -> u64 {
-  = + @c Compile.ins_count 0;
-  = + @c Compile.imm_index 0;
-  = + @c Compile.symbol_count 0;
-  = + @c Compile.cstring_count 0;
+  store64 + @c Compile.ins_count 0;
+  store64 + @c Compile.imm_index 0;
+  store64 + @c Compile.symbol_count 0;
+  store64 + @c Compile.cstring_count 0;
   block_init(+ @c Compile.global, NULL);
-  = + @c Compile.label_count 0;
-  = + @c Compile.status NoError;
-  = + @c Compile.entry_point 0;
-  = + @c Compile.ts_count 0;
-  = + @c Compile.vs_count 0;
-  = + @c Compile.type_count MAX_PRIMITIVE_TYPE;
+  store64 + @c Compile.label_count 0;
+  store64 + @c Compile.status NoError;
+  store64 + @c Compile.entry_point 0;
+  store64 + @c Compile.ts_count 0;
+  store64 + @c Compile.vs_count 0;
+  store64 + @c Compile.type_count MAX_PRIMITIVE_TYPE;
 
-  = + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
-  = + @ir_code_str * I_POP                sizeof cstr "I_POP";
-  = + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
-  = + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";
-  = + @ir_code_str * I_STORE64            sizeof cstr "I_STORE64";
-  = + @ir_code_str * I_STORE32            sizeof cstr "I_STORE32";
-  = + @ir_code_str * I_STORE16            sizeof cstr "I_STORE16";
-  = + @ir_code_str * I_STORE8             sizeof cstr "I_STORE8";
-  = + @ir_code_str * I_LOAD64             sizeof cstr "I_LOAD64";
-  = + @ir_code_str * I_LOAD32             sizeof cstr "I_LOAD32";
-  = + @ir_code_str * I_LOAD16             sizeof cstr "I_LOAD16";
-  = + @ir_code_str * I_LOAD8              sizeof cstr "I_LOAD8";
-  = + @ir_code_str * I_PUSH_ADDR_OF       sizeof cstr "I_PUSH_ADDR_OF";
-  = + @ir_code_str * I_PUSH_LOCAL_ADDR_OF sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
-  = + @ir_code_str * I_PUSH               sizeof cstr "I_PUSH";
-  = + @ir_code_str * I_PUSH_LOCAL         sizeof cstr "I_PUSH_LOCAL";
-  = + @ir_code_str * I_PUSH_IMM           sizeof cstr "I_PUSH_IMM";
-  = + @ir_code_str * I_ADD                sizeof cstr "I_ADD";
-  = + @ir_code_str * I_SUB                sizeof cstr "I_SUB";
-  = + @ir_code_str * I_MUL                sizeof cstr "I_MUL";
-  = + @ir_code_str * I_LSHIFT             sizeof cstr "I_LSHIFT";
-  = + @ir_code_str * I_RSHIFT             sizeof cstr "I_RSHIFT";
-  = + @ir_code_str * I_DIV                sizeof cstr "I_DIV";
-  = + @ir_code_str * I_DIVMOD             sizeof cstr "I_DIVMOD";
-  = + @ir_code_str * I_LT                 sizeof cstr "I_LT";
-  = + @ir_code_str * I_GT                 sizeof cstr "I_GT";
-  = + @ir_code_str * I_AND                sizeof cstr "I_AND";
-  = + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
-  = + @ir_code_str * I_OR                 sizeof cstr "I_OR";
-  = + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
-  = + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";
-  = + @ir_code_str * I_RET                sizeof cstr "I_RET";
-  = + @ir_code_str * I_NORET              sizeof cstr "I_NORET";
-  = + @ir_code_str * I_PRINT              sizeof cstr "I_PRINT";
-  = + @ir_code_str * I_LABEL              sizeof cstr "I_LABEL";
-  = + @ir_code_str * I_CALL               sizeof cstr "I_CALL";
-  = + @ir_code_str * I_ADDR_CALL          sizeof cstr "I_ADDR_CALL";
-  = + @ir_code_str * I_JMP                sizeof cstr "I_JMP";
-  = + @ir_code_str * I_JZ                 sizeof cstr "I_JZ";
-  = + @ir_code_str * I_BEGIN_FUNC         sizeof cstr "I_BEGIN_FUNC";
-  = + @ir_code_str * I_LOOP_LABEL         sizeof cstr "I_LOOP_LABEL";
-  = + @ir_code_str * I_SYSCALL0           sizeof cstr "I_SYSCALL0";
-  = + @ir_code_str * I_SYSCALL1           sizeof cstr "I_SYSCALL1";
-  = + @ir_code_str * I_SYSCALL2           sizeof cstr "I_SYSCALL2";
-  = + @ir_code_str * I_SYSCALL3           sizeof cstr "I_SYSCALL3";
-  = + @ir_code_str * I_SYSCALL4           sizeof cstr "I_SYSCALL4";
-  = + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
-  = + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
+  store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
+  store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
+  store64 + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
+  store64 + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";
+  store64 + @ir_code_str * I_STORE64            sizeof cstr "I_STORE64";
+  store64 + @ir_code_str * I_STORE32            sizeof cstr "I_STORE32";
+  store64 + @ir_code_str * I_STORE16            sizeof cstr "I_STORE16";
+  store64 + @ir_code_str * I_STORE8             sizeof cstr "I_STORE8";
+  store64 + @ir_code_str * I_LOAD64             sizeof cstr "I_LOAD64";
+  store64 + @ir_code_str * I_LOAD32             sizeof cstr "I_LOAD32";
+  store64 + @ir_code_str * I_LOAD16             sizeof cstr "I_LOAD16";
+  store64 + @ir_code_str * I_LOAD8              sizeof cstr "I_LOAD8";
+  store64 + @ir_code_str * I_PUSH_ADDR_OF       sizeof cstr "I_PUSH_ADDR_OF";
+  store64 + @ir_code_str * I_PUSH_LOCAL_ADDR_OF sizeof cstr "I_PUSH_LOCAL_ADDR_OF";
+  store64 + @ir_code_str * I_PUSH               sizeof cstr "I_PUSH";
+  store64 + @ir_code_str * I_PUSH_LOCAL         sizeof cstr "I_PUSH_LOCAL";
+  store64 + @ir_code_str * I_PUSH_IMM           sizeof cstr "I_PUSH_IMM";
+  store64 + @ir_code_str * I_ADD                sizeof cstr "I_ADD";
+  store64 + @ir_code_str * I_SUB                sizeof cstr "I_SUB";
+  store64 + @ir_code_str * I_MUL                sizeof cstr "I_MUL";
+  store64 + @ir_code_str * I_LSHIFT             sizeof cstr "I_LSHIFT";
+  store64 + @ir_code_str * I_RSHIFT             sizeof cstr "I_RSHIFT";
+  store64 + @ir_code_str * I_DIV                sizeof cstr "I_DIV";
+  store64 + @ir_code_str * I_DIVMOD             sizeof cstr "I_DIVMOD";
+  store64 + @ir_code_str * I_LT                 sizeof cstr "I_LT";
+  store64 + @ir_code_str * I_GT                 sizeof cstr "I_GT";
+  store64 + @ir_code_str * I_AND                sizeof cstr "I_AND";
+  store64 + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
+  store64 + @ir_code_str * I_OR                 sizeof cstr "I_OR";
+  store64 + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
+  store64 + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";
+  store64 + @ir_code_str * I_RET                sizeof cstr "I_RET";
+  store64 + @ir_code_str * I_NORET              sizeof cstr "I_NORET";
+  store64 + @ir_code_str * I_PRINT              sizeof cstr "I_PRINT";
+  store64 + @ir_code_str * I_LABEL              sizeof cstr "I_LABEL";
+  store64 + @ir_code_str * I_CALL               sizeof cstr "I_CALL";
+  store64 + @ir_code_str * I_ADDR_CALL          sizeof cstr "I_ADDR_CALL";
+  store64 + @ir_code_str * I_JMP                sizeof cstr "I_JMP";
+  store64 + @ir_code_str * I_JZ                 sizeof cstr "I_JZ";
+  store64 + @ir_code_str * I_BEGIN_FUNC         sizeof cstr "I_BEGIN_FUNC";
+  store64 + @ir_code_str * I_LOOP_LABEL         sizeof cstr "I_LOOP_LABEL";
+  store64 + @ir_code_str * I_SYSCALL0           sizeof cstr "I_SYSCALL0";
+  store64 + @ir_code_str * I_SYSCALL1           sizeof cstr "I_SYSCALL1";
+  store64 + @ir_code_str * I_SYSCALL2           sizeof cstr "I_SYSCALL2";
+  store64 + @ir_code_str * I_SYSCALL3           sizeof cstr "I_SYSCALL3";
+  store64 + @ir_code_str * I_SYSCALL4           sizeof cstr "I_SYSCALL4";
+  store64 + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
+  store64 + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
 
-  = + @compile_type_str * TypeNone           sizeof cstr "None";
-  = + @compile_type_str * TypeAny            sizeof cstr "Any";
-  = + @compile_type_str * TypePtr            sizeof cstr "Ptr";
-  = + @compile_type_str * TypeUnsigned64     sizeof cstr "Unsigned64";
-  = + @compile_type_str * TypeUnsigned32     sizeof cstr "Unsigned32";
-  = + @compile_type_str * TypeUnsigned16     sizeof cstr "Unsigned16";
-  = + @compile_type_str * TypeUnsigned8      sizeof cstr "Unsigned8";
-  = + @compile_type_str * TypeCString        sizeof cstr "CString";
-  = + @compile_type_str * TypeFunc           sizeof cstr "Func";
-  = + @compile_type_str * TypeSyscallFunc    sizeof cstr "SyscallFunc";
-  = + @compile_type_str * TypeStruct         sizeof cstr "Struct";
-  = + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
+  store64 + @compile_type_str * TypeNone           sizeof cstr "None";
+  store64 + @compile_type_str * TypeAny            sizeof cstr "Any";
+  store64 + @compile_type_str * TypePtr            sizeof cstr "Ptr";
+  store64 + @compile_type_str * TypeUnsigned64     sizeof cstr "Unsigned64";
+  store64 + @compile_type_str * TypeUnsigned32     sizeof cstr "Unsigned32";
+  store64 + @compile_type_str * TypeUnsigned16     sizeof cstr "Unsigned16";
+  store64 + @compile_type_str * TypeUnsigned8      sizeof cstr "Unsigned8";
+  store64 + @compile_type_str * TypeCString        sizeof cstr "CString";
+  store64 + @compile_type_str * TypeFunc           sizeof cstr "Func";
+  store64 + @compile_type_str * TypeSyscallFunc    sizeof cstr "SyscallFunc";
+  store64 + @compile_type_str * TypeStruct         sizeof cstr "Struct";
+  store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  = + @compile_type_size * TypeNone           sizeof u64 0;
-  = + @compile_type_size * TypeAny            sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypePtr            sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeUnsigned64     sizeof u64 sizeof u64;
-  = + @compile_type_size * TypeUnsigned32     sizeof u64 sizeof u32;
-  = + @compile_type_size * TypeUnsigned16     sizeof u64 sizeof u16;
-  = + @compile_type_size * TypeUnsigned8      sizeof u64 sizeof u8;
-  = + @compile_type_size * TypeCString        sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeFunc           sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeSyscallFunc    sizeof u64 sizeof ptr;
-  = + @compile_type_size * TypeStruct         sizeof u64 1;
-  = + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
+  store64 + @compile_type_size * TypeNone           sizeof u64 0;
+  store64 + @compile_type_size * TypeAny            sizeof u64 sizeof ptr;
+  store64 + @compile_type_size * TypePtr            sizeof u64 sizeof ptr;
+  store64 + @compile_type_size * TypeUnsigned64     sizeof u64 sizeof u64;
+  store64 + @compile_type_size * TypeUnsigned32     sizeof u64 sizeof u32;
+  store64 + @compile_type_size * TypeUnsigned16     sizeof u64 sizeof u16;
+  store64 + @compile_type_size * TypeUnsigned8      sizeof u64 sizeof u8;
+  store64 + @compile_type_size * TypeCString        sizeof u64 sizeof ptr;
+  store64 + @compile_type_size * TypeFunc           sizeof u64 sizeof ptr;
+  store64 + @compile_type_size * TypeSyscallFunc    sizeof u64 sizeof ptr;
+  store64 + @compile_type_size * TypeStruct         sizeof u64 1;
+  store64 + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
 
   { let _ compile_create_syscall("syscall0", 0); }
   { let _ compile_create_syscall("syscall1", 1); }

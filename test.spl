@@ -2,4 +2,4 @@
 
 let a : u64 : 4 0;
 
-sizeof a;
+print sizeof a;

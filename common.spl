@@ -32,9 +32,9 @@ fn assert(cond : u64, message : cstr) -> none {
 }
 
 fn common_init -> none {
-  = @tmp_it @tmp;
-  = @tmp_end + @tmp TMP_SIZE;
-  = @NULL 0;
+  store64 @tmp_it @tmp;
+  store64 @tmp_end + @tmp TMP_SIZE;
+  store64 @NULL 0;
 }
 
 // TODO(lucas): handle escape sequences
@@ -43,7 +43,7 @@ fn tmp_push_cstr(str : any) -> none {
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
         memcpy(tmp_it, str, length);
-        = @tmp_it + length tmp_it;
+        store64 @tmp_it + length tmp_it;
     }
     else {
       error("out of scratch memory\n");
@@ -56,7 +56,7 @@ fn tmp_push_str(str : any, length : u64) -> none {
     if < (+ tmp_it length) tmp_end {
       if > length 0 {
         memcpy(tmp_it, str, length);
-        = @tmp_it + length tmp_it;
+        store64 @tmp_it + length tmp_it;
       }
     }
     else {
@@ -67,7 +67,7 @@ fn tmp_push_str(str : any, length : u64) -> none {
 
 fn tmp_push_byte(byte : u64) -> none {
   memcpy(tmp_it, @byte, 1);
-  = @tmp_it + 1 tmp_it;
+  store64 @tmp_it + 1 tmp_it;
 }
 
 fn tmp_push_u64(n : u64) -> none {
