@@ -1850,6 +1850,8 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
         Symbol* symbol = NULL;
         i32 symbol_index = -1;
         i32 imm = ir_push_value(c, &field_offset, sizeof(field_offset));
+        value.num = imm;
+
         if (compile_declare_value(c, block, fs, field->token, &symbol, field, &symbol_index) == NoError) {
           symbol->imm = imm;
           symbol->size = compile_type_size[TypeUnsigned64];

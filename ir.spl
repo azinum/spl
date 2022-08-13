@@ -221,6 +221,7 @@ fn ir_push_value(value : ptr, size : u64) -> u64 {
   let address : u64 load64 + @c Compile.imm_index;
   if < + address size MAX_STATIC_DATA {
     memcpy(+ + @c Compile.imm address, value, size);
+    store64 + @c Compile.imm_index + load64 + @c Compile.imm_index size;
   }
   else {
     assert(0, "out of immediate data memory\n");

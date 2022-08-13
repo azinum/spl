@@ -1,9 +1,7 @@
 // test.spl
 
-enum u64 (
-  A,
-  B,
-  C
+struct T (
+  a : u64,
+  b : u64 : + 2 2,
+  c : u64 : T.b
 );
-
-B; C;

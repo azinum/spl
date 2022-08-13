@@ -623,8 +623,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
       let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
       { let _ typecheck(block, fs, cond); }
-      let type ts_pop(); // pop condition result
-      { let _ vs_pop(NULL); } // pop condition result
+      let type ts_pop(); // pop condition result type
+      { let _ vs_pop(NULL); } // pop condition result value
       if is_numerical(type) {
         let local_block : Block 0;
         block_init(@local_block, block);
@@ -770,8 +770,119 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         typecheck_error_at(+ type_node Ast.token, "expected numerical type in enum expression\n");
       }
     }
+    // TODO(lucas): add ability to refer type information of values for the field types
+    // example:
+    // const value : u64 12;
+    // struct T (
+    //   a : value
+    // );
     else if eq type AstStruct {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let fields cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let field_offset : u64 0;
+      let i : u64 0;
+      let count : u64 load64 + fields Ast.count;
+      let fail : u64 0;
+      while and eq fail 0 < i count {
+        let field cast ptr load64 + + fields Ast.node * sizeof ptr i;
+        let field_type cast ptr load64 + + field Ast.node * sizeof ptr 0; // type + array specifier
+
+        let it tmp_it;
+        tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+        tmp_push_cstr(".");
+        tmp_push_str(load64 + + field Ast.token Token.buffer, load64 + + field Ast.token Token.length);
+
+        store64 + + field Ast.token Token.buffer it;
+        store64 + + field Ast.token Token.length - tmp_it it;
+
+        let symbol : ptr NULL;
+        let symbol_index : u64 UINT64_MAX;
+        let imm : u64 ir_push_value(@field_offset, sizeof field_offset);
+        let value : Value 0;
+        store64 + @value Value.num field_offset;
+        store64 + @value Value.konst 1;
+
+        if eq compile_declare_value(block, fs, + field Ast.token, @symbol, @symbol_index) NoError {
+          store64 + symbol Symbol.imm imm;
+          store64 + symbol Symbol.size sizeof u64;
+          store64 + symbol Symbol.konst 1;
+          if eq cast u64 block + @c Compile.global {
+            store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+          }
+          else {
+            store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+          }
+          store64 + symbol Symbol.type TypeUnsigned64;
+          memcpy(+ symbol Symbol.value, @value, sizeof Value);
+
+          let field_symbol : ptr NULL;
+          let type : u64 token_to_compile_type(block, fs, + field_type Ast.token, @field_symbol);
+          let field_size : u64 0;
+          if and eq type TypeStruct neq field_symbol NULL {
+            store64 @field_size load64 + field_symbol Symbol.size;
+          }
+          else if eq type TypeNone {
+            compile_error_at(+ field_type Ast.token, "type does not exist\n");
+            store64 @fail 1;
+          }
+          else {
+            store64 @field_size load64 + @compile_type_size * sizeof u64 type;
+          }
+
+          if neq load64 + field_type Ast.count 0 {
+            { let _ typecheck_node_list(block, fs, field_type); }
+            let array_specifier_type ts_pop();
+            let array_specifier_value : Value 0;
+            { let _ vs_pop(@array_specifier_value); }
+            if neq load64 + @array_specifier_value Value.konst 1 {
+              compile_error_at(+ field_type Ast.token, "field array specifier must be a compile time constant\n");
+              store64 @fail 1;
+            }
+            else if eq is_numerical(array_specifier_type) 0 {
+              compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical\n");
+              store64 @fail 1;
+            }
+            else {
+              if eq load64 + @array_specifier_value Value.num 0 {
+                compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical with a greater value than 0\n");
+                store64 @fail 1;
+              }
+              else {
+                store64 @field_size * field_size load64 + @array_specifier_value Value.num;
+              }
+            }
+          }
+
+          // update field offset
+          store64 @field_offset + field_offset field_size;
+        }
+        else {
+          compile_error_at(+ field Ast.token, "symbol already exists\n");
+          store64 @fail 1;
+        }
+        store64 @i + 1 i;
+      }
+      // struct symbol definition
+      let symbol : ptr NULL;
+      let symbol_index : u64 UINT64_MAX;
+      let value : Value 0;
+      memset(@value, 0, sizeof Value);
+
+      if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+        store64 + symbol Symbol.imm UINT64_MAX;
+        store64 + symbol Symbol.size field_offset;
+        store64 + symbol Symbol.konst 0;
+        if eq cast u64 block + @c Compile.global {
+          store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+        }
+        else {
+          store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+        }
+        store64 + symbol Symbol.type TypeStruct;
+        memcpy(+ symbol Symbol.value, @value, sizeof Value);
+      }
+      else {
+        compile_error_at(+ ast Ast.token, "symbol already exists\n");
+      }
     }
     else if eq type AstType {
       if > load64 + ast Ast.count 0 {
