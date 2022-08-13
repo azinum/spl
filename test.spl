@@ -1,4 +1,9 @@
 // test.spl
 
-const size cast u32 4;
-const a * 2 size;
+enum u64 (
+  A,
+  B,
+  C
+);
+
+B; C;

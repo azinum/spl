@@ -730,7 +730,45 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       { let _ ts_push(TypeUnsigned64); }
     }
     else if eq type AstEnum {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let type_node cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let enum_node cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      let value : Value 0;
+      store64 + @value Value.num 0;
+      store64 + @value Value.konst 1;
+      let i : u64 0;
+      let count : u64 load64 + enum_node Ast.count;
+      let type : u64 token_to_compile_type(block, fs, + type_node Ast.token, NULL);
+      if is_numerical(type) {
+        while < i count {
+          let node cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
+          let symbol : ptr NULL;
+          let symbol_index : u64 UINT64_MAX;
+          let imm : u64 ir_push_value(+ @value Value.num, sizeof u64);
+
+          if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
+            store64 + symbol Symbol.imm imm;
+            store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
+            store64 + symbol Symbol.konst 1;
+            if eq cast u64 block + @c Compile.global {
+              store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+            }
+            else {
+              store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+            }
+            store64 + symbol Symbol.type type;
+            memcpy(+ symbol Symbol.value, @value, sizeof Value);
+          }
+          else {
+            compile_error_at(+ node Ast.token, "symbol already exists\n");
+          }
+
+          store64 + @value Value.num + 1 load64 + @value Value.num;
+          store64 @i + 1 i;
+        }
+      }
+      else {
+        typecheck_error_at(+ type_node Ast.token, "expected numerical type in enum expression\n");
+      }
     }
     else if eq type AstStruct {
       // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
