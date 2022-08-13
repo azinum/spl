@@ -343,7 +343,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         memcpy(@prev_value, @value, sizeof Value);
         if eq konst 1 {
-          store64 @imm ir_push_value(+ @value Value.num, sizeof u64); // TODO(lucas): implement ir_push_value
+          store64 @imm ir_push_value(+ @value Value.num, sizeof u64);
         }
         store64 @i + 1 i;
       }
@@ -354,7 +354,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       store64 @num_elements ts_delta;
     }
 
-    if neq explicit_type UINT64_MAX {
+    if neq explicit_type TypeNone {
       store64 @type explicit_type;
     }
 

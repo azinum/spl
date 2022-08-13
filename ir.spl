@@ -217,8 +217,16 @@ fn ir_pop_ins(op : ptr, ins_count : ptr) -> u64 {
 }
 
 fn ir_push_value(value : ptr, size : u64) -> u64 {
-  assert(0, "ir_push_value(): not implemented yet\n");
-  NoError;
+  let result : u64 NoError;
+  let address : u64 load64 + @c Compile.imm_index;
+  if < + address size MAX_STATIC_DATA {
+    memcpy(+ + @c Compile.imm address, value, size);
+  }
+  else {
+    assert(0, "out of immediate data memory\n");
+    store64 @result Error;
+  }
+  result;
 }
 
 fn ir_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {

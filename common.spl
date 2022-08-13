@@ -31,6 +31,8 @@ fn assert(cond : u64, message : cstr) -> none {
   }
 }
 
+fn HERE puts(STDOUT_FILENO, "HERE\n");
+
 fn common_init -> none {
   store64 @tmp_it @tmp;
   store64 @tmp_end + @tmp TMP_SIZE;
