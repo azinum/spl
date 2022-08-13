@@ -1,7 +1,9 @@
 // test.spl
 
-struct T (
-  a : u64,
-  b : u64 : + 2 2,
-  c : u64 : T.b
+struct B (
+  a : u64
+);
+
+struct A (
+  b : B
 );

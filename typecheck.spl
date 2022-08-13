@@ -228,7 +228,7 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
     buffer_init(@buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
     if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
       if neq cast u64 symbol_out NULL {
-        memcpy(symbol_out, symbol, sizeof Symbol);
+        store64 symbol_out symbol;
       }
       store64 @result load64 + symbol Symbol.type;
     }
@@ -770,12 +770,6 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         typecheck_error_at(+ type_node Ast.token, "expected numerical type in enum expression\n");
       }
     }
-    // TODO(lucas): add ability to refer type information of values for the field types
-    // example:
-    // const value : u64 12;
-    // struct T (
-    //   a : value
-    // );
     else if eq type AstStruct {
       let fields cast ptr load64 + + ast Ast.node * sizeof ptr 0;
       let field_offset : u64 0;
