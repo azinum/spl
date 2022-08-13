@@ -642,7 +642,32 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq type AstMemoryStatement {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let symbol : ptr NULL;
+      let symbol_index : u64 UINT64_MAX;
+      let node cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let type : u64 typecheck(block, fs, node);
+      if is_numerical(type) {
+        { let _ ts_pop(); }
+        let value : Value 0;
+        { let _ vs_pop(@value); }
+
+        if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+          store64 + symbol Symbol.imm UINT64_MAX;
+          store64 + symbol Symbol.size load64 + @value Value.num;
+          store64 + symbol Symbol.konst 0;
+          store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+          store64 + symbol Symbol.type TypeUnsigned8;
+          memcpy(+ symbol Symbol.value, @value, sizeof Value);
+          store64 + + symbol Symbol.token Token.v symbol_index;
+          store64 + ast Ast.konst is_branch_konst_eval(ast);
+        }
+        else {
+          compile_error_at(+ ast Ast.token, "symbol already exists\n");
+        }
+      }
+      else {
+        typecheck_error_at(+ ast Ast.token, "invalid type in memory statement, rhs must be a numerical value\n");
+      }
     }
     else if eq type AstAssignment {
       let first cast ptr load64 + + ast Ast.node * sizeof ptr 0;

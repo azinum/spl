@@ -204,9 +204,9 @@ fn compile_print_symbol_info(fd : u64) -> none {
     else {
       tmp_push_cstr("`");
       tmp_push_cstr(cast cstr + symbol Symbol.name);
-      tmp_push_cstr("` (type store64 ");
+      tmp_push_cstr("` (type = ");
       tmp_push_u64(load64 + symbol Symbol.type);
-      tmp_push_cstr(", size store64 ");
+      tmp_push_cstr(", size = ");
       tmp_push_u64(load64 + symbol Symbol.size);
       tmp_push_cstr(")");
     }
