@@ -741,7 +741,17 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq type AstCastExpression {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let type_expr cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let expr      cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ typecheck(block, fs, expr); }
+      let expr_type : u64 ts_pop();
+      let cast_type : u64 token_to_compile_type(block, fs, + type_expr Ast.token, NULL);
+      if neq cast_type TypeNone {
+        { let _ ts_push(cast_type); }
+      }
+      else {
+        typecheck_error_at(+ type_expr Ast.token, "can not cast to type none\n");
+      }
     }
     else if eq type AstStaticAssert {
       let expr cast ptr load64 + + ast Ast.node * sizeof ptr 0;

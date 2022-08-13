@@ -1,4 +1,4 @@
 // test.spl
 
-const size 4;
-let a : u64 : size 0;
+const size cast u32 4;
+const a * 2 size;
