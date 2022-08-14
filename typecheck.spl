@@ -598,7 +598,125 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       store64 + ast Ast.konst is_branch_konst_eval(ast);
     }
     else if eq type AstFuncDefinition {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let params cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let body   cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      let rtype_node : ptr NULL;
+      if eq load64 + ast Ast.count 3 {
+        store64 @rtype_node load64 + + ast Ast.node * sizeof ptr 2;
+      }
+
+      if < load64 + params Ast.count MAX_FUNC_ARGC {
+        let symbol : ptr NULL;
+        let symbol_index : u64 UINT64_MAX;
+        if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+          let local_block : Block 0;
+          block_init(@local_block, block);
+
+          store64 + symbol Symbol.imm UINT64_MAX;
+          store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeFunc;
+          store64 + symbol Symbol.konst 0;
+          store64 + symbol Symbol.type TypeFunc;
+          let func cast ptr + + symbol Symbol.value Value.func;
+          store64 + func Function.ir_address UINT64_MAX;
+          store64 + func Function.label symbol_index;
+          store64 + func Function.argc load64 + params Ast.count;
+          store64 + func Function.locals_offset_counter 0;
+          store64 + func Function.rtype TypeNone;
+
+          if neq cast u64 rtype_node NULL {
+            store64 + func Function.rtype token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
+          }
+
+          let argc : u64 load64 + params Ast.count;
+          let i : u64 0;
+          let fail : u64 0;
+          while and eq fail 0 < i argc {
+            let arg_node cast ptr load64 + + params Ast.node * sizeof ptr i;
+            let arg : Token 0;
+            let arg_type : Token 0;
+            memcpy(@arg, + arg_node Ast.token, sizeof Token);
+            memcpy(@arg_type, + load64 + + arg_node Ast.node * sizeof ptr 0 Ast.token, sizeof Token);
+
+            let arg_symbol : ptr NULL;
+            let arg_symbol_index : u64 UINT64_MAX;
+            if eq compile_declare_value(@local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
+              store64 + + func Function.args * sizeof u64 i arg_symbol_index;
+              let arg_compile_type : u64 token_to_compile_type(block, fs, @arg_type, NULL);
+              if and
+                  neq arg_compile_type TypeNone
+                  neq arg_compile_type TypeStruct {
+
+                store64 + arg_symbol Symbol.imm UINT64_MAX;
+                store64 + arg_symbol Symbol.size load64 + @compile_type_size * sizeof u64 arg_compile_type;
+                store64 + arg_symbol Symbol.konst 0;
+                store64 + arg_symbol Symbol.sym_type SYM_FUNC_ARG;
+                store64 + arg_symbol Symbol.type arg_compile_type;
+                memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
+                store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead
+              }
+              else {
+                compile_error_at(@arg_type, "invalid type in function parameter list\n");
+                store64 @fail 1;
+              }
+            }
+            else {
+              compile_error_at(@arg, "duplicate argument name\n");
+                store64 @fail 1;
+            }
+
+            store64 @i + 1 i;
+          }
+
+          let ts_count : u64 load64 + @c Compile.ts_count;
+          let func_body_block : Block 0;
+          block_init(@func_body_block, @local_block); // to allow for shadowing of function arguments
+
+          { let _ typecheck_node_list(@func_body_block, fs, body); }
+          let konst_body : u64 is_branch_konst_eval(body);
+          store64 + body Ast.konst konst_body;
+          store64 + ast Ast.konst konst_body;
+          store64 + + symbol Symbol.value Value.konst konst_body;
+
+          let rtype : u64 TypeNone;
+          let ts_delta : u64 - load64 + @c Compile.ts_count ts_count;
+          if > ts_delta 1 {
+            typecheck_error_at(+ ast Ast.token, "too many values produced by function\n");
+          }
+          else {
+            if neq ts_delta 0 {
+              { let _ vs_pop(NULL); }
+              store64 @rtype ts_pop();
+            }
+
+            if neq cast u64 rtype_node NULL {
+              let explicit_rtype : u64 token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
+              if and neq explicit_rtype rtype neq explicit_rtype TypeAny {
+                compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
+              }
+            }
+            else {
+              store64 + func Function.rtype rtype;
+            }
+
+            if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
+              store64 + symbol Symbol.ref_count + load64 + symbol Symbol.ref_count 1;
+              store64 + @c Compile.entry_point + load64 + @c Compile.entry_point 1;
+            }
+          }
+        }
+        else {
+          compile_error_at(+ ast Ast.token, "symbol already exists\n");
+        }
+      }
+      else {
+        let message cast cstr tmp_it;
+        tmp_push_cstr("reached function parameter count limit of ");
+        tmp_push_u64(MAX_FUNC_ARGC);
+        tmp_push_cstr("\n");
+        tmp_push_byte(0);
+        compile_error_at(+ ast Ast.token, message);
+        store64 @tmp_it message;
+      }
     }
     else if eq type AstFuncCall {
       // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented

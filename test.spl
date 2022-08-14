@@ -1,9 +1,7 @@
 // test.spl
 
-struct B (
-  a : u64
-);
+fn add(a : u64, b : u64) -> u64 + a b;
 
-struct A (
-  b : B
-);
+fn main -> none {
+
+}

@@ -20,37 +20,6 @@ fn block_init(block : ptr, parent : ptr) -> none {
   store64 + block Block.parent parent;
 }
 
-fn compile_error(message : cstr) -> none {
-  if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
-    tmp_push_cstr("[compile-error]: ");
-    tmp_push_cstr(message);
-    tmp_push_byte(0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
-    store64 + @c Compile.status Error;
-  }
-}
-
-// token : Token*
-fn compile_error_at(token : ptr, message : cstr) -> none {
-  if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
-    tmp_push_cstr("[compile-error]: ");
-    tmp_push_cstr(load64 + token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    tmp_push_byte(0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
-    store64 + @c Compile.status Error;
-  }
-}
-
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   let result Error;
@@ -198,9 +167,9 @@ fn compile_print_symbol_info(fd : u64) -> none {
       tmp_push_cstr(cast cstr + symbol Symbol.name);
       tmp_push_cstr("`");
     }
-    else if eq type TypeFunc {
-    
-    }
+    // else if eq type TypeFunc {
+    //
+    // }
     else {
       tmp_push_cstr("`");
       tmp_push_cstr(cast cstr + symbol Symbol.name);
