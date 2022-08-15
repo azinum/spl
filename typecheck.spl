@@ -374,7 +374,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
     if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size * num_elements type_size;
-      store64 + symbol Symbol.num_elemements_init ts_delta;
+      store64 + symbol Symbol.num_elements_init ts_delta;
       store64 + symbol Symbol.konst konst;
       if eq cast u64 block + @c Compile.global {
         store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;

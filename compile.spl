@@ -4,7 +4,7 @@ fn symbol_init(symbol : ptr) -> none {
   memset(symbol, 0, sizeof Symbol);
   store64 + symbol Symbol.imm UINT64_MAX;
   store64 + symbol Symbol.size 0;
-  store64 + symbol Symbol.num_elemements_init 0;
+  store64 + symbol Symbol.num_elements_init 0;
   store64 + symbol Symbol.konst 0;
   store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
   store64 + symbol Symbol.type TypeNone;
@@ -154,32 +154,58 @@ fn compile_print_symbol_info(fd : u64) -> none {
     let num_i_digits : u64 digit_count(i);
     let j : u64 0;
 
-    while < j - 3 num_i_digits {
-      tmp_push_cstr("0");
-      store64 @j + 1 j;
-    }
-    tmp_push_u64(i);
-    tmp_push_cstr(": ");
+    if neq type TypeSyscallFunc {
+      while < j - 3 num_i_digits {
+        tmp_push_cstr("0");
+        store64 @j + 1 j;
+      }
+      tmp_push_u64(i);
+      tmp_push_cstr(": ");
+      if eq type TypeFunc {
+        let func cast ptr + + symbol Symbol.value Value.func;
+        tmp_push_cstr("`");
+        tmp_push_cstr(cast cstr + symbol Symbol.name);
+        tmp_push_cstr("` (");
 
-    if eq type TypeSyscallFunc {
-      // do nothing
-      tmp_push_cstr("`");
-      tmp_push_cstr(cast cstr + symbol Symbol.name);
-      tmp_push_cstr("`");
+        // iterate args
+        let arg_index : u64 0;
+        let arg_count : u64 load64 + func Function.argc;
+        while < arg_index arg_count {
+          // Symbol* arg = &c->symbols[func->args[arg_index]];
+          let arg cast ptr + + @c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
+          let num_elements : u64 / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 load64 + arg Symbol.type);
+          tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
+
+          if > num_elements 1 {
+            tmp_push_cstr(" : ");
+            tmp_push_u64(num_elements);
+          }
+
+          if neq arg_index - arg_count 1 {
+            tmp_push_cstr(", ");
+          }
+          store64 @arg_index + 1 arg_index;
+        }
+        tmp_push_cstr(") -> ");
+        tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof u64 load64 + func Function.rtype);
+      }
+      else {
+        tmp_push_cstr("`");
+        tmp_push_cstr(cast cstr + symbol Symbol.name);
+        tmp_push_cstr("` (type = ");
+        tmp_push_u64(load64 + symbol Symbol.type);
+        tmp_push_cstr(", size = ");
+        tmp_push_u64(load64 + symbol Symbol.size);
+        tmp_push_cstr(")");
+      }
+      tmp_push_cstr(" - ");
+      tmp_push_cstr(load64 + + symbol Symbol.token Token.filename);
+      tmp_push_cstr(":");
+      tmp_push_u64(load64 + + symbol Symbol.token Token.line);
+      tmp_push_cstr(":");
+      tmp_push_u64(load64 + + symbol Symbol.token Token.column);
+      tmp_push_cstr("\n");
     }
-    // else if eq type TypeFunc {
-    //
-    // }
-    else {
-      tmp_push_cstr("`");
-      tmp_push_cstr(cast cstr + symbol Symbol.name);
-      tmp_push_cstr("` (type = ");
-      tmp_push_u64(load64 + symbol Symbol.type);
-      tmp_push_cstr(", size = ");
-      tmp_push_u64(load64 + symbol Symbol.size);
-      tmp_push_cstr(")");
-    }
-    tmp_push_cstr("\n");
     store64 @i + 1 i;
   }
   tmp_push_byte(0);

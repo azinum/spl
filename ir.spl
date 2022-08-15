@@ -104,7 +104,7 @@ struct Symbol (
   name                : u8 : MAX_NAME_SIZE,
   imm                 : u64,
   size                : u64,
-  num_elemements_init : u64,
+  num_elements_init   : u64,
   konst               : u64,
   local_id            : u64,
   sym_type            : u64,
