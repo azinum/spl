@@ -3568,7 +3568,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "pop rax\n"
         "pop rbx\n"
         "cmp rbx, rax\n"
-        "cmovl rcx, rdx\n"
+        "cmovb rcx, rdx\n" // NOTE(lucas): only for use on unsigned values. see: https://www.felixcloutier.com/x86/cmovcc (cmovl for signed, cmovb for unsigned)
         "push rcx\n"
         );
         break;
@@ -3581,7 +3581,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         "pop rax\n"
         "pop rbx\n"
         "cmp rbx, rax\n"
-        "cmovg rcx, rdx\n"
+        "cmova rcx, rdx\n"
         "push rcx\n"
         );
         break;
