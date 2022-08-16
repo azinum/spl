@@ -1124,13 +1124,14 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       if eq load64 + @value Value.konst 0 {
         typecheck_error("can not do static on an expression that is evaluated at runtime\n");
       }
-      else {
+      else if eq load64 + @value Value.num 0 {
         let node_token cast ptr + node Ast.token;
         let message cast cstr tmp_it;
         tmp_push_cstr("assertion failed: ");
         tmp_push_str(load64 + node_token Token.buffer, load64 + node_token Token.length);
+        tmp_push_cstr("\n");
         tmp_push_byte(0);
-        compile_error(message);
+        compile_error_at(+ expr Ast.token, message);
         store64 @tmp_it message;
       }
     }
