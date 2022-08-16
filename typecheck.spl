@@ -71,7 +71,7 @@ fn typecheck_print_stack(fd : u64) -> none {
 }
 
 fn ts_push(type : u64) -> u64 {
-  let result TypeNone;
+  let result : u64 TypeNone;
   if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
     store64 + + @c Compile.ts * sizeof result load64 + @c Compile.ts_count type;
     store64 + @c Compile.ts_count + 1 load64 + @c Compile.ts_count;
@@ -453,7 +453,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           }
           else {
             { let _ vs_push(+ symbol Symbol.value); }
-            { let _ ts_push(symbol_type); }
+            { let _ ts_push(TypePtr); }
           }
         }
         else {
@@ -482,8 +482,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
     }
     else if eq type AstBinopExpression {
       { let _ typecheck_node_list(block, fs, ast); }
-      let a ts_pop();
       let b ts_pop();
+      let a ts_pop();
       if and
         or or or is_numerical(a) eq a TypeAny eq a TypePtr eq a TypeCString
         or or or is_numerical(b) eq b TypeAny eq b TypePtr eq b TypeCString {
@@ -605,7 +605,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 @rtype_node load64 + + ast Ast.node * sizeof ptr 2;
       }
 
-      if < load64 + params Ast.count MAX_FUNC_ARGC {
+      let argc : u64 load64 + params Ast.count;
+      if or eq argc MAX_FUNC_ARGC < argc MAX_FUNC_ARGC { // argc <= MAX_FUNC_ARGC
         let symbol : ptr NULL;
         let symbol_index : u64 UINT64_MAX;
         if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
@@ -627,7 +628,6 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 + func Function.rtype token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
           }
 
-          let argc : u64 load64 + params Ast.count;
           let i : u64 0;
           let fail : u64 0;
           while and eq fail 0 < i argc {
@@ -719,7 +719,107 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq type AstFuncCall {
-      // TODO(lucas): implement when compile_lookup_value and compile_declare_value is implemented
+      let symbol : ptr NULL;
+      let symbol_index : u64 UINT64_MAX;
+      let token_buffer : Buffer 0;
+      buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+      if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
+        store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
+        let arg_list cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+        let func : ptr + + symbol Symbol.value Value.func;
+        if neq load64 + symbol Symbol.type TypeAny {
+          if eq load64 + func Function.argc load64 + arg_list Ast.count {
+            store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): store this in the symbol value field
+            let done : u64 0;
+            let argc : u64 load64 + func Function.argc;
+            let i : u64 - argc 1;
+            if > argc 0 {
+              while eq done 0 {
+                let node cast ptr load64 + + arg_list Ast.node * sizeof ptr i;
+                { let _ typecheck(block, fs, node); }
+                let arg_type : u64 ts_top();
+
+                if eq load64 + symbol Symbol.type TypeSyscallFunc {
+                  // any type is allowed here
+                  // we still want to type check the arguments of the call
+                  // which is why this is here instead of outside the loop
+                }
+                else {
+                  // Symbol* arg = &c->symbols[func->args[i]];
+                  let arg_symbol_index : u64 load64 + + func Function.args * sizeof u64 i;
+                  let arg cast ptr + + @c Compile.symbols * sizeof Symbol arg_symbol_index;
+                  if and
+                      neq load64 + arg Symbol.type arg_type
+                      neq load64 + arg Symbol.type TypeAny {
+                    let message cast cstr tmp_it;
+                    tmp_push_cstr("type mismatch in function call, got `");
+                    tmp_push_cstr(cast cstr + @compile_type_str * sizeof cstr arg_type);
+                    tmp_push_cstr("`, but `");
+                    tmp_push_cstr(cast cstr + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
+                    tmp_push_cstr("` was expected\n");
+                    tmp_push_byte(0);
+                    typecheck_error_at(+ ast Ast.token, message);
+                    store64 + @c Compile.status NoError; // to print additional error message
+                    store64 @tmp_it message;
+
+                    tmp_push_cstr("from function `");
+                    tmp_push_cstr(cast cstr + symbol Symbol.name);
+                    tmp_push_cstr("`\n");
+                    tmp_push_byte(0);
+                    typecheck_error_at(+ ast Ast.token, message);
+                    store64 @tmp_it message;
+                    store64 @done 1;
+                  }
+                }
+                { let _ vs_pop(NULL); }
+                { let _ ts_pop(); }
+                if eq i 0 {
+                  store64 @done 1;
+                }
+                else {
+                  store64 @i - i 1;
+                }
+              }
+            }
+
+            if neq load64 + func Function.rtype TypeNone {
+              store64 + + symbol Symbol.value Value.konst 0;  // NOTE(lucas): temporary (why?)
+              store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
+              { let _ ts_push(load64 + func Function.rtype); }
+              { let _ vs_push(+ symbol Symbol.value); }
+            }
+          }
+          else {
+            let message cast cstr tmp_it;
+            tmp_push_cstr("function `");
+            tmp_push_cstr(cast cstr + symbol Symbol.name);
+            tmp_push_cstr("` takes ");
+            tmp_push_u64(load64 + func Function.argc);
+            tmp_push_cstr(" argument(s), but ");
+            tmp_push_u64(load64 + arg_list Ast.count);
+            tmp_push_cstr(" was given\n");
+            compile_error_at(+ ast Ast.token, message);
+            store64 @tmp_it message;
+          }
+        }
+        else {
+          let message cast cstr tmp_it;
+          tmp_push_cstr("function calls of type `");
+          tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + symbol Symbol.type);
+          tmp_push_cstr("` is not permitted\n");
+          typecheck_error_at(+ ast Ast.token, message);
+          store64 @tmp_it message;
+        }
+      }
+      else {
+        let message tmp_it;
+        tmp_push_cstr("symbol `");
+        tmp_push_str(cast cstr load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length);
+        tmp_push_cstr("` not defined\n");
+        tmp_push_byte(0);
+        compile_error_at(+ ast Ast.token, cast cstr message);
+        store64 @tmp_it message;
+      }
     }
     else if eq type AstWhileStatement {
       let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
@@ -791,15 +891,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let first cast ptr load64 + + ast Ast.node * sizeof ptr 0;
       let second cast ptr load64 + + ast Ast.node * sizeof ptr 1;
       { let _ typecheck(block, fs, first); }
-      { let _ typecheck(block, fs, second); }
-      let b ts_pop();
       let a ts_pop();
+      { let _ typecheck(block, fs, second); }
       if or eq a TypePtr eq a TypeAny {
+        { let _ ts_pop(); }
         { let _ vs_pop(NULL); }
         { let _ vs_pop(NULL); }
       }
       else {
-        typecheck_error("type mismatch in assignment statement\n");
+        typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n");
       }
     }
     else if eq type AstSizeof {

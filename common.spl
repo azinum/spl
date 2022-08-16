@@ -48,7 +48,10 @@ fn tmp_push_cstr(str : any) -> none {
         store64 @tmp_it + length tmp_it;
     }
     else {
-      error("out of scratch memory\n");
+      puts(STDOUT_FILENO, "tried to push: `");
+      puts(STDOUT_FILENO, str);
+      puts(STDOUT_FILENO, "`\n");
+      error("tmp_push_cstr: out of scratch memory\n");
     }
   }
 }
@@ -62,14 +65,19 @@ fn tmp_push_str(str : any, length : u64) -> none {
       }
     }
     else {
-      error("out of scratch memory\n");
+      error("tmp_push_str: out of scratch memory\n");
     }
   }
 }
 
 fn tmp_push_byte(byte : u64) -> none {
-  memcpy(tmp_it, @byte, 1);
-  store64 @tmp_it + 1 tmp_it;
+  if < (+ tmp_it 1) tmp_end {
+    memcpy(tmp_it, @byte, 1);
+    store64 @tmp_it + 1 tmp_it;
+  }
+  else {
+    error("tmp_push_byte: out of scratch memory\n");
+  }
 }
 
 fn tmp_push_u64(n : u64) -> none {

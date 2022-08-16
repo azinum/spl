@@ -3,3 +3,4 @@
 - remove the ability, by ways of parsing, to define inlined functions (causes undefined behaviour, crashes)
 - compile time evaluation of `trival` functions
 - typed assignment operator
+- differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)

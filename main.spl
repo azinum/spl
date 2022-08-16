@@ -5,7 +5,4 @@
 // fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  let hello 8;
-  let a : u8 : hello cast u8 0;
-  print sizeof a;
 }
