@@ -226,18 +226,37 @@ fn compile_print_block(fd : u64, block : ptr) -> none {
 }
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  assert(0, "compile_linux_nasm_x86_64(): not implemented yet\n");
+  // TODO(lucas): implement
   NoError;
 }
 
 fn compile(target : u64, fd : u64) -> u64 {
   let result NoError;
+  let time_start : timespec 0;
+  let time_end : timespec 0;
+  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+
   if eq target TARGET_LINUX_NASM_X86_64 {
     store64 @result compile_linux_nasm_x86_64(fd);
   }
   else {
     assert(0, "invalid compile target\n");
   }
+
+  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+
+  if eq load64 + @c Compile.status NoError {
+    let message cast cstr tmp_it;
+    tmp_push_cstr("code generation took ");
+    tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
+    tmp_push_cstr(".");
+    tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec 10000000);
+    tmp_push_cstr(" seconds\n");
+    tmp_push_byte(0);
+    print_info(message);
+    store64 @tmp_it message;
+  }
+
   result;
 }
 

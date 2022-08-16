@@ -6,7 +6,7 @@ SRC=${subst .c,, ${wildcard *.c}}
 
 PROG=cspl
 
-FLAGS=-Wall -Wextra -pedantic -ggdb -O0
+FLAGS=-Wall -Wextra -pedantic -ggdb -O3
 
 SPL_SRC=${subst .spl,, ${wildcard *.spl}}
 

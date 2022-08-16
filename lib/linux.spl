@@ -324,6 +324,24 @@ const O_WRONLY 1;
 const O_CREAT 64;
 const O_TRUNC 512;
 
+struct timespec (
+  tv_sec : u64,
+  tv_nsec : u64
+);
+
+// https://code.woboq.org/gcc/include/bits/time.h.html
+const CLOCK_REALTIME 0;
+const CLOCK_MONOTONIC 1;
+const CLOCK_PROCESS_CPUTIME_ID 2;
+const CLOCK_THREAD_CPUTIME_ID 3;
+const CLOCK_MONOTONIC_RAW 4;
+const CLOCK_REALTIME_COARSE 5;
+const CLOCK_MONOTONIC_COARSE 6;
+const CLOCK_BOOTTIME 7;
+const CLOCK_REALTIME_ALARM 8;
+const CLOCK_BOOTTIME_ALARM 9;
+const CLOCK_TAI 11;
+
 fn read(fd : u64, buf : any, count : u64)    syscall3(SYS_read, fd, buf, count);
 fn open(path : any, flags : u64, mode : u64) syscall3(SYS_open, path, flags, mode);
 fn close(fd : u64) { let _ syscall1(SYS_close, fd); }
@@ -332,6 +350,11 @@ fn exit(error_code : u64) { let _ syscall1(SYS_exit, error_code); }
 
 fn time -> u64 {
   syscall1(SYS_time, 0);
+}
+
+// spec : timespec*
+fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
+  syscall2(SYS_clock_gettime, clock_id, spec);
 }
 
 fn read_file_into_buffer(fd : u64, buf : any) -> u64 {

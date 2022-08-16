@@ -41,28 +41,32 @@ fn usage(prog : any) -> none {
   p("  dce-all         - eliminate all dead code, including all symbols\n");
   p("  no-verbose      - disable verbose output\n");
   putsn(STDOUT_FILENO, tmp, - tmp_it tmp);
-  = @tmp_it tmp;
+  store64 @tmp_it tmp;
 }
 
 fn spl_options_init -> none {
-  = + @options Options.compile 1;
-  = + @options Options.run 0;
-  = + @options Options.debug 1;
-  = + @options Options.filename NULL;
-  = + @options Options.enable_warnings 0;
-  = + @options Options.disable_dce 0;
-  = + @options Options.dce_all 0;
-  = + @options Options.no_verbose 0;
+  store64 + @options Options.compile 1;
+  store64 + @options Options.run 0;
+  store64 + @options Options.debug 1;
+  store64 + @options Options.filename NULL;
+  store64 + @options Options.enable_warnings 0;
+  store64 + @options Options.disable_dce 0;
+  store64 + @options Options.dce_all 0;
+  store64 + @options Options.no_verbose 0;
 }
 
 fn spl_start(filename : any) -> u64 {
   let result NoError;
 
+  let time_start : timespec 0;
+  let time_end : timespec 0;
+  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+
   let fd open(filename, 0, O_RDONLY);
   if neq fd ERROR {
     let source tmp_it;
     let size read_file_into_buffer_and_null_terminate(fd, source);
-    = @tmp_it + size tmp_it;
+    store64 @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
       ast_push(
         cast ptr load64 + @p Parser.ast,
@@ -77,18 +81,25 @@ fn spl_start(filename : any) -> u64 {
                 // TODO: implement
               }
               if load64 + @options Options.compile {
-                // TODO: implement
-                let message cast cstr tmp_it;
-                tmp_push_cstr("total compilation time was ? seconds (");
-                tmp_push_u64(load64 + @p Parser.line_count);
-                tmp_push_cstr(" loc, ");
-                tmp_push_u64(load64 + @p Parser.source_count);
-                tmp_push_cstr(" file(s))\n");
-                tmp_push_byte(0);
-                print_info(message);
-                = @tmp_it message;
+                if eq compile(TARGET_LINUX_NASM_X86_64, STDOUT_FILENO) NoError {
+                  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
-                compile_print_symbol_info(STDOUT_FILENO);
+                  let message cast cstr tmp_it;
+                  tmp_push_cstr("total compilation time was ");
+                  tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
+                  tmp_push_cstr(".");
+                  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec 10000000);
+                  tmp_push_cstr(" seconds (");
+                  tmp_push_u64(load64 + @p Parser.line_count);
+                  tmp_push_cstr(" loc, ");
+                  tmp_push_u64(load64 + @p Parser.source_count);
+                  tmp_push_cstr(" file(s))\n");
+                  tmp_push_byte(0);
+                  print_info(message);
+                  store64 @tmp_it message;
+
+                  // compile_print_symbol_info(STDOUT_FILENO);
+                }
               }
             }
           }
@@ -112,7 +123,7 @@ fn spl_start(filename : any) -> u64 {
     tmp_push_cstr("`\n");
     tmp_push_byte(0);
     err(message);
-    = @tmp_it message;
+    store64 @tmp_it message;
   }
   result;
 }
@@ -128,34 +139,34 @@ fn main(argc : u64, argv : any) -> none {
     usage(#arg);
   }
   else {
-    = @arg + sizeof any arg;
+    store64 @arg + sizeof any arg;
     while neq load64 arg NULL {
       let argument cast cstr load64 arg;
       if eq 0 strcmp(argument, "run") {
-        = + @options Options.run 1;
+        store64 + @options Options.run 1;
       }
       else if eq 0 strcmp(argument, "no-com") {
-        = + @options Options.compile 0;
+        store64 + @options Options.compile 0;
       }
       else if eq 0 strcmp(argument, "no-debug") {
-        = + @options Options.debug 0;
+        store64 + @options Options.debug 0;
       }
       else if eq 0 strcmp(argument, "enable-warnings") {
-        = + @options Options.enable_warnings 1;
+        store64 + @options Options.enable_warnings 1;
       }
       else if eq 0 strcmp(argument, "disable-dce") {
-        = + @options Options.disable_dce 1;
+        store64 + @options Options.disable_dce 1;
       }
       else if eq 0 strcmp(argument, "dce-all") {
-        = + @options Options.dce_all 1;
+        store64 + @options Options.dce_all 1;
       }
       else if eq 0 strcmp(argument, "no-verbose") {
-        = + @options Options.no_verbose 1;
+        store64 + @options Options.no_verbose 1;
       }
       else {
-        = + @options Options.filename argument;
+        store64 + @options Options.filename argument;
       }
-      = @arg + sizeof any arg;
+      store64 @arg + sizeof any arg;
     }
     if neq load64 + @options Options.filename 0 {
       let result spl_start(load64 + @options Options.filename);
