@@ -41,7 +41,7 @@ fn common_init -> none {
 
 // TODO(lucas): handle escape sequences
 fn tmp_push_cstr(str : any) -> none {
-  let length strlen(cast cstr str);
+  let length : u64 strlen(cast cstr str);
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
         memcpy(tmp_it, str, length);

@@ -37,7 +37,7 @@ fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
 
 fn strlen(str : cstr) -> u64 {
   let length : u64 0;
-  while < 0 load8 str {
+  while neq 0 load8 str {
     store64 @length + 1 length;
     store64 @str    + 1 str;
   }
@@ -46,7 +46,7 @@ fn strlen(str : cstr) -> u64 {
 
 fn strnlen(str : cstr, max_length : u64) -> u64 {
   let length : u64 0;
-  while and < length max_length < 0 load8 str{
+  while and < length max_length neq 0 load8 str {
     store64 @length + 1 length;
     store64 @str    + 1 str;
   }
@@ -95,8 +95,8 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
 
 fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
   let count : u64 0;
-  let length strlen(src);
-  while and < count length < count n {
+  let done : u64 0;
+  while and eq done 0 < count n {
     store8 cast ptr dest load8 cast ptr src;
     store64 @dest  + 1 dest;
     store64 @src   + 1 src;
