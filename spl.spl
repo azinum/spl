@@ -77,9 +77,6 @@ fn spl_start(filename : any) -> u64 {
         if eq compile_state_init() NoError {
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
-              if load64 + @options Options.debug {
-                // TODO: implement
-              }
               if load64 + @options Options.compile {
                 if eq compile(TARGET_LINUX_NASM_X86_64, STDOUT_FILENO) NoError {
                   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
@@ -88,7 +85,7 @@ fn spl_start(filename : any) -> u64 {
                   tmp_push_cstr("total compilation time was ");
                   tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
                   tmp_push_cstr(".");
-                  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec 10000000);
+                  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
                   tmp_push_cstr(" seconds (");
                   tmp_push_u64(load64 + @p Parser.line_count);
                   tmp_push_cstr(" loc, ");
@@ -100,6 +97,10 @@ fn spl_start(filename : any) -> u64 {
 
                   // compile_print_symbol_info(STDOUT_FILENO);
                 }
+              }
+              if load64 + @options Options.debug {
+                // TODO: implement
+                ir_print(STDOUT_FILENO);
               }
             }
           }

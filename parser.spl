@@ -743,7 +743,7 @@ fn parse -> ptr {
   tmp_push_cstr("` took ");
   tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
   tmp_push_cstr(".");
-  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec 10000000);
+  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
   tmp_push_cstr(" seconds\n");
   tmp_push_byte(0);
   print_info(message);

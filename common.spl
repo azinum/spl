@@ -6,6 +6,8 @@ memory tmp TMP_SIZE;
 let tmp_it 0;
 let tmp_end 0;
 
+const TIME_NANOSECONDS_DENOM 1000000;
+
 fn err(message : any) -> none {
   puts(STDERR_FILENO, "[error]: ");
   puts(STDERR_FILENO, message);

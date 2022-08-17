@@ -221,38 +221,66 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
 }
 
 fn ir_compile_warning(message : cstr) -> none {
-  assert(0, "ir_compile_warning(): not implemented yet\n");
+  if eq load64 + @options Options.enable_warnings 1 {
+    let tmp tmp_it;
+    tmp_push_cstr("[ir-compile-warning]: ");
+    tmp_push_cstr(message);
+    tmp_push_byte(0);
+    puts(STDERR_FILENO, tmp);
+    store64 @tmp_it tmp;
+  }
 }
 
 fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
-  assert(0, "ir_compile_warning(): not implemented yet\n");
+  if eq load64 + @options Options.enable_warnings 1 {
+    let tmp tmp_it;
+    tmp_push_cstr("[ir-compile-warning]: ");
+    tmp_push_cstr(load64 + token Token.filename);
+    tmp_push_cstr(":");
+    tmp_push_u64(load64 + token Token.line);
+    tmp_push_cstr(":");
+    tmp_push_u64(load64 + token Token.column);
+    tmp_push_cstr(": ");
+    tmp_push_cstr(message);
+    tmp_push_byte(0);
+    puts(STDERR_FILENO, tmp);
+    store64 @tmp_it tmp;
+  }
 }
 
 fn ir_print(fd : u64) -> none {
-  assert(0, "ir_print(): not implemented yet\n");
-}
+  puts(fd, "ir_print:\n");
+  let i : u64 0;
+  let count : u64 load64 + @c Compile.ins_count;
+  while < i count {
+    // op : Op*
+    let op cast ptr + + @c Compile.ins * sizeof Op i;
+    let message cast cstr tmp_it;
 
-fn ir_start_compile(ast : ptr) -> u64 {
-  let time_start : timespec 0;
-  let time_end : timespec 0;
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+    let num_digits : u64 digit_count(i);
+    const num_zeros : u64 4;
+    let j : u64 0;
+    while < j - num_zeros num_digits {
+      tmp_push_cstr("0");
+      store64 @j + 1 j;
+    }
+    tmp_push_u64(i);
+    tmp_push_cstr(": ");
+    tmp_push_cstr("<");
+    tmp_push_cstr(load64 + @ir_code_str * sizeof cstr load64 + op Op.i);
+    tmp_push_cstr(", ");
+    tmp_push_u64(load64 + op Op.dest);
+    tmp_push_cstr(", ");
+    tmp_push_u64(load64 + op Op.src0);
+    tmp_push_cstr(", ");
+    tmp_push_u64(load64 + op Op.src1);
+    tmp_push_cstr(">\n");
+    tmp_push_byte(0);
 
-  if neq load64 + @c Compile.entry_point 1 {
-    compile_error("missing entry point `main`\n");
+    puts(fd, message);
+    store64 @tmp_it message;
+    store64 @i + 1 i;
   }
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
-
-  let message cast cstr tmp_it;
-  tmp_push_cstr("ir code generation took ");
-  tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
-  tmp_push_cstr(".");
-  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec 10000000);
-  tmp_push_cstr(" seconds\n");
-  tmp_push_byte(0);
-  print_info(message);
-  store64 @tmp_it message;
-
-  load64 + @c Compile.status;
 }
 
 fn ir_push_ins(op : ptr, ins_count : ptr) -> u64 {
@@ -289,11 +317,6 @@ fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
   NoError;
 }
 
-fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
-  assert(0, "ir_compile(): not implemented yet\n");
-  NoError;
-}
-
 fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   assert(0, "ir_compile_stmts(): not implemented yet\n");
   NoError;
@@ -317,4 +340,94 @@ fn ir_compile_uop(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   assert(0, "ir_compile_func(): not implemented yet\n");
   NoError;
+}
+
+fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let type : u64 load64 + ast Ast.type;
+
+  if eq type AstValue {
+  }
+  else if or or or
+      eq type AstExpression
+      eq type AstExprList
+      eq type AstStatement
+      eq type AstStatementList {
+  }
+  else if eq type AstBinopExpression {
+  }
+  else if eq type AstUopExpression {
+  }
+  else if eq type AstNone {
+  }
+  else if eq type AstConstStatement {
+  }
+  else if eq type AstLetStatement {
+  }
+  else if eq type AstFuncDefinition {
+  }
+  else if eq type AstParamList {
+    assert(0, "something went very wrong\n");
+  }
+  else if eq type AstFuncCall {
+  }
+  else if eq type AstBlockStatement {
+  }
+  else if eq type AstMemoryStatement {
+    // NOTE(lucas): this is handled in the type checking phase
+  }
+  else if eq type AstAssignment {
+  }
+  else if eq type AstWhileStatement {
+  }
+  else if eq type AstIfStatement {
+  }
+  else if eq type AstSizeof {
+  }
+  else if or or or
+      eq type AstEnum
+      eq type AstStruct
+      eq type AstType
+      eq type AstStaticAssert {
+  }
+  else if eq type AstCastExpression {
+  }
+  else {
+    compile_error_at(+ ast Ast.token, "invalid or unhandled AST branch type\n");
+  }
+  load64 + @c Compile.status;
+}
+
+fn ir_start_compile(ast : ptr) -> u64 {
+  let time_start : timespec 0;
+  let time_end : timespec 0;
+  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+
+  if neq load64 + @c Compile.entry_point 1 {
+    compile_error("missing entry point `main`\n");
+  }
+
+  let block cast ptr + @c Compile.global;
+  let i : u64 0;
+  let count : u64 load64 + ast Ast.count;
+  let done : u64 0;
+  while and eq done 0 < i count {
+    if neq ir_compile(block, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0, NULL) NoError {
+      store64 @done 1;
+    }
+    store64 @i + 1 i;
+  }
+
+  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+
+  let message cast cstr tmp_it;
+  tmp_push_cstr("ir code generation took ");
+  tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
+  tmp_push_cstr(".");
+  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
+  tmp_push_cstr(" seconds\n");
+  tmp_push_byte(0);
+  print_info(message);
+  store64 @tmp_it message;
+
+  load64 + @c Compile.status;
 }
