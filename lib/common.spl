@@ -93,10 +93,10 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
   result;
 }
 
+// NOTE(lucas): src is expected to be at least as big as dest in terms of size
 fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
   let count : u64 0;
-  let done : u64 0;
-  while and eq done 0 < count n {
+  while < count n {
     store8 cast ptr dest load8 cast ptr src;
     store64 @dest  + 1 dest;
     store64 @src   + 1 src;
