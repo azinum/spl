@@ -616,7 +616,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + symbol Symbol.imm UINT64_MAX;
           store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeFunc;
           store64 + symbol Symbol.konst 0;
+          store64 + symbol Symbol.sym_type SYM_FUNC;
           store64 + symbol Symbol.type TypeFunc;
+          store64 + + ast Ast.token Token.v symbol_index;
+          memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
           let func cast ptr + + symbol Symbol.value Value.func;
           store64 + func Function.ir_address UINT64_MAX;
           store64 + func Function.label symbol_index;
