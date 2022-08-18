@@ -485,6 +485,7 @@ fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 
 fn ir_compile_func_call_args(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   assert(0, "ir_compile_func_call_args(): not implemented yet\n");
+  // TODO(lucas): implement
   load64 + @c Compile.status;
 }
 
@@ -773,6 +774,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     assert(0, "something went very wrong\n");
   }
   else if eq type AstFuncCall {
+    // TODO(lucas): implement
   }
   else if eq type AstBlockStatement {
     { let _ ir_compile_stmts(block, fs, ast, ins_count); }
@@ -781,10 +783,13 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     // NOTE(lucas): this is handled in the type checking phase
   }
   else if eq type AstAssignment {
+    // TODO(lucas): implement
   }
   else if eq type AstWhileStatement {
+    // TODO(lucas): implement
   }
   else if eq type AstIfStatement {
+    // TODO(lucas): implement
   }
   else if eq type AstSizeof {
     let imm : u64 ir_push_value(+ + ast Ast.token Token.v, sizeof u64);

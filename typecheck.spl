@@ -506,19 +506,23 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 @num * load64 + @va Value.num load64 + @vb Value.num;
         }
         else if eq token_type T_DIV {
-          if and eq load64 + @vb Value.num 0 load64 + @vb Value.konst {
-            typecheck_error("divide by zero arithmetic error\n");
-          }
-          else {
-            store64 @num / load64 + @va Value.num load64 + @vb Value.num;
+          if eq load64 + @vb Value.konst 1 {
+            if eq load64 + @vb Value.num 0 {
+              typecheck_error("divide by zero arithmetic error\n");
+            }
+            else {
+              store64 @num / load64 + @va Value.num load64 + @vb Value.num;
+            }
           }
         }
         else if eq token_type T_DIVMOD {
-          if and eq load64 + @vb Value.num 0 load64 + @vb Value.konst {
-            typecheck_error("modulo by zero arithmetic error\n");
-          }
-          else {
-            store64 @num % load64 + @va Value.num load64 + @vb Value.num;
+          if eq load64 + @vb Value.konst 1 {
+            if eq load64 + @vb Value.num 0 {
+              typecheck_error("modulo by zero arithmetic error\n");
+            }
+            else {
+              store64 @num % load64 + @va Value.num load64 + @vb Value.num;
+            }
           }
         }
         else if eq token_type T_LSHIFT {
