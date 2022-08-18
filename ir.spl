@@ -317,28 +317,41 @@ fn ir_pop_ins(op : ptr, ins_count : ptr) -> u64 {
 }
 
 fn ir_push_value(value : ptr, size : u64) -> u64 {
-  let result : u64 NoError;
+  let result : u64 UINT64_MAX;
   let address : u64 load64 + @c Compile.imm_index;
   if < + address size MAX_STATIC_DATA {
     memcpy(+ + @c Compile.imm address, value, size);
     store64 + @c Compile.imm_index + load64 + @c Compile.imm_index size;
+    store64 @result address;
   }
   else {
     assert(0, "out of immediate data memory\n");
-    store64 @result Error;
   }
   result;
 }
 
 fn ir_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
-  assert(0, "ir_push_cstring(): not implemented yet\n");
-  NoError;
+  let address : u64 ir_push_value(@length, sizeof length);
+  let value_address : u64 ir_push_value(buffer, length);
+  if and neq address UINT64_MAX neq value_address UINT64_MAX {
+    if < load64 + @c Compile.cstring_count MAX_CSTRING {
+      let cstring_count : u64 load64 + @c Compile.cstring_count;
+      store64 index cstring_count;
+      store64 + + @c Compile.cstrings * sizeof u64 cstring_count address;
+      store64 + @c Compile.cstring_count + 1 cstring_count;
+    }
+    else {
+      store64 @address UINT64_MAX;
+      assert(0, "cstring capacity reached\n");
+    }
+  }
+  address;
 }
 
 // fs : Function*, symbol : Symbol*, id : u64, ins_count : u64*
 fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
   assert(0, "ir_push_symbol(): not implemented yet\n");
-  NoError;
+  load64 + @c Compile.status;
 }
 
 fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
@@ -360,13 +373,24 @@ fn ir_compile_func_call_args(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) 
 }
 
 fn ir_compile_binop(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
-  assert(0, "ir_compile_binop(): not implemented yet\n");
+  assert(eq load64 + ast Ast.count 2, "expected 2 branches in binary operator expression\n");
+
+  let i : u64 0;
+  let count : u64 load64 + ast Ast.count;
+  let done : u64 0;
+  while and eq done 0 < i count {
+    let node cast ptr load64 + + ast Ast.node * sizeof ptr i;
+    if neq _ir_compile(block, fs, node, ins_count) NoError {
+      store64 @done 1;
+    }
+    store64 @i + 1 i;
+  }
   load64 + @c Compile.status;
 }
 
 fn ir_compile_uop(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
-  assert(0, "ir_compile_uop(): not implemented yet\n");
-  load64 + @c Compile.status;
+  assert(eq load64 + ast Ast.count 1, "expected 1 branch in unary operator expression\n");
+  _ir_compile(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0, ins_count);
 }
 
 fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
@@ -447,7 +471,19 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       }
     }
     else if eq token_type T_CSTRING {
-      // TODO(lucas): implement
+      let index : u64 UINT64_MAX;
+      let address : u64 ir_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
+      if neq address UINT64_MAX {
+        let op : Op 0;
+        OP_init(
+          I_PUSH,
+          TypeCString,
+          index,
+          UINT64_MAX,
+          @op
+        );
+        { let _ ir_push_ins(@op, ins_count); }
+      }
     }
     else if eq token_type T_IDENTIFIER {
     }
@@ -465,8 +501,84 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     { let _ ir_compile_stmts(block, fs, ast, ins_count); }
   }
   else if eq type AstBinopExpression {
+    if eq ir_compile_binop(block, fs, ast, ins_count) NoError {
+      let type : u64 load64 + + ast Ast.token Token.type;
+      let op : Op 0;
+      if eq type T_ADD {
+        OP(I_ADD, @op);
+      }
+      else if eq type T_SUB {
+        OP(I_SUB, @op);
+      }
+      else if eq type T_MUL {
+        OP(I_MUL, @op);
+      }
+      else if eq type T_DIV {
+        OP(I_DIV, @op);
+      }
+      else if eq type T_DIVMOD {
+        OP(I_DIVMOD, @op);
+      }
+      else if eq type T_LSHIFT {
+        OP(I_LSHIFT, @op);
+      }
+      else if eq type T_RSHIFT {
+        OP(I_RSHIFT, @op);
+      }
+      else if eq type T_LT {
+        OP(I_LT, @op);
+      }
+      else if eq type T_GT {
+        OP(I_GT, @op);
+      }
+      else if eq type T_AND {
+        OP(I_AND, @op);
+      }
+      else if eq type T_OR {
+        OP(I_OR, @op);
+      }
+      else if eq type T_EQ {
+        OP(I_EQ, @op);
+      }
+      else if eq type T_NEQ {
+        OP(I_NEQ, @op);
+      }
+      else {
+        assert(0, "binary operator not implemented\n");
+      }
+      { let _ ir_push_ins(@op, ins_count); }
+    }
   }
   else if eq type AstUopExpression {
+    if eq ir_compile_uop(block, fs, ast, ins_count) NoError {
+      let type : u64 load64 + + ast Ast.token Token.type;
+      let op : Op 0;
+      if eq type T_PRINT {
+        OP(I_PRINT, @op);
+      }
+      else if eq type T_DEREF {
+        OP(I_LOAD64, @op);
+      }
+      else if eq type T_LOAD64 {
+        OP(I_LOAD64, @op);
+      }
+      else if eq type T_LOAD32 {
+        OP(I_LOAD32, @op);
+      }
+      else if eq type T_LOAD16 {
+        OP(I_LOAD16, @op);
+      }
+      else if eq type T_LOAD8 {
+        OP(I_LOAD8, @op);
+      }
+      else if eq type T_LOGICAL_NOT {
+        OP(I_LOGICAL_NOT, @op);
+      }
+      else {
+        assert(0, "unary operator not implemented\n");
+      }
+      { let _ ir_push_ins(@op, ins_count); }
+    }
   }
   else if eq type AstNone {
     ir_compile_warning_at(+ ast Ast.token, "unused AST branch type\n");
@@ -564,8 +676,10 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       eq type AstStruct
       eq type AstType
       eq type AstStaticAssert {
+    // NOTE(lucas): this is handled in the type checking phase
   }
   else if eq type AstCastExpression {
+    { let _ ir_compile(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr 1, ins_count); }
   }
   else {
     compile_error_at(+ ast Ast.token, "invalid or unhandled AST branch type\n");

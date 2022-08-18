@@ -1,5 +1,5 @@
 // test.spl
 
 fn main -> none {
-  let a : u64 12;
+  let a : cstr "hello\n";
 }

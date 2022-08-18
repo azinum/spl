@@ -2,7 +2,6 @@
 // platform independent common/standard library
 
 const ERROR - 0 2;
-const NONE - 0 2;
 const NoError 0;
 const Error 1;
 let NULL cast ptr 0;
@@ -24,6 +23,8 @@ const u16.max UINT16_MAX;
 const i16.max INT16_MAX;
 const u8.max  UINT8_MAX;
 const i8.max  INT8_MAX;
+
+const NONE UINT64_MAX;
 
 struct Buffer (
   data : ptr,
