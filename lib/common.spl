@@ -35,6 +35,7 @@ fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
   store64 + buffer Buffer.length length;
 }
 
+// TODO(lucas): branchless version
 fn align(n : u64, alignment : u64) -> u64 {
   let result : u64 0;
   if eq 0 % n alignment {
