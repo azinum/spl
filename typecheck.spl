@@ -384,7 +384,8 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
       store64 + symbol Symbol.type type;
       memcpy(+ symbol Symbol.value, @value, sizeof Value);
-      store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): is this even used anymore? investigate...
+      store64 + + symbol Symbol.token Token.v symbol_index;
+      store64 + + ast Ast.token Token.v symbol_index;
       store64 @result type;
     }
   }

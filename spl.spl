@@ -50,7 +50,7 @@ fn spl_options_init -> none {
   store64 + @options Options.debug 1;
   store64 + @options Options.filename NULL;
   store64 + @options Options.enable_warnings 0;
-  store64 + @options Options.disable_dce 0;
+  store64 + @options Options.disable_dce 1; // NOTE(lucas): temporary
   store64 + @options Options.dce_all 0;
   store64 + @options Options.no_verbose 0;
 }
@@ -95,7 +95,7 @@ fn spl_start(filename : any) -> u64 {
                   print_info(message);
                   store64 @tmp_it message;
 
-                  // compile_print_symbol_info(STDOUT_FILENO);
+                  compile_print_symbol_info(STDOUT_FILENO);
                 }
               }
               if load64 + @options Options.debug {

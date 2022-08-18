@@ -35,6 +35,17 @@ fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
   store64 + buffer Buffer.length length;
 }
 
+fn align(n : u64, alignment : u64) -> u64 {
+  let result : u64 0;
+  if eq 0 % n alignment {
+    store64 @result n;
+  }
+  else {
+    store64 @result - + n alignment % n alignment;
+  }
+  result;
+}
+
 fn strlen(str : cstr) -> u64 {
   let length : u64 0;
   while neq 0 load8 str {
@@ -133,6 +144,7 @@ fn memcpy(dest : any, src : any, n : u64) -> none {
   }
 }
 
+// TODO(lucas): add support for couting digits of very large integers e.g. UINT64_MAX
 fn digit_count(n : u64) -> u64 {
   const base : u64 10;
   let count : u64 1;

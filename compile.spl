@@ -15,11 +15,6 @@ fn symbol_print(symbol : ptr) -> none {
   assert(0, "symbol_print(): not implemented yet\n");
 }
 
-fn block_init(block : ptr, parent : ptr) -> none {
-  store64 + block Block.symbol_count 0;
-  store64 + block Block.parent parent;
-}
-
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   let result Error;

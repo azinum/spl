@@ -83,7 +83,7 @@ fn tmp_push_byte(byte : u64) -> none {
 }
 
 fn tmp_push_u64(n : u64) -> none {
-  const max_size 128;
+  const max_size 512;
   let buf : u8 : max_size cast u8 0;
   let length digit_count(n);
   u64_to_str(n, @buf, max_size);

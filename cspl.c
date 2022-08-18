@@ -2252,7 +2252,7 @@ void ir_print(Compile* c, FILE* fp) {
   fprintf(fp, "%s:\n", __FUNCTION__);
   for (u32 i = 0; i < c->ins_count; ++i) {
     Op* op = &c->ins[i];
-    fprintf(fp, "%3u: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
+    fprintf(fp, "%04d: <%s, %d, %d, %d>\n", i, ir_code_str[op->i], op->dest, op->src0, op->src1);
   }
 }
 

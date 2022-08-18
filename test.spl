@@ -1,8 +1,5 @@
 // test.spl
 
-fn f(x : u64) -> u64 + x x;
-
 fn main -> none {
-  print f(12);
-  print f(2);
+  let a : u64 12;
 }
