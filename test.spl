@@ -1,5 +1,6 @@
 // test.spl
 
+fn f(x : u64) -> u64 + x x;
+
 fn main -> none {
-  let a : cstr "hello\n";
 }
