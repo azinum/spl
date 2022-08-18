@@ -409,6 +409,67 @@ fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
   load64 + @c Compile.status;
 }
 
+// fs : Function*, symbol : Symbol*, id : u64, ins_count : u64*
+fn ir_push_addr_of(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
+  let sym_type : u64 load64 + symbol Symbol.sym_type;
+  let op : Op 0;
+
+  if eq sym_type SYM_FUNC {
+    OP_init(
+      I_PUSH_ADDR_OF,
+      load64 + symbol Symbol.type,
+      id,
+      NONE,
+      @op
+    );
+  }
+  else if eq sym_type SYM_LOCAL_VAR {
+    if eq load64 + symbol Symbol.konst 1 {
+      OP_init(
+        I_PUSH_ADDR_OF,
+        load64 + symbol Symbol.type,
+        id,
+        NONE,
+        @op
+      );
+    }
+    else {
+      OP_init(
+        I_PUSH_LOCAL_ADDR_OF,
+        load64 + symbol Symbol.type,
+        + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+        NONE,
+        @op
+      );
+    }
+  }
+  else if eq sym_type SYM_GLOBAL_VAR {
+    OP_init(
+      I_PUSH_ADDR_OF,
+      load64 + symbol Symbol.type,
+      id,
+      NONE,
+      @op
+    );
+  }
+  else if eq sym_type SYM_FUNC_ARG {
+    store64 @id load64 + + symbol Symbol.token Token.v;
+    OP_init(
+      I_PUSH_LOCAL_ADDR_OF,
+      load64 + symbol Symbol.type,
+      + sizeof u64 * sizeof u64 id,
+      NONE,
+      @op
+    );
+  }
+  else {
+    assert(0, "symbol type not implemented\n");
+  }
+
+  { let _ ir_push_ins(@op, ins_count); }
+  load64 + @c Compile.status;
+}
+
 fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   let i : u64 0;
   let count : u64 load64 + ast Ast.count;
@@ -550,6 +611,12 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       }
     }
     else if eq token_type T_AT {
+      let id : u64 load64 + + ast Ast.token Token.v;
+      let symbol cast ptr + + @c Compile.symbols * sizeof Symbol id;
+      let ref_count : u64 load64 + symbol Symbol.ref_count;
+      if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
+        { let _ ir_push_addr_of(fs, symbol, id, ins_count); }
+      }
     }
     else {
       assert(0, "value type not implemented\n");

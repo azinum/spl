@@ -1,6 +1,6 @@
 // test.spl
 
-fn f(x : u64) -> u64 + x x;
+fn f(x : u64) -> u64 cast u64 + @x @x;
 
 fn main -> none {
 }
