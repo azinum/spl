@@ -783,7 +783,28 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     // NOTE(lucas): this is handled in the type checking phase
   }
   else if eq type AstAssignment {
-    // TODO(lucas): implement
+    if eq ir_compile_binop(block, fs, ast, ins_count) NoError {
+      let type : u64 load64 + + ast Ast.token Token.type;
+      let op : Op 0;
+      if or
+          eq type T_ASSIGN
+          eq type T_STORE64 {
+        OP(I_STORE64, @op);
+      }
+      else if eq type T_STORE32 {
+        OP(I_STORE32, @op);
+      }
+      else if eq type T_STORE16 {
+        OP(I_STORE16, @op);
+      }
+      else if eq type T_STORE8 {
+        OP(I_STORE8, @op);
+      }
+      else {
+        assert(0, "assignment operator not implemented\n");
+      }
+      { let _ ir_push_ins(@op, ins_count); }
+    }
   }
   else if eq type AstWhileStatement {
     // TODO(lucas): implement
