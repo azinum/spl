@@ -133,7 +133,7 @@ struct Op (
 );
 
 const MAX_TYPE_STACK 256;
-const MAX_INS * 32 1024;  // TODO(lucas): temp
+const MAX_INS * 64 1024;  // TODO(lucas): temp
 
 struct Compile (
   ins              : Op : MAX_INS,
@@ -484,8 +484,20 @@ fn ir_compile_stmts(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 }
 
 fn ir_compile_func_call_args(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
-  assert(0, "ir_compile_func_call_args(): not implemented yet\n");
-  // TODO(lucas): implement
+  let count : u64 load64 + ast Ast.count;
+  if > count 0 {
+    let i : u64 - count 1;
+    let done : u64 0;
+    while eq done 0 {
+      if neq _ir_compile(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i, ins_count) NoError {
+        store64 @done 1;
+      }
+      if eq i 0 {
+        store64 @done 1;
+      }
+      store64 @i - i 1;
+    }
+  }
   load64 + @c Compile.status;
 }
 
@@ -774,7 +786,112 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     assert(0, "something went very wrong\n");
   }
   else if eq type AstFuncCall {
-    // TODO(lucas): implement
+    let id : u64 load64 + + ast Ast.token Token.v;
+    let symbol cast ptr + + @c Compile.symbols * sizeof Symbol id;
+    let ref_count : u64 load64 + symbol Symbol.ref_count;
+    if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
+      // func : Function*
+      let func cast ptr + + symbol Symbol.value Value.func;
+      let args cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      if eq ir_compile_func_call_args(block, fs, args, ins_count) NoError { // compile function arguments in reverse order
+        let type : u64 load64 + symbol Symbol.type;
+        let op : Op 0;
+        if or eq type TypeAny eq type TypeFunc {
+          let sym_type : u64 load64 + symbol Symbol.sym_type;
+          let rvalue : u64 NONE;
+          if neq load64 + func Function.rtype TypeNone {
+            store64 @rvalue 0;
+          }
+          if eq sym_type SYM_FUNC {
+            OP_init(
+              I_CALL,
+              load64 + func Function.label,
+              load64 + func Function.argc,
+              rvalue,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+          }
+          else if eq sym_type SYM_LOCAL_VAR {
+            assert(eq load64 + symbol Symbol.konst 0, "something went very wrong\n");
+            OP_init(
+              I_PUSH_LOCAL,
+              load64 + symbol Symbol.type,
+              + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+              NONE,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+            OP_init(
+              I_ADDR_CALL,
+              NONE,
+              load64 + func Function.argc,
+              rvalue,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+          }
+          else if eq sym_type SYM_GLOBAL_VAR {
+            OP_init(
+              I_PUSH,
+              load64 + symbol Symbol.type,
+              id,
+              NONE,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+            OP(I_LOAD64, @op); // NOTE(lucas): dereference the variable and get access to the function pointer
+            { let _ ir_push_ins(@op, ins_count); }
+            OP_init(
+              I_ADDR_CALL,
+              NONE,
+              load64 + func Function.argc,
+              rvalue,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+          }
+          else if eq sym_type SYM_FUNC_ARG {
+            let arg : u64 load64 + + symbol Symbol.token Token.v;
+            OP_init(
+              I_PUSH_LOCAL,
+              load64 + symbol Symbol.type,
+              + sizeof u64 * sizeof u64 arg,
+              NONE,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+            OP_init(
+              I_ADDR_CALL,
+              NONE,
+              load64 + func Function.argc,
+              rvalue,
+              @op
+            );
+            { let _ ir_push_ins(@op, ins_count); }
+          }
+          else {
+            assert(0, "function call of this symbol type is not implemented\n");
+          }
+        }
+        else if eq type TypeSyscallFunc {
+          let syscall_map : u64 (
+            I_SYSCALL0,
+            I_SYSCALL1,
+            I_SYSCALL2,
+            I_SYSCALL3,
+            I_SYSCALL4,
+            I_SYSCALL5,
+            I_SYSCALL6
+          );
+          OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, @op);
+          { let _ ir_push_ins(@op, ins_count); }
+        }
+        else {
+          compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
+        }
+      }
+    }
   }
   else if eq type AstBlockStatement {
     { let _ ir_compile_stmts(block, fs, ast, ins_count); }
@@ -809,6 +926,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   else if eq type AstWhileStatement {
     assert(eq load64 + ast Ast.count 2, "invalid while statement construction\n");
     let loop_label : u64 load64 + @c Compile.label_count;
+    store64 + @c Compile.label_count + 1 load64 + @c Compile.label_count;
     let cond_size : u64 0;
     let body_size : u64 0;
     let op : Op 0;

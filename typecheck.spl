@@ -733,6 +733,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
       if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
         store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
+        store64 + + ast Ast.token Token.v symbol_index;
         let arg_list cast ptr load64 + + ast Ast.node * sizeof ptr 0;
         let func : ptr + + symbol Symbol.value Value.func;
         if neq load64 + symbol Symbol.type TypeAny {

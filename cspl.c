@@ -916,9 +916,9 @@ i32 spl_start(Options* options) {
               snprintf(debug_path, MAX_PATH_SIZE, "%s.debug", options->filename);
               FILE* debug = fopen(debug_path, "w");
               if (debug) {
-                ast_print(p.ast, 0, debug);
+                // ast_print(p.ast, 0, debug);
                 ir_print(&c, debug);
-                compile_print_symbol_info(&c, debug);
+                // compile_print_symbol_info(&c, debug);
                 fclose(debug);
               }
             }
@@ -1629,6 +1629,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
       i32 symbol_index = -1;
       if (compile_lookup_value(c, block, fs, ast->token.buffer, ast->token.length, &symbol, &symbol_index, NULL) == NoError) {
         symbol->ref_count++;
+        ast->token.v.i = symbol_index;
         Ast* arg_list = ast->node[0];
         Function* func = &symbol->value.func;
         if (symbol->type == TypeAny) {
@@ -1640,7 +1641,6 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           compile_error_at(c, ast->token, "function `%s` takes %d argument(s), but %d was given\n", symbol->name, func->argc, arg_list->count);
           return TypeNone;
         }
-        ast->token.v.i = symbol_index;
         for (i32 i = arg_list->count - 1; i >= 0; --i) {
           typecheck(c, block, fs, arg_list->node[i]);
           Compile_type arg_type = ts_top(c);
