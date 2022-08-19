@@ -393,7 +393,7 @@ typedef enum Ir_code {
   I_LABEL,
   I_CALL, // <label, argc, rtype>
   I_ADDR_CALL, // <x, argc, rtype>
-  I_JMP,
+  I_JMP, // <label, offset, x>
   I_JZ, // <label, offset, x>
   I_BEGIN_FUNC, // <x, argc, frame_size>
   I_LOOP_LABEL,

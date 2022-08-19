@@ -1,6 +1,9 @@
 // test.spl
 
 fn main -> none {
-  let a : u64 0;
-  store64 @a 12;
+  let i : u64 0;
+  const count : u64 10;
+  while < i count {
+    store64 @i + 1 i;
+  }
 }
