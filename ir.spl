@@ -826,8 +826,8 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 
     if eq ir_compile_stmts(block, fs, cond, @cond_size) NoError {
       let body_start_address : u64 load64 + @c Compile.ins_count;
-      store64 + @c Compile.label_count + 1 load64 + @c Compile.label_count;
       let loop_end_label : u64 load64 + @c Compile.label_count;
+      store64 + @c Compile.label_count + 1 load64 + @c Compile.label_count;
       OP_init(
         I_JZ, // conditional jump if zero
         loop_end_label,
@@ -865,7 +865,85 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     }
   }
   else if eq type AstIfStatement {
-    // TODO(lucas): implement
+    assert(or eq load64 + ast Ast.count 2 eq load64 + ast Ast.count 3, "invalid if statement construction\n");
+    let cond_size : u64 0;
+    let body_size : u64 0;
+    let else_body_size : u64 0;
+    let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+    let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+    let op : Op 0;
+
+    if eq ir_compile_stmts(block, fs, cond, @cond_size) NoError {
+      let body_start_address : u64 load64 + @c Compile.ins_count;
+      let end_label : u64 load64 + @c Compile.label_count;
+      store64 + @c Compile.label_count + 1 load64 + @c Compile.label_count;
+      OP_init(
+        I_JZ,
+        end_label,
+        0,
+        0,
+        @op
+      );
+      { let _ ir_push_ins(@op, @body_size); }
+      if eq ir_compile_stmts(block, fs, body, @body_size) NoError {
+        if eq load64 + ast Ast.count 3 { // else body
+          let else_body cast ptr load64 + + ast Ast.node * sizeof ptr 2;
+          let else_label : u64 load64 + @c Compile.label_count;
+          store64 + @c Compile.label_count + 1 load64 + @c Compile.label_count;
+          let else_start_address : u64 load64 + @c Compile.ins_count;
+
+          OP_init(
+            I_JMP,
+            else_label,
+            NONE,
+            NONE,
+            @op
+          );
+          { let _ ir_push_ins(@op, @body_size); }
+
+          OP_init(
+            I_LOOP_LABEL,
+            end_label,
+            NONE,
+            NONE,
+            @op
+          );
+          { let _ ir_push_ins(@op, @else_body_size); }
+          if eq ir_compile_stmts(block, fs, else_body, @else_body_size) NoError {
+            OP_init(
+              I_LOOP_LABEL,
+              else_label,
+              NONE,
+              NONE,
+              @op
+            );
+            { let _ ir_push_ins(@op, @else_body_size); }
+            // jz : Op*
+            let jz cast ptr + + @c Compile.ins * sizeof Op body_start_address;
+            // else_jmp : Op*
+            let else_jmp cast ptr + + @c Compile.ins * sizeof Op else_start_address;
+            store64 + jz Op.src0 else_body_size;
+            store64 + else_jmp Op.src0 else_body_size;
+          }
+        }
+        else {
+          OP_init(
+            I_LOOP_LABEL,
+            end_label,
+            NONE,
+            NONE,
+            @op
+          );
+          { let _ ir_push_ins(@op, @body_size); }
+          // jz : Op*
+          let jz cast ptr + + @c Compile.ins * sizeof Op body_start_address;
+          store64 + jz Op.src0 body_size;
+        }
+      }
+      if neq cast u64 ins_count NULL {
+          store64 ins_count + load64 ins_count + + cond_size body_size else_body_size;
+      }
+    }
   }
   else if eq type AstSizeof {
     let imm : u64 ir_push_value(+ + ast Ast.token Token.v, sizeof u64);
