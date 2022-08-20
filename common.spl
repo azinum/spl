@@ -8,6 +8,8 @@ let tmp_end 0;
 
 const TIME_NANOSECONDS_DENOM 1000000;
 
+fn HERE puts(STDOUT_FILENO, "HERE\n");
+
 fn err(message : any) -> none {
   puts(STDERR_FILENO, "[error]: ");
   puts(STDERR_FILENO, message);
@@ -32,8 +34,6 @@ fn assert(cond : u64, message : cstr) -> none {
     exit(1);
   }
 }
-
-fn HERE puts(STDOUT_FILENO, "HERE\n");
 
 fn common_init -> none {
   store64 @tmp_it @tmp;
@@ -83,9 +83,9 @@ fn tmp_push_byte(byte : u64) -> none {
 }
 
 fn tmp_push_u64(n : u64) -> none {
-  const max_size 512;
-  let buf : u8 : max_size cast u8 0;
+  const MAX_LENGTH 64;
+  let buf : u8 : * sizeof u64 MAX_LENGTH cast u8 0;
   let length digit_count(n);
-  u64_to_str(n, @buf, max_size);
+  u64_to_str(n, @buf, MAX_LENGTH);
   tmp_push_str(@buf, length);
 }

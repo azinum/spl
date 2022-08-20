@@ -342,57 +342,14 @@ const CLOCK_REALTIME_ALARM 8;
 const CLOCK_BOOTTIME_ALARM 9;
 const CLOCK_TAI 11;
 
-fn read(fd : u64, buf : any, count : u64)    syscall3(SYS_read, fd, buf, count);
-fn open(path : any, flags : u64, mode : u64) syscall3(SYS_open, path, flags, mode);
-fn close(fd : u64) { let _ syscall1(SYS_close, fd); }
-fn write(fd : u64, buf : any, count : u64) { let _ syscall3(SYS_write, fd, buf, count); }
-fn exit(error_code : u64) { let _ syscall1(SYS_exit, error_code); }
-
-fn time -> u64 {
-  syscall1(SYS_time, 0);
-}
+fn linux_read(fd : u64, buf : any, count : u64) -> u64 syscall3(SYS_read, fd, buf, count);
+fn linux_write(fd : u64, buf : any, count : u64) -> none { let _ syscall3(SYS_write, fd, buf, count); }
+fn linux_open(path : any, flags : u64, mode : u64) -> u64 syscall3(SYS_open, path, flags, mode);
+fn linux_close(fd : u64) -> none { let _ syscall1(SYS_close, fd); }
+fn linux_exit(error_code : u64) -> none { let _ syscall1(SYS_exit, error_code); }
+fn linux_time -> u64 syscall1(SYS_time, 0);
 
 // spec : timespec*
-fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
+fn linux_clock_gettime(clock_id : u64, spec : ptr) -> u64 {
   syscall2(SYS_clock_gettime, clock_id, spec);
-}
-
-fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
-  let n : u64 0;
-  while neq 0 read(fd, buf, 1) {
-    = @buf + 1 buf;
-    = @n   + 1 n;
-  }
-  n;
-}
-
-fn read_file_into_buffer_and_null_terminate(fd : u64, buf : any) -> u64 {
-  let n : u64 0;
-  while neq 0 read(fd, buf, 1) {
-    = @buf + 1 buf;
-    = @n   + 1 n;
-  }
-  store8 buf 0;
-  = @n + 1 n;
-  n;
-}
-
-fn putc(fd : u64, ch : u64) -> none {
-  let _ syscall3(1, fd, @ch, 1);
-}
-
-fn puts(fd : u64, str : any) -> none {
-  let n : u64 strlen(cast cstr str);
-  write(fd, str, n);
-}
-
-fn putsn(fd : u64, str : any, n : u64) -> none {
-  write(fd, str, n);
-}
-
-fn putu(fd : u64, n : u64) -> none {
-  let MAX_BUFF_SIZE 512;
-  let buff : u8 : MAX_BUFF_SIZE cast u8 0;
-  u64_to_str(n, @buff, MAX_BUFF_SIZE);
-  puts(fd, @buff);
 }

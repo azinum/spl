@@ -235,4 +235,4 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
   result;
 }
 
-include "lib/linux.spl"
+include "lib/platform.spl"
