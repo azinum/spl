@@ -201,7 +201,7 @@ fn block_init(block : ptr, parent : ptr) -> none {
 
 fn compile_error(message : cstr) -> none {
   if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[compile-error]: ");
     tmp_push_cstr(message);
     tmp_push_byte(0);
@@ -214,9 +214,9 @@ fn compile_error(message : cstr) -> none {
 // token : Token*
 fn compile_error_at(token : ptr, message : cstr) -> none {
   if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[compile-error]: ");
-    tmp_push_cstr(load64 + token Token.filename);
+    tmp_push_cstr(cast cstr load64 + token Token.filename);
     tmp_push_cstr(":");
     tmp_push_u64(load64 + token Token.line);
     tmp_push_cstr(":");
@@ -232,7 +232,7 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
 
 fn ir_compile_warning(message : cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[ir-compile-warning]: ");
     tmp_push_cstr(message);
     tmp_push_byte(0);
@@ -243,9 +243,9 @@ fn ir_compile_warning(message : cstr) -> none {
 
 fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[ir-compile-warning]: ");
-    tmp_push_cstr(load64 + token Token.filename);
+    tmp_push_cstr(cast cstr load64 + token Token.filename);
     tmp_push_cstr(":");
     tmp_push_u64(load64 + token Token.line);
     tmp_push_cstr(":");
@@ -280,7 +280,7 @@ fn ir_print(fd : u64) -> none {
     tmp_push_u64(i);
     tmp_push_cstr(": ");
     tmp_push_cstr("<");
-    tmp_push_cstr(load64 + @ir_code_str * sizeof cstr load64 + op Op.i);
+    tmp_push_cstr(cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i);
     tmp_push_cstr(", ");
     // NOTE(lucas): ugly hack to print UINT64_MAX
     if neq dest UINT64_MAX tmp_push_u64(dest); else tmp_push_cstr("-1");

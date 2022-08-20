@@ -10,12 +10,12 @@ const TIME_NANOSECONDS_DENOM 1000000;
 
 fn HERE puts(STDOUT_FILENO, "HERE\n");
 
-fn err(message : any) -> none {
+fn err(message : cstr) -> none {
   puts(STDERR_FILENO, "[error]: ");
   puts(STDERR_FILENO, message);
 }
 
-fn error(message : any) -> none {
+fn error(message : cstr) -> none {
   err(message);
   exit(1);
 }
@@ -27,14 +27,6 @@ fn print_info(message : cstr) -> none {
   }
 }
 
-fn assert(cond : u64, message : cstr) -> none {
-  if eq 0 cond {
-    puts(STDERR_FILENO, "[assertion failed]: ");
-    puts(STDERR_FILENO, message);
-    exit(1);
-  }
-}
-
 fn common_init -> none {
   store64 @tmp_it @tmp;
   store64 @tmp_end + @tmp TMP_SIZE;
@@ -42,7 +34,7 @@ fn common_init -> none {
 }
 
 // TODO(lucas): handle escape sequences
-fn tmp_push_cstr(str : any) -> none {
+fn tmp_push_cstr(str : cstr) -> none {
   let length : u64 strlen(cast cstr str);
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
@@ -50,9 +42,6 @@ fn tmp_push_cstr(str : any) -> none {
         store64 @tmp_it + length tmp_it;
     }
     else {
-      puts(STDOUT_FILENO, "tried to push: `");
-      puts(STDOUT_FILENO, str);
-      puts(STDOUT_FILENO, "`\n");
       error("tmp_push_cstr: out of scratch memory\n");
     }
   }

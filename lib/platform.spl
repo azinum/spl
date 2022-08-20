@@ -31,16 +31,24 @@ fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
   linux_clock_gettime(clock_id, spec);
 }
 
-fn puts(fd : u64, str : any) -> none {
-  let n : u64 strlen(cast cstr str);
+fn puts(fd : u64, str : cstr) -> none {
+  let n : u64 strlen(str);
   write(fd, str, n);
+}
+
+fn assert(cond : u64, message : cstr) -> none {
+  if eq 0 cond {
+    puts(STDERR_FILENO, "[assertion failed]: ");
+    puts(STDERR_FILENO, message);
+    exit(1);
+  }
 }
 
 fn putu(fd : u64, n : u64) -> none {
   const MAX_BUFF_SIZE 512;
   let buff : u8 : MAX_BUFF_SIZE cast u8 0;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
-  puts(fd, @buff);
+  puts(fd, cast cstr @buff);
 }
 
 fn read_file_into_buffer(fd : u64, buf : any) -> u64 {

@@ -121,16 +121,16 @@ fn token_print(token : ptr) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
-  let buffer   # + token Token.buffer;
-  let length   # + token Token.length;
-  let type     # + token Token.type;
-  let value    # + token Token.v;
-  let filename # + token Token.filename;
-  let source   # + token Token.source;
-  let line     # + token Token.line;
-  let column   # + token Token.column;
+  let buffer cast cstr load64 + token Token.buffer;
+  let length : u64 load64 + token Token.length;
+  let type : u64 load64 + token Token.type;
+  let value : u64 load64 + token Token.v;
+  let filename cast cstr load64 + token Token.filename;
+  let source cast cstr load64 + token Token.source;
+  let line : u64 load64 + token Token.line;
+  let column : u64 load64 + token Token.column;
 
-  if eq filename 0 store64 @filename "none";
+  if eq cast u64 filename 0 store64 @filename "none";
 
   p("buffer   store64 "); tmp_push_str(buffer, length);
   p("\n");
@@ -319,7 +319,7 @@ fn lexer_error(message : cstr) -> none {
     // a bit noisey, but this will do for now
     // TODO(lucas): varadic functions to the rescue
     tmp_push_cstr("[lex-error]: ");
-    tmp_push_cstr(load64 + @token Token.filename);
+    tmp_push_cstr(cast cstr load64 + @token Token.filename);
     tmp_push_cstr(":");
     tmp_push_u64(load64 + @token Token.line);
     tmp_push_cstr(":");

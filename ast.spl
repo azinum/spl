@@ -132,9 +132,9 @@ fn ast_print(ast : any, level : u64, fd : u64) -> none {
     let type : u64 load64 + ast Ast.type;
     let token : ptr cast ptr + ast Ast.token;
     p("<");
-    p(load64 + @ast_type_str * type sizeof cstr);
+    p(cast cstr load64 + @ast_type_str * type sizeof cstr);
     p(", ");
-    p(load64 + @token_type_str * load64 + token Token.type sizeof cstr);
+    p(cast cstr load64 + @token_type_str * load64 + token Token.type sizeof cstr);
     p(", ");
     tmp_push_u64(load64 + ast Ast.konst);
     p(">: `");

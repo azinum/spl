@@ -140,7 +140,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
 
 // TODO(lucas): fully implement
 fn compile_print_symbol_info(fd : u64) -> none {
-  let message tmp_it;
+  let message cast cstr tmp_it;
   let count : u64 load64 + @c Compile.symbol_count;
   let i : u64 0;
   while < i count {
@@ -194,7 +194,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
         tmp_push_cstr(")");
       }
       tmp_push_cstr(" - ");
-      tmp_push_cstr(load64 + + symbol Symbol.token Token.filename);
+      tmp_push_cstr(cast cstr load64 + + symbol Symbol.token Token.filename);
       tmp_push_cstr(":");
       tmp_push_u64(load64 + + symbol Symbol.token Token.line);
       tmp_push_cstr(":");

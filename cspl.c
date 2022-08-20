@@ -1317,7 +1317,7 @@ void typecheck_error(Compile* c, const char* fmt, ...) {
   va_end(args);
 
   FILE* fp = stderr;
-  fprintf(fp, "[type-check-error]: %s", buffer);
+  fprintf(fp, "[typecheck-error]: %s", buffer);
   c->status = Error;
 }
 
@@ -1332,7 +1332,7 @@ void typecheck_error_at(Compile* c, Token token, const char* fmt, ...) {
   va_end(args);
 
   FILE* fp = stderr;
-  fprintf(fp, "[type-check-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
+  fprintf(fp, "[typecheck-error]: %s:%d:%d: %s", token.filename, token.line, token.column, buffer);
   printline(fp, token.source, token.buffer + token.length, token.length, 1, NUM_LINES_TO_PRINT);
   c->status = Error;
 }

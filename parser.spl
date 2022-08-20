@@ -18,7 +18,7 @@ fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
     let tmp tmp_it;
     tmp_push_cstr("[parse-error]: ");
-    tmp_push_cstr(load64 + @token Token.filename);
+    tmp_push_cstr(cast cstr load64 + @token Token.filename);
     tmp_push_cstr(":");
     tmp_push_u64(load64 + @token Token.line);
     tmp_push_cstr(":");

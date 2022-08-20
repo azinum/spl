@@ -22,7 +22,7 @@ fn typecheck_print_unused -> none {
 
 fn typecheck_error(message : cstr) -> none {
   if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[typecheck-error]: ");
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
@@ -34,9 +34,9 @@ fn typecheck_error(message : cstr) -> none {
 // token : Token*
 fn typecheck_error_at(token : ptr, message : cstr) -> none {
   if eq load64 + @c Compile.status NoError {
-    let tmp tmp_it;
+    let tmp cast cstr tmp_it;
     tmp_push_cstr("[typecheck-error]: ");
-    tmp_push_cstr(load64 + token Token.filename);
+    tmp_push_cstr(cast cstr load64 + token Token.filename);
     tmp_push_cstr(":");
     tmp_push_u64(load64 + token Token.line);
     tmp_push_cstr(":");
@@ -56,10 +56,10 @@ fn typecheck_print_stack(fd : u64) -> none {
     let type : u64 load64 + + @c Compile.ts * sizeof u64 i;
     let value : Value 0;
     memcpy(@value, + + @c Compile.vs * sizeof Value i, sizeof Value);
-    let message tmp_it;
+    let message cast cstr tmp_it;
     tmp_push_u64(i);
     tmp_push_cstr(": `");
-    tmp_push_cstr(load64 + @compile_type_str * sizeof cstr type);
+    tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr type);
     tmp_push_cstr("`, ");
     tmp_push_u64(load64 + @value Value.num);
     tmp_push_cstr("\n");
@@ -444,9 +444,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + + ast Ast.token Token.v symbol_index;
           let symbol_type load64 + symbol Symbol.type;
           if eq symbol_type TypeNone {
-            let message tmp_it;
+            let message cast cstr tmp_it;
             tmp_push_cstr("can not take the address of the type `");
-            tmp_push_cstr(+ @compile_type_str * sizeof cstr symbol_type);
+            tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr symbol_type);
             tmp_push_cstr("`\n");
             tmp_push_byte(0);
             typecheck_error_at(+ ast Ast.token, cast cstr message);
@@ -762,9 +762,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                       neq load64 + arg Symbol.type TypeAny {
                     let message cast cstr tmp_it;
                     tmp_push_cstr("type mismatch in function call, got `");
-                    tmp_push_cstr(cast cstr + @compile_type_str * sizeof cstr arg_type);
+                    tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr arg_type);
                     tmp_push_cstr("`, but `");
-                    tmp_push_cstr(cast cstr + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
+                    tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
                     tmp_push_cstr("` was expected\n");
                     tmp_push_byte(0);
                     typecheck_error_at(+ ast Ast.token, message);
