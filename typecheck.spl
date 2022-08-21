@@ -63,7 +63,7 @@ fn typecheck_print_stack(fd : u64) -> none {
     tmp_push_cstr("`, ");
     tmp_push_u64(load64 + @value Value.num);
     tmp_push_cstr("\n");
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     puts(fd, message);
     store64 @tmp_it message;
     store64 @i + 1 i;
@@ -281,7 +281,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         tmp_push_cstr("type `");
         tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("` not defined\n");
-        tmp_push_byte(0);
+        tmp_push_byte(cast u8 0);
         typecheck_error_at(@token, cast cstr message);
         store64 @tmp_it message;
       }
@@ -429,7 +429,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           tmp_push_cstr("symbol `");
           tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
           tmp_push_cstr("` not defined\n");
-          tmp_push_byte(0);
+          tmp_push_byte(cast u8 0);
           compile_error_at(+ ast Ast.token, cast cstr message);
           store64 @tmp_it message;
         }
@@ -448,7 +448,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             tmp_push_cstr("can not take the address of the type `");
             tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr symbol_type);
             tmp_push_cstr("`\n");
-            tmp_push_byte(0);
+            tmp_push_byte(cast u8 0);
             typecheck_error_at(+ ast Ast.token, cast cstr message);
             store64 @tmp_it message;
           }
@@ -462,7 +462,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           tmp_push_cstr("symbol `");
           tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
           tmp_push_cstr("` not defined\n");
-          tmp_push_byte(0);
+          tmp_push_byte(cast u8 0);
           compile_error_at(+ ast Ast.token, cast cstr message);
           store64 @tmp_it message;
         }
@@ -721,7 +721,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         tmp_push_cstr("reached function parameter count limit of ");
         tmp_push_u64(MAX_FUNC_ARGC);
         tmp_push_cstr("\n");
-        tmp_push_byte(0);
+        tmp_push_byte(cast u8 0);
         compile_error_at(+ ast Ast.token, message);
         store64 @tmp_it message;
       }
@@ -766,7 +766,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     tmp_push_cstr("`, but `");
                     tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
                     tmp_push_cstr("` was expected\n");
-                    tmp_push_byte(0);
+                    tmp_push_byte(cast u8 0);
                     typecheck_error_at(+ ast Ast.token, message);
                     store64 + @c Compile.status NoError; // to print additional error message
                     store64 @tmp_it message;
@@ -774,7 +774,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     tmp_push_cstr("from function `");
                     tmp_push_cstr(cast cstr + symbol Symbol.name);
                     tmp_push_cstr("`\n");
-                    tmp_push_byte(0);
+                    tmp_push_byte(cast u8 0);
                     typecheck_error_at(+ ast Ast.token, message);
                     store64 @tmp_it message;
                     store64 @done 1;
@@ -825,7 +825,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         tmp_push_cstr("symbol `");
         tmp_push_str(cast cstr load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length);
         tmp_push_cstr("` not defined\n");
-        tmp_push_byte(0);
+        tmp_push_byte(cast u8 0);
         compile_error_at(+ ast Ast.token, cast cstr message);
         store64 @tmp_it message;
       }
@@ -1139,7 +1139,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         tmp_push_cstr("assertion failed: ");
         tmp_push_str(load64 + node_token Token.buffer, load64 + node_token Token.length);
         tmp_push_cstr("\n");
-        tmp_push_byte(0);
+        tmp_push_byte(cast u8 0);
         compile_error_at(+ expr Ast.token, message);
         store64 @tmp_it message;
       }
@@ -1183,7 +1183,7 @@ fn typecheck_program(ast : ptr) -> u64 {
     tmp_push_cstr(".");
     tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
     tmp_push_cstr(" seconds\n");
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     print_info(message);
     store64 @tmp_it message;
 

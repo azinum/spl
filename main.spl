@@ -1,8 +1,20 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
-// fn add(a : u64, b : u64) -> u64 + a b;
+fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
+  common_init();
+
+  {
+    let args : any "Hello", 12;
+    printf("%s, %d\n", @args);
+  }
+  {
+    let a : u64 2;
+    let b : u64 3;
+    let args : any a, b, add(a, b);
+    printf("%d + %d = %d\n", @args);
+  }
 }

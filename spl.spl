@@ -90,7 +90,7 @@ fn spl_start(filename : cstr) -> u64 {
                   tmp_push_cstr(" loc, ");
                   tmp_push_u64(load64 + @p Parser.source_count);
                   tmp_push_cstr(" file(s))\n");
-                  tmp_push_byte(0);
+                  tmp_push_byte(cast u8 0);
                   print_info(message);
                   store64 @tmp_it message;
                 }
@@ -122,7 +122,7 @@ fn spl_start(filename : cstr) -> u64 {
     tmp_push_cstr("failed to open file `");
     tmp_push_cstr(filename);
     tmp_push_cstr("`\n");
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     err(message);
     store64 @tmp_it message;
   }

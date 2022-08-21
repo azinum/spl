@@ -745,7 +745,7 @@ fn parse -> ptr {
   tmp_push_cstr(".");
   tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
   tmp_push_cstr(" seconds\n");
-  tmp_push_byte(0);
+  tmp_push_byte(cast u8 0);
   print_info(message);
   store64 @tmp_it message;
 

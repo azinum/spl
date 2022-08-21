@@ -204,7 +204,7 @@ fn compile_error(message : cstr) -> none {
     let tmp cast cstr tmp_it;
     tmp_push_cstr("[compile-error]: ");
     tmp_push_cstr(message);
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     puts(STDERR_FILENO, tmp);
     store64 @tmp_it tmp;
     store64 + @c Compile.status Error;
@@ -223,7 +223,7 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
     tmp_push_u64(load64 + token Token.column);
     tmp_push_cstr(": ");
     tmp_push_cstr(message);
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     puts(STDERR_FILENO, tmp);
     store64 @tmp_it tmp;
     store64 + @c Compile.status Error;
@@ -235,7 +235,7 @@ fn ir_compile_warning(message : cstr) -> none {
     let tmp cast cstr tmp_it;
     tmp_push_cstr("[ir-compile-warning]: ");
     tmp_push_cstr(message);
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     puts(STDERR_FILENO, tmp);
     store64 @tmp_it tmp;
   }
@@ -252,7 +252,7 @@ fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
     tmp_push_u64(load64 + token Token.column);
     tmp_push_cstr(": ");
     tmp_push_cstr(message);
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     puts(STDERR_FILENO, tmp);
     store64 @tmp_it tmp;
   }
@@ -289,7 +289,7 @@ fn ir_print(fd : u64) -> none {
     tmp_push_cstr(", ");
     if neq src1 UINT64_MAX tmp_push_u64(src1); else tmp_push_cstr("-1");
     tmp_push_cstr(">\n");
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
 
     puts(fd, message);
     store64 @tmp_it message;
@@ -1123,7 +1123,7 @@ fn ir_start_compile(ast : ptr) -> u64 {
   tmp_push_cstr(".");
   tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
   tmp_push_cstr(" seconds\n");
-  tmp_push_byte(0);
+  tmp_push_byte(cast u8 0);
   print_info(message);
   store64 @tmp_it message;
 

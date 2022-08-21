@@ -534,7 +534,7 @@ fn lexer_next -> none {
         tmp_push_cstr("unrecognized token `");
         tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("`\n");
-        tmp_push_byte(0); // null-terminator
+        tmp_push_byte(cast u8 0); // null-terminator
         lexer_error(cast cstr tmp);
         store64 @tmp_it tmp;
         store64 + @token Token.type T_EOF;

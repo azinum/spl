@@ -6,6 +6,12 @@ const NoError 0;
 const Error 1;
 let NULL cast ptr 0;
 
+// temporary `scratch` buffer
+const TMP_SIZE * 8 32768;
+memory tmp TMP_SIZE;
+let tmp_it 0;
+let tmp_end 0;
+
 const UINT64_MAX 0xffffffffffffffff;
 const INT64_MAX  0x7fffffffffffffff;
 const UINT32_MAX 0xffffffff;
@@ -34,6 +40,12 @@ struct Buffer (
 fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
   store64 + buffer Buffer.data data;
   store64 + buffer Buffer.length length;
+}
+
+fn common_init -> none {
+  store64 @tmp_it @tmp;
+  store64 @tmp_end + @tmp TMP_SIZE;
+  store64 @NULL 0;
 }
 
 // TODO(lucas): branchless version
@@ -233,6 +245,53 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
     }
   }
   result;
+}
+
+// TODO(lucas): handle escape sequences
+fn tmp_push_cstr(str : cstr) -> none {
+  let length : u64 strlen(cast cstr str);
+  if > length 0 {
+    if < (+ tmp_it length) tmp_end {
+        memcpy(tmp_it, str, length);
+        store64 @tmp_it + length tmp_it;
+    }
+    else {
+      // TODO(lucas): handle error
+    }
+  }
+}
+
+fn tmp_push_str(str : any, length : u64) -> none {
+  if > length 0 {
+    if < (+ tmp_it length) tmp_end {
+      if > length 0 {
+        memcpy(tmp_it, str, length);
+        store64 @tmp_it + length tmp_it;
+      }
+    }
+    else {
+      // TODO(lucas): handle error
+    }
+  }
+}
+
+fn tmp_push_u64(n : u64) -> none {
+  const MAX_LENGTH 64;
+  let buf : u8 : * sizeof u64 MAX_LENGTH cast u8 0;
+  let length digit_count(n);
+  u64_to_str(n, @buf, MAX_LENGTH);
+  tmp_push_str(@buf, length);
+}
+
+
+fn tmp_push_byte(byte : u8) -> none {
+  if < (+ tmp_it 1) tmp_end {
+    memcpy(tmp_it, @byte, sizeof byte);
+    store64 @tmp_it + 1 tmp_it;
+  }
+  else {
+    // TODO(lucas): handle error
+  }
 }
 
 include "lib/platform.spl"

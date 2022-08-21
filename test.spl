@@ -1,7 +1,7 @@
 // test.spl
 
-fn hello -> none {}
+fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  hello();
+  print add(2, 3);
 }

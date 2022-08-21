@@ -5,3 +5,4 @@
 - typed assignment operator
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - make sure there is room for a null terminator in symbol names
+- do more work on type casting

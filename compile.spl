@@ -69,7 +69,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         tmp_push_cstr("symbol `");
         tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
         tmp_push_cstr("` already exists\n");
-        tmp_push_byte(0);
+        tmp_push_byte(cast u8 0);
         compile_error(message);
         store64 @tmp_it message;
       }
@@ -203,7 +203,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
     }
     store64 @i + 1 i;
   }
-  tmp_push_byte(0);
+  tmp_push_byte(cast u8 0);
   puts(fd, message);
   store64 @tmp_it message;
 }
@@ -247,7 +247,7 @@ fn compile(target : u64, fd : u64) -> u64 {
     tmp_push_cstr(".");
     tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
     tmp_push_cstr(" seconds\n");
-    tmp_push_byte(0);
+    tmp_push_byte(cast u8 0);
     print_info(message);
     store64 @tmp_it message;
   }
