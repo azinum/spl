@@ -91,6 +91,28 @@ fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
       store64 @it + it write_u8(it, cast u8 ch);
       store64 @done 1;
     }
+    else if eq ch 92 {
+      store64 @fit + 1 fit;
+      store8 @ch load8 fit;
+      if eq ch 't' {
+        store64 @it + it write_u8(it, cast u8 ASCII_TAB);
+      }
+      else if eq ch 'b' {
+        store64 @it + it write_u8(it, cast u8 ASCII_BS);
+      }
+      else if eq ch 'n' {
+        store64 @it + it write_u8(it, cast u8 ASCII_LF);
+      }
+      else if eq ch 'r' {
+        store64 @it + it write_u8(it, cast u8 ASCII_CR);
+      }
+      else if eq ch 'f' {
+        store64 @it + it write_u8(it, cast u8 ASCII_FF);
+      }
+      else if eq ch 39 {
+        store64 @it + it write_u8(it, cast u8 39);
+      }
+    }
     else if neq ch '%' {
       store64 @it + it write_u8(it, cast u8 ch);
     }

@@ -1,6 +1,8 @@
 // common.spl
 // platform independent common/standard library
 
+include "lib/ascii.spl"
+
 const ERROR - 0 2;
 const NoError 0;
 const Error 1;
