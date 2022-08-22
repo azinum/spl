@@ -3,6 +3,8 @@
 include "lib/common.spl"
 
 fn main -> none {
+  common_init();
+
   let start : timespec 0;
   let end : timespec 0;
   { let _ clock_gettime(CLOCK_MONOTONIC, @start); }
@@ -14,9 +16,6 @@ fn main -> none {
   }
   { let _ clock_gettime(CLOCK_MONOTONIC, @end); }
 
-  puts(STDOUT_FILENO, "time elapsed = ");
-  putu(STDOUT_FILENO, - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec);
-  puts(STDOUT_FILENO, ".");
-  putu(STDOUT_FILENO, / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000);
-  puts(STDOUT_FILENO, " s\n");
+  let args : any - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec, / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000;
+  printf("time elapsed = %d.%d s\n", @args);
 }

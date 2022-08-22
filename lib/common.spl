@@ -248,6 +248,31 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
 }
 
 // TODO(lucas): handle escape sequences
+fn write_cstr(mem : ptr, str : cstr) -> u64 {
+  let length : u64 strlen(str);
+  memcpy(mem, str, length);
+  length;
+}
+
+// TODO(lucas): handle escape sequences
+fn write_str(mem : ptr, str : ptr, length : u64) -> u64 {
+  memcpy(mem, str, length);
+  length;
+}
+
+fn write_u64(mem : ptr, n : u64) -> u64 {
+  let count : u64 digit_count(n);
+  u64_to_str(n, mem, count);
+  count;
+}
+
+fn write_u8(mem : ptr, n : u8) -> u64 {
+  const length : u64 sizeof n;
+  memcpy(mem, @n, length);
+  length;
+}
+
+// TODO(lucas): handle escape sequences
 fn tmp_push_cstr(str : cstr) -> none {
   let length : u64 strlen(cast cstr str);
   if > length 0 {
@@ -282,7 +307,6 @@ fn tmp_push_u64(n : u64) -> none {
   u64_to_str(n, @buf, MAX_LENGTH);
   tmp_push_str(@buf, length);
 }
-
 
 fn tmp_push_byte(byte : u8) -> none {
   if < (+ tmp_it 1) tmp_end {

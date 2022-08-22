@@ -79,42 +79,54 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
   write(fd, str, n);
 }
 
-fn dprintf(fd : u64, format : cstr, args : any) -> none {
-  let message cast cstr tmp_it;
-  let it format;
+// TODO(lucas): boundary checks
+fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
+  let it str; // string iterator
+  let fit format; // format iterator
   let arg : ptr cast ptr args;
   let done : u64 0;
   while eq done 0 {
-    let ch cast u64 load8 it;
+    let ch cast u64 load8 fit;
     if eq ch 0 {
+      store64 @it + it write_u8(it, cast u8 ch);
       store64 @done 1;
     }
     else if neq ch '%' {
-      tmp_push_byte(cast u8 ch);
+      store64 @it + it write_u8(it, cast u8 ch);
     }
     else {
-      store64 @it + 1 it;
-      store8 @ch load8 it;
+      store64 @fit + 1 fit;
+      store8 @ch load8 fit;
       if eq ch 's' {
-        tmp_push_cstr(cast cstr load64 arg);
+        store64 @it + it write_cstr(it, cast cstr load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else if eq ch 'd' {
-        tmp_push_u64(cast u64 load64 arg);
+        store64 @it + it write_u64(it, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else if eq ch 'i' {
-        tmp_push_u64(cast u64 load64 arg);
+        store64 @it + it write_u64(it, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else {
-        tmp_push_byte(cast u8 ch);
+        store64 @it + it write_u8(it, cast u8 ch);
       }
     }
-    store64 @it + 1 it;
+    store64 @fit + 1 fit;
   }
+
+  - cast u64 it str; // return bytes written
+}
+
+fn sprintf(str : ptr, format : cstr, args : any) -> none {
+  { let _ _sprintf(str, format, args); }
+}
+
+fn dprintf(fd : u64, format : cstr, args : any) -> none {
+  let message cast cstr tmp_it;
+  { let _ _sprintf(cast ptr message, format, args); }
   puts(fd, message);
-  store64 @tmp_it message;
 }
 
 fn printf(format : cstr, args : any) -> none {

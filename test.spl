@@ -1,7 +1,12 @@
 // test.spl
 
-fn add(a : u64, b : u64) -> u64 + a b;
+include "lib/common.spl"
 
 fn main -> none {
-  print add(2, 3);
+  common_init();
+
+  let args : any 2, 3, "hello there";
+  let message : u8 : 1024 cast u8 0;
+  sprintf(@message, "%d, %d, %s\n", @args);
+  puts(STDOUT_FILENO, cast cstr @message);
 }

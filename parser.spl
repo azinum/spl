@@ -16,17 +16,8 @@ let statements parser_function;
 
 fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
-    let tmp tmp_it;
-    tmp_push_cstr("[parse-error]: ");
-    tmp_push_cstr(cast cstr load64 + @token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + @token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + @token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
-    store64 @tmp_it tmp;
+    let args : any (load64 + @token Token.filename, load64 + @token Token.line, load64 + @token Token.column, message);
+    dprintf(STDERR_FILENO, "[parse-error]: %s:%d:%d: %s\n", @args);
     store64 + @p Parser.status Error;
   }
 }
