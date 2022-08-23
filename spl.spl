@@ -92,8 +92,8 @@ fn spl_start(filename : cstr) -> u64 {
                 }
               }
               if load64 + @options Options.debug {
-                let debug_fd : u64 STDOUT_FILENO;
                 // TODO: implement
+                let debug_fd : u64 STDOUT_FILENO;
                 // ast_print(load64 + @p Parser.ast, 0, debug_fd);
                 // ir_print(debug_fd);
                 // compile_print_symbol_info(debug_fd);

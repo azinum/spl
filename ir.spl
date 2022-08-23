@@ -330,6 +330,7 @@ fn ir_push_value(value : ptr, size : u64) -> u64 {
   result;
 }
 
+// NOTE(lucas): discrepancy between implementations (spl and c) of the length parameter
 fn ir_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
   let address : u64 ir_push_value(@length, sizeof length);
   let value_address : u64 ir_push_value(buffer, length);
