@@ -220,9 +220,22 @@ fn compile_print_block(fd : u64, block : ptr) -> none {
   }
 }
 
+// buffer : u8**
+fn o(buffer : ptr, format : cstr, args : any) -> none {
+  // store64 buffer + buffer sprintf2(cast ptr load64 buffer, format, args);
+  sprintf(cast ptr load64 buffer, format, args);
+}
+
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  // TODO(lucas): implement
-  NoError;
+  let o sprintf;
+  let buffer cast ptr tmp_it;
+  let b buffer;
+  let entry "_start";
+
+  o(@b, "bits 64\n", NULL);
+
+  puts(fd, cast cstr buffer);
+  load64 + @c Compile.status;
 }
 
 fn compile(target : u64, fd : u64) -> u64 {
@@ -242,14 +255,12 @@ fn compile(target : u64, fd : u64) -> u64 {
 
   if eq load64 + @c Compile.status NoError {
     let message cast cstr tmp_it;
-    tmp_push_cstr("code generation took ");
-    tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
-    tmp_push_cstr(".");
-    tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
-    tmp_push_cstr(" seconds\n");
-    tmp_push_byte(cast u8 0);
+    let args : any (
+      - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
+      / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM
+    );
+    sprintf(cast ptr message, "code generation took %d.%d seconds\n", @args);
     print_info(message);
-    store64 @tmp_it message;
   }
 
   result;

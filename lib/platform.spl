@@ -145,6 +145,10 @@ fn sprintf(str : ptr, format : cstr, args : any) -> none {
   { let _ _sprintf(str, format, args); }
 }
 
+fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
+  _sprintf(str, format, args);
+}
+
 fn dprintf(fd : u64, format : cstr, args : any) -> none {
   let message cast cstr tmp_it;
   { let _ _sprintf(cast ptr message, format, args); }

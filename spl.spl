@@ -81,25 +81,21 @@ fn spl_start(filename : cstr) -> u64 {
                   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
                   let message cast cstr tmp_it;
-                  tmp_push_cstr("total compilation time was ");
-                  tmp_push_u64(- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec);
-                  tmp_push_cstr(".");
-                  tmp_push_u64(/ - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM);
-                  tmp_push_cstr(" seconds (");
-                  tmp_push_u64(load64 + @p Parser.line_count);
-                  tmp_push_cstr(" loc, ");
-                  tmp_push_u64(load64 + @p Parser.source_count);
-                  tmp_push_cstr(" file(s))\n");
-                  tmp_push_byte(cast u8 0);
+                  let args : any (
+                    - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
+                    / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM,
+                    load64 + @p Parser.line_count,
+                    load64 + @p Parser.source_count
+                  );
+                  sprintf(cast ptr message, "total compilation time was %d.%d seconds (%d loc, %d file(s))\n", @args);
                   print_info(message);
-                  store64 @tmp_it message;
                 }
               }
               if load64 + @options Options.debug {
                 let debug_fd : u64 STDOUT_FILENO;
                 // TODO: implement
                 // ast_print(load64 + @p Parser.ast, 0, debug_fd);
-                ir_print(debug_fd);
+                // ir_print(debug_fd);
                 // compile_print_symbol_info(debug_fd);
               }
             }
@@ -119,12 +115,8 @@ fn spl_start(filename : cstr) -> u64 {
   }
   else {
     let message cast cstr tmp_it;
-    tmp_push_cstr("failed to open file `");
-    tmp_push_cstr(filename);
-    tmp_push_cstr("`\n");
-    tmp_push_byte(cast u8 0);
+    sprintf(cast ptr tmp_it, "failed to open file `%s`\n", @filename);
     err(message);
-    store64 @tmp_it message;
   }
   result;
 }
