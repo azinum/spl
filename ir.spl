@@ -133,7 +133,7 @@ struct Op (
 );
 
 const MAX_TYPE_STACK 256;
-const MAX_INS * 64 1024;  // TODO(lucas): temp
+const MAX_INS * 128 1024;  // TODO(lucas): temp
 
 struct Compile (
   ins              : Op : MAX_INS,

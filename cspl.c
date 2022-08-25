@@ -653,7 +653,7 @@ typedef struct Block {
 
 #define MAX_TYPE_STACK 256
 #define MAX_VALUE_STACK 256 // temporary
-#define MAX_CSTRING 512
+#define MAX_CSTRING 1024
 
 // compile state
 typedef struct Compile {

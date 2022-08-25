@@ -36,6 +36,11 @@ fn puts(fd : u64, str : cstr) -> none {
   write(fd, str, n);
 }
 
+fn put(str : cstr) -> none {
+  let n : u64 strlen(str);
+  write(STDOUT_FILENO, str, n);
+}
+
 fn assert(cond : u64, message : cstr) -> none {
   if eq 0 cond {
     puts(STDERR_FILENO, "[assertion failed]: ");
@@ -81,6 +86,7 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
 
 // TODO(lucas): boundary checks
 fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
+  let result : u64 0;
   let it str; // string iterator
   let fit format; // format iterator
   let arg : ptr cast ptr args;
@@ -137,8 +143,11 @@ fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
     }
     store64 @fit + 1 fit;
   }
-
-  - cast u64 it str; // return bytes written
+  store64 @result - cast u64 it str;
+  if > result 0 {
+    store64 @result - result 1;
+  }
+  result; // return number of characters written, excluding null terminator
 }
 
 fn sprintf(str : ptr, format : cstr, args : any) -> none {

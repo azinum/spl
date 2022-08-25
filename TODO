@@ -1,9 +1,10 @@
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
-- remove the ability, by ways of parsing, to define inlined functions (causes undefined behaviour, crashes)
+- remove the ability, by ways of parsing, to define functions in functions (causes undefined behaviour, crashes)
 - compile time evaluation of `trival` functions
 - typed assignment operator
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - make sure there is room for a null terminator in symbol names
 - do more work on type casting
 - add ability to use escaped and unescaped `raw` strings
+- function inlining

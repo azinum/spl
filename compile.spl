@@ -222,17 +222,250 @@ fn compile_print_block(fd : u64, block : ptr) -> none {
 
 // buffer : u8**
 fn o(buffer : ptr, format : cstr, args : any) -> none {
-  // store64 buffer + buffer sprintf2(cast ptr load64 buffer, format, args);
-  sprintf(cast ptr load64 buffer, format, args);
+  let length : u64 sprintf2(cast ptr load64 buffer, format, args);
+  store64 buffer + length load64 buffer;
+}
+
+// TODO(lucas): make this configurable by the user via argument options
+const VERBOSE_ASSEMBLY : u64 1;
+
+// buffer : u8**
+fn vo(buffer : ptr, format : cstr, args : any) -> none {
+  if VERBOSE_ASSEMBLY {
+    o(buffer, format, args);
+  }
 }
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  let o sprintf;
   let buffer cast ptr tmp_it;
   let b buffer;
   let entry "_start";
 
   o(@b, "bits 64\n", NULL);
+  o(@b, "section .text\n", NULL);
+  o(@b, "global %s\n", @entry);
+ o(@b,
+"print:
+ mov r9, -3689348814741910323
+ sub rsp, 40
+ mov BYTE [rsp+31], 10
+ lea rcx, [rsp+30]
+ .L2:
+ mov rax, rdi
+ lea r8, [rsp+32]
+ mul r9
+ mov rax, rdi
+ sub r8, rcx
+ shr rdx, 3
+ lea rsi, [rdx+rdx*4]
+ add rsi, rsi
+ sub rax, rsi
+ add eax, 48
+ mov BYTE [rcx], al
+ mov rax, rdi
+ mov rdi, rdx
+ mov rdx, rcx
+ sub rcx, 1
+ cmp rax, 9
+ ja .L2
+ lea rax, [rsp+32]
+ mov edi, 1
+ sub rdx, rax
+ xor eax, eax
+ lea rsi, [rsp+32+rdx]
+ mov rdx, r8
+ mov rax, 1
+ syscall
+ add rsp, 40
+ ret
+", NULL);
+
+  let i : u64 0;
+  let count : u64 load64 + @c Compile.ins_count;
+  put("ins_count = ");
+  print count;
+  put("symbol_count = ");
+  print load64 + @c Compile.symbol_count;
+  put("cstring_count = ");
+  print load64 + @c Compile.cstring_count;
+  while < i count {
+    // op : Op*
+    let op cast ptr + + @c Compile.ins * sizeof Op i;
+    let ins : u64 load64 + op Op.i;
+    if eq ins I_NOP {
+      o(@b, "nop\n", NULL);
+    }
+    else if eq ins I_POP {
+      vo(@b, "; I_POP\n", NULL);
+      o(@b, "pop rax\n", NULL);
+    }
+    else if eq ins I_MOVE {
+      vo(@b, "; I_MOVE\n", NULL);
+      let dest : u64 load64 + op Op.dest;
+      if or or or or
+          eq dest TypeAny
+          eq dest TypePtr
+          eq dest TypeCString
+          eq dest TypeFunc
+          eq dest TypeUnsigned64 {
+        o(@b, "pop rax\n", NULL);
+        let args : any (load64 + op Op.src0, load64 + op Op.src1);
+        o(@b, "mov [v%d+%d], rax\n", @args);
+      }
+      else if eq dest TypeUnsigned32 {
+      }
+      else if eq dest TypeUnsigned16 {
+      }
+      else if eq dest TypeUnsigned8 {
+      }
+      else {
+        assert(0, "I_MOVE: type not implemented yet\n");
+      }
+    }
+    else if eq ins I_MOVE_LOCAL {
+      vo(@b, "; I_MOVE_LOCAL\n", NULL);
+    }
+    else if eq ins I_STORE64 {
+      vo(@b, "; I_STORE64\n", NULL);
+    }
+    else if eq ins I_STORE32 {
+      vo(@b, "; I_STORE32\n", NULL);
+    }
+    else if eq ins I_STORE16 {
+      vo(@b, "; I_STORE16\n", NULL);
+    }
+    else if eq ins I_STORE8 {
+      vo(@b, "; I_STORE8\n", NULL);
+    }
+    else if eq ins I_LOAD64 {
+      vo(@b, "; I_LOAD64\n", NULL);
+    }
+    else if eq ins I_LOAD32 {
+      vo(@b, "; I_LOAD32\n", NULL);
+    }
+    else if eq ins I_LOAD16 {
+      vo(@b, "; I_LOAD16\n", NULL);
+    }
+    else if eq ins I_LOAD8 {
+      vo(@b, "; I_LOAD8\n", NULL);
+    }
+    else if eq ins I_PUSH_ADDR_OF {
+      vo(@b, "; I_PUSH_ADDR_OF\n", NULL);
+    }
+    else if eq ins I_PUSH_LOCAL_ADDR_OF {
+      vo(@b, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
+    }
+    else if eq ins I_PUSH {
+      vo(@b, "; I_PUSH\n", NULL);
+    }
+    else if eq ins I_PUSH_LOCAL {
+      vo(@b, "; I_PUSH_LOCAL\n", NULL);
+    }
+    else if eq ins I_PUSH_IMM {
+      vo(@b, "; I_PUSH_IMM\n", NULL);
+    }
+    else if eq ins I_ADD {
+      vo(@b, "; I_ADD\n", NULL);
+    }
+    else if eq ins I_SUB {
+      vo(@b, "; I_SUB\n", NULL);
+    }
+    else if eq ins I_MUL {
+      vo(@b, "; I_MUL\n", NULL);
+    }
+    else if eq ins I_DIV {
+      vo(@b, "; I_DIV\n", NULL);
+    }
+    // shl and shr require immediate value on the second argument
+    // TODO(lucas): implement
+    else if eq ins I_LSHIFT {
+      vo(@b, "; I_LSHIFT\n", NULL);
+      assert(0, "I_LSHIFT: instruction not implemented yet\n");
+    }
+    else if eq ins I_RSHIFT {
+      vo(@b, "; I_RSHIFT\n", NULL);
+      assert(0, "I_RSHIFT: instruction not implemented yet\n");
+    }
+    else if eq ins I_DIVMOD {
+      vo(@b, "; I_DIVMOD\n", NULL);
+    }
+    else if eq ins I_LT {
+      vo(@b, "; I_LT\n", NULL);
+    }
+    else if eq ins I_GT {
+      vo(@b, "; I_GT\n", NULL);
+    }
+    else if eq ins I_AND {
+      vo(@b, "; I_AND\n", NULL);
+    }
+    else if eq ins I_LOGICAL_NOT {
+      vo(@b, "; I_LOGICAL_NOT\n", NULL);
+    }
+    else if eq ins I_OR {
+      vo(@b, "; I_OR\n", NULL);
+    }
+    else if eq ins I_EQ {
+      vo(@b, "; I_EQ\n", NULL);
+    }
+    else if eq ins I_NEQ {
+      vo(@b, "; I_NEQ\n", NULL);
+    }
+    else if eq ins I_RET {
+      vo(@b, "; I_RET\n", NULL);
+    }
+    else if eq ins I_NORET {
+      vo(@b, "; I_NORET\n", NULL);
+    }
+    else if eq ins I_PRINT {
+      vo(@b, "; I_PRINT\n", NULL);
+    }
+    else if eq ins I_LABEL {
+      vo(@b, "; I_LABEL\n", NULL);
+    }
+    else if eq ins I_CALL {
+      vo(@b, "; I_CALL\n", NULL);
+    }
+    else if eq ins I_ADDR_CALL {
+      vo(@b, "; I_ADDR_CALL\n", NULL);
+    }
+    else if eq ins I_JMP {
+      vo(@b, "; I_JMP\n", NULL);
+    }
+    else if eq ins I_JZ {
+      vo(@b, "; I_JZ\n", NULL);
+    }
+    else if eq ins I_BEGIN_FUNC {
+      vo(@b, "; I_BEGIN_FUNC\n", NULL);
+    }
+    else if eq ins I_LOOP_LABEL {
+      vo(@b, "; I_LOOP_LABEL\n", NULL);
+    }
+    else if eq ins I_SYSCALL0 {
+      vo(@b, "; I_SYSCALL0\n", NULL);
+    }
+    else if eq ins I_SYSCALL1 {
+      vo(@b, "; I_SYSCALL1\n", NULL);
+    }
+    else if eq ins I_SYSCALL2 {
+      vo(@b, "; I_SYSCALL2\n", NULL);
+    }
+    else if eq ins I_SYSCALL3 {
+      vo(@b, "; I_SYSCALL3\n", NULL);
+    }
+    else if eq ins I_SYSCALL4 {
+      vo(@b, "; I_SYSCALL4\n", NULL);
+    }
+    else if eq ins I_SYSCALL5 {
+      vo(@b, "; I_SYSCALL5\n", NULL);
+    }
+    else if eq ins I_SYSCALL6 {
+      vo(@b, "; I_SYSCALL6\n", NULL);
+    }
+    else {
+      assert(0, "instruction not implemented\n");
+    }
+     store64 @i + 1 i;
+   }
 
   puts(fd, cast cstr buffer);
   load64 + @c Compile.status;
