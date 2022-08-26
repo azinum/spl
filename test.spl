@@ -4,9 +4,4 @@ include "lib/common.spl"
 
 fn main -> none {
   common_init();
-
-  let args : any 2, 3, "hello there";
-  let message : u8 : 1024 cast u8 0;
-  sprintf(@message, "%d, %d, %s\n", @args);
-  puts(STDOUT_FILENO, cast cstr @message);
 }

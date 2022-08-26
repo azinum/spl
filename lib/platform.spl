@@ -31,6 +31,14 @@ fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
   linux_clock_gettime(clock_id, spec);
 }
 
+fn memory_map(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
+  linux_mmap(start, length, prot, flags, fd, offset);
+}
+
+fn memory_unmap(start : ptr, length : u64) -> none {
+  linux_munmap(start, length);
+}
+
 fn puts(fd : u64, str : cstr) -> none {
   let n : u64 strlen(str);
   write(fd, str, n);

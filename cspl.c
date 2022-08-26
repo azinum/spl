@@ -918,7 +918,7 @@ i32 spl_start(Options* options) {
               if (debug) {
                 // ast_print(p.ast, 0, debug);
                 ir_print(&c, debug);
-                // compile_print_symbol_info(&c, debug);
+                compile_print_symbol_info(&c, debug);
                 fclose(debug);
               }
             }

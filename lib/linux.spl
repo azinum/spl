@@ -342,6 +342,20 @@ const CLOCK_REALTIME_ALARM 8;
 const CLOCK_BOOTTIME_ALARM 9;
 const CLOCK_TAI 11;
 
+// https://code.woboq.org/userspace/glibc/sysdeps/unix/sysv/linux/bits/mman-linux.h.html
+const PROT_READ      0x1;
+const PROT_WRITE     0x2;
+const PROT_EXEC      0x4;
+const PROT_NONE      0x0;
+const PROT_GROWSDOWN 0x01000000;
+const PROT_GROWSUP   0x02000000;
+
+const MAP_SHARED     0x01;
+const MAP_PRIVATE    0x02;
+const MAP_FIXED      0x10;
+const MAP_ANONYMOUS  0x20;
+const MAP_ANON       MAP_ANONYMOUS;
+
 fn linux_read(fd : u64, buf : any, count : u64) -> u64 syscall3(SYS_read, fd, buf, count);
 fn linux_write(fd : u64, buf : any, count : u64) -> none { let _ syscall3(SYS_write, fd, buf, count); }
 fn linux_open(path : any, flags : u64, mode : u64) -> u64 syscall3(SYS_open, path, flags, mode);
@@ -352,4 +366,12 @@ fn linux_time -> u64 syscall1(SYS_time, 0);
 // spec : timespec*
 fn linux_clock_gettime(clock_id : u64, spec : ptr) -> u64 {
   syscall2(SYS_clock_gettime, clock_id, spec);
+}
+
+fn linux_mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
+  cast ptr syscall6(SYS_mmap, start, length, prot, flags, fd, offset);
+}
+
+fn linux_munmap(start : ptr, length : u64) -> none {
+  let _ syscall2(SYS_munmap, start, length);
 }

@@ -6,10 +6,10 @@ let typecheck.typecheck typecheck_function;
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
     let i MAX_SYSCALL_FUNCTION;
-    let count load64 + @c Compile.symbol_count;
+    let count load64 + c Compile.symbol_count;
     while < i count {
       let symbol : Symbol 0;
-      memcpy(@symbol, + + @c Compile.symbols * sizeof Symbol i, sizeof Symbol);
+      memcpy(@symbol, + + c Compile.symbols * sizeof Symbol i, sizeof Symbol);
       let ref_count load64 + @symbol Symbol.ref_count;
       let sym_type load64 + @symbol Symbol.sym_type;
       if and eq ref_count 0 or eq sym_type SYM_FUNC load64 + @options Options.dce_all {
@@ -21,19 +21,19 @@ fn typecheck_print_unused -> none {
 }
 
 fn typecheck_error(message : cstr) -> none {
-  if eq load64 + @c Compile.status NoError {
+  if eq load64 + c Compile.status NoError {
     let tmp cast cstr tmp_it;
     tmp_push_cstr("[typecheck-error]: ");
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
     store64 @tmp_it tmp;
-    store64 + @c Compile.status Error;
+    store64 + c Compile.status Error;
   }
 }
 
 // token : Token*
 fn typecheck_error_at(token : ptr, message : cstr) -> none {
-  if eq load64 + @c Compile.status NoError {
+  if eq load64 + c Compile.status NoError {
     let tmp cast cstr tmp_it;
     tmp_push_cstr("[typecheck-error]: ");
     tmp_push_cstr(cast cstr load64 + token Token.filename);
@@ -45,17 +45,17 @@ fn typecheck_error_at(token : ptr, message : cstr) -> none {
     tmp_push_cstr(message);
     putsn(STDERR_FILENO, tmp, - tmp_it tmp);
     store64 @tmp_it tmp;
-    store64 + @c Compile.status Error;
+    store64 + c Compile.status Error;
   }
 }
 
 fn typecheck_print_stack(fd : u64) -> none {
   let i 0;
-  let count load64 + @c Compile.ts_count;
+  let count load64 + c Compile.ts_count;
   while < i count {
-    let type : u64 load64 + + @c Compile.ts * sizeof u64 i;
+    let type : u64 load64 + + c Compile.ts * sizeof u64 i;
     let value : Value 0;
-    memcpy(@value, + + @c Compile.vs * sizeof Value i, sizeof Value);
+    memcpy(@value, + + c Compile.vs * sizeof Value i, sizeof Value);
     let message cast cstr tmp_it;
     tmp_push_u64(i);
     tmp_push_cstr(": `");
@@ -72,9 +72,9 @@ fn typecheck_print_stack(fd : u64) -> none {
 
 fn ts_push(type : u64) -> u64 {
   let result : u64 TypeNone;
-  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
-    store64 + + @c Compile.ts * sizeof result load64 + @c Compile.ts_count type;
-    store64 + @c Compile.ts_count + 1 load64 + @c Compile.ts_count;
+  if < load64 + c Compile.ts_count MAX_TYPE_STACK {
+    store64 + + c Compile.ts * sizeof result load64 + c Compile.ts_count type;
+    store64 + c Compile.ts_count + 1 load64 + c Compile.ts_count;
     store64 @result type;
   }
   else {
@@ -85,9 +85,9 @@ fn ts_push(type : u64) -> u64 {
 
 fn ts_pop -> u64 {
   let result TypeNone;
-  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
-    store64 + @c Compile.ts_count - load64 + @c Compile.ts_count 1;
-    store64 @result load64 + + @c Compile.ts * sizeof u64 load64 + @c Compile.ts_count;
+  if < load64 + c Compile.ts_count MAX_TYPE_STACK {
+    store64 + c Compile.ts_count - load64 + c Compile.ts_count 1;
+    store64 @result load64 + + c Compile.ts * sizeof u64 load64 + c Compile.ts_count;
   }
   else {
     assert(0, "type stack underflow\n");
@@ -97,8 +97,8 @@ fn ts_pop -> u64 {
 
 fn ts_top -> u64 {
   let result TypeNone;
-  if < load64 + @c Compile.ts_count MAX_TYPE_STACK {
-    store64 @result load64 + + @c Compile.ts * sizeof u64 - load64 + @c Compile.ts_count 1;
+  if < load64 + c Compile.ts_count MAX_TYPE_STACK {
+    store64 @result load64 + + c Compile.ts * sizeof u64 - load64 + c Compile.ts_count 1;
   }
   result;
 }
@@ -106,9 +106,9 @@ fn ts_top -> u64 {
 // value : Value*
 fn vs_push(value : ptr) -> u64 {
   let result NoError;
-  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
-    memcpy(+ + @c Compile.vs * sizeof Value load64 + @c Compile.vs_count, value, sizeof Value);
-    store64 + @c Compile.vs_count + 1 load64 + @c Compile.vs_count;
+  if < load64 + c Compile.vs_count MAX_TYPE_STACK {
+    memcpy(+ + c Compile.vs * sizeof Value load64 + c Compile.vs_count, value, sizeof Value);
+    store64 + c Compile.vs_count + 1 load64 + c Compile.vs_count;
   }
   else {
     assert(0, "value stack overflow\n");
@@ -118,9 +118,9 @@ fn vs_push(value : ptr) -> u64 {
 }
 
 fn vs_top(value_out : ptr) -> none {
-  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
+  if < load64 + c Compile.vs_count MAX_TYPE_STACK {
     if cast u64 value_out {
-      memcpy(value_out, + + @c Compile.vs * sizeof Value - load64 + @c Compile.vs_count 1, sizeof Value);
+      memcpy(value_out, + + c Compile.vs * sizeof Value - load64 + c Compile.vs_count 1, sizeof Value);
     }
   }
   else {
@@ -132,11 +132,11 @@ fn vs_top(value_out : ptr) -> none {
 
 fn vs_pop(value_out : ptr) -> u64 {
   let result NoError;
-  if < load64 + @c Compile.vs_count MAX_TYPE_STACK {
+  if < load64 + c Compile.vs_count MAX_TYPE_STACK {
     if cast u64 value_out {
       vs_top(value_out);
     }
-    store64 + @c Compile.vs_count - load64 + @c Compile.vs_count 1;
+    store64 + c Compile.vs_count - load64 + c Compile.vs_count 1;
   }
   else {
     assert(0, "value stack underflow\n");
@@ -157,8 +157,8 @@ fn check_func_signatures(a : ptr, b : ptr) -> u64 {
       // TODO(lucas): not sure if this works, testing needs to be done. indexing like this is tough man...
       let arg_a : u64 load64 + + a Function.argc * sizeof u64 i;
       let arg_b : u64 load64 + + b Function.argc * sizeof u64 i;
-      let type_a : u64 load64 + + + @c Compile.symbols * sizeof Symbol arg_a Symbol.type;
-      let type_b : u64 load64 + + + @c Compile.symbols * sizeof Symbol arg_b Symbol.type;
+      let type_a : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_a Symbol.type;
+      let type_b : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_b Symbol.type;
       if neq type_a type_b {
         store64 @result 0;
         store64 @i argc; // break out of the loop
@@ -249,7 +249,7 @@ fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
 fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
   let result NoError;
   let konst eq load64 + ast Ast.type AstConstStatement;
-  let ts_count load64 + @c Compile.ts_count;
+  let ts_count load64 + c Compile.ts_count;
   let num_elements 1;
   let rhs cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let ast_type NULL;
@@ -263,7 +263,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
   store64 + ast Ast.konst is_branch_konst_eval(rhs);
 
   // make sure that rhs actually produced any values
-  let ts_delta - load64 + @c Compile.ts_count ts_count;
+  let ts_delta - load64 + c Compile.ts_count ts_count;
   if eq ts_delta 0 {
     typecheck_error_at(+ ast Ast.token, "no value was produced in the rhs of the let statement\n");
   }
@@ -376,7 +376,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       store64 + symbol Symbol.size * num_elements type_size;
       store64 + symbol Symbol.num_elements_init ts_delta;
       store64 + symbol Symbol.konst konst;
-      if eq cast u64 block + @c Compile.global {
+      if eq cast u64 block + c Compile.global {
         store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
       }
       else {
@@ -393,7 +393,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 }
 
 fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  if eq load64 + @c Compile.status NoError {
+  if eq load64 + c Compile.status NoError {
     let type load64 + ast Ast.type;
     if eq type AstValue {
       let token_type load64 + + ast Ast.token Token.type;
@@ -563,10 +563,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq type AstUopExpression {
-      let ts_count : u64 load64 + @c Compile.ts_count;
+      let ts_count : u64 load64 + c Compile.ts_count;
       { let _ typecheck_node_list(block, fs, ast); }
       store64 + ast Ast.konst is_branch_konst_eval(ast);
-      let ts_delta : u64 - load64 + @c Compile.ts_count ts_count;
+      let ts_delta : u64 - load64 + c Compile.ts_count ts_count;
       if neq ts_delta 0 {
         let token_type load64 + + ast Ast.token Token.type;
         if eq token_type T_PRINT {
@@ -675,7 +675,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 @i + 1 i;
           }
 
-          let ts_count : u64 load64 + @c Compile.ts_count;
+          let ts_count : u64 load64 + c Compile.ts_count;
           let func_body_block : Block 0;
           block_init(@func_body_block, @local_block); // to allow for shadowing of function arguments
 
@@ -686,7 +686,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + + symbol Symbol.value Value.konst konst_body;
 
           let rtype : u64 TypeNone;
-          let ts_delta : u64 - load64 + @c Compile.ts_count ts_count;
+          let ts_delta : u64 - load64 + c Compile.ts_count ts_count;
           if > ts_delta 1 {
             typecheck_error_at(+ ast Ast.token, "too many values produced by function\n");
           }
@@ -708,7 +708,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
             if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
               store64 + symbol Symbol.ref_count + load64 + symbol Symbol.ref_count 1;
-              store64 + @c Compile.entry_point + load64 + @c Compile.entry_point 1;
+              store64 + c Compile.entry_point + load64 + c Compile.entry_point 1;
             }
           }
         }
@@ -756,7 +756,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 else {
                   // Symbol* arg = &c->symbols[func->args[i]];
                   let arg_symbol_index : u64 load64 + + func Function.args * sizeof u64 i;
-                  let arg cast ptr + + @c Compile.symbols * sizeof Symbol arg_symbol_index;
+                  let arg cast ptr + + c Compile.symbols * sizeof Symbol arg_symbol_index;
                   if and
                       neq load64 + arg Symbol.type arg_type
                       neq load64 + arg Symbol.type TypeAny {
@@ -768,7 +768,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     tmp_push_cstr("` was expected\n");
                     tmp_push_byte(cast u8 0);
                     typecheck_error_at(+ ast Ast.token, message);
-                    store64 + @c Compile.status NoError; // to print additional error message
+                    store64 + c Compile.status NoError; // to print additional error message
                     store64 @tmp_it message;
 
                     tmp_push_cstr("from function `");
@@ -976,7 +976,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 + symbol Symbol.imm imm;
             store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
             store64 + symbol Symbol.konst 1;
-            if eq cast u64 block + @c Compile.global {
+            if eq cast u64 block + c Compile.global {
               store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
             }
             else {
@@ -1026,7 +1026,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + symbol Symbol.imm imm;
           store64 + symbol Symbol.size sizeof u64;
           store64 + symbol Symbol.konst 1;
-          if eq cast u64 block + @c Compile.global {
+          if eq cast u64 block + c Compile.global {
             store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
           }
           else {
@@ -1092,7 +1092,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 + symbol Symbol.imm UINT64_MAX;
         store64 + symbol Symbol.size field_offset;
         store64 + symbol Symbol.konst 0;
-        if eq cast u64 block + @c Compile.global {
+        if eq cast u64 block + c Compile.global {
           store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
         }
         else {
@@ -1163,20 +1163,20 @@ fn typecheck_program(ast : ptr) -> u64 {
   let i 0;
   let count load64 + ast Ast.count;
   while < i count {
-    let _ typecheck(+ @c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
+    let _ typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     store64 @i + 1 i;
   }
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
-  if neq load64 + @c Compile.vs_count 0 {
+  if neq load64 + c Compile.vs_count 0 {
     typecheck_error("unhandled data on the value stack\n");
   }
 
-  if and neq load64 + @c Compile.ts_count 0 eq load64 + @c Compile.status NoError {
+  if and neq load64 + c Compile.ts_count 0 eq load64 + c Compile.status NoError {
     typecheck_error("unhandled data on the type stack\n");
   }
 
-  if eq load64 + @c Compile.status NoError {
+  if eq load64 + c Compile.status NoError {
     let message cast cstr tmp_it;
     let args : any (
       - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
@@ -1190,5 +1190,5 @@ fn typecheck_program(ast : ptr) -> u64 {
 
   typecheck_print_stack(STDOUT_FILENO);
 
-  load64 + @c Compile.status;
+  load64 + c Compile.status;
 }

@@ -28,7 +28,7 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
     let done 0;
     while and eq done 0 < i count {
       let index : u64 load64 + + block Block.symbols * sizeof u64 i;
-      let sym + + @c Compile.symbols * sizeof Symbol index;
+      let sym + + c Compile.symbols * sizeof Symbol index;
       if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
         if neq cast u64 symbol NULL {
           store64 symbol sym;
@@ -56,46 +56,51 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
 fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
   let result Error;
   if < load64 + token Token.length MAX_NAME_SIZE {
-    if < load64 + block Block.symbol_count MAX_SYMBOL {
-      let levels 0; // how many levels did we descend before we found a symbol?
-      let token_buffer : Buffer 0;
-      store64 + @token_buffer Buffer.data   load64 + token Token.buffer;
-      store64 + @token_buffer Buffer.length load64 + token Token.length;
+    if < load64 + c Compile.symbol_count MAX_SYMBOL {
+      if < load64 + block Block.symbol_count MAX_SYMBOL_PER_BLOCK {
+        let levels 0; // how many levels did we descend before we found a symbol?
+        let token_buffer : Buffer 0;
+        store64 + @token_buffer Buffer.data   load64 + token Token.buffer;
+        store64 + @token_buffer Buffer.length load64 + token Token.length;
 
-      // we are only allowed to create a new symbol if none was found in the current block
-      let lookup_result compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
-      if and eq lookup_result NoError eq levels 0 {
-        let message cast cstr tmp_it;
-        tmp_push_cstr("symbol `");
-        tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
-        tmp_push_cstr("` already exists\n");
-        tmp_push_byte(cast u8 0);
-        compile_error(message);
-        store64 @tmp_it message;
+        // we are only allowed to create a new symbol if none was found in the current block
+        let lookup_result compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
+        if and eq lookup_result NoError eq levels 0 {
+          let message cast cstr tmp_it;
+          tmp_push_cstr("symbol `");
+          tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
+          tmp_push_cstr("` already exists\n");
+          tmp_push_byte(cast u8 0);
+          compile_error(message);
+          store64 @tmp_it message;
+        }
+        else {
+          let index load64 + c Compile.symbol_count;
+          if neq cast u64 symbol_index NULL {
+            store64 symbol_index index;
+          }
+          let block_index_address * load64 + block Block.symbol_count sizeof u64;
+          // block->symbols[block->symbol_count] store64 index;
+          store64 + + block Block.symbols block_index_address index;
+          // *symbol store64 &c->symbols[index];
+          store64 symbol + + c Compile.symbols * sizeof Symbol index;
+
+          store64 + c Compile.symbol_count + 1 load64 + c Compile.symbol_count;
+          store64 + block Block.symbol_count + 1 load64 + block Block.symbol_count;
+
+          let s cast ptr load64 symbol;
+          symbol_init(s);
+          memcpy(+ s Symbol.token, token, sizeof Token);
+          memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
+          store64 @result NoError;
+        }
       }
       else {
-        let index load64 + @c Compile.symbol_count;
-        if neq cast u64 symbol_index NULL {
-          store64 symbol_index index;
-        }
-        let block_index_address * load64 + block Block.symbol_count sizeof u64;
-        // block->symbols[block->symbol_count] store64 index;
-        store64 + + block Block.symbols block_index_address index;
-        // *symbol store64 &c->symbols[index];
-        store64 symbol + + @c Compile.symbols * sizeof Symbol index;
-
-        store64 + @c Compile.symbol_count + 1 load64 + @c Compile.symbol_count;
-        store64 + block Block.symbol_count + 1 load64 + block Block.symbol_count;
-
-        let s cast ptr load64 symbol;
-        symbol_init(s);
-        memcpy(+ s Symbol.token, token, sizeof Token);
-        memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
-        store64 @result NoError;
+        assert(0, "symbol capacity in block reached\n");
       }
     }
     else {
-      assert(0, "symbol capacity in block reached\n");
+      assert(0, "symbol capacity reached\n");
     }
   }
   else {
@@ -106,7 +111,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
 
 fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   let result NoError;
-  let block + @c Compile.global;
+  let block + c Compile.global;
   let token : Token 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
@@ -141,10 +146,10 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
 // TODO(lucas): fully implement
 fn compile_print_symbol_info(fd : u64) -> none {
   let message cast cstr tmp_it;
-  let count : u64 load64 + @c Compile.symbol_count;
+  let count : u64 load64 + c Compile.symbol_count;
   let i : u64 0;
   while < i count {
-    let symbol + + @c Compile.symbols * sizeof Symbol i;
+    let symbol + + c Compile.symbols * sizeof Symbol i;
     let type load64 + symbol Symbol.type;
     let num_i_digits : u64 digit_count(i);
     let j : u64 0;
@@ -167,7 +172,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
         let arg_count : u64 load64 + func Function.argc;
         while < arg_index arg_count {
           // Symbol* arg = &c->symbols[func->args[arg_index]];
-          let arg cast ptr + + @c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
+          let arg cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
           let num_elements : u64 / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 load64 + arg Symbol.type);
           tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
 
@@ -220,31 +225,26 @@ fn compile_print_block(fd : u64, block : ptr) -> none {
   }
 }
 
-// buffer : u8**
-fn o(buffer : ptr, format : cstr, args : any) -> none {
-  let length : u64 sprintf2(cast ptr load64 buffer, format, args);
-  store64 buffer + length load64 buffer;
+fn o(fd : u64, format : cstr, args : any) -> none {
+  dprintf(fd, format, args);
 }
 
 // TODO(lucas): make this configurable by the user via argument options
 const VERBOSE_ASSEMBLY : u64 1;
 
-// buffer : u8**
-fn vo(buffer : ptr, format : cstr, args : any) -> none {
+fn vo(fd : u64, format : cstr, args : any) -> none {
   if VERBOSE_ASSEMBLY {
-    o(buffer, format, args);
+    o(fd, format, args);
   }
 }
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  let buffer cast ptr tmp_it;
-  let b buffer;
   let entry "_start";
 
-  o(@b, "bits 64\n", NULL);
-  o(@b, "section .text\n", NULL);
-  o(@b, "global %s\n", @entry);
- o(@b,
+  o(fd, "bits 64\n", NULL);
+  o(fd, "section .text\n", NULL);
+  o(fd, "global %s\n", @entry);
+  o(fd,
 "print:
  mov r9, -3689348814741910323
  sub rsp, 40
@@ -281,26 +281,20 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
 ", NULL);
 
   let i : u64 0;
-  let count : u64 load64 + @c Compile.ins_count;
-  put("ins_count = ");
-  print count;
-  put("symbol_count = ");
-  print load64 + @c Compile.symbol_count;
-  put("cstring_count = ");
-  print load64 + @c Compile.cstring_count;
+  let count : u64 load64 + c Compile.ins_count;
   while < i count {
     // op : Op*
-    let op cast ptr + + @c Compile.ins * sizeof Op i;
+    let op cast ptr + + c Compile.ins * sizeof Op i;
     let ins : u64 load64 + op Op.i;
     if eq ins I_NOP {
-      o(@b, "nop\n", NULL);
+      o(fd, "nop\n", NULL);
     }
     else if eq ins I_POP {
-      vo(@b, "; I_POP\n", NULL);
-      o(@b, "pop rax\n", NULL);
+      vo(fd, "; I_POP\n", NULL);
+      o(fd, "pop rax\n", NULL);
     }
     else if eq ins I_MOVE {
-      vo(@b, "; I_MOVE\n", NULL);
+      vo(fd, "; I_MOVE\n", NULL);
       let dest : u64 load64 + op Op.dest;
       if or or or or
           eq dest TypeAny
@@ -308,9 +302,9 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           eq dest TypeCString
           eq dest TypeFunc
           eq dest TypeUnsigned64 {
-        o(@b, "pop rax\n", NULL);
+        o(fd, "pop rax\n", NULL);
         let args : any (load64 + op Op.src0, load64 + op Op.src1);
-        o(@b, "mov [v%d+%d], rax\n", @args);
+        o(fd, "mov [v%d+%d], rax\n", @args);
       }
       else if eq dest TypeUnsigned32 {
       }
@@ -323,152 +317,151 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       }
     }
     else if eq ins I_MOVE_LOCAL {
-      vo(@b, "; I_MOVE_LOCAL\n", NULL);
+      vo(fd, "; I_MOVE_LOCAL\n", NULL);
     }
     else if eq ins I_STORE64 {
-      vo(@b, "; I_STORE64\n", NULL);
+      vo(fd, "; I_STORE64\n", NULL);
     }
     else if eq ins I_STORE32 {
-      vo(@b, "; I_STORE32\n", NULL);
+      vo(fd, "; I_STORE32\n", NULL);
     }
     else if eq ins I_STORE16 {
-      vo(@b, "; I_STORE16\n", NULL);
+      vo(fd, "; I_STORE16\n", NULL);
     }
     else if eq ins I_STORE8 {
-      vo(@b, "; I_STORE8\n", NULL);
+      vo(fd, "; I_STORE8\n", NULL);
     }
     else if eq ins I_LOAD64 {
-      vo(@b, "; I_LOAD64\n", NULL);
+      vo(fd, "; I_LOAD64\n", NULL);
     }
     else if eq ins I_LOAD32 {
-      vo(@b, "; I_LOAD32\n", NULL);
+      vo(fd, "; I_LOAD32\n", NULL);
     }
     else if eq ins I_LOAD16 {
-      vo(@b, "; I_LOAD16\n", NULL);
+      vo(fd, "; I_LOAD16\n", NULL);
     }
     else if eq ins I_LOAD8 {
-      vo(@b, "; I_LOAD8\n", NULL);
+      vo(fd, "; I_LOAD8\n", NULL);
     }
     else if eq ins I_PUSH_ADDR_OF {
-      vo(@b, "; I_PUSH_ADDR_OF\n", NULL);
+      vo(fd, "; I_PUSH_ADDR_OF\n", NULL);
     }
     else if eq ins I_PUSH_LOCAL_ADDR_OF {
-      vo(@b, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
+      vo(fd, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
     }
     else if eq ins I_PUSH {
-      vo(@b, "; I_PUSH\n", NULL);
+      vo(fd, "; I_PUSH\n", NULL);
     }
     else if eq ins I_PUSH_LOCAL {
-      vo(@b, "; I_PUSH_LOCAL\n", NULL);
+      vo(fd, "; I_PUSH_LOCAL\n", NULL);
     }
     else if eq ins I_PUSH_IMM {
-      vo(@b, "; I_PUSH_IMM\n", NULL);
+      vo(fd, "; I_PUSH_IMM\n", NULL);
     }
     else if eq ins I_ADD {
-      vo(@b, "; I_ADD\n", NULL);
+      vo(fd, "; I_ADD\n", NULL);
     }
     else if eq ins I_SUB {
-      vo(@b, "; I_SUB\n", NULL);
+      vo(fd, "; I_SUB\n", NULL);
     }
     else if eq ins I_MUL {
-      vo(@b, "; I_MUL\n", NULL);
+      vo(fd, "; I_MUL\n", NULL);
     }
     else if eq ins I_DIV {
-      vo(@b, "; I_DIV\n", NULL);
+      vo(fd, "; I_DIV\n", NULL);
     }
     // shl and shr require immediate value on the second argument
     // TODO(lucas): implement
     else if eq ins I_LSHIFT {
-      vo(@b, "; I_LSHIFT\n", NULL);
+      vo(fd, "; I_LSHIFT\n", NULL);
       assert(0, "I_LSHIFT: instruction not implemented yet\n");
     }
     else if eq ins I_RSHIFT {
-      vo(@b, "; I_RSHIFT\n", NULL);
+      vo(fd, "; I_RSHIFT\n", NULL);
       assert(0, "I_RSHIFT: instruction not implemented yet\n");
     }
     else if eq ins I_DIVMOD {
-      vo(@b, "; I_DIVMOD\n", NULL);
+      vo(fd, "; I_DIVMOD\n", NULL);
     }
     else if eq ins I_LT {
-      vo(@b, "; I_LT\n", NULL);
+      vo(fd, "; I_LT\n", NULL);
     }
     else if eq ins I_GT {
-      vo(@b, "; I_GT\n", NULL);
+      vo(fd, "; I_GT\n", NULL);
     }
     else if eq ins I_AND {
-      vo(@b, "; I_AND\n", NULL);
+      vo(fd, "; I_AND\n", NULL);
     }
     else if eq ins I_LOGICAL_NOT {
-      vo(@b, "; I_LOGICAL_NOT\n", NULL);
+      vo(fd, "; I_LOGICAL_NOT\n", NULL);
     }
     else if eq ins I_OR {
-      vo(@b, "; I_OR\n", NULL);
+      vo(fd, "; I_OR\n", NULL);
     }
     else if eq ins I_EQ {
-      vo(@b, "; I_EQ\n", NULL);
+      vo(fd, "; I_EQ\n", NULL);
     }
     else if eq ins I_NEQ {
-      vo(@b, "; I_NEQ\n", NULL);
+      vo(fd, "; I_NEQ\n", NULL);
     }
     else if eq ins I_RET {
-      vo(@b, "; I_RET\n", NULL);
+      vo(fd, "; I_RET\n", NULL);
     }
     else if eq ins I_NORET {
-      vo(@b, "; I_NORET\n", NULL);
+      vo(fd, "; I_NORET\n", NULL);
     }
     else if eq ins I_PRINT {
-      vo(@b, "; I_PRINT\n", NULL);
+      vo(fd, "; I_PRINT\n", NULL);
     }
     else if eq ins I_LABEL {
-      vo(@b, "; I_LABEL\n", NULL);
+      vo(fd, "; I_LABEL\n", NULL);
     }
     else if eq ins I_CALL {
-      vo(@b, "; I_CALL\n", NULL);
+      vo(fd, "; I_CALL\n", NULL);
     }
     else if eq ins I_ADDR_CALL {
-      vo(@b, "; I_ADDR_CALL\n", NULL);
+      vo(fd, "; I_ADDR_CALL\n", NULL);
     }
     else if eq ins I_JMP {
-      vo(@b, "; I_JMP\n", NULL);
+      vo(fd, "; I_JMP\n", NULL);
     }
     else if eq ins I_JZ {
-      vo(@b, "; I_JZ\n", NULL);
+      vo(fd, "; I_JZ\n", NULL);
     }
     else if eq ins I_BEGIN_FUNC {
-      vo(@b, "; I_BEGIN_FUNC\n", NULL);
+      vo(fd, "; I_BEGIN_FUNC\n", NULL);
     }
     else if eq ins I_LOOP_LABEL {
-      vo(@b, "; I_LOOP_LABEL\n", NULL);
+      vo(fd, "; I_LOOP_LABEL\n", NULL);
     }
     else if eq ins I_SYSCALL0 {
-      vo(@b, "; I_SYSCALL0\n", NULL);
+      vo(fd, "; I_SYSCALL0\n", NULL);
     }
     else if eq ins I_SYSCALL1 {
-      vo(@b, "; I_SYSCALL1\n", NULL);
+      vo(fd, "; I_SYSCALL1\n", NULL);
     }
     else if eq ins I_SYSCALL2 {
-      vo(@b, "; I_SYSCALL2\n", NULL);
+      vo(fd, "; I_SYSCALL2\n", NULL);
     }
     else if eq ins I_SYSCALL3 {
-      vo(@b, "; I_SYSCALL3\n", NULL);
+      vo(fd, "; I_SYSCALL3\n", NULL);
     }
     else if eq ins I_SYSCALL4 {
-      vo(@b, "; I_SYSCALL4\n", NULL);
+      vo(fd, "; I_SYSCALL4\n", NULL);
     }
     else if eq ins I_SYSCALL5 {
-      vo(@b, "; I_SYSCALL5\n", NULL);
+      vo(fd, "; I_SYSCALL5\n", NULL);
     }
     else if eq ins I_SYSCALL6 {
-      vo(@b, "; I_SYSCALL6\n", NULL);
+      vo(fd, "; I_SYSCALL6\n", NULL);
     }
     else {
       assert(0, "instruction not implemented\n");
     }
-     store64 @i + 1 i;
-   }
+    store64 @i + 1 i;
+  }
 
-  puts(fd, cast cstr buffer);
-  load64 + @c Compile.status;
+  load64 + c Compile.status;
 }
 
 fn compile(target : u64, fd : u64) -> u64 {
@@ -486,7 +479,7 @@ fn compile(target : u64, fd : u64) -> u64 {
 
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
-  if eq load64 + @c Compile.status NoError {
+  if eq load64 + c Compile.status NoError {
     let message cast cstr tmp_it;
     let args : any (
       - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
@@ -500,17 +493,18 @@ fn compile(target : u64, fd : u64) -> u64 {
 }
 
 fn compile_state_init -> u64 {
-  store64 + @c Compile.ins_count 0;
-  store64 + @c Compile.imm_index 0;
-  store64 + @c Compile.symbol_count 0;
-  store64 + @c Compile.cstring_count 0;
-  block_init(+ @c Compile.global, NULL);
-  store64 + @c Compile.label_count 0;
-  store64 + @c Compile.status NoError;
-  store64 + @c Compile.entry_point 0;
-  store64 + @c Compile.ts_count 0;
-  store64 + @c Compile.vs_count 0;
-  store64 + @c Compile.type_count MAX_PRIMITIVE_TYPE;
+  store64 @c memory_alloc(sizeof Compile);
+  store64 + c Compile.ins_count 0;
+  store64 + c Compile.imm_index 0;
+  store64 + c Compile.symbol_count 0;
+  store64 + c Compile.cstring_count 0;
+  block_init(+ c Compile.global, NULL);
+  store64 + c Compile.label_count 0;
+  store64 + c Compile.status NoError;
+  store64 + c Compile.entry_point 0;
+  store64 + c Compile.ts_count 0;
+  store64 + c Compile.vs_count 0;
+  store64 + c Compile.type_count MAX_PRIMITIVE_TYPE;
 
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
@@ -599,5 +593,5 @@ fn compile_state_init -> u64 {
 }
 
 fn compile_state_free -> none {
-
+  memory_free(c, sizeof Compile);
 }

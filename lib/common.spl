@@ -321,3 +321,4 @@ fn tmp_push_byte(byte : u8) -> none {
 }
 
 include "lib/platform.spl"
+include "lib/memory.spl"
