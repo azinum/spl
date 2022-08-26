@@ -12,5 +12,4 @@ examples/*spl.asm
 cspl.dSYM
 cspl
 spl
-main
-vm
+test

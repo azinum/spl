@@ -195,9 +195,6 @@ fn main(argc : u64, argv : any) -> none {
   ast_init();
   spl_options_init();
 
-  let s "hello there\n";
-  print_info(s);
-
   let arg argv;
   let i 0;
   if < argc 2 {
