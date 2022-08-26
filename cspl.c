@@ -3909,7 +3909,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           assert(s->imm >= 0);
           size = sizeof(u64);
           i32 imm = s->imm + (count * size) - size;
-          o("v%d: dd", i);
+          o("v%d: dw", i);
           for (u32 v = 0; v < count; ++v, imm -= size) {
             u16 value = (u16)(*(u64*)&c->imm[imm]);
             o(" %d,", value);
@@ -3921,7 +3921,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
           assert(s->imm >= 0);
           size = sizeof(u64);
           i32 imm = s->imm + (count * size) - size;
-          o("v%d: dd", i);
+          o("v%d: db", i);
           for (u32 v = 0; v < count; ++v, imm -= size) {
             u8 value = (u8)(*(u64*)&c->imm[imm]);
             o(" %d,", value);
