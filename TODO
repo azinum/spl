@@ -1,11 +1,13 @@
-- fix parsing bug where `;` is not detected after binary operation
-- fix parsing bug where single `}` are not detected
-- remove the ability, by ways of parsing, to define functions in functions (causes undefined behaviour, crashes)
-- compile time evaluation of `trival` functions
-- typed assignment operator
+- important: digit_count function must work properly to print numbers larger than UINT32_MAX
+	- compile_linux_nasm_x86_64 depends on this functionality
+- file inclusion guards
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
-- make sure there is room for a null terminator in symbol names
+- remove the ability, by ways of parsing, to define functions in functions (causes undefined behaviour, crashes)
+- typed assignment operator
 - do more work on type casting
+- make sure there is room for a null terminator in symbol names
 - add ability to use escaped and unescaped `raw` strings
 - function inlining
-- file inclusion guards
+- compile time evaluation of `trival` functions
+- fix parsing bug where `;` is not detected after binary operation
+- fix parsing bug where single `}` are not detected
