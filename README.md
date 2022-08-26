@@ -33,7 +33,7 @@ OPTIONS:
   enable-warnings - enable basic warnings
   disable-dce     - disable dead code elimination
   dce-all         - eliminate all dead code, including all symbols
-  no-verbose      - disable verbose output
+  verbose         - enable verbose output
 ```
 
 ### Examples

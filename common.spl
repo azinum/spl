@@ -15,7 +15,7 @@ fn error(message : cstr) -> none {
 }
 
 fn print_info(message : cstr) -> none {
-  if not load64 + @options Options.no_verbose {
+  if load64 + @options Options.verbose {
     puts(STDOUT_FILENO, "[info]: ");
     puts(STDOUT_FILENO, message);
   }

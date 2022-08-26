@@ -5099,12 +5099,6 @@ pop rax
 xor rbx, rbx
 mov rbx, [rax]
 push rbx
-; I_LOGICAL_NOT
-pop rax
-cmp rax, 0
-sete al
-movzx rax, al
-push rax
 ; I_JZ
 pop rax
 test rax, rax
@@ -61573,6 +61567,26 @@ mov rbp, rsp
 sub rsp, 32
 mov [rbp-8], rdi
 mov [rbp-16], rsi
+; I_PUSH_ADDR_OF
+mov rax, v16
+push rax
+; I_PUSH
+mov rax, [v14]
+push rax
+; I_ADD
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+; I_LOAD64
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
+; I_JZ
+pop rax
+test rax, rax
+jz L1085
 ; I_PUSH_LOCAL
 push QWORD [rbp-16]
 ; I_MOVE_LOCAL
@@ -61597,7 +61611,7 @@ push rbp
 call v691
 pop rbp
 ; I_LOOP_LABEL
-L1085:
+L1086:
 ; I_PUSH_LOCAL
 push QWORD [rbp-32]
 ; I_PUSH_IMM
@@ -61614,7 +61628,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1086
+jz L1087
 ; I_PUSH_LOCAL
 push QWORD [rbp-24]
 ; I_LOAD64
@@ -61636,7 +61650,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1087
+jz L1088
 ; I_PUSH_LOCAL_ADDR_OF
 lea rax, [rbp-32]
 push rax
@@ -61648,9 +61662,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1088
+jmp L1089
 ; I_LOOP_LABEL
-L1087:
+L1088:
 ; I_PUSH_LOCAL
 push QWORD [rbp-24]
 ; I_PUSH
@@ -61680,11 +61694,11 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_LOOP_LABEL
-L1088:
+L1089:
 ; I_JMP
-jmp L1085
+jmp L1086
 ; I_LOOP_LABEL
-L1086:
+L1087:
 ; I_PUSH
 mov rax, [v52]
 push rax
@@ -61697,6 +61711,8 @@ pop rsi
 push rbp
 call v691
 pop rbp
+; I_LOOP_LABEL
+L1085:
 ; I_PUSH_LOCAL
 push QWORD [rbp-16]
 ; I_CALL
@@ -61773,7 +61789,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1089
+jz L1090
 ; I_PUSH
 mov rax, [v55]
 push rax
@@ -61836,7 +61852,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1090
+jz L1091
 ; I_CALL
 push rbp
 call v1009
@@ -61913,47 +61929,10 @@ push rbx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1091
+jz L1092
 ; I_CALL
 push rbp
 call v1562
-pop rbp
-push rax
-; I_PUSH
-mov rax, [v50]
-push rax
-; I_EQ
-mov rcx, 0
-mov rdx, 1
-pop rax
-pop rbx
-cmp rbx, rax
-cmove rcx, rdx
-push rcx
-; I_JZ
-pop rax
-test rax, rax
-jz L1092
-; I_PUSH_ADDR_OF
-mov rax, v924
-push rax
-; I_PUSH
-mov rax, [v919]
-push rax
-; I_ADD
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-; I_LOAD64
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-; I_CALL
-pop rdi
-push rbp
-call v1866
 pop rbp
 push rax
 ; I_PUSH
@@ -61990,7 +61969,7 @@ push rbx
 ; I_CALL
 pop rdi
 push rbp
-call v1388
+call v1866
 pop rbp
 push rax
 ; I_PUSH
@@ -62008,6 +61987,43 @@ push rcx
 pop rax
 test rax, rax
 jz L1094
+; I_PUSH_ADDR_OF
+mov rax, v924
+push rax
+; I_PUSH
+mov rax, [v919]
+push rax
+; I_ADD
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+; I_LOAD64
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
+; I_CALL
+pop rdi
+push rbp
+call v1388
+pop rbp
+push rax
+; I_PUSH
+mov rax, [v50]
+push rax
+; I_EQ
+mov rcx, 0
+mov rdx, 1
+pop rax
+pop rbx
+cmp rbx, rax
+cmove rcx, rdx
+push rcx
+; I_JZ
+pop rax
+test rax, rax
+jz L1095
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -62027,7 +62043,7 @@ push rbx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1095
+jz L1096
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -62136,7 +62152,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1096
+jz L1097
 ; I_PUSH_LOCAL
 push QWORD [rbp-616]
 ; I_PUSH
@@ -62163,7 +62179,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1097
+jz L1098
 ; I_PUSH_LOCAL
 push QWORD [rbp-616]
 ; I_CALL
@@ -62343,7 +62359,7 @@ push rbp
 call v711
 pop rbp
 ; I_LOOP_LABEL
-L1097:
+L1098:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -62569,7 +62585,7 @@ push rbx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1098
+jz L1099
 ; I_PUSH_LOCAL_ADDR_OF
 lea rax, [rbp-1176]
 push rax
@@ -62595,11 +62611,11 @@ push rbp
 call v1882
 pop rbp
 ; I_LOOP_LABEL
-L1098:
+L1099:
+; I_LOOP_LABEL
+L1097:
 ; I_LOOP_LABEL
 L1096:
-; I_LOOP_LABEL
-L1095:
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -62619,7 +62635,7 @@ push rbx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1099
+jz L1100
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -62712,7 +62728,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1100
+jz L1101
 ; I_PUSH_LOCAL
 push QWORD [rbp-2368]
 ; I_CALL
@@ -62735,39 +62751,39 @@ push rbp
 call v609
 pop rbp
 ; I_JMP
-jmp L1101
-; I_LOOP_LABEL
-L1100:
+jmp L1102
 ; I_LOOP_LABEL
 L1101:
 ; I_LOOP_LABEL
-L1099:
+L1102:
+; I_LOOP_LABEL
+L1100:
+; I_LOOP_LABEL
+L1095:
 ; I_LOOP_LABEL
 L1094:
-; I_LOOP_LABEL
-L1093:
 ; I_CALL
 push rbp
 call v1570
 pop rbp
 ; I_LOOP_LABEL
-L1092:
+L1093:
 ; I_JMP
-jmp L1102
+jmp L1103
 ; I_LOOP_LABEL
-L1091:
+L1092:
 ; I_LOOP_LABEL
-L1102:
+L1103:
 ; I_CALL
 push rbp
 call v1020
 pop rbp
 ; I_JMP
-jmp L1103
+jmp L1104
 ; I_LOOP_LABEL
-L1090:
+L1091:
 ; I_LOOP_LABEL
-L1103:
+L1104:
 ; I_PUSH_LOCAL
 push QWORD [rbp-64]
 ; I_CALL
@@ -62776,9 +62792,9 @@ push rbp
 call v609
 pop rbp
 ; I_JMP
-jmp L1104
+jmp L1105
 ; I_LOOP_LABEL
-L1089:
+L1090:
 ; I_PUSH
 mov rax, [v55]
 push rax
@@ -62809,7 +62825,7 @@ push rbp
 call v707
 pop rbp
 ; I_LOOP_LABEL
-L1104:
+L1105:
 ; I_PUSH_LOCAL
 push QWORD [rbp-16]
 ; I_RET
@@ -62864,7 +62880,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1105
+jz L1106
 ; I_PUSH_LOCAL
 push QWORD [rbp-24]
 ; I_LOAD64
@@ -62878,9 +62894,9 @@ push rbp
 call v1877
 pop rbp
 ; I_JMP
-jmp L1106
+jmp L1107
 ; I_LOOP_LABEL
-L1105:
+L1106:
 ; I_PUSH_LOCAL_ADDR_OF
 lea rax, [rbp-24]
 push rax
@@ -62899,7 +62915,7 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_LOOP_LABEL
-L1107:
+L1108:
 ; I_PUSH_LOCAL
 push QWORD [rbp-24]
 ; I_LOAD64
@@ -62921,7 +62937,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1108
+jz L1109
 ; I_PUSH_LOCAL
 push QWORD [rbp-24]
 ; I_LOAD64
@@ -62958,7 +62974,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1109
+jz L1110
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -62978,9 +62994,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1110
+jmp L1111
 ; I_LOOP_LABEL
-L1109:
+L1110:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63007,7 +63023,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1111
+jz L1112
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63027,9 +63043,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1112
+jmp L1113
 ; I_LOOP_LABEL
-L1111:
+L1112:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63056,7 +63072,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1113
+jz L1114
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63076,9 +63092,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1114
+jmp L1115
 ; I_LOOP_LABEL
-L1113:
+L1114:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63105,7 +63121,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1115
+jz L1116
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63125,9 +63141,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1116
+jmp L1117
 ; I_LOOP_LABEL
-L1115:
+L1116:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63154,7 +63170,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1117
+jz L1118
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63174,9 +63190,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1118
+jmp L1119
 ; I_LOOP_LABEL
-L1117:
+L1118:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63203,7 +63219,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1119
+jz L1120
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63223,9 +63239,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1120
+jmp L1121
 ; I_LOOP_LABEL
-L1119:
+L1120:
 ; I_PUSH_IMM
 mov rax, 0
 push rax
@@ -63252,7 +63268,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1121
+jz L1122
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63272,9 +63288,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1122
+jmp L1123
 ; I_LOOP_LABEL
-L1121:
+L1122:
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63293,19 +63309,19 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_LOOP_LABEL
-L1122:
+L1123:
 ; I_LOOP_LABEL
-L1120:
+L1121:
 ; I_LOOP_LABEL
-L1118:
+L1119:
 ; I_LOOP_LABEL
-L1116:
+L1117:
 ; I_LOOP_LABEL
-L1114:
+L1115:
 ; I_LOOP_LABEL
-L1112:
+L1113:
 ; I_LOOP_LABEL
-L1110:
+L1111:
 ; I_PUSH_LOCAL_ADDR_OF
 lea rax, [rbp-24]
 push rax
@@ -63324,9 +63340,9 @@ pop rbx
 pop rax
 mov [rax], rbx
 ; I_JMP
-jmp L1107
+jmp L1108
 ; I_LOOP_LABEL
-L1108:
+L1109:
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63357,7 +63373,7 @@ push rcx
 ; I_JZ
 pop rax
 test rax, rax
-jz L1123
+jz L1124
 ; I_PUSH_ADDR_OF
 mov rax, v16
 push rax
@@ -63384,9 +63400,9 @@ push rax
 pop rax
 mov [rbp-48], rax
 ; I_JMP
-jmp L1124
+jmp L1125
 ; I_LOOP_LABEL
-L1123:
+L1124:
 ; I_PUSH
 mov rax, str656
 push rax
@@ -63396,9 +63412,9 @@ push rbp
 call v707
 pop rbp
 ; I_LOOP_LABEL
-L1124:
+L1125:
 ; I_LOOP_LABEL
-L1106:
+L1107:
 ; I_NORET
 pop rbp
 add rsp, 48
@@ -63413,7 +63429,7 @@ push rbp
 call main
 pop rbp
 mov rax, 60 ; exit syscall
-mov rdi, 0  ; return code
+mov rdi, 0 ; return code
 syscall
 ret
 section .data
@@ -64049,7 +64065,7 @@ str628: db 32, 32, 110, 111, 45, 100, 101, 98, 117, 103, 32, 32, 32, 32, 32, 32,
 str629: db 32, 32, 101, 110, 97, 98, 108, 101, 45, 119, 97, 114, 110, 105, 110, 103, 115, 32, 45, 32, 101, 110, 97, 98, 108, 101, 32, 98, 97, 115, 105, 99, 32, 119, 97, 114, 110, 105, 110, 103, 115, 10, 0
 str630: db 32, 32, 100, 105, 115, 97, 98, 108, 101, 45, 100, 99, 101, 32, 32, 32, 32, 32, 45, 32, 100, 105, 115, 97, 98, 108, 101, 32, 100, 101, 97, 100, 32, 99, 111, 100, 101, 32, 101, 108, 105, 109, 105, 110, 97, 116, 105, 111, 110, 10, 0
 str631: db 32, 32, 100, 99, 101, 45, 97, 108, 108, 32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 32, 101, 108, 105, 109, 105, 110, 97, 116, 101, 32, 97, 108, 108, 32, 100, 101, 97, 100, 32, 99, 111, 100, 101, 44, 32, 105, 110, 99, 108, 117, 100, 105, 110, 103, 32, 97, 108, 108, 32, 115, 121, 109, 98, 111, 108, 115, 10, 0
-str632: db 32, 32, 110, 111, 45, 118, 101, 114, 98, 111, 115, 101, 32, 32, 32, 32, 32, 32, 45, 32, 100, 105, 115, 97, 98, 108, 101, 32, 118, 101, 114, 98, 111, 115, 101, 32, 111, 117, 116, 112, 117, 116, 10, 0
+str632: db 32, 32, 118, 101, 114, 98, 111, 115, 101, 32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 32, 101, 110, 97, 98, 108, 101, 32, 118, 101, 114, 98, 111, 115, 101, 32, 111, 117, 116, 112, 117, 116, 10, 0
 str633: db 91, 99, 109, 100, 93, 58, 32, 0
 str634: db 37, 115, 32, 0
 str635: db 10, 0
@@ -64072,7 +64088,7 @@ str651: db 110, 111, 45, 100, 101, 98, 117, 103, 0
 str652: db 101, 110, 97, 98, 108, 101, 45, 119, 97, 114, 110, 105, 110, 103, 115, 0
 str653: db 100, 105, 115, 97, 98, 108, 101, 45, 100, 99, 101, 0
 str654: db 100, 99, 101, 45, 97, 108, 108, 0
-str655: db 110, 111, 45, 118, 101, 114, 98, 111, 115, 101, 0
+str655: db 118, 101, 114, 98, 111, 115, 101, 0
 str656: db 110, 111, 32, 105, 110, 112, 117, 116, 32, 102, 105, 108, 101, 32, 119, 97, 115, 32, 115, 112, 101, 99, 105, 102, 105, 101, 100, 10, 0
 v7: dq 0, ; `Options.compile`
 v8: dq 8, ; `Options.run`
@@ -64081,7 +64097,7 @@ v10: dq 24, ; `Options.filename`
 v11: dq 32, ; `Options.enable_warnings`
 v12: dq 40, ; `Options.disable_dce`
 v13: dq 48, ; `Options.dce_all`
-v14: dq 56, ; `Options.no_verbose`
+v14: dq 56, ; `Options.verbose`
 v17: db 0, ; `ASCII_NUL`
 v18: db 1, ; `ASCII_SOH`
 v19: db 2, ; `ASCII_STX`
@@ -64114,11 +64130,11 @@ v45: db 28, ; `ASCII_FS`
 v46: db 29, ; `ASCII_GS`
 v47: db 30, ; `ASCII_RS`
 v48: db 31, ; `ASCII_US`
-v49: dq -2, ; `ERROR`
+v49: dq 18446744073709551614, ; `ERROR`
 v50: dq 0, ; `NoError`
 v51: dq 1, ; `Error`
 v53: dq 262144, ; `TMP_SIZE`
-v57: dq -1, ; `UINT64_MAX`
+v57: dq 18446744073709551615, ; `UINT64_MAX`
 v58: dq 9223372036854775807, ; `INT64_MAX`
 v59: dq 4294967295, ; `UINT32_MAX`
 v60: dq 2147483647, ; `INT32_MAX`
@@ -64126,7 +64142,7 @@ v61: dq 65535, ; `UINT16_MAX`
 v62: dq 32767, ; `INT16_MAX`
 v63: dq 255, ; `UINT8_MAX`
 v64: dq 127, ; `INT8_MAX`
-v65: dq -1, ; `u64.max`
+v65: dq 18446744073709551615, ; `u64.max`
 v66: dq 9223372036854775807, ; `i64.max`
 v67: dq 4294967295, ; `u32.max`
 v68: dq 2147483647, ; `i32.max`
@@ -64134,7 +64150,7 @@ v69: dq 65535, ; `u16.max`
 v70: dq 32767, ; `i16.max`
 v71: dq 255, ; `u8.max`
 v72: dq 127, ; `i8.max`
-v73: dq -1, ; `NONE`
+v73: dq 18446744073709551615, ; `NONE`
 v74: dq 512, ; `MAX_PATH_SIZE`
 v75: dq 0, ; `Buffer.data`
 v76: dq 8, ; `Buffer.length`
