@@ -1,12 +1,6 @@
 # config.mk
 
-CC=clang
-
-SRC=${subst .c,, ${wildcard *.c}}
-
-PROG=cspl
-
-FLAGS=-Wall -Wextra -pedantic -ggdb -O3
+PROG=spl
 
 SPL_SRC=${subst .spl,, ${wildcard *.spl}}
 
