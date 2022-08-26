@@ -15,7 +15,8 @@ fn lc_random -> u64 {
 
 
 fn main -> none {
-  lc_random_init(time()); 
+  common_init();
+  lc_random_init(time());
 
   let mode : u64 434; // 0662
   let path : cstr "noise.ppm";
@@ -25,16 +26,13 @@ fn main -> none {
     let h : u64 128;
     const max_value : u64 255;
     // write ppm header
-    puts(fd, "P3\n");
-    puts(fd, "# `");
-    puts(fd, path);
-    puts(fd, "`\n");
-    putu(fd, w);
-    puts(fd, " ");
-    putu(fd, h);
-    puts(fd, "\n");
-    putu(fd, max_value);
-    puts(fd, "\n");
+    let args : any (
+      path,
+      w,
+      h,
+      max_value
+    );
+    dprintf(fd, "P3\n# `%s`\n%d %d\n%d\n", @args);
 
     // generate and write pixels to ppm file
     let x : u64 0;
@@ -42,16 +40,12 @@ fn main -> none {
     while < y h {
       while < x w {
         let color : u64 % lc_random() max_value;
-        puts(fd, "  ");
-        putu(fd, color);
-        puts(fd, " ");
-        putu(fd, color);
-        puts(fd, " ");
-        putu(fd, color);
-        if not % x 4 puts(fd, "\n");
+        let args : any color, color, color;
+        dprintf(fd, " %d %d %d ", @args);
+        if not % x 4 dprintf(fd, "\n", NULL);
         = @x + 1 x;
       }
-      puts(fd, "\n");
+      dprintf(fd, "\n", NULL);
       = @x 0;
       = @y + 1 y;
     }

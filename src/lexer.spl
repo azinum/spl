@@ -391,7 +391,7 @@ fn lexer_next -> none {
             store8 l.index 0;
             store64 @l.index + 1 l.index;
           }
-          if eq load8 + l.index 1 'n' {
+          else if eq load8 + l.index 1 'n' { // `\n`
             store8 l.index 10;
             store64 @l.index + 1 l.index;
           }

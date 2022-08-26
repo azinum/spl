@@ -4,6 +4,4 @@ include "lib/common.spl"
 
 fn main -> none {
   common_init();
-
-  printf("Hello there\n", NULL);
 }

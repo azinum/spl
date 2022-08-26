@@ -43,7 +43,8 @@ Hello, World:
 include "lib/common.spl"
 
 fn main -> none {
-  puts(STDOUT_FILENO, "Hello, World\n");
+  common_init(); // for printf to function correctly
+  printf("Hello, World\n", NULL);
 }
 ```
 

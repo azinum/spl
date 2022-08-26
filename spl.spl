@@ -27,21 +27,19 @@ include "src/compile.spl"
 include "src/typecheck.spl"
 
 fn usage(prog : cstr) -> none {
-  let tmp cast cstr tmp_it;
-  let p tmp_push_cstr;
-  p("Usage; ");
-  p(prog);
-  p(" [OPTIONS]\n\nOPTIONS:\n");
-  p("  <filename>      - path to file\n");
-  p("  run             - run program directly\n");
-  p("  no-com          - do not compile target executable\n");
-  p("  no-debug        - do not write debug information\n");
-  p("  enable-warnings - enable basic warnings\n");
-  p("  disable-dce     - disable dead code elimination\n");
-  p("  dce-all         - eliminate all dead code, including all symbols\n");
-  p("  verbose         - enable verbose output\n");
-  putsn(STDOUT_FILENO, tmp, - tmp_it tmp);
-  store64 @tmp_it tmp;
+  dprintf(STDOUT_FILENO,
+"Usage; %s [OPTIONS]\n
+
+OPTIONS:
+   <filename>      - path to file
+   run             - run program directly
+   no-com          - do not compile target executable
+   no-debug        - do not write debug information
+   enable-warnings - enable basic warnings
+   disable-dce     - disable dead code elimination
+   dce-all         - eliminate all dead code, including all symbols
+   verbose         - enable verbose output\n"
+  , @prog);
 }
 
 fn spl_options_init -> none {
@@ -196,6 +194,9 @@ fn main(argc : u64, argv : any) -> none {
   common_init();
   ast_init();
   spl_options_init();
+
+  let s "hello there\n";
+  print_info(s);
 
   let arg argv;
   let i 0;

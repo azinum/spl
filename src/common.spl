@@ -2,11 +2,10 @@
 
 const TIME_NANOSECONDS_DENOM 1000000;
 
-fn HERE puts(STDOUT_FILENO, "HERE\n");
+fn HERE dprintf(STDOUT_FILENO, "HERE\n", NULL);
 
 fn err(message : cstr) -> none {
-  puts(STDERR_FILENO, "[error]: ");
-  puts(STDERR_FILENO, message);
+  dprintf(STDERR_FILENO, "[error]: %s", @message);
 }
 
 fn error(message : cstr) -> none {
@@ -16,7 +15,7 @@ fn error(message : cstr) -> none {
 
 fn print_info(message : cstr) -> none {
   if load64 + @options Options.verbose {
-    puts(STDOUT_FILENO, "[info]: ");
-    puts(STDOUT_FILENO, message);
+    dprintf(STDOUT_FILENO, "[info]: ", NULL);
+    dprintf(STDOUT_FILENO, message, NULL);
   }
 }

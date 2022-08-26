@@ -17,6 +17,9 @@ examples: ${SPL_EXAMPLES}
 test: SPL_FLAGS+=run
 test: ${SPL_TEST}
 
+run:
+	./${PROG} spl.spl
+
 update_bootstrap:
 	cp spl.spl.asm bootstrap/spl_linux_nasm_x86_64.asm
 
