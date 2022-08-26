@@ -375,3 +375,7 @@ fn linux_mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offs
 fn linux_munmap(start : ptr, length : u64) -> none {
   let _ syscall2(SYS_munmap, start, length);
 }
+
+fn linux_execve(command : cstr, argv : ptr, envp : ptr) -> none {
+  let _ syscall3(SYS_execve, command, argv, envp);
+}

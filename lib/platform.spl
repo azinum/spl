@@ -39,6 +39,10 @@ fn memory_unmap(start : ptr, length : u64) -> none {
   linux_munmap(start, length);
 }
 
+fn execve(command : cstr, argv : ptr) -> none {
+  linux_execve(command, argv, NULL);
+}
+
 fn puts(fd : u64, str : cstr) -> none {
   let n : u64 strlen(str);
   write(fd, str, n);
@@ -174,4 +178,21 @@ fn dprintf(fd : u64, format : cstr, args : any) -> none {
 
 fn printf(format : cstr, args : any) -> none {
   dprintf(STDOUT_FILENO, format, args);
+}
+
+fn exec_command(command_list : ptr) -> none {
+  let it command_list;
+  let done : u64 0;
+  printf("[cmd]: ", NULL);
+  while eq done 0 {
+    if eq load64 it NULL {
+      store64 @done 1;
+    }
+    else {
+      printf("%s ", it);
+      store64 @it + sizeof cstr it;
+    }
+  }
+  printf("\n", NULL);
+  execve(cast cstr load64 command_list, command_list);
 }
