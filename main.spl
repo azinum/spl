@@ -1,7 +1,8 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
 fn main -> none {
-  // common_init();
+  common_init();
+  print UINT64_MAX;
 }

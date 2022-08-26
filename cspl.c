@@ -1724,7 +1724,7 @@ Compile_type typecheck(Compile* c, Block* block, Function* fs, Ast* ast) {
           symbol->size = value.num;
           symbol->konst = 0;
           symbol->sym_type = SYM_GLOBAL_VAR;
-          symbol->type = type;
+          symbol->type = TypeUnsigned8;
           symbol->value = value;
           ast->token.v.i = symbol_index;
           ast->konst = is_branch_konst_eval(ast);
@@ -3227,6 +3227,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_POP: {
+        vo("; I_POP\n");
         o("pop rax\n");
         break;
       }
@@ -3669,6 +3670,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LABEL: {
+        vo("; I_LABEL\n");
         assert((u32)op->dest < c->symbol_count);
         Symbol* symbol = &c->symbols[op->dest];
         if (!strcmp(symbol->name, "main")) {
@@ -3711,6 +3713,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_JMP: {
+        vo("; I_JMP\n");
         o("jmp L%d\n", op->dest);
         break;
       }
@@ -3724,6 +3727,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_BEGIN_FUNC: {
+        vo("; I_BEGIN_FUNC\n");
         o(
         "push rbp\n"
         "mov rbp, rsp\n"
@@ -3738,6 +3742,7 @@ i32 compile_linux_nasm_x86_64(Compile* c, FILE* fp) {
         break;
       }
       case I_LOOP_LABEL: {
+        vo("; I_LOOP_LABEL\n");
         o("L%d:\n", op->dest);
         break;
       }

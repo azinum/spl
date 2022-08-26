@@ -160,13 +160,16 @@ fn memcpy(dest : any, src : any, n : u64) -> none {
   }
 }
 
-// TODO(lucas): add support for couting digits of very large integers e.g. UINT64_MAX
 fn digit_count(n : u64) -> u64 {
   const base : u64 10;
-  let count : u64 1;
-  while > n 9 {
-    store64 @n / n base;
+  let count : u64 0;
+  let done : u64 0;
+  while eq done 0 {
+    store64 @n / n 10;
     store64 @count + 1 count;
+    if eq n 0 {
+      store64 @done 1;
+    }
   }
   count;
 }

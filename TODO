@@ -1,5 +1,3 @@
-- important: digit_count function must work properly to print numbers larger than UINT32_MAX
-	- compile_linux_nasm_x86_64 depends on this functionality
 - file inclusion guards
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - remove the ability, by ways of parsing, to define functions in functions (causes undefined behaviour, crashes)
