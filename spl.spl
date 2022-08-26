@@ -18,13 +18,13 @@ struct Options (
 let options : Options 0;
 
 include "lib/common.spl"
-include "common.spl"
-include "lexer.spl"
-include "ast.spl"
-include "parser.spl"
-include "ir.spl"
-include "compile.spl"
-include "typecheck.spl"
+include "src/common.spl"
+include "mrc/lexer.spl"
+include "src/ast.spl"
+include "src/parser.spl"
+include "src/ir.spl"
+include "src/compile.spl"
+include "src/typecheck.spl"
 
 fn usage(prog : cstr) -> none {
   let tmp cast cstr tmp_it;
