@@ -43,6 +43,14 @@ fn execve(command : cstr, argv : ptr) -> none {
   linux_execve(command, argv, NULL);
 }
 
+fn fork() -> u64 {
+  linux_fork();
+}
+
+fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
+  linux_wait4(pid, stat_addr, options, ru);
+}
+
 fn puts(fd : u64, str : cstr) -> none {
   let n : u64 strlen(str);
   write(fd, str, n);
@@ -97,6 +105,7 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
 }
 
 // TODO(lucas): boundary checks
+// TODO(lucas): writing n characters of string
 fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
   let result : u64 0;
   let it str; // string iterator
@@ -181,18 +190,5 @@ fn printf(format : cstr, args : any) -> none {
 }
 
 fn exec_command(command_list : ptr) -> none {
-  let it command_list;
-  let done : u64 0;
-  printf("[cmd]: ", NULL);
-  while eq done 0 {
-    if eq load64 it NULL {
-      store64 @done 1;
-    }
-    else {
-      printf("%s ", it);
-      store64 @it + sizeof cstr it;
-    }
-  }
-  printf("\n", NULL);
-  execve(cast cstr load64 command_list, command_list);
+  linux_exec_command(command_list);
 }

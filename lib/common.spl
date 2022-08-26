@@ -34,6 +34,8 @@ const i8.max  INT8_MAX;
 
 const NONE UINT64_MAX;
 
+const MAX_PATH_SIZE 512;
+
 struct Buffer (
   data : ptr,
   length : u64
@@ -321,6 +323,21 @@ fn tmp_push_byte(byte : u8) -> none {
   else {
     // TODO(lucas): handle error
   }
+}
+
+fn first_dot(str : cstr) -> cstr {
+  let it str;
+  let done : u64 0;
+  while eq done 0 {
+    let ch : u64 load8 it;
+    if or eq ch '.' eq ch 0 {
+      store64 @done 1;
+    }
+    else {
+      store64 @it + 1 it;
+    }
+  }
+  it;
 }
 
 include "lib/platform.spl"

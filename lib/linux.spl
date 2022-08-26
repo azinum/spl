@@ -379,3 +379,44 @@ fn linux_munmap(start : ptr, length : u64) -> none {
 fn linux_execve(command : cstr, argv : ptr, envp : ptr) -> none {
   let _ syscall3(SYS_execve, command, argv, envp);
 }
+
+fn linux_fork() -> u64 {
+  syscall0(SYS_fork);
+}
+
+// pid : u64, stat_addr : u64*, options : u64, ru : rusage*
+fn linux_wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
+  syscall4(SYS_wait4, pid, stat_addr, options, ru);
+}
+
+fn WEXITSTATUS(status : u64) -> u64 {
+  // TODO(lucas): add right shift to implement this
+  // shr and status 0xff00 8;
+  0;
+}
+
+fn WIFEXITED(status : u64) -> u64 {
+  eq 0 and status 0x7f;
+}
+
+fn linux_exec_command(command_list : ptr) -> none {
+  let pid : u64 linux_fork();
+  if eq pid 0 { // child process
+    linux_execve(cast cstr load64 command_list, command_list, NULL);
+  }
+  else if > pid 0 { // parent
+    let done : u64 0;
+    while eq done 0 {
+      let wstatus : u64 0;
+      if > linux_wait4(- 0 1, @wstatus, 0, NULL) 0 {
+        store64 @done 1;
+      }
+      if WIFEXITED(wstatus) {
+        store64 @done 1;
+      }
+      else {
+        // TODO(lucas): unreachable, handle
+      }
+    }
+  }
+}
