@@ -22,11 +22,7 @@ fn typecheck_print_unused -> none {
 
 fn typecheck_error(message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[typecheck-error]: ");
-    tmp_push_cstr(message);
-    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
-    store64 @tmp_it tmp;
+    dprintf(STDERR_FILENO, "[typecheck-error]: %s", @message);
     store64 + c Compile.status Error;
   }
 }
@@ -34,17 +30,14 @@ fn typecheck_error(message : cstr) -> none {
 // token : Token*
 fn typecheck_error_at(token : ptr, message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[typecheck-error]: ");
-    tmp_push_cstr(cast cstr load64 + token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
-    store64 @tmp_it tmp;
+    let args : any (
+      load64 + token Token.filename,
+      load64 + token Token.line,
+      load64 + token Token.column,
+      message
+    );
+    dprintf(STDERR_FILENO, "[typecheck-error]: %s:%d:%d: %s", @args);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr + load64 + token Token.length load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
 }
@@ -736,7 +729,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 + + ast Ast.token Token.v symbol_index;
         let arg_list cast ptr load64 + + ast Ast.node * sizeof ptr 0;
         let func : ptr + + symbol Symbol.value Value.func;
-        if neq load64 + symbol Symbol.type TypeAny {
+        if or eq load64 + symbol Symbol.type TypeFunc eq load64 + symbol Symbol.type TypeSyscallFunc {
           if eq load64 + func Function.argc load64 + arg_list Ast.count {
             store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): store this in the symbol value field
             let done : u64 0;

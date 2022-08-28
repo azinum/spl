@@ -3,6 +3,7 @@
 - remove the ability, by ways of parsing, to define functions in functions (causes undefined behaviour, crashes)
 - typed assignment operator
 - do more work on type casting
+- signed integers
 - make sure there is room for a null terminator in symbol names
 - add ability to use escaped and unescaped `raw` strings
 - function inlining

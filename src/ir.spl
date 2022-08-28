@@ -203,12 +203,7 @@ fn block_init(block : ptr, parent : ptr) -> none {
 
 fn compile_error(message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[compile-error]: ");
-    tmp_push_cstr(message);
-    tmp_push_byte(cast u8 0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
+    dprintf(STDERR_FILENO, "[compile-error]: %s", @message);
     store64 + c Compile.status Error;
   }
 }
@@ -216,47 +211,34 @@ fn compile_error(message : cstr) -> none {
 // token : Token*
 fn compile_error_at(token : ptr, message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[compile-error]: ");
-    tmp_push_cstr(cast cstr load64 + token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    tmp_push_byte(cast u8 0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
+    let args : any (
+      load64 + token Token.filename,
+      load64 + token Token.line,
+      load64 + token Token.column,
+      message
+    );
+    dprintf(STDERR_FILENO, "[compile-error]: %s:%d:%d: %s", @args);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr + load64 + token Token.length load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
 }
 
 fn ir_compile_warning(message : cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[ir-compile-warning]: ");
-    tmp_push_cstr(message);
-    tmp_push_byte(cast u8 0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
+    dprintf(STDERR_FILENO, "[ir-compile-warning]: %s", @message);
   }
 }
 
 fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
-    let tmp cast cstr tmp_it;
-    tmp_push_cstr("[ir-compile-warning]: ");
-    tmp_push_cstr(cast cstr load64 + token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    tmp_push_byte(cast u8 0);
-    puts(STDERR_FILENO, tmp);
-    store64 @tmp_it tmp;
+    let args : any (
+      load64 + token Token.filename,
+      load64 + token Token.line,
+      load64 + token Token.column,
+      message
+    );
+    dprintf(STDERR_FILENO, "[ir-compile-warning]: %s:%d:%d: %s", @args);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr + load64 + token Token.length load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
   }
 }
 

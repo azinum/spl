@@ -315,19 +315,14 @@ fn lexer_read_number -> none {
 
 fn lexer_error(message : cstr) -> none {
   if eq l.status NoError {
-    let tmp tmp_it;
-    // a bit noisey, but this will do for now
-    // TODO(lucas): varadic functions to the rescue
-    tmp_push_cstr("[lex-error]: ");
-    tmp_push_cstr(cast cstr load64 + @token Token.filename);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + @token Token.line);
-    tmp_push_cstr(":");
-    tmp_push_u64(load64 + @token Token.column);
-    tmp_push_cstr(": ");
-    tmp_push_cstr(message);
-    putsn(STDERR_FILENO, tmp, - tmp_it tmp);
-    store64 @tmp_it tmp;
+    let args : any (
+      load64 + @token Token.filename,
+      load64 + @token Token.line,
+      load64 + @token Token.column,
+      message
+    );
+    dprintf(STDERR_FILENO, "[lex-error]: %s:%d:%d: %s", @args);
+    printline(STDERR_FILENO, l.source, cast cstr l.index, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 @l.status Error;
   }
 }
