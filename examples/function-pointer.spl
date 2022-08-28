@@ -11,9 +11,9 @@ fn main -> none {
   let index : u64 0;
   let func foo;
   while < i count {
-    = @func load64 + index @funcs;
+    store64 @func load64 + index @funcs;
     print func(i);
-    = @i + 1 i;
-    = @index + sizeof u64 index;
+    store64 @i + 1 i;
+    store64 @index + sizeof u64 index;
   }
 }

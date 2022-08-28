@@ -14,6 +14,9 @@ ${SPL_SRC}:
 
 examples: ${SPL_EXAMPLES}
 
+run_examples: SPL_FLAGS+=run
+run_examples: ${SPL_EXAMPLES}
+
 test: SPL_FLAGS+=run
 test: ${SPL_TEST}
 
