@@ -1,6 +1,7 @@
 // common.spl
 
 const TIME_NANOSECONDS_DENOM 1000000;
+const NUM_LINES_TO_PRINT 2;
 
 fn HERE dprintf(STDOUT_FILENO, "HERE\n", NULL);
 

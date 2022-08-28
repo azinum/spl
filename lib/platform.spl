@@ -102,71 +102,84 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
   write(fd, str, n);
 }
 
-// TODO(lucas): boundary checks
 // TODO(lucas): writing n characters of string
-fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
+fn _snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
   let result : u64 0;
   let it str; // string iterator
+  let end : ptr NULL;
+  if neq size UINT64_MAX {
+    store64 @end + + it size 1; // + 1 for null terminator
+  }
   let fit format; // format iterator
   let arg : ptr cast ptr args;
   let done : u64 0;
   while eq done 0 {
+    let it_diff it;
     let ch cast u64 load8 fit;
     if eq ch 0 {
-      store64 @it + it write_u8(it, cast u8 ch);
+      store64 @it + it bwrite_u8(it, end, cast u8 ch);
       store64 @done 1;
     }
-    else if eq ch 92 {
+    else if eq ch 92 { // `\`
       store64 @fit + 1 fit;
       store8 @ch load8 fit;
       if eq ch 't' {
-        store64 @it + it write_u8(it, cast u8 ASCII_TAB);
+        store64 @it + it bwrite_u8(it, end, cast u8 ASCII_TAB);
       }
       else if eq ch 'b' {
-        store64 @it + it write_u8(it, cast u8 ASCII_BS);
+        store64 @it + it bwrite_u8(it, end, cast u8 ASCII_BS);
       }
       else if eq ch 'n' {
-        store64 @it + it write_u8(it, cast u8 ASCII_LF);
+        store64 @it + it bwrite_u8(it, end, cast u8 ASCII_LF);
       }
       else if eq ch 'r' {
-        store64 @it + it write_u8(it, cast u8 ASCII_CR);
+        store64 @it + it bwrite_u8(it, end, cast u8 ASCII_CR);
       }
       else if eq ch 'f' {
-        store64 @it + it write_u8(it, cast u8 ASCII_FF);
+        store64 @it + it bwrite_u8(it, end, cast u8 ASCII_FF);
       }
       else if eq ch 39 {
-        store64 @it + it write_u8(it, cast u8 39);
+        store64 @it + it bwrite_u8(it, end, cast u8 39);
       }
     }
-    else if neq ch '%' {
-      store64 @it + it write_u8(it, cast u8 ch);
-    }
-    else {
+    else if eq ch '%' {
       store64 @fit + 1 fit;
       store8 @ch load8 fit;
       if eq ch 's' {
-        store64 @it + it write_cstr(it, cast cstr load64 arg);
+        store64 @it + it bwrite_cstr(it, end, cast cstr load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else if eq ch 'd' {
-        store64 @it + it write_u64(it, cast u64 load64 arg);
+        store64 @it + it bwrite_u64(it, end, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else if eq ch 'i' {
-        store64 @it + it write_u64(it, cast u64 load64 arg);
+        store64 @it + it bwrite_u64(it, end, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;
       }
       else {
-        store64 @it + it write_u8(it, cast u8 ch);
+        store64 @it + it bwrite_u8(it, end, cast u8 ch);
       }
     }
+    else {
+      store64 @it + it bwrite_u8(it, end, cast u8 ch);
+    }
     store64 @fit + 1 fit;
+    store64 @it_diff - cast u64 it it_diff;
+    if and neq cast u64 end NULL eq cast u64 it_diff 0 {
+      let _ write_u8(it, cast u8 0);
+      store64 @done 1;
+    }
   }
   store64 @result - cast u64 it str;
   if > result 0 {
     store64 @result - result 1;
   }
   result; // return number of characters written, excluding null terminator
+}
+
+fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
+  _snprintf(str, UINT64_MAX, format, args);
 }
 
 fn sprintf(str : ptr, format : cstr, args : any) -> none {

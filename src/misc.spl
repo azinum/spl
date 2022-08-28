@@ -1,0 +1,33 @@
+// misc.spl
+
+fn printline(fd : u64, source : cstr, index : cstr, token_length : u64, print_arrow : u64, num_lines_to_print : u64) -> none {
+  assert(neq num_lines_to_print 0, "printline: value of num_lines_to_print must be greater than 0\n");
+
+  store64 @index - index token_length;
+  let offset : u64 + - cast u64 index source 1;
+  let start_offset : u64 0;
+  let cur_line_offset : u64 0;
+  let end_offset : u64 0;
+  let num_lines : u64 num_lines_to_print;
+
+  // scan to the beginning of the line
+  let done : u64 0;
+  let at : cstr index;
+  while and eq done 0 < start_offset offset {
+    store64 @start_offset + 1 start_offset;
+    if eq num_lines_to_print num_lines {
+      store64 @cur_line_offset + 1 cur_line_offset;
+    }
+    let ch : u64 load8 - at start_offset;
+    if eq ch 10 { // `\n`
+      store64 @num_lines_to_print - num_lines_to_print 1;
+      if eq num_lines_to_print 0 {
+        store64 @done 1;
+      }
+    }
+  }
+
+  const MAX_BUFFER_SIZE 512;
+  let buffer : u8 : MAX_BUFFER_SIZE cast u8 0;
+  let line_length : u64 - + end_offset start_offset 1;
+}

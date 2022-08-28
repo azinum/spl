@@ -10,7 +10,7 @@ $ make bootstrap
 ```
 
 ### Compiling
-Compiling is as simple as it gets, pass the file of source code that you want to be compiled to the compiler.
+Compiling is as simple as it gets, pass the file of source code that you want to be compiled.
 ```
 $ ./spl <program>
 ```
@@ -60,4 +60,4 @@ fn main -> none {
 }
 ```
 
-You can find more examples in the examples directory, or you could traverse the compiler source code to get an idea of how the language works.
+You can find more examples in the examples directory, or you could read the compiler source code to get familiar with the language.
