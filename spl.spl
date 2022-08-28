@@ -41,7 +41,8 @@ OPTIONS:
    disable-dce     - disable dead code elimination
    dce-all         - eliminate all dead code, including all symbols
    verbose         - enable verbose output
-   verbose-asm     - enable verbose assembly code\n"
+   verbose-asm     - enable verbose assembly code
+   help            - show help menu\n"
   , @prog);
 }
 
@@ -201,6 +202,7 @@ fn main(argc : u64, argv : any) -> none {
 
   let arg argv;
   let i 0;
+  let view_help : u64 0;
   if < argc 2 {
     usage(cast cstr load64 arg);
   }
@@ -232,12 +234,18 @@ fn main(argc : u64, argv : any) -> none {
       else if eq 0 strcmp(argument, "verbose-asm") {
         store64 + @options Options.verbose_asm 1;
       }
+      else if eq 0 strcmp(argument, "help") {
+        store64 @view_help 1;
+      }
       else {
         store64 + @options Options.filename argument;
       }
       store64 @arg + sizeof any arg;
     }
-    if neq load64 + @options Options.filename 0 {
+    if view_help {
+      usage(cast cstr load64 argv);
+    }
+    else if neq load64 + @options Options.filename 0 {
       let result spl_start(cast cstr load64 + @options Options.filename);
     }
     else {
