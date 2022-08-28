@@ -11,3 +11,4 @@
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
 - dependency trace (i.e. trace which things depend on which other things)
+- optimize ir code generator so that it does not emit redundant instructions e.g. from constant expressions

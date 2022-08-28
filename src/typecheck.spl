@@ -139,22 +139,22 @@ fn vs_pop(value_out : ptr) -> u64 {
 }
 
 fn check_func_signatures(a : ptr, b : ptr) -> u64 {
-  let result 1;
+  let result : u64 1;
   if and
     eq load64 + a Function.argc load64 + b Function.argc
     eq load64 + a Function.rtype load64 + b Function.rtype {
 
-    let i 0;
-    let argc load64 + a Function.argc;
-    while < i argc {
-      // TODO(lucas): not sure if this works, testing needs to be done. indexing like this is tough man...
+    let i : u64 0;
+    let argc : u64 load64 + a Function.argc;
+    let done : u64 0;
+    while and eq done 0 < i argc {
       let arg_a : u64 load64 + + a Function.argc * sizeof u64 i;
       let arg_b : u64 load64 + + b Function.argc * sizeof u64 i;
       let type_a : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_a Symbol.type;
       let type_b : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_b Symbol.type;
       if neq type_a type_b {
         store64 @result 0;
-        store64 @i argc; // break out of the loop
+        store64 @done 1;
       }
       store64 @i + 1 i;
     }
@@ -265,6 +265,8 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
     // typecheck explicit type, if there is one
     let explicit_type TypeNone;
+    // for if the type is a function
+    let explicit_type_value : Value 0;
     if neq cast u64 ast_type NULL {
       store64 @explicit_type token_to_compile_type(block, fs, + ast_type Ast.token, @expl_type_symbol);
       let token : Token 0;
@@ -279,6 +281,9 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 @tmp_it message;
       }
       else {
+        if eq explicit_type TypeFunc {
+          memcpy(@explicit_type_value, + expl_type_symbol Symbol.value, sizeof Value);
+        }
         // array size specifier
         if > load64 + ast_type Ast.count 0 {
           { let _ typecheck.typecheck(block, fs, ast_type); }
@@ -310,6 +315,9 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
     if neq explicit_type TypeNone {
       store64 @prev_type explicit_type;
+      if eq explicit_type TypeFunc {
+        memcpy(@prev_value, @explicit_type_value, sizeof Value);
+      }
     }
 
     if and eq konst 1 eq is_numerical(type) 0 {
