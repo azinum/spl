@@ -12,7 +12,8 @@ struct Options (
   enable_warnings : u64,
   disable_dce     : u64,
   dce_all         : u64,
-  verbose         : u64
+  verbose         : u64,
+  verbose_asm     : u64
 );
 
 let options : Options 0;
@@ -39,7 +40,8 @@ OPTIONS:
    enable-warnings - enable basic warnings
    disable-dce     - disable dead code elimination
    dce-all         - eliminate all dead code, including all symbols
-   verbose         - enable verbose output\n"
+   verbose         - enable verbose output
+   verbose-asm     - enable verbose assembly code\n"
   , @prog);
 }
 
@@ -52,6 +54,7 @@ fn spl_options_init -> none {
   store64 + @options Options.disable_dce 0;
   store64 + @options Options.dce_all 0;
   store64 + @options Options.verbose 0;
+  store64 + @options Options.verbose_asm 0;
 }
 
 fn exec_command_echoed(fd : u64, command_list : ptr) -> none {
@@ -225,6 +228,9 @@ fn main(argc : u64, argv : any) -> none {
       }
       else if eq 0 strcmp(argument, "verbose") {
         store64 + @options Options.verbose 1;
+      }
+      else if eq 0 strcmp(argument, "verbose-asm") {
+        store64 + @options Options.verbose_asm 1;
       }
       else {
         store64 + @options Options.filename argument;

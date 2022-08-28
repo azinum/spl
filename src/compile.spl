@@ -217,16 +217,15 @@ fn o(fd : u64, format : cstr, args : any) -> none {
   dprintf(fd, format, args);
 }
 
-// TODO(lucas): make this configurable by the user via argument options
-const VERBOSE_ASSEMBLY : u64 1;
-
-fn vo(fd : u64, format : cstr, args : any) -> none {
-  if VERBOSE_ASSEMBLY {
-    o(fd, format, args);
-  }
-}
+fn vo_empty(fd : u64, format : cstr, args : any) -> none {}
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
+  let vo vo_empty;
+
+  if load64 + @options Options.verbose_asm {
+    store64 @vo o;
+  }
+
   let func_call_regs_x86_64 : cstr (
     "rdi",
     "rsi",
@@ -653,7 +652,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       }
       else {
         vo(fd, "; `%s`\n", @name);
-        vo(fd, "v%d:\n", @dest);
+        o(fd, "v%d:\n", @dest);
       }
     }
     else if eq ins I_CALL {
@@ -870,7 +869,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
               store64 @imm - imm size;
               store64 @v + 1 v;
             }
-            o(fd, " ; `%s`\n", @name);
+            vo(fd, " ; `%s`", @name);
+            o(fd, "\n", NULL);
           }
           else if eq type TypeUnsigned32 {
             store64 @size sizeof u64;
@@ -883,7 +883,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
               store64 @imm - imm size;
               store64 @v + 1 v;
             }
-            o(fd, " ; `%s`\n", @name);
+            vo(fd, " ; `%s`", @name);
+            o(fd, "\n", NULL);
           }
           else if eq type TypeUnsigned16 {
             store64 @size sizeof u64;
@@ -896,7 +897,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
               store64 @imm - imm size;
               store64 @v + 1 v;
             }
-            o(fd, " ; `%s`\n", @name);
+            vo(fd, " ; `%s`", @name);
+            o(fd, "\n", NULL);
           }
           else if eq type TypeUnsigned8 {
             store64 @size sizeof u64;
@@ -909,7 +911,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
               store64 @imm - imm size;
               store64 @v + 1 v;
             }
-            o(fd, " ; `%s`\n", @name);
+            vo(fd, " ; `%s`", @name);
+            o(fd, "\n", NULL);
           }
           else {
             assert(0, "type not implemented\n");
@@ -936,13 +939,21 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           let name cast cstr + symbol Symbol.name;
           let type_name cast cstr load64 + @compile_type_str * sizeof cstr type;
           if eq 0 or eq type TypeNone eq type TypeSyscallFunc {
-            let args : any (
-              i,
-              size,
-              name,
-              type_name
-            );
-            o(fd, "v%d: resb %d ; `%s` : %s\n", @args);
+            {
+              let args : any (
+                i,
+                size
+              );
+              o(fd, "v%d: resb %d", @args);
+            }
+            {
+              let args : any (
+                name,
+                type_name
+              );
+              vo(fd, " ; `%s` : %s", @args);
+            }
+            o(fd, "\n", NULL);
           }
         }
       }

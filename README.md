@@ -34,6 +34,7 @@ OPTIONS:
   disable-dce     - disable dead code elimination
   dce-all         - eliminate all dead code, including all symbols
   verbose         - enable verbose output
+  verbose-asm     - enable verbose assembly code
 ```
 
 ### Examples
