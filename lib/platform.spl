@@ -196,6 +196,12 @@ fn dprintf(fd : u64, format : cstr, args : any) -> none {
   write(fd, cast ptr @buffer, n);
 }
 
+fn dnprintf(fd : u64, size : u64, format : cstr, args : any) -> none {
+  let buffer : u8 : MAX_BUFFER_SIZE cast u8 0;
+  let n _snprintf(cast ptr @buffer, size, format, args);
+  write(fd, cast ptr @buffer, n);
+}
+
 fn printf(format : cstr, args : any) -> none {
   dprintf(STDOUT_FILENO, format, args);
 }

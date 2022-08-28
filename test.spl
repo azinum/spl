@@ -3,14 +3,4 @@
 include "lib/common.spl"
 
 fn main -> none {
-  const MAX_BUFFER_SIZE 512;
-  let buffer : u8 : MAX_BUFFER_SIZE cast u8 0;
-  {
-  let args : any
-  _sprintf(@buffer, "hello there", NULL);
-  }
-  {
-  let args : any @buffer;
-  printf("%s\n", @args);
-  }
 }
