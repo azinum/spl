@@ -1,10 +1,10 @@
 // memory.spl
 
 fn memory_alloc(size : u64) -> ptr {
-  const start : u64 0xffffffff;
+  let start : ptr NULL;
   let prot : u64  or PROT_READ   PROT_WRITE;
   let flags : u64 or MAP_PRIVATE MAP_ANONYMOUS;
-  let data : ptr memory_map(cast ptr start, size, prot, flags, 0, 0);
+  let data : ptr memory_map(start, size, prot, flags, 0, 0);
   data;
 }
 

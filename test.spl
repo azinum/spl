@@ -2,11 +2,5 @@
 
 // include "lib/common.spl"
 
-fn foo(a : u64) -> u64 + a 7;
-fn bar(a : u64, b : u64) -> none print a;
-fn baz(a : u64) -> u64 * a a;
-
 fn main -> none {
-  let f cast foo baz;
-  print f(3);
 }
