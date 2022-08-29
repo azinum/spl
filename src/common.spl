@@ -9,9 +9,9 @@ fn err(message : cstr) -> none {
   dprintf(STDERR_FILENO, "[error]: %s", @message);
 }
 
-fn error(message : cstr) -> none {
-  err(message);
-  exit(1);
+fn error(message : cstr, args : any) -> none {
+  dprintf(STDERR_FILENO, "[error]: ", NULL);
+  dprintf(STDERR_FILENO, message, args);
 }
 
 fn print_info(message : cstr) -> none {

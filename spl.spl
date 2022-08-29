@@ -169,7 +169,8 @@ fn spl_start(filename : cstr) -> u64 {
                   close(debug_fd);
                 }
                 else {
-                  // TODO: handle
+                  let args : any @path;
+                  error("failed to open file `%s`\n", @args);
                 }
               }
             }
@@ -177,13 +178,7 @@ fn spl_start(filename : cstr) -> u64 {
           compile_state_free();
         }
       }
-      else {
-        // TODO: handle
-      }
       parser_free();
-    }
-    else {
-      // TODO: handle
     }
     close(fd);
   }
