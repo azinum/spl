@@ -1,4 +1,5 @@
 - optimize ir code generator so that it does not emit redundant instructions e.g. from constant expressions
+- dependency trace (i.e. trace which things depend on which other things)
 - file inclusion guards
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - add ability to use escaped and unescaped `raw` strings
@@ -9,4 +10,5 @@
 - compile time evaluation of `trival` functions
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
-- dependency trace (i.e. trace which things depend on which other things)
+- basic introspection
+- library linking

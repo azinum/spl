@@ -143,8 +143,8 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   result;
 }
 
-// TODO(lucas): fully implement
 fn compile_print_symbol_info(fd : u64) -> none {
+  dprintf(fd, "compile_print_symbol_info:\n", NULL);
   let message cast cstr tmp_it;
   let count : u64 load64 + c Compile.symbol_count;
   let i : u64 0;
@@ -186,15 +186,19 @@ fn compile_print_symbol_info(fd : u64) -> none {
         dprintf(fd, ") -> %s", + @compile_type_str * sizeof u64 load64 + func Function.rtype);
       }
       else {
-        let args : any (name, load64 + symbol Symbol.type, load64 + symbol Symbol.size);
-        dprintf(fd, "`%s` (type = %d, size = %d)", @args);
+        let args : any (name);
+        dprintf(fd, "`%s`", @args);
       }
       let args : any (
+        load64 + symbol Symbol.type,
+        load64 + symbol Symbol.size,
+        load64 + symbol Symbol.konst,
+        load64 + symbol Symbol.ref_count,
         load64 + + symbol Symbol.token Token.filename,
         load64 + + symbol Symbol.token Token.line,
         load64 + + symbol Symbol.token Token.column
       );
-      dprintf(fd, " - %s:%d:%d\n", @args);
+      dprintf(fd, " (type = %d, size = %d, konst = %d, ref_count = %d) - %s:%d:%d\n", @args);
     }
     store64 @i + 1 i;
   }
