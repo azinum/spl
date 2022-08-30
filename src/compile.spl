@@ -116,8 +116,8 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
   store64 + @token Token.type T_IDENTIFIER;
-  store64 + @token Token.filename NULL;
-  store64 + @token Token.source NULL;
+  store64 + @token Token.filename "internal";
+  store64 + @token Token.source "";
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
@@ -142,6 +142,47 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   }
   result;
 }
+
+// name : cstr, value : Value*, type : u64
+fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
+  let result NoError;
+  let block + c Compile.global;
+  let token : Token 0;
+  store64 + @token Token.buffer name;
+  store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
+  store64 + @token Token.type T_IDENTIFIER;
+  store64 + @token Token.filename "internal";
+  store64 + @token Token.source "";
+  store64 + @token Token.line 0;
+  store64 + @token Token.column 0;
+
+  let imm : u64 ir_push_value(+ value Value.num, sizeof u64);
+  if neq imm UINT64_MAX {
+    let symbol : ptr NULL;
+    let symbol_index UINT64_MAX;
+    if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
+      store64 + symbol Symbol.imm imm;
+      store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
+      store64 + symbol Symbol.konst 1;
+      store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+      store64 + symbol Symbol.type type;
+      store64 + + symbol Symbol.token Token.v symbol_index;
+      memcpy(+ symbol Symbol.value, value, sizeof Value);
+      store64 + symbol Symbol.ref_count 1;
+    }
+    else {
+      compile_error("symbol already exists\n");
+      store64 @result Error;
+    }
+  }
+  else {
+    compile_error("out of immediate data memory\n");
+    store64 @result Error;
+  }
+
+  result;
+}
+
 
 fn compile_print_symbol_info(fd : u64) -> none {
   dprintf(fd, "compile_print_symbol_info:\n", NULL);
@@ -1091,6 +1132,13 @@ fn compile_state_init -> u64 {
   { let _ compile_create_syscall("syscall4", 4); }
   { let _ compile_create_syscall("syscall5", 5); }
   { let _ compile_create_syscall("syscall6", 6); }
+
+  {
+    let value : Value 0;
+    store64 + @value Value.num 0;
+    store64 + @value Value.konst 1;
+    let _ compile_create_value("VERSION_ID", @value, TypeUnsigned64);
+  }
 
   NoError;
 }

@@ -1,9 +1,9 @@
 // misc.spl
 
 // TODO(lucas): index points to the end of the token, change this so that it points to the beginning of the token.
-// TODO(lucas): check that source and index are not NULL
 fn printline(fd : u64, source : cstr, index : cstr, token_length : u64, print_arrow : u64, num_lines_to_print : u64) -> none {
   assert(neq num_lines_to_print 0, "printline: value of num_lines_to_print must be greater than 0\n");
+  assert(and neq cast u64 source NULL neq cast u64 index NULL, "printline: source or index must not be NULL\n");
 
   store64 @index - index token_length;
   let offset : u64 + - cast u64 index source 1;
