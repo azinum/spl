@@ -570,15 +570,23 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
  push rax\n"
       , NULL);
     }
-    // shl and shr require immediate value on the second argument
-    // TODO(lucas): implement
     else if eq ins I_LSHIFT {
       vo(fd, "; I_LSHIFT\n", NULL);
-      assert(0, "I_LSHIFT: instruction not implemented yet\n");
+      o(fd,
+"pop rcx
+ pop rax
+ shl rax, cl
+ push rax\n"
+      , NULL);
     }
     else if eq ins I_RSHIFT {
       vo(fd, "; I_RSHIFT\n", NULL);
-      assert(0, "I_RSHIFT: instruction not implemented yet\n");
+      o(fd,
+"pop rcx
+ pop rax
+ shr rax, cl
+ push rax\n"
+      , NULL);
     }
     else if eq ins I_DIVMOD {
       vo(fd, "; I_DIVMOD\n", NULL);

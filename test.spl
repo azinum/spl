@@ -3,4 +3,5 @@
 // include "lib/common.spl"
 
 fn main -> none {
+  print rshift 32 3;
 }
