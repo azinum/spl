@@ -2,5 +2,10 @@
 
 // include "lib/common.spl"
 
+fn some_func(a : u64) -> u64 a;
+
 fn main -> none {
+  let a : u64 1;
+  let b : u64 2;
+  print + a b;
 }

@@ -71,18 +71,14 @@ fn ast_create(type : u64) -> ptr {
 }
 
 fn ast_print_node(ast : any, fd : u64) -> none {
-  let tmp tmp_it;
-  let p tmp_push_cstr;
-
   let count # + Ast.count ast;
   let type  # + Ast.type ast;
   let token + Ast.token ast;
-  p("count store64 "); tmp_push_u64(count);
-  p("\n");
-  p("type  store64 "); tmp_push_u64(type);
-  p("\n");
-  putsn(fd, tmp, - tmp_it tmp);
-  store64 @tmp_it tmp;
+  let args : any (
+    count,
+    type
+  );
+  dprintf(STDOUT_FILENO, "count = %d\ntype = %d\n", @args);
   token_print(cast ptr token);
 }
 

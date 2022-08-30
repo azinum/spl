@@ -555,6 +555,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         let value : Value 0;
         store64 + @value Value.num num;
+        store64 + ast Ast.konst is_branch_konst_eval(ast);
         store64 + @value Value.konst load64 + ast Ast.konst;
         { let _ vs_push(@value); }
         { let _ ts_push(a); }
@@ -720,12 +721,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         else {
           let message cast cstr tmp_it;
-          tmp_push_cstr("reached function parameter count limit of ");
-          tmp_push_u64(MAX_FUNC_ARGC);
-          tmp_push_cstr("\n");
-          tmp_push_byte(cast u8 0);
+          sprintf(cast ptr message, "reached function parameter count limit of %d\n", @MAX_FUNC_ARGC);
           compile_error_at(+ ast Ast.token, message);
-          store64 @tmp_it message;
         }
       }
       else {

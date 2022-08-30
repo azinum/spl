@@ -81,23 +81,6 @@ enum u64 (
   SYM_GLOBAL_VAR
 );
 
-const MAX_FUNC_ARGC 6; // TODO(lucas): temp
-
-struct Function (
-  ir_address            : u64,
-  label                 : u64,
-  argc                  : u64,
-  locals_offset_counter : u64,
-  rtype                 : u64,
-  args                  : u64 : MAX_FUNC_ARGC
-);
-
-struct Value (
-  func  : Function,
-  num   : u64,
-  konst : u64
-);
-
 const MAX_NAME_SIZE 64;
 
 struct Symbol (
@@ -628,9 +611,9 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     { let _ ir_compile_stmts(block, fs, ast, ins_count); }
   }
   else if eq type AstBinopExpression {
+    let op : Op 0;
     if eq ir_compile_binop(block, fs, ast, ins_count) NoError {
       let type : u64 load64 + + ast Ast.token Token.type;
-      let op : Op 0;
       if eq type T_ADD {
         OP(I_ADD, @op);
       }

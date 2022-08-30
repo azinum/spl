@@ -121,28 +121,28 @@ fn token_print(token : ptr) -> none {
   let tmp tmp_it;
   let p tmp_push_cstr;
 
-  let buffer cast cstr load64 + token Token.buffer;
-  let length : u64 load64 + token Token.length;
-  let type : u64 load64 + token Token.type;
-  let value : u64 load64 + token Token.v;
+  let buffer cast cstr   load64 + token Token.buffer;
+  let length : u64       load64 + token Token.length;
+  let type : u64         load64 + token Token.type;
+  let value : u64        load64 + token Token.v;
   let filename cast cstr load64 + token Token.filename;
-  let source cast cstr load64 + token Token.source;
-  let line : u64 load64 + token Token.line;
-  let column : u64 load64 + token Token.column;
+  let source cast cstr   load64 + token Token.source;
+  let line : u64         load64 + token Token.line;
+  let column : u64       load64 + token Token.column;
 
   if eq cast u64 filename 0 store64 @filename "none";
 
-  p("buffer   store64 "); tmp_push_str(buffer, length);
+  p("buffer   = "); tmp_push_str(buffer, length);
   p("\n");
-  p("length   store64 "); tmp_push_u64(length);
+  p("length   = "); tmp_push_u64(length);
   p("\n");
-  p("type     store64 "); tmp_push_u64(type);
+  p("type     = "); tmp_push_u64(type);
   p("\n");
-  p("filename store64 "); p(filename);
+  p("filename = "); p(filename);
   p("\n");
-  p("line     store64 "); tmp_push_u64(line);
+  p("line     = "); tmp_push_u64(line);
   p("\n");
-  p("column   store64 "); tmp_push_u64(column);
+  p("column   = "); tmp_push_u64(column);
   p("\n");
 
   putsn(STDOUT_FILENO, tmp, - tmp_it tmp);

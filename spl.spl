@@ -21,6 +21,7 @@ let options : Options 0;
 include "lib/common.spl"
 include "src/common.spl"
 include "src/misc.spl"
+include "src/value.spl"
 include "src/lexer.spl"
 include "src/ast.spl"
 include "src/parser.spl"

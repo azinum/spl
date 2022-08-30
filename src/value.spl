@@ -1,0 +1,18 @@
+// value.spl
+
+const MAX_FUNC_ARGC 6; // TODO(lucas): temp
+
+struct Function (
+  ir_address            : u64,
+  label                 : u64,
+  argc                  : u64,
+  locals_offset_counter : u64,
+  rtype                 : u64,
+  args                  : u64 : MAX_FUNC_ARGC
+);
+
+struct Value (
+  func  : Function,
+  num   : u64,
+  konst : u64
+);
