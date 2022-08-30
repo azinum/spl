@@ -1141,10 +1141,12 @@ fn compile_state_init -> u64 {
   { let _ compile_create_syscall("syscall5", 5); }
   { let _ compile_create_syscall("syscall6", 6); }
 
+
   {
     let value : Value 0;
-    store64 + @value Value.num 0;
+    store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;
+
     let _ compile_create_value("VERSION_ID", @value, TypeUnsigned64);
   }
 

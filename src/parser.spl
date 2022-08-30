@@ -4,7 +4,8 @@ struct Parser (
   ast          : ptr,
   status       : u64,
   line_count   : u64,
-  source_count : u64
+  source_count : u64,
+  source_hash  : u64
 );
 
 let p : Parser 0;
@@ -739,6 +740,8 @@ fn parse -> ptr {
   print_info(message);
 
   store64 + @p Parser.line_count + load64 + @p Parser.line_count l.line;
+  store64 + @p Parser.source_hash + load64 + @p Parser.source_hash djb2_hash_cstr(l.source);
+
   ast;
 }
 
@@ -748,6 +751,7 @@ fn parser_init(filename : any, source : any) -> u64 {
   store64 + @p Parser.status NoError;
   store64 + @p Parser.line_count 0;
   store64 + @p Parser.source_count 1;
+  store64 + @p Parser.source_hash 0;
 
   store64 @parse_entry parse;
   store64 @expression parse_expr;

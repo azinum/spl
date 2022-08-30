@@ -1,7 +1,7 @@
 // test.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
 fn main -> none {
-  print rshift 32 3;
+  print VERSION_ID;
 }
