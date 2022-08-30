@@ -47350,7 +47350,7 @@ ret
 main:
 push rbp
 mov rbp, rsp
-sub rsp, 64
+sub rsp, 56
 mov [rbp-8], rdi
 mov [rbp-16], rsi
 push rbp
@@ -47373,10 +47373,6 @@ mov rax, 0
 push rax
 pop rax
 mov [rbp-40], rax
-mov rax, 0
-push rax
-pop rax
-mov [rbp-48], rax
 push QWORD [rbp-8]
 mov rax, 2
 push rax
@@ -47437,12 +47433,12 @@ xor rbx, rbx
 mov rbx, [rax]
 push rbx
 pop rax
-mov [rbp-56], rax
+mov [rbp-48], rax
 mov rax, 0
 push rax
 mov rax, str651
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47478,7 +47474,7 @@ mov rax, 0
 push rax
 mov rax, str652
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47514,7 +47510,7 @@ mov rax, 0
 push rax
 mov rax, str653
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47550,7 +47546,7 @@ mov rax, 0
 push rax
 mov rax, str654
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47586,7 +47582,7 @@ mov rax, 0
 push rax
 mov rax, str655
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47622,7 +47618,7 @@ mov rax, 0
 push rax
 mov rax, str656
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47658,7 +47654,7 @@ mov rax, 0
 push rax
 mov rax, str657
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47694,7 +47690,7 @@ mov rax, 0
 push rax
 mov rax, str658
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47730,7 +47726,7 @@ mov rax, 0
 push rax
 mov rax, str659
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47747,20 +47743,25 @@ push rcx
 pop rax
 test rax, rax
 jz L1162
-lea rax, [rbp-48]
+mov rax, v7
 push rax
-mov rax, 1
+mov rax, str660
 push rax
-pop rbx
-pop rax
-mov [rax], rbx
+mov rax, [v225]
+push rax
+pop rdi
+pop rsi
+pop rdx
+push rbp
+call v722
+pop rbp
 jmp L1163
 L1162:
 mov rax, 0
 push rax
-mov rax, str660
+mov rax, str661
 push rax
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rdi
 pop rsi
 push rbp
@@ -47777,13 +47778,15 @@ push rcx
 pop rax
 test rax, rax
 jz L1164
-lea rax, [rbp-40]
-push rax
-mov rax, 1
-push rax
-pop rbx
+push QWORD [rbp-16]
 pop rax
-mov [rax], rbx
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
+pop rdi
+push rbp
+call v1961
+pop rbp
 jmp L1165
 L1164:
 mov rax, v18
@@ -47794,7 +47797,7 @@ pop rax
 pop rbx
 add rbx, rax
 push rbx
-push QWORD [rbp-56]
+push QWORD [rbp-48]
 pop rbx
 pop rax
 mov [rax], rbx
@@ -47823,38 +47826,15 @@ mov [rax], rbx
 jmp L1144
 L1145:
 push QWORD [rbp-40]
-pop rax
-test rax, rax
-jz L1166
-push QWORD [rbp-16]
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-pop rdi
-push rbp
-call v1961
-pop rbp
-jmp L1167
-L1166:
-push QWORD [rbp-48]
-pop rax
-test rax, rax
-jz L1168
-mov rax, v7
+mov rax, 0
 push rax
-mov rax, str661
-push rax
-mov rax, [v225]
-push rax
-pop rdi
-pop rsi
-pop rdx
-push rbp
-call v722
-pop rbp
-jmp L1169
-L1168:
+mov rcx, 0
+mov rdx, 1
+pop rax
+pop rbx
+cmp rbx, rax
+cmove rcx, rdx
+push rcx
 mov rax, v18
 push rax
 mov rax, [v11]
@@ -47877,8 +47857,12 @@ cmp rbx, rax
 cmovne rcx, rdx
 push rcx
 pop rax
+pop rbx
+and rbx, rax
+push rbx
+pop rax
 test rax, rax
-jz L1170
+jz L1166
 mov rax, v18
 push rax
 mov rax, [v11]
@@ -47897,21 +47881,19 @@ call v1969
 pop rbp
 push rax
 pop rax
-mov [rbp-64], rax
-jmp L1171
-L1170:
+mov [rbp-56], rax
+jmp L1167
+L1166:
 mov rax, str662
 push rax
 pop rdi
 push rbp
 call v755
 pop rbp
-L1171:
-L1169:
 L1167:
 L1143:
 pop rbp
-add rsp, 64
+add rsp, 56
 ret
 
 _start:
@@ -48587,8 +48569,8 @@ str656: db 100, 99, 101, 45, 97, 108, 108, 0
 str657: db 118, 101, 114, 98, 111, 115, 101, 0
 str658: db 118, 101, 114, 98, 111, 115, 101, 45, 97, 115, 109, 0
 str659: db 118, 101, 114, 115, 105, 111, 110, 0
-str660: db 104, 101, 108, 112, 0
-str661: db 115, 112, 108, 32, 118, 101, 114, 115, 105, 111, 110, 32, 105, 100, 58, 32, 37, 100, 10, 0
+str660: db 115, 112, 108, 32, 118, 101, 114, 115, 105, 111, 110, 32, 105, 100, 58, 32, 37, 100, 10, 0
+str661: db 104, 101, 108, 112, 0
 str662: db 110, 111, 32, 105, 110, 112, 117, 116, 32, 102, 105, 108, 101, 32, 119, 97, 115, 32, 115, 112, 101, 99, 105, 102, 105, 101, 100, 10, 0
 v7: dq 0,
 v8: dq 0,
@@ -50079,4 +50061,3 @@ v2003: resb 8
 v2004: resb 8
 v2005: resb 8
 v2006: resb 8
-v2007: resb 8
