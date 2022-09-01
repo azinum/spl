@@ -399,9 +399,7 @@ fn linux_wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
 }
 
 fn WEXITSTATUS(status : u64) -> u64 {
-  // TODO(lucas): add right shift to implement this
-  // shr and status 0xff00 8;
-  0;
+  rshift and status 0xff00 8;
 }
 
 fn WIFEXITED(status : u64) -> u64 {
