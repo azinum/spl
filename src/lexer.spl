@@ -322,7 +322,7 @@ fn lexer_error(message : cstr) -> none {
       message
     );
     dprintf(STDERR_FILENO, "[lex-error]: %s:%d:%d: %s", @args);
-    printline(STDERR_FILENO, l.source, cast cstr l.index, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
+    printline(STDERR_FILENO, l.source, cast cstr load64 + @token Token.buffer, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 @l.status Error;
   }
 }

@@ -19,7 +19,7 @@ fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
     let args : any (load64 + @token Token.filename, load64 + @token Token.line, load64 + @token Token.column, message);
     dprintf(STDERR_FILENO, "[parse-error]: %s:%d:%d: %s", @args);
-    printline(STDERR_FILENO, l.source, cast cstr l.index, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
+    printline(STDERR_FILENO, l.source, cast cstr load64 + @token Token.buffer, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + @p Parser.status Error;
   }
 }

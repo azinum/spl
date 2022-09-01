@@ -4426,17 +4426,6 @@ pop rsi
 push rbp
 call v749
 pop rbp
-lea rax, [rbp-24]
-push rax
-push QWORD [rbp-24]
-push QWORD [rbp-32]
-pop rax
-pop rbx
-sub rbx, rax
-push rbx
-pop rbx
-pop rax
-mov [rax], rbx
 push QWORD [rbp-24]
 push QWORD [rbp-16]
 pop rax
@@ -7278,8 +7267,18 @@ pop rax
 xor rbx, rbx
 mov rbx, [rax]
 push rbx
-mov rax, [v884]
+mov rax, v881
 push rax
+mov rax, [v872]
+push rax
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
 mov rax, [v883]
 push rax
 mov rax, [v237]
@@ -12050,8 +12049,18 @@ pop rax
 xor rbx, rbx
 mov rbx, [rax]
 push rbx
-mov rax, [v884]
+mov rax, v881
 push rax
+mov rax, [v872]
+push rax
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
 mov rax, [v883]
 push rax
 mov rax, [v237]
@@ -17534,17 +17543,6 @@ xor rbx, rbx
 mov rbx, [rax]
 push rbx
 push QWORD [rbp-8]
-mov rax, [v873]
-push rax
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-push QWORD [rbp-8]
 mov rax, [v872]
 push rax
 pop rax
@@ -17554,10 +17552,6 @@ push rbx
 pop rax
 xor rbx, rbx
 mov rbx, [rax]
-push rbx
-pop rax
-pop rbx
-add rbx, rax
 push rbx
 push QWORD [rbp-8]
 mov rax, [v877]
@@ -17727,17 +17721,6 @@ xor rbx, rbx
 mov rbx, [rax]
 push rbx
 push QWORD [rbp-8]
-mov rax, [v873]
-push rax
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-push QWORD [rbp-8]
 mov rax, [v872]
 push rax
 pop rax
@@ -17747,10 +17730,6 @@ push rbx
 pop rax
 xor rbx, rbx
 mov rbx, [rax]
-push rbx
-pop rax
-pop rbx
-add rbx, rax
 push rbx
 push QWORD [rbp-8]
 mov rax, [v877]
@@ -35432,17 +35411,6 @@ xor rbx, rbx
 mov rbx, [rax]
 push rbx
 push QWORD [rbp-8]
-mov rax, [v873]
-push rax
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-push QWORD [rbp-8]
 mov rax, [v872]
 push rax
 pop rax
@@ -35452,10 +35420,6 @@ push rbx
 pop rax
 xor rbx, rbx
 mov rbx, [rax]
-push rbx
-pop rax
-pop rbx
-add rbx, rax
 push rbx
 push QWORD [rbp-8]
 mov rax, [v877]
@@ -42878,7 +42842,7 @@ push rbp
 call v217
 pop rbp
 push QWORD [rbp-26072]
-push QWORD [rbp-24]
+push QWORD [rbp-26032]
 mov rax, [v968]
 push rax
 pop rax
@@ -49092,7 +49056,7 @@ str662: db 118, 101, 114, 115, 105, 111, 110, 0
 str663: db 115, 112, 108, 32, 118, 101, 114, 115, 105, 111, 110, 32, 105, 100, 58, 32, 37, 100, 10, 0
 str664: db 104, 101, 108, 112, 0
 str665: db 110, 111, 32, 105, 110, 112, 117, 116, 32, 102, 105, 108, 101, 32, 119, 97, 115, 32, 115, 112, 101, 99, 105, 102, 105, 101, 100, 10, 0
-v7: dq 2768098378108595983,
+v7: dq 2724614316768921248,
 v8: dq 0,
 v9: dq 8,
 v10: dq 16,

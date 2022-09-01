@@ -38,7 +38,7 @@ fn typecheck_error_at(token : ptr, message : cstr) -> none {
       message
     );
     dprintf(STDERR_FILENO, "[typecheck-error]: %s:%d:%d: %s", @args);
-    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr + load64 + token Token.length load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
@@ -781,7 +781,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     tmp_push_cstr(cast cstr + symbol Symbol.name);
                     tmp_push_cstr("`\n");
                     tmp_push_byte(cast u8 0);
-                    typecheck_error_at(+ ast Ast.token, message);
+                    typecheck_error_at(+ node Ast.token, message);
                     store64 @tmp_it message;
                     store64 @done 1;
                   }
