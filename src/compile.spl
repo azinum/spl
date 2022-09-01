@@ -204,7 +204,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
       dprintf(fd, "%d: ", @i);
       if eq type TypeFunc {
         let func cast ptr + + symbol Symbol.value Value.func;
-        dprintf(fd, "`%s` (", @name);
+        dprintf(fd, "%s(", @name);
 
         // iterate args
         let arg_index : u64 0;
@@ -224,22 +224,28 @@ fn compile_print_symbol_info(fd : u64) -> none {
           }
           store64 @arg_index + 1 arg_index;
         }
-        dprintf(fd, ") -> %s", + @compile_type_str * sizeof u64 load64 + func Function.rtype);
+        dprintf(fd, ") -> %s", + @compile_type_str * sizeof cstr load64 + func Function.rtype);
       }
       else {
-        let args : any (name);
-        dprintf(fd, "`%s`", @args);
+        let count : u64 / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
+        let type_name cast cstr load64 + @compile_type_str * sizeof cstr type;
+        let args : any (name, type_name);
+        dprintf(fd, "%s : %s", @args);
+        if > count 1 {
+          dprintf(fd, " : %d", @count);
+        }
       }
       let args : any (
-        load64 + symbol Symbol.type,
-        load64 + symbol Symbol.size,
         load64 + symbol Symbol.konst,
-        load64 + symbol Symbol.ref_count,
-        load64 + + symbol Symbol.token Token.filename,
-        load64 + + symbol Symbol.token Token.line,
-        load64 + + symbol Symbol.token Token.column
+        load64 + symbol Symbol.ref_count
       );
-      dprintf(fd, " (type = %d, size = %d, konst = %d, ref_count = %d) - %s:%d:%d\n", @args);
+      dprintf(fd, " (konst = %d, ref_count = %d)\n", @args);
+      // let args : any (
+      //   load64 + + symbol Symbol.token Token.filename,
+      //   load64 + + symbol Symbol.token Token.line,
+      //   load64 + + symbol Symbol.token Token.column
+      // );
+      // dprintf(fd, " - %s:%d:%d\n", @args);
     }
     store64 @i + 1 i;
   }
@@ -1044,6 +1050,23 @@ fn compile(target : u64, fd : u64) -> u64 {
   result;
 }
 
+fn compile_print_final -> none {
+  let args : any (
+    load64 + c Compile.warning_count,
+    load64 + c Compile.error_count
+  );
+  if eq load64 + c Compile.status Error {
+    printf("compilation fail:\n", NULL);
+    printf("  warning(s): %d\n  error(s): %d\n", @args);
+  }
+  if load64 + @options Options.verbose {
+    if eq load64 + c Compile.status NoError {
+      printf("compilation success:\n", NULL);
+    }
+    printf("  warning(s): %d\n  error(s): %d\n", @args);
+  }
+}
+
 fn compile_state_init -> u64 {
   store64 @c memory_alloc(sizeof Compile);
   store64 + c Compile.ins_count 0;
@@ -1057,6 +1080,8 @@ fn compile_state_init -> u64 {
   store64 + c Compile.ts_count 0;
   store64 + c Compile.vs_count 0;
   store64 + c Compile.type_count MAX_PRIMITIVE_TYPE;
+  store64 + c Compile.warning_count 0;
+  store64 + c Compile.error_count 0;
 
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
@@ -1107,17 +1132,17 @@ fn compile_state_init -> u64 {
   store64 + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
   store64 + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
 
-  store64 + @compile_type_str * TypeNone           sizeof cstr "None";
-  store64 + @compile_type_str * TypeAny            sizeof cstr "Any";
-  store64 + @compile_type_str * TypePtr            sizeof cstr "Ptr";
-  store64 + @compile_type_str * TypeUnsigned64     sizeof cstr "Unsigned64";
-  store64 + @compile_type_str * TypeUnsigned32     sizeof cstr "Unsigned32";
-  store64 + @compile_type_str * TypeUnsigned16     sizeof cstr "Unsigned16";
-  store64 + @compile_type_str * TypeUnsigned8      sizeof cstr "Unsigned8";
-  store64 + @compile_type_str * TypeCString        sizeof cstr "CString";
-  store64 + @compile_type_str * TypeFunc           sizeof cstr "Func";
-  store64 + @compile_type_str * TypeSyscallFunc    sizeof cstr "SyscallFunc";
-  store64 + @compile_type_str * TypeStruct         sizeof cstr "Struct";
+  store64 + @compile_type_str * TypeNone           sizeof cstr "none";
+  store64 + @compile_type_str * TypeAny            sizeof cstr "any";
+  store64 + @compile_type_str * TypePtr            sizeof cstr "ptr";
+  store64 + @compile_type_str * TypeUnsigned64     sizeof cstr "u64";
+  store64 + @compile_type_str * TypeUnsigned32     sizeof cstr "u32";
+  store64 + @compile_type_str * TypeUnsigned16     sizeof cstr "u16";
+  store64 + @compile_type_str * TypeUnsigned8      sizeof cstr "u8";
+  store64 + @compile_type_str * TypeCString        sizeof cstr "cstr";
+  store64 + @compile_type_str * TypeFunc           sizeof cstr "func";
+  store64 + @compile_type_str * TypeSyscallFunc    sizeof cstr "syscallfunc";
+  store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
   store64 + @compile_type_size * TypeNone           sizeof u64 0;

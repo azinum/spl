@@ -37,5 +37,7 @@ performance_test:
 install:
 	chmod o+x ${PROG}
 	cp ${PROG} ${INSTALL_DIR}/${PROG}
+	mkdir -p ${LIB_DIR}/${PROG}
+	cp -rp lib ${LIB_DIR}/${PROG}
 
 .PHONY: spl main test examples/* bootstrap

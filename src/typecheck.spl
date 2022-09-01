@@ -1,7 +1,7 @@
 // typecheck.spl
 
 fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
-let typecheck.typecheck typecheck_function;
+let _typecheck typecheck_function;
 
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
@@ -25,6 +25,7 @@ fn typecheck_error(message : cstr) -> none {
     dprintf(STDERR_FILENO, "[typecheck-error]: %s", @message);
     store64 + c Compile.status Error;
   }
+  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
 // token : Token*
@@ -40,6 +41,7 @@ fn typecheck_error_at(token : ptr, message : cstr) -> none {
     printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr + load64 + token Token.length load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
+  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
 fn typecheck_print_stack(fd : u64) -> none {
@@ -233,7 +235,7 @@ fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
   let i 0;
   let count load64 + ast Ast.count;
   while < i count {
-    let _ typecheck.typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
+    let _ _typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     store64 @i + 1 i;
   }
   NoError;
@@ -286,7 +288,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         // array size specifier
         if > load64 + ast_type Ast.count 0 {
-          { let _ typecheck.typecheck(block, fs, ast_type); }
+          { let _ _typecheck(block, fs, ast_type); }
           let value : Value 0;
           { let _ vs_pop(@value); }
           let array_specifier_type ts_pop();
@@ -555,8 +557,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         let value : Value 0;
         store64 + @value Value.num num;
-        store64 + ast Ast.konst is_branch_konst_eval(ast);
-        store64 + @value Value.konst load64 + ast Ast.konst;
+        let konst : u64 is_branch_konst_eval(ast);
+        store64 + ast Ast.konst konst;
+        store64 + @value Value.konst konst;
         { let _ vs_push(@value); }
         { let _ ts_push(a); }
       }
@@ -1161,7 +1164,7 @@ fn typecheck_program(ast : ptr) -> u64 {
   let time_end : timespec 0;
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
-  store64 @typecheck.typecheck typecheck;
+  store64 @_typecheck typecheck;
 
   let i 0;
   let count load64 + ast Ast.count;
