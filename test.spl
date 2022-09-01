@@ -2,7 +2,12 @@
 
 include "lib/common.spl"
 
-fn add(a : u64, b : u64) -> u64 + a b;
-
 fn main -> none {
+  const SIZE sizeof u64;
+  const NEW_SIZE * 2 sizeof u64;
+  let p memory_alloc(SIZE);
+  store64 p 12;
+  store64 @p memory_realloc(p, NEW_SIZE);
+  assert(eq load64 p 12, "something went wrong\n");
+  memory_free(p);
 }

@@ -1179,5 +1179,5 @@ fn compile_state_init -> u64 {
 }
 
 fn compile_state_free -> none {
-  memory_free(c, sizeof Compile);
+  memory_free(c);
 }

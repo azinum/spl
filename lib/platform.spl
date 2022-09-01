@@ -41,6 +41,10 @@ fn memory_map(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offs
   linux_mmap(start, length, prot, flags, fd, offset);
 }
 
+fn memory_remap(mem : ptr, old_size : u64, new_size : u64, flags : u64, start : ptr) -> ptr {
+  linux_mremap(mem, old_size, new_size, flags, start);
+}
+
 fn memory_unmap(start : ptr, length : u64) -> none {
   linux_munmap(start, length);
 }
