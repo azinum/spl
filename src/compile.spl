@@ -237,15 +237,10 @@ fn compile_print_symbol_info(fd : u64) -> none {
       }
       let args : any (
         load64 + symbol Symbol.konst,
-        load64 + symbol Symbol.ref_count
+        load64 + symbol Symbol.ref_count,
+        load64 + symbol Symbol.local_id
       );
-      dprintf(fd, " (konst = %d, ref_count = %d)\n", @args);
-      // let args : any (
-      //   load64 + + symbol Symbol.token Token.filename,
-      //   load64 + + symbol Symbol.token Token.line,
-      //   load64 + + symbol Symbol.token Token.column
-      // );
-      // dprintf(fd, " - %s:%d:%d\n", @args);
+      dprintf(fd, " (konst = %d, ref_count = %d, local_id = %d)\n", @args);
     }
     store64 @i + 1 i;
   }

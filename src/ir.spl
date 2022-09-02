@@ -732,12 +732,14 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
           if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
             let i : u64 0;
             let num_elements_init : u64 load64 + symbol Symbol.num_elements_init;
+            let diff : u64 - num_elements num_elements_init;
+            store64 @local_id + local_id * diff type_size;
             while < i num_elements_init {
               let op : Op 0;
               OP_init(
                 I_MOVE_LOCAL,
                 load64 + symbol Symbol.type,
-                + local_id * + 1 load64 + fs Function.argc sizeof u64,
+                + local_id * + 1 load64 + fs Function.argc sizeof u64, // + 8 here [
                 NONE,
                 @op
               );
@@ -747,6 +749,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
             }
           }
         }
+        // ] but then we do - 8 here????
         store64 + symbol Symbol.local_id - load64 + fs Function.locals_offset_counter sizeof u64;
       }
     }
