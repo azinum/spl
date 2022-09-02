@@ -301,7 +301,7 @@ fn lexer_read_symbol -> none {
 }
 
 fn lexer_read_number -> none {
-  while or is_hex(load8 l.index) eq load8 l.index 'x' {
+  while or or is_hex(load8 l.index) eq load8 l.index 'x' eq load8 l.index DIGIT_SEPARATOR {
     store64 @l.index + 1 l.index;
     store64 @l.column + 1 l.column;
   }
