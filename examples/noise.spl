@@ -5,11 +5,11 @@ include "lib/common.spl"
 let lc_cur_seed : u64 0;
 
 fn lc_random_init(seed : u64) -> none {
-  = @lc_cur_seed seed;
+  store64 @lc_cur_seed seed;
 }
 
 fn lc_random -> u64 {
-  = @lc_cur_seed % + (* (lc_cur_seed) 16807) 13 2147483647;
+  store64 @lc_cur_seed % + (* (lc_cur_seed) 16807) 13 2147483647;
   lc_cur_seed;
 }
 
@@ -43,11 +43,11 @@ fn main -> none {
         let args : any color, color, color;
         dprintf(fd, " %d %d %d ", @args);
         if not % x 4 dprintf(fd, "\n", NULL);
-        = @x + 1 x;
+        store64 @x + 1 x;
       }
       dprintf(fd, "\n", NULL);
-      = @x 0;
-      = @y + 1 y;
+      store64 @x 0;
+      store64 @y + 1 y;
     }
     close(fd);
   }

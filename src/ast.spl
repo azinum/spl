@@ -47,7 +47,7 @@ struct Ast (
   konst : u64
 );
 
-memory ast_node_memory * sizeof Ast MAX_AST_NODE;
+let ast_node_memory : u8 : * sizeof Ast MAX_AST_NODE cast u8 0;
 let ast_node : ptr NULL;
 let ast_node_end : ptr NULL;
 

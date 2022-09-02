@@ -1,0 +1,9 @@
+// double_pointer.spl
+
+fn main -> none {
+  let a : u64 0;
+  let b @a;
+  store64 b 12;
+  let dptr : ptr @b;
+  print load64 load64 dptr;
+}

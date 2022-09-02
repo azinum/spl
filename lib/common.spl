@@ -4,7 +4,6 @@
 const ERROR - 0 2;
 const NoError 0;
 const Error 1;
-let NULL cast ptr 0;
 
 // https://www.asciitable.com/
 enum u8 (
@@ -44,7 +43,7 @@ enum u8 (
 
 // temporary `scratch` buffer
 const TMP_SIZE * 8 32768;
-memory tmp TMP_SIZE;
+let tmp : u8 : TMP_SIZE cast u8 0;
 let tmp_it 0;
 let tmp_end 0;
 
@@ -83,7 +82,6 @@ fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
 fn common_init -> none {
   store64 @tmp_it @tmp;
   store64 @tmp_end + @tmp TMP_SIZE;
-  store64 @NULL 0;
 }
 
 // TODO(lucas): branchless version

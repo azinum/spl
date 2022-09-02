@@ -1,0 +1,41 @@
+// hello_world.spl
+
+include "lib/common.spl"
+
+fn version1 -> none {
+  let hello_world : u8 : 16 cast u8 0;
+  store64 @hello_world 6278066737626506568;
+  store64 + @hello_world sizeof u64 7792634774869013103;
+  let size : u64 13;
+  write(1, @hello_world, size);
+}
+
+fn version2 -> none {
+  let hello_world : u8 : 13 cast u8 0;
+  let str @hello_world;
+  store8 str 'H'; store64 @str + 1 str;
+  store8 str 'e'; store64 @str + 1 str;
+  store8 str 'l'; store64 @str + 1 str;
+  store8 str 'l'; store64 @str + 1 str;
+  store8 str 'o'; store64 @str + 1 str;
+  store8 str ','; store64 @str + 1 str;
+  store8 str ' '; store64 @str + 1 str;
+  store8 str 'W'; store64 @str + 1 str;
+  store8 str 'o'; store64 @str + 1 str;
+  store8 str 'r'; store64 @str + 1 str;
+  store8 str 'l'; store64 @str + 1 str;
+  store8 str 'd'; store64 @str + 1 str;
+  store8 str 10 ; store64 @str + 1 str;
+  let count : u64 cast u64 - str @hello_world;
+  write(1, @hello_world, count);
+}
+
+fn version3 -> none {
+  write(1, "Hello, World\n", 13);
+}
+
+fn main -> none {
+  version1();
+  version2();
+  version3();
+}

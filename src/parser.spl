@@ -385,6 +385,7 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_MEMORY {
+    assert(0, "T_MEMORY keyword depricated\n");
     lexer_next(); // skip `memory`
     store64 @type load64 + @token Token.type;
     if neq type T_IDENTIFIER {

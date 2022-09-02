@@ -918,7 +918,20 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           let count : u64 / load64 + symbol Symbol.size size;
           // imm + (count * size) - size
           let name cast ptr + symbol Symbol.name;
-          if eq type TypeUnsigned64 {
+          if eq type TypePtr {
+            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            o(fd, "v%d: dq", @i);
+            let v : u64 0;
+            while < v count {
+              let value : u64 load64 + + c Compile.imm imm;
+              o(fd, " %d,", @value);
+              store64 @imm - imm size;
+              store64 @v + 1 v;
+            }
+            vo(fd, " ; `%s`", @name);
+            o(fd, "\n", NULL);
+          }
+          else if eq type TypeUnsigned64 {
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dq", @i);
             let v : u64 0;
@@ -1171,8 +1184,13 @@ fn compile_state_init -> u64 {
     let value : Value 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;
-
     let _ compile_create_value("VERSION_ID", @value, TypeUnsigned64);
+  }
+  {
+    let value : Value 0;
+    store64 + @value Value.num 0;
+    store64 + @value Value.konst 1;
+    let _ compile_create_value("NULL", @value, TypePtr);
   }
 
   NoError;

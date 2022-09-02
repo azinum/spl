@@ -22,10 +22,10 @@ fn fib(n : u64) -> u64 {
 fn fib_recursive(n : u64) -> u64 {
   let result 0;
   if < n 2 {
-    = @result n;
+    store64 @result n;
   }
   else {
-    = @result + fib_recursive(- n 1) fib_recursive(- n 2);
+    store64 @result + fib_recursive(- n 1) fib_recursive(- n 2);
   }
   result;
 }

@@ -1,9 +1,0 @@
-// double-ptr.spl
-
-fn main -> none {
-  memory local-data 64;
-  let p @local-data;
-  = p 12;
-  let dptr : ptr @p;
-  print ##dptr;
-}

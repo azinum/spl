@@ -1,4 +1,4 @@
-// function-pointer.spl
+// function_pointer.spl
 
 fn foo(x : u64) -> u64 + x 7;
 fn bar(x : u64) -> u64 * x x;
@@ -6,10 +6,10 @@ fn baz(x : u64) -> u64 + x x;
 
 fn main -> none {
   const count : u64 3;
-  let funcs : foo : (count) (foo, bar, baz);
+  let funcs : foo : count foo, bar, baz;
   let i : u64 0;
   let index : u64 0;
-  let func foo;
+  let func funcs;
   while < i count {
     store64 @func load64 + index @funcs;
     print func(i);

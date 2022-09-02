@@ -1,3 +1,4 @@
+- fix initialization of arrays in let statements
 - optimize ir code generator so that it does not emit redundant instructions e.g. from constant expressions
 - dependency trace (i.e. trace which things depend on which other things)
 - improve memory allocator

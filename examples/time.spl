@@ -16,6 +16,9 @@ fn main -> none {
   }
   { let _ clock_gettime(CLOCK_MONOTONIC, @end); }
 
-  let args : any - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec, / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000;
+  let args : any (
+    - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec,
+    / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000
+  );
   printf("time elapsed = %d.%d s\n", @args);
 }

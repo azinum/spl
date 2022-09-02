@@ -1,13 +1,11 @@
 // test.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
+
+fn thing(a : ptr) -> none {
+  print a;
+}
 
 fn main -> none {
-  const SIZE sizeof u64;
-  const NEW_SIZE * 2 sizeof u64;
-  let p memory_alloc(SIZE);
-  store64 p 12;
-  store64 @p memory_realloc(p, NEW_SIZE);
-  assert(eq load64 p 12, "something went wrong\n");
-  memory_free(p);
+  thing(NULL);
 }
