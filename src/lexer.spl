@@ -22,6 +22,7 @@ enum u64 (
   T_GT,
   T_AND,
   T_LOGICAL_NOT,
+  T_NOT,
   T_OR,
   T_EQ,
   T_NEQ,
@@ -453,6 +454,10 @@ fn lexer_next -> none {
       store64 + @token Token.type T_GT;
       store64 @done 1;
     }
+    else if eq ch '~' {
+      store64 + @token Token.type T_NOT;
+      store64 @done 1;
+    }
     else if eq ch ':' {
       store64 + @token Token.type T_COLON;
       store64 @done 1;
@@ -574,6 +579,7 @@ fn lexer_init(filename : any, source : any) -> none {
   store64 + @token_type_str * T_GT            sizeof cstr "T_GT";
   store64 + @token_type_str * T_AND           sizeof cstr "T_AND";
   store64 + @token_type_str * T_LOGICAL_NOT   sizeof cstr "T_LOGICAL_NOT";
+  store64 + @token_type_str * T_NOT           sizeof cstr "T_NOT";
   store64 + @token_type_str * T_OR            sizeof cstr "T_OR";
   store64 + @token_type_str * T_EQ            sizeof cstr "T_EQ";
   store64 + @token_type_str * T_NEQ           sizeof cstr "T_NEQ";

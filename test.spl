@@ -1,11 +1,14 @@
 // test.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
+
+fn high_order_bitmask(word_size : u64) -> u64 {
+  let high_order : u64 rshift word_size 1;
+  lshift ~(lshift UINT64_MAX high_order) high_order;
+}
 
 fn main -> none {
-  let a 0b0000_1111;
-  let b 0b1011_0011;
-  let c 1_000_000;
-  print and a b;
-  print c;
+  assert(eq high_order_bitmask(2) 2, "\n");
+  assert(eq high_order_bitmask(4) 12, "\n");
+  assert(eq high_order_bitmask(8) 240, "\n");
 }

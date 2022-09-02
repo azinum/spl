@@ -642,6 +642,14 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
  push rax\n"
       , NULL);
     }
+    else if eq ins I_NOT {
+      vo(fd, "; I_NOT\n", NULL);
+      o(fd,
+"pop rax
+ not rax
+ push rax\n"
+      , NULL);
+    }
     else if eq ins I_OR {
       vo(fd, "; I_OR\n", NULL);
       o(fd,
@@ -1119,6 +1127,7 @@ fn compile_state_init -> u64 {
   store64 + @ir_code_str * I_GT                 sizeof cstr "I_GT";
   store64 + @ir_code_str * I_AND                sizeof cstr "I_AND";
   store64 + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
+  store64 + @ir_code_str * I_NOT                sizeof cstr "I_NOT";
   store64 + @ir_code_str * I_OR                 sizeof cstr "I_OR";
   store64 + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
   store64 + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";

@@ -30,6 +30,7 @@ enum u64 (
   I_GT,
   I_AND,
   I_LOGICAL_NOT,
+  I_NOT,
   I_OR,
   I_EQ,
   I_NEQ,
@@ -690,6 +691,9 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       }
       else if eq type T_LOGICAL_NOT {
         OP(I_LOGICAL_NOT, @op);
+      }
+      else if eq type T_NOT {
+        OP(I_NOT, @op);
       }
       else {
         assert(0, "unary operator not implemented\n");
