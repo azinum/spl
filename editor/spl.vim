@@ -8,7 +8,7 @@ endif
 syntax keyword Todos TODO NOTE FIXME
 
 " Language keywords
-syntax keyword Keywords include print const let fn if else while and or not eq neq lshift rshift sizeof store64 store32 store16 store8 load64 load32 load16 load8 enum alias struct cast static_assert
+syntax keyword Keywords include print const let fn if else while and or not eq neq lshift rshift sizeof store64 store32 store16 store8 load64 load32 load16 load8 enum struct cast static_assert
 
 " Types
 syntax keyword Types none any ptr cstr u64 i64 u32 i32 u16 i16 u8 i8
@@ -24,8 +24,8 @@ syntax region String start=/\v'/ skip=/\v\\./ end=/\v'/
 syntax keyword Numbers NULL
 
 " Numbers
-" syntax match Numbers "\d\+\(u\=l\{0,2}\|ll\=u\)\>"
-" syntax match Numbers "0x\x\+\(u\=l\{0,2}\|ll\=u\)\>"
+syntax match Numbers "\<\d\+\>"
+syn match Numbers  "\<\d\+\.\d*\%(f\)\=\>"
 
 " Set highlights
 highlight default link Todos Todo

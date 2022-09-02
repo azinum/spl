@@ -17,22 +17,22 @@ file_extensions:
   - spl
 
 variables:
-  keywords: (include|print|const|let|fn|if|else|while|and|or|not|eq|neq|lshift|rshift|sizeof|store64|store32|store16|store8|load64|load32|load16|load8|enum|alias|struct|cast|static_assert)
+  keywords: (include|print|const|let|fn|if|else|while|and|or|not|eq|neq|lshift|rshift|sizeof|store64|store32|store16|store8|load64|load32|load16|load8|enum|struct|cast|static_assert)
   predeclared_type: (none|any|ptr|cstr|u64|i64|u32|i32|u16|i16|u8|i8)
   char_escape: \\[nr\\"']
-  number: ([0-9]+)
+  number: ([0-9]+|NULL)
 
 contexts:
   main:
     - include: match-comments
     # Keywords
-    - match: (?<=^|\s){{keywords}}(?=\s|//|$)
+    - match: (?<=^|\s|\(){{keywords}}(?=\s|//|$|\))
       scope: keyword.control.spl
     # Predeclared types
-    - match: (?<=^|\s){{predeclared_type}}(?=\s|//|$)
+    - match: (?<=^|\s|\(){{predeclared_type}}(?=\s|//|$|\)|,)
       scope: support.type.builtin.spl
     # Numbers
-    - match: (?<=^|\s){{number}}(?=\s|//|$)
+    - match: (?<=^|\s|\(){{number}}(?=\s|//|$|;|\))
       scope: constant.numeric.integer.decimal.spl
     # Strings
     - match: '"'

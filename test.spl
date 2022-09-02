@@ -1,11 +1,6 @@
 // test.spl
 
-// include "lib/common.spl"
-
-fn thing(a : ptr) -> none {
-  print a;
-}
+include "lib/common.spl"
 
 fn main -> none {
-  thing(NULL);
 }
