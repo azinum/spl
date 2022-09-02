@@ -114,12 +114,12 @@ fn vs_push(value : ptr) -> u64 {
 
 fn vs_top(value_out : ptr) -> none {
   if < load64 + c Compile.vs_count MAX_TYPE_STACK {
-    if cast u64 value_out {
+    if value_out {
       memcpy(value_out, + + c Compile.vs * sizeof Value - load64 + c Compile.vs_count 1, sizeof Value);
     }
   }
   else {
-    if cast u64 value_out {
+    if value_out {
       store64 @value_out NULL;
     }
   }
@@ -128,7 +128,7 @@ fn vs_top(value_out : ptr) -> none {
 fn vs_pop(value_out : ptr) -> u64 {
   let result NoError;
   if < load64 + c Compile.vs_count MAX_TYPE_STACK {
-    if cast u64 value_out {
+    if value_out {
       vs_top(value_out);
     }
     store64 + c Compile.vs_count - load64 + c Compile.vs_count 1;
@@ -222,7 +222,7 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
     let buffer : Buffer 0;
     buffer_init(@buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
     if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
-      if neq cast u64 symbol_out NULL {
+      if neq symbol_out NULL {
         store64 symbol_out symbol;
       }
       store64 @result load64 + symbol Symbol.type;
@@ -269,7 +269,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
     let explicit_type TypeNone;
     // for if the type is a function
     let explicit_type_value : Value 0;
-    if neq cast u64 ast_type NULL {
+    if neq ast_type NULL {
       store64 @explicit_type token_to_compile_type(block, fs, + ast_type Ast.token, @expl_type_symbol);
       let token : Token 0;
       memcpy(@token, + ast_type Ast.token, sizeof Token);
@@ -638,7 +638,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 + func Function.locals_offset_counter 0;
             store64 + func Function.rtype TypeNone;
 
-            if neq cast u64 rtype_node NULL {
+            if neq rtype_node NULL {
               store64 + func Function.rtype token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
             }
 
@@ -702,7 +702,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 store64 @rtype ts_pop();
               }
 
-              if neq cast u64 rtype_node NULL {
+              if neq rtype_node NULL {
                 let explicit_rtype : u64 token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
                 if and neq explicit_rtype rtype neq explicit_rtype TypeAny {
                   compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
@@ -842,7 +842,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       { let _ typecheck(block, fs, cond); }
       let type ts_pop(); // pop condition result
       { let _ vs_pop(NULL); } // pop condition result
-      if is_numerical(type) {
+      if or eq type TypePtr is_numerical(type) {
         let local_block : Block 0;
         block_init(@local_block, block);
         { let _ typecheck(@local_block, fs, body); }
@@ -858,7 +858,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       { let _ typecheck(block, fs, cond); }
       let type ts_pop(); // pop condition result type
       { let _ vs_pop(NULL); } // pop condition result value
-      if is_numerical(type) {
+      if or eq type TypePtr is_numerical(type) {
         let local_block : Block 0;
         block_init(@local_block, block);
         { let _ typecheck(@local_block, fs, body); }

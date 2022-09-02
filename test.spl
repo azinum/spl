@@ -3,5 +3,4 @@
 // include "lib/common.spl"
 
 fn main -> none {
-  let a : u64 : 2 1, 2;
 }

@@ -30,10 +30,10 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
       let index : u64 load64 + + block Block.symbols * sizeof u64 i;
       let sym + + c Compile.symbols * sizeof Symbol index;
       if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
-        if neq cast u64 symbol NULL {
+        if neq symbol NULL {
           store64 symbol sym;
         }
-        if neq cast u64 symbol_index NULL {
+        if neq symbol_index NULL {
           store64 symbol_index index;
         }
         store64 @result NoError;
@@ -43,7 +43,7 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
       store64 @i + 1 i;
     }
     if eq found 0 {
-      if neq cast u64 levels_descend NULL {
+      if neq levels_descend NULL {
         store64 levels_descend + 1 load64 levels_descend;
       }
       store64 @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
@@ -76,7 +76,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
         }
         else {
           let index load64 + c Compile.symbol_count;
-          if neq cast u64 symbol_index NULL {
+          if neq symbol_index NULL {
             store64 symbol_index index;
           }
           let block_index_address * load64 + block Block.symbol_count sizeof u64;

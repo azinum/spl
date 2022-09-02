@@ -269,7 +269,7 @@ fn parse_param_list -> ptr {
           let arg : ptr ast_create(AstArg);
           memcpy(+ arg Ast.token, @ident, sizeof Token);
           let arg_type parse_type();
-          if eq cast u64 arg_type NULL {
+          if eq arg_type NULL {
             parser_error("expected type after `:`, but got `?`\n");
             store64 @done 1;
           }
@@ -354,7 +354,7 @@ fn parse_statement -> ptr {
       if eq type T_COLON { // explicit type
         lexer_next(); // skip `:`
         store64 @explicit_type parse_type();
-        if eq cast u64 explicit_type NULL {
+        if eq explicit_type NULL {
           parser_error("expected type after `:`, but got `?`\n");
         }
         else {
@@ -388,7 +388,7 @@ fn parse_statement -> ptr {
     lexer_next(); // skip `{`
     store64 @stmt ast_create(AstBlockStatement);
     let sub_stmts statements();
-    if neq cast u64 sub_stmts NULL {
+    if neq sub_stmts NULL {
       ast_push(stmt, sub_stmts);
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
@@ -487,7 +487,7 @@ fn parse_statement -> ptr {
     store64 @stmt ast_create(AstEnum);
     lexer_next(); // skip `enum`
     let type_branch : ptr parse_type();
-    if eq cast u64 type_branch NULL {
+    if eq type_branch NULL {
       parser_error("expected type in enum expression, but got `?`\n");
     }
     else {
@@ -569,7 +569,7 @@ fn parse_func_def -> ptr {
     if eq type T_ARROW {
       lexer_next(); // skip `->`
       store64 @rtype parse_type();
-      if eq cast u64 rtype NULL {
+      if eq rtype NULL {
         parser_error("expected type after `->`, but got `?`\n");
       }
     }
@@ -671,7 +671,7 @@ fn parse_statements -> ptr {
     }
     else if eq type T_FN {
       let func_def : ptr parse_func_def();
-      if eq cast u64 func_def NULL {
+      if eq func_def NULL {
         store64 @done 1;
       }
       else {
@@ -680,7 +680,7 @@ fn parse_statements -> ptr {
     }
     else if eq type T_INCLUDE {
       let include_body : ptr parse_include();
-      if eq cast u64 include_body NULL {
+      if eq include_body NULL {
         store64 @done 1;
       }
       else {
@@ -689,7 +689,7 @@ fn parse_statements -> ptr {
     }
     else {
       let stmt parse_statement();
-      if eq cast u64 stmt NULL {
+      if eq stmt NULL {
         store64 @done 1;
       }
       else {

@@ -2,7 +2,7 @@
 
 fn printline(fd : u64, source : cstr, index : cstr, token_length : u64, print_arrow : u64, num_lines_to_print : u64) -> none {
   assert(neq num_lines_to_print 0, "printline: value of num_lines_to_print must be greater than 0\n");
-  assert(and neq cast u64 source NULL neq cast u64 index NULL, "printline: source or index must not be NULL\n");
+  assert(cast u64 and neq source NULL neq index NULL, "printline: source or index must not be NULL\n");
 
   let offset : u64 + - cast u64 index source 1;
   let start_offset : u64 0;

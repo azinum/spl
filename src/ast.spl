@@ -53,7 +53,7 @@ let ast_node_end : ptr NULL;
 fn ast_create(type : u64) -> ptr {
   let node : ptr ast_node;
 
-  if < cast u64 node ast_node_end {
+  if < node ast_node_end {
     store64 @ast_node + sizeof Ast ast_node;
 
     store64 + node Ast.node 0;
@@ -94,7 +94,7 @@ fn ast_push(ast : ptr, node : ptr) -> none {
 }
 
 fn ast_push_node(ast : ptr, type : u64, token : ptr) -> none {
-  if eq cast u64 ast NULL {
+  if eq ast NULL {
     assert(0, "invalid pointer (NULL) to ast\n");
   }
   let node : ptr ast_create(type);
