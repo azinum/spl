@@ -1,0 +1,10 @@
+// arith.spl
+
+fn test_arith -> none {
+  let info "arith.spl:test_arith()";
+  assert_equal(+ 2 3, 5, info);
+  assert_equal(- 9 7, 2, info);
+  assert_equal(* 2 3, 6, info);
+  assert_equal(/ 8 2, 4, info);
+  assert_equal(% 9 4, 1, info);
+}

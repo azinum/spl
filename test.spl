@@ -2,13 +2,58 @@
 
 include "lib/common.spl"
 
-fn high_order_bitmask(word_size : u64) -> u64 {
-  let high_order : u64 rshift word_size 1;
-  lshift ~(lshift UINT64_MAX high_order) high_order;
+let test_count : u64 0;
+let test_success_count : u64 0;
+
+fn test_init -> none {
+  store64 @test_count 0;
+  store64 @test_success_count 0;
+}
+
+fn assert_equal(a : u64, b : u64, message : cstr) -> none {
+  store64 @test_count + 1 test_count;
+  if neq a b {
+    let args : any (a, b, message);
+    dprintf(STDERR_FILENO, "assert_equal (%d != %d): %s\n", @args);
+  }
+  else {
+    store64 @test_success_count + 1 test_success_count;
+  }
+}
+
+fn assert_not_equal(a : u64, b : u64, message : cstr) -> none {
+  store64 @test_count + 1 test_count;
+  if eq a b {
+    let args : any (a, b, message);
+    dprintf(STDERR_FILENO, "assert_not_equal failed (%d == %d): %s\n", @args);
+  }
+  else {
+    store64 @test_success_count + 1 test_success_count;
+  }
+}
+
+include "tests/arith.spl"
+include "tests/bitwise.spl"
+include "tests/function.spl"
+include "tests/struct.spl"
+include "tests/array.spl"
+
+fn test_start -> none {
+  printf("running tests...\n", NULL);
+  test_arith();
+  test_bitwise();
+  test_function();
+  test_struct();
+  test_array();
+}
+
+fn test_finalize -> none {
+  let args : any (test_success_count, test_count);
+  printf("tests complete (success rate: %d/%d)\n", @args);
 }
 
 fn main -> none {
-  assert(eq high_order_bitmask(2) 2, "\n");
-  assert(eq high_order_bitmask(4) 12, "\n");
-  assert(eq high_order_bitmask(8) 240, "\n");
+  test_init();
+  test_start();
+  test_finalize();
 }

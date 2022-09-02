@@ -367,7 +367,11 @@ fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
 }
 
 fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
-  bwrite_str(mem, end, str, strlen(str));
+  let result : u64 0;
+  if cast ptr str {
+    store64 @result bwrite_str(mem, end, str, strlen(str));
+  }
+  result;
 }
 
 fn bwrite_u64(mem : ptr, end : ptr, n : u64) -> u64 {

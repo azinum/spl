@@ -1,0 +1,18 @@
+// struct.spl
+
+fn test_struct -> none {
+  let info "struct.spl:test_struct()";
+  struct B (
+    a : u64,
+    b : u32
+  );
+  struct A (
+    a : u64,
+    b : B
+  );
+  assert_equal(sizeof A, + sizeof B sizeof u64, info);
+  assert_equal(A.a, 0, info);
+  assert_equal(A.b, 8, info);
+  assert_equal(B.a, 0, info);
+  assert_equal(B.b, 8, info);
+}

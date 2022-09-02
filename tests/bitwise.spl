@@ -1,0 +1,17 @@
+// bitwise.spl
+
+fn high_order_bitmask(word_size : u64) -> u64 {
+  let high_order : u64 rshift word_size 1;
+  lshift ~(lshift UINT64_MAX high_order) high_order;
+}
+
+fn test_bitwise -> none {
+  let info "bitwise.spl:test_bitwise()";
+  assert_equal(high_order_bitmask(2), 2, info);
+  assert_equal(high_order_bitmask(4), 12, info);
+  assert_equal(high_order_bitmask(8), 240, info);
+  assert_equal(lshift 2 16, 131072, info);
+  assert_equal(rshift 32 2, 8, info);
+  assert_equal(~~1, 1, info);
+  assert_equal(~(- UINT64_MAX 3), 3, info);
+}
