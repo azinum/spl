@@ -29,7 +29,6 @@ enum u64 (
   T_SEMICOLON,
   T_CONST,
   T_LET,
-  T_MEMORY,
   T_PRINT,
   T_STATIC_ASSERT,
   T_INCLUDE,
@@ -199,9 +198,6 @@ fn lexer_read_symbol -> none {
   }
   else if eq 1 compare(buffer, "let", length) {
     store64 + @token Token.type T_LET;
-  }
-  else if eq 1 compare(buffer, "memory", length) {
-    store64 + @token Token.type T_MEMORY;
   }
   else if eq 1 compare(buffer, "fn", length) {
     store64 + @token Token.type T_FN;
@@ -585,7 +581,6 @@ fn lexer_init(filename : any, source : any) -> none {
   store64 + @token_type_str * T_SEMICOLON     sizeof cstr "T_SEMICOLON";
   store64 + @token_type_str * T_CONST         sizeof cstr "T_CONST";
   store64 + @token_type_str * T_LET           sizeof cstr "T_LET";
-  store64 + @token_type_str * T_MEMORY        sizeof cstr "T_MEMORY";
   store64 + @token_type_str * T_PRINT         sizeof cstr "T_PRINT";
   store64 + @token_type_str * T_INCLUDE       sizeof cstr "T_INCLUDE";
   store64 + @token_type_str * T_FN            sizeof cstr "T_FN";

@@ -384,27 +384,6 @@ fn parse_statement -> ptr {
       expect_semicolon();
     }
   }
-  else if eq type T_MEMORY {
-    assert(0, "T_MEMORY keyword depricated\n");
-    lexer_next(); // skip `memory`
-    store64 @type load64 + @token Token.type;
-    if neq type T_IDENTIFIER {
-      parser_error("expected identifier in memory statement, but got `?`\n");
-    }
-    else {
-      store64 @stmt ast_create(AstMemoryStatement);
-      memcpy(+ stmt Ast.token, @token, sizeof Token); // copy identifier token
-      lexer_next(); // skip identifier
-      ast_push(stmt, parse_expr());
-      store64 @type load64 + @token Token.type;
-      if neq type T_SEMICOLON {
-        parser_error("expected `;` semicolon after memory statement, but got `?`\n");
-      }
-      else {
-        lexer_next(); // skip `;`
-      }
-    }
-  }
   else if eq type T_LEFT_CURLY {
     lexer_next(); // skip `{`
     store64 @stmt ast_create(AstBlockStatement);

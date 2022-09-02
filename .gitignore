@@ -5,7 +5,6 @@ examples/*spl.asm
 *.o
 *.spl.asm
 *.spl.debug
-*.spl.ir
 *.exe
 
 .DS_Store

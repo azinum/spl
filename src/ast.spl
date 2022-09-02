@@ -16,7 +16,6 @@ enum u64 (
   AstFuncDefinition,
   AstFuncCall,
   AstParamList,
-  AstMemoryStatement,
   AstAssignment,
   AstWhileStatement,
   AstIfStatement,
@@ -168,7 +167,6 @@ fn ast_init -> none {
   store64 + @ast_type_str * AstFuncDefinition  sizeof cstr "FuncDefinition";
   store64 + @ast_type_str * AstFuncCall        sizeof cstr "FuncCall";
   store64 + @ast_type_str * AstParamList       sizeof cstr "ParamList";
-  store64 + @ast_type_str * AstMemoryStatement sizeof cstr "MemoryStatement";
   store64 + @ast_type_str * AstAssignment      sizeof cstr "Assignment";
   store64 + @ast_type_str * AstWhileStatement  sizeof cstr "WhileStatement";
   store64 + @ast_type_str * AstIfStatement     sizeof cstr "IfStatement";
