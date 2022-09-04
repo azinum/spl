@@ -535,6 +535,8 @@ fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     // begin_func : Op*
     let begin_func : ptr + + c Compile.ins * sizeof Op begin_func_address;
     let frame_size : u64 + load64 + func Function.locals_offset_counter * sizeof u64 load64 + func Function.argc;
+    const FRAME_ALIGNMENT 16;
+    store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
     store64 + begin_func Op.src1 frame_size;
     let ret_op : u64 I_RET;
     if eq load64 + func Function.rtype TypeNone {
@@ -544,7 +546,7 @@ fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       ret_op,
       NONE,
       frame_size,
-      UINT64_MAX,
+      NONE,
       @op
     );
     { let _ ir_push_ins(@op, ins_count); }
