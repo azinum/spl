@@ -1,9 +1,12 @@
 // parser.spl
 
+const MAX_SOURCE_COUNT 64;
+
 struct Parser (
   ast          : ptr,
   status       : u64,
   line_count   : u64,
+  source_paths : cstr : MAX_SOURCE_COUNT,
   source_count : u64,
   source_hash  : u64
 );
@@ -608,47 +611,69 @@ fn parse_include -> ptr {
 
     memcpy(@token_copy, @token, sizeof Token);
 
-    // copy current lexer state
-    let filename l.filename;
-    let source l.source;
-    let index l.index;
-    let line l.line;
-    let column l.column;
-    let status l.status;
-
-    let filename_path tmp_it;
+    let filename_path cast cstr tmp_it;
     tmp_push_str(path, + 1 path_length);
     store8 cast ptr (+ filename_path path_length) 0;
-    let fd open(filename_path, 0, O_RDONLY);
-    if neq fd ERROR {
-      let file_source tmp_it;
-      let size read_file_into_buffer_and_null_terminate(fd, file_source);
-      store64 @tmp_it + tmp_it size;
-      lexer_init(filename_path, file_source);
-      store64 @include_body parse_entry();
-      store64 + @p Parser.source_count + 1 load64 + @p Parser.source_count;
-      close(fd);
-    }
-    else {
-      let message "";
-      store64 @message tmp_it;
-      tmp_push_cstr("failed to include source file `");
-      tmp_push_str(path, path_length);
-      tmp_push_cstr("`\n");
-      parser_error(message);
-      store64 @tmp_it message;
-    }
 
-    // restore lexer state
-    store64 @l.filename filename;
-    store64 @l.source source;
-    store64 @l.index index;
-    store64 @l.line line;
-    store64 @l.column column;
-    store64 @l.status status;
+    // include guard
+    let i : u64 0;
+    let source_count : u64 load64 + @p Parser.source_count;
+    let guard : u64 0;
+    while and eq guard 0 < i source_count {
+      let included_path cast cstr load64 + + @p Parser.source_paths * sizeof cstr i;
+      if eq strncmp(included_path, filename_path, MAX_PATH_SIZE) 0 {
+        store64 @guard 1;
+      }
+      store64 @i + 1 i;
+    }
+    if eq guard 0 {
+      if < source_count MAX_SOURCE_COUNT {
+        let fd open(filename_path, 0, O_RDONLY);
+        if neq fd ERROR {
+          let file_source tmp_it;
+          let size read_file_into_buffer_and_null_terminate(fd, file_source);
+          close(fd);
+          store64 @tmp_it + tmp_it size;
 
-    // restore lexer token
-    memcpy(@token, @token_copy, sizeof Token);
+          store64 + + @p Parser.source_paths * sizeof cstr load64 + @p Parser.source_count filename_path;
+          store64 + @p Parser.source_count + 1 load64 + @p Parser.source_count;
+
+          // copy current lexer state
+          let filename l.filename;
+          let source l.source;
+          let index l.index;
+          let line l.line;
+          let column l.column;
+          let status l.status;
+
+          lexer_init(filename_path, file_source);
+          store64 @include_body parse_entry();
+
+          // restore lexer state
+          store64 @l.filename filename;
+          store64 @l.source source;
+          store64 @l.index index;
+          store64 @l.line line;
+          store64 @l.column column;
+          store64 @l.status status;
+
+          // restore lexer token
+          memcpy(@token, @token_copy, sizeof Token);
+        }
+        else {
+          let message "";
+          store64 @message tmp_it;
+          tmp_push_cstr("failed to include source file `");
+          tmp_push_str(path, path_length);
+          tmp_push_cstr("`\n");
+          parser_error(message);
+          store64 @tmp_it message;
+        }
+      }
+      else {
+        assert(0, "include capacity reached, increase capacity\n");
+      }
+    }
   }
   else {
     parser_error("expected string after `include` keyword\n");
@@ -681,11 +706,11 @@ fn parse_statements -> ptr {
     }
     else if eq type T_INCLUDE {
       let include_body : ptr parse_include();
-      if eq include_body NULL {
-        store64 @done 1;
+      if eq load64 + @p Parser.status NoError {
+        ast_push(stmts, include_body);
       }
       else {
-        ast_push(stmts, include_body);
+        store64 @done 1;
       }
     }
     else {
@@ -731,6 +756,7 @@ fn parser_init(filename : any, source : any) -> u64 {
   store64 + @p Parser.ast ast_create(AstRoot);
   store64 + @p Parser.status NoError;
   store64 + @p Parser.line_count 0;
+  store64 + @p Parser.source_paths filename;
   store64 + @p Parser.source_count 1;
   store64 + @p Parser.source_hash 0;
 
