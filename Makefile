@@ -20,6 +20,9 @@ run_examples: ${SPL_EXAMPLES}
 test: SPL_FLAGS+=run
 test: ${SPL_TEST}
 
+main: SPL_FLAGS+=run verbose-asm
+main: main.spl
+
 run:
 	./${PROG} spl.spl
 

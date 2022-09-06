@@ -537,6 +537,7 @@ fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     let frame_size : u64 + load64 + func Function.locals_offset_counter * sizeof u64 load64 + func Function.argc;
     const FRAME_ALIGNMENT 16;
     store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
+    assert(eq 0 % frame_size FRAME_ALIGNMENT, "invalid stack frame alignment\n");
     store64 + begin_func Op.src1 frame_size;
     let ret_op : u64 I_RET;
     if eq load64 + func Function.rtype TypeNone {
