@@ -50,13 +50,22 @@ fn printline(fd : u64, source : cstr, index : cstr, token_length : u64, print_ar
   dnprintf(fd, line_length, "%s", @args);
   dprintf(fd, "\n", NULL);
   if print_arrow {
-    let i : u64 0;
-    let count : u64 - cur_line_offset 1;
-    while < i count {
-      dprintf(fd, "-", NULL);
-      store64 @i + 1 i;
+    {
+      let i : u64 0;
+      let count : u64 - cur_line_offset 1;
+      while < i count {
+        dprintf(fd, "-", NULL);
+        store64 @i + 1 i;
+      }
     }
-    dprintf(fd, "^\n", NULL);
+    {
+      let i : u64 0;
+      while < i token_length {
+        dprintf(fd, "^", NULL);
+        store64 @i + 1 i;
+      }
+    }
+    dprintf(fd, "\n", NULL);
   }
   dprintf(fd, "\n", NULL);
 }

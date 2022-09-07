@@ -772,23 +772,24 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                   if and
                       neq load64 + arg Symbol.type arg_type
                       neq load64 + arg Symbol.type TypeAny {
-                    let message cast cstr tmp_it;
-                    tmp_push_cstr("type mismatch in function call, got `");
-                    tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr arg_type);
-                    tmp_push_cstr("`, but `");
-                    tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
-                    tmp_push_cstr("` was expected\n");
-                    tmp_push_byte(cast u8 0);
-                    typecheck_error_at(+ ast Ast.token, message);
+                    {
+                      let message cast cstr tmp_it;
+                      let args : any (
+                        load64 + @compile_type_str * sizeof cstr arg_type,
+                        load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type
+                      );
+                      sprintf(cast ptr message, "type mismatch in function call, got `%s`, but `%s` was expected\n", @args);
+                      typecheck_error_at(+ node Ast.token, message);
+                    }
                     store64 + c Compile.status NoError; // to print additional error message
-                    store64 @tmp_it message;
-
-                    tmp_push_cstr("from function `");
-                    tmp_push_cstr(cast cstr + symbol Symbol.name);
-                    tmp_push_cstr("`\n");
-                    tmp_push_byte(cast u8 0);
-                    typecheck_error_at(+ node Ast.token, message);
-                    store64 @tmp_it message;
+                    {
+                      let message cast cstr tmp_it;
+                      let args : any (
+                        + symbol Symbol.name
+                      );
+                      sprintf(cast ptr message, "from function `%s`\n", @args);
+                      typecheck_error_at(+ arg Symbol.token, message);
+                    }
                     store64 @done 1;
                   }
                 }

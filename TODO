@@ -4,6 +4,9 @@
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - add ability to use escaped and unescaped `raw` strings
 - typed assignment operator
+- improve struct field access
+- rework let statements
+	- pass type information to ir code generator
 - do more work on type casting
 - signed integers
 - function inlining
