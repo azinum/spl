@@ -46,8 +46,8 @@ fn print_time_elapsed(message : cstr, time_start : ptr, time_end : ptr) -> none 
   let args : any (
     message,
     - load64 + time_end timespec.tv_sec load64 + time_start timespec.tv_sec,
-    - load64 + time_end timespec.tv_nsec load64 + time_start timespec.tv_nsec
+    % - load64 + time_end timespec.tv_nsec load64 + time_start timespec.tv_nsec 1000000
   );
-  sprintf(cast ptr info, "%s %d seconds and %d nanoseconds\n", @args);
+  sprintf(cast ptr info, "%s %d.%d seconds\n", @args);
   print_info(cast cstr info);
 }
