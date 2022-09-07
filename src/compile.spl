@@ -247,60 +247,102 @@ fn compile_print_symbol_info(fd : u64) -> none {
   store64 @tmp_it message;
 }
 
-// fd : u64, block : Block*
-fn compile_print_block(fd : u64, block : ptr) -> none {
-  let count load64 + block Block.symbol_count;
-  let i 0;
-  puts(fd, "compile_print_block:\n");
-  while < i count {
-    let index : u64 load64 + + block Block.symbols * sizeof u64 i;
-    print index;
-    store64 @i + 1 i;
-  }
-}
-
-fn compile(target : u64, fd : u64) -> u64 {
+fn compile(target : u64, output_file_path : cstr, run : u64) -> u64 {
   let result NoError;
+  let fd ERROR;
+
   let time_start : timespec 0;
   let time_end : timespec 0;
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
+  // TODO(lucas): generalize the creation of path names for different compile targets
   if eq target TARGET_LINUX_NASM_X86_64 {
-    store64 @result compile_linux_nasm_x86_64(fd);
+    let path : u8 : MAX_PATH_SIZE cast u8 0;
+    sprintf(@path, "%s.asm", @output_file_path);
+    let mode : u64 434; // 0662
+    let flags : u64 or or O_CREAT O_TRUNC O_WRONLY;
+    store64 @fd open(cast cstr @path, flags, mode);
+    if neq fd ERROR {
+      store64 @result compile_linux_nasm_x86_64(fd);
+
+      let exec_path : u8 : MAX_PATH_SIZE cast u8 0;
+      let o_path : u8 : MAX_PATH_SIZE cast u8 0;
+      let filename cast cstr output_file_path;
+      let diff : u64 - cast u64 first_dot(filename) filename;
+      sprintf(@exec_path, "%s", @filename);
+      store8 + @exec_path diff 0; // null terminate
+      let args : any @exec_path;
+      sprintf(@o_path, "%s.o", @args);
+      {
+        let command : cstr (
+          "/usr/bin/nasm",
+          "-f elf64",
+          cast cstr @path,
+          "-o",
+          cast cstr @o_path,
+          cast cstr NULL
+        );
+        exec_command_echoed(STDOUT_FILENO, @command);
+      }
+      {
+        let command : cstr (
+          "/usr/bin/ld",
+          "-arch",
+          "x86_64",
+          cast cstr @o_path,
+          "-o",
+          cast cstr @exec_path,
+          cast cstr NULL
+        );
+        exec_command_echoed(STDOUT_FILENO, @command);
+      }
+      if run {
+        let command : cstr (
+          cast cstr @exec_path,
+          cast cstr NULL
+        );
+        exec_command_echoed(STDOUT_FILENO, @command);
+      }
+    }
   }
   else {
     assert(0, "invalid compile target\n");
   }
+  close(fd);
 
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if eq load64 + c Compile.status NoError {
-    let message cast cstr tmp_it;
-    let args : any (
-      - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
-      / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM
-    );
-    sprintf(cast ptr message, "code generation took %d.%d seconds\n", @args);
-    print_info(message);
+    print_time_elapsed("code generation took", @time_start, @time_end);
   }
 
   result;
 }
 
-fn compile_print_final -> none {
+fn compile_print_final_info(fd : u64) -> none {
   let args : any (
     load64 + c Compile.warning_count,
-    load64 + c Compile.error_count
+    load64 + c Compile.error_count,
+    load64 + @p Parser.line_count,
+    load64 + @p Parser.source_count
   );
+  dprintf(fd,
+"  warnings: %d
+   errors:   %d
+   lines:    %d
+   files:    %d\n", @args);
+}
+
+fn compile_print_final -> none {
   if eq load64 + c Compile.status Error {
-    printf("compilation fail:\n", NULL);
-    printf("  warning(s): %d\n  error(s): %d\n", @args);
+    printf("compilation failed:\n", NULL);
+    compile_print_final_info(STDERR_FILENO);
   }
   if load64 + @options Options.verbose {
     if eq load64 + c Compile.status NoError {
-      printf("compilation success:\n", NULL);
+      printf("compilation succeeded:\n", NULL);
+      compile_print_final_info(STDOUT_FILENO);
     }
-    printf("  warning(s): %d\n  error(s): %d\n", @args);
   }
 }
 
@@ -404,7 +446,6 @@ fn compile_state_init -> u64 {
   { let _ compile_create_syscall("syscall5", 5); }
   { let _ compile_create_syscall("syscall6", 6); }
 
-
   {
     let value : Value 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
@@ -417,7 +458,6 @@ fn compile_state_init -> u64 {
     store64 + @value Value.konst 1;
     let _ compile_create_value("NULL", @value, TypePtr);
   }
-
   NoError;
 }
 

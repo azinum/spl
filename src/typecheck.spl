@@ -29,16 +29,19 @@ fn typecheck_error(message : cstr) -> none {
 }
 
 // token : Token*
-fn typecheck_error_at(token : ptr, message : cstr) -> none {
+fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
+  const fd : u64 STDERR_FILENO;
   if eq load64 + c Compile.status NoError {
-    let args : any (
-      load64 + token Token.filename,
-      load64 + token Token.line,
-      load64 + token Token.column,
-      message
-    );
-    dprintf(STDERR_FILENO, "[typecheck-error]: %s:%d:%d: %s", @args);
-    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
+    {
+      let args : any (
+        load64 + token Token.filename,
+        load64 + token Token.line,
+        load64 + token Token.column
+      );
+      dprintf(fd, "[typecheck-error]: %s:%d:%d: ", @args);
+    }
+    dprintf(fd, format, args);
+    printline(fd, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
@@ -260,7 +263,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
   // make sure that rhs actually produced any values
   let ts_delta - load64 + c Compile.ts_count ts_count;
   if eq ts_delta 0 {
-    typecheck_error_at(+ ast Ast.token, "no value was produced in the rhs of the let statement\n");
+    typecheck_error_at(+ ast Ast.token, "no value was produced in the rhs of the let statement\n", NULL);
   }
   else {
     let expl_type_symbol NULL;
@@ -279,7 +282,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("` not defined\n");
         tmp_push_byte(cast u8 0);
-        typecheck_error_at(@token, cast cstr message);
+        typecheck_error_at(@token, cast cstr message, NULL);
         store64 @tmp_it message;
       }
       else {
@@ -293,12 +296,12 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
           { let _ vs_pop(@value); }
           let array_specifier_type ts_pop();
           if eq is_numerical(array_specifier_type) 0 {
-            typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n");
+            typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
           }
           else {
             store64 @num_elements load64 + @value Value.num;
             if > ts_delta num_elements {
-              typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n");
+              typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n", NULL);
             }
           }
         }
@@ -323,7 +326,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
     }
 
     if and eq konst 1 eq is_numerical(type) 0 {
-      typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n");
+      typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n", NULL);
     }
     else {
       let i 0;
@@ -331,7 +334,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       while and not done < i ts_delta {
         store64 @type ts_pop();
         if and and neq type prev_type neq explicit_type TypeAny neq explicit_type TypeStruct {
-          typecheck_error_at(+ ast Ast.token, "incompatable type in expression list\n");
+          typecheck_error_at(+ ast Ast.token, "incompatable type in expression list\n", NULL);
           store64 @done 1;
         }
         else {
@@ -339,7 +342,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
           { let _ vs_pop(@value); }
           if and eq type TypeFunc neq type TypeAny {
             if eq check_func_signatures(+ @value Value.func, + @prev_value Value.func) 0 {
-              typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n");
+              typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
               store64 @done 1;
             }
           }
@@ -452,7 +455,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr symbol_type);
             tmp_push_cstr("`\n");
             tmp_push_byte(cast u8 0);
-            typecheck_error_at(+ ast Ast.token, cast cstr message);
+            typecheck_error_at(+ ast Ast.token, cast cstr message, NULL);
             store64 @tmp_it message;
           }
           else {
@@ -700,7 +703,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             let rtype : u64 TypeNone;
             let ts_delta : u64 - load64 + c Compile.ts_count ts_count;
             if > ts_delta 1 {
-              typecheck_error_at(+ ast Ast.token, "too many values produced by function\n");
+              typecheck_error_at(+ ast Ast.token, "too many values produced by function\n", NULL);
             }
             else {
               if neq ts_delta 0 {
@@ -779,7 +782,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                         load64 + @compile_type_str * sizeof cstr load64 + arg Symbol.type
                       );
                       sprintf(cast ptr message, "type mismatch in function call, got `%s`, but `%s` was expected\n", @args);
-                      typecheck_error_at(+ node Ast.token, message);
+                      typecheck_error_at(+ node Ast.token, message, NULL);
                     }
                     store64 + c Compile.status NoError; // to print additional error message
                     {
@@ -788,7 +791,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                         + symbol Symbol.name
                       );
                       sprintf(cast ptr message, "from function `%s`\n", @args);
-                      typecheck_error_at(+ arg Symbol.token, message);
+                      typecheck_error_at(+ arg Symbol.token, message, NULL);
                     }
                     store64 @done 1;
                   }
@@ -829,7 +832,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           tmp_push_cstr("function calls of type `");
           tmp_push_cstr(cast cstr load64 + @compile_type_str * sizeof cstr load64 + symbol Symbol.type);
           tmp_push_cstr("` is not permitted\n");
-          typecheck_error_at(+ ast Ast.token, message);
+          typecheck_error_at(+ ast Ast.token, message, NULL);
           store64 @tmp_it message;
         }
       }
@@ -893,7 +896,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         { let _ vs_pop(NULL); }
       }
       else {
-        typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n");
+        typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", NULL);
       }
     }
     else if eq type AstSizeof {
@@ -927,7 +930,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 @size load64 + symbol Symbol.size;
         }
         else {
-          typecheck_error_at(cast ptr t, "symbol not defined\n");
+          typecheck_error_at(cast ptr t, "symbol not defined\n", NULL);
         }
       }
       else {
@@ -979,7 +982,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
       }
       else {
-        typecheck_error_at(+ type_node Ast.token, "expected numerical type in enum expression\n");
+        typecheck_error_at(+ type_node Ast.token, "expected numerical type in enum expression\n", NULL);
       }
     }
     else if eq type AstStruct {
@@ -1111,7 +1114,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         );
         let message tmp_it;
         sprintf(cast ptr message, "can not cast from type `%s` to `%s`\n", @args);
-        typecheck_error_at(+ type_expr Ast.token, cast cstr message);
+        typecheck_error_at(+ type_expr Ast.token, cast cstr message, NULL);
       }
     }
     else if eq type AstStaticAssert {
@@ -1168,14 +1171,7 @@ fn typecheck_program(ast : ptr) -> u64 {
   }
 
   if eq load64 + c Compile.status NoError {
-    let message cast cstr tmp_it;
-    let args : any (
-      - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
-      / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM
-    );
-    sprintf(cast ptr message, "type checking took %d.%d seconds\n", @args);
-    print_info(message);
-
+    print_time_elapsed("type checking took", @time_start, @time_end);
     typecheck_print_unused();
   }
 

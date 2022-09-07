@@ -20,3 +20,34 @@ fn print_info(message : cstr) -> none {
     dprintf(STDOUT_FILENO, message, NULL);
   }
 }
+
+fn exec_command_echoed(fd : u64, command_list : ptr) -> none {
+  if load64 + @options Options.verbose {
+    let it command_list;
+    let done : u64 0;
+    printf("[cmd]: ", NULL);
+    while eq done 0 {
+      if eq load64 it NULL {
+        store64 @done 1;
+      }
+      else {
+        printf("%s ", it);
+        store64 @it + sizeof cstr it;
+      }
+    }
+    printf("\n", NULL);
+  }
+  exec_command(command_list);
+}
+
+// message : cstr, time_start : timespec*, time_end : timespec*
+fn print_time_elapsed(message : cstr, time_start : ptr, time_end : ptr) -> none {
+  let info tmp_it;
+  let args : any (
+    message,
+    - load64 + time_end timespec.tv_sec load64 + time_start timespec.tv_sec,
+    - load64 + time_end timespec.tv_nsec load64 + time_start timespec.tv_nsec
+  );
+  sprintf(cast ptr info, "%s %d seconds and %d nanoseconds\n", @args);
+  print_info(cast cstr info);
+}

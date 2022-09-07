@@ -737,13 +737,10 @@ fn parse -> ptr {
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   let message cast cstr tmp_it;
-  let args : any (
-    l.filename,
-    - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
-    / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM
-  );
-  sprintf(cast ptr message, "parsing of `%s` took %d.%d seconds\n", @args);
-  print_info(message);
+  let args : any (l.filename);
+  store64 @tmp_it + tmp_it _sprintf(cast ptr message, "parsing of `%s` took", @args);
+  print_time_elapsed(message, @time_start, @time_end);
+  store64 @tmp_it message;
 
   store64 + @p Parser.line_count + load64 + @p Parser.line_count l.line;
   store64 + @p Parser.source_hash + load64 + @p Parser.source_hash djb2_hash_cstr(l.source);

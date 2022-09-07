@@ -61,25 +61,6 @@ fn spl_options_init -> none {
   store64 + @options Options.verbose_asm 0;
 }
 
-fn exec_command_echoed(fd : u64, command_list : ptr) -> none {
-  if load64 + @options Options.verbose {
-    let it command_list;
-    let done : u64 0;
-    printf("[cmd]: ", NULL);
-    while eq done 0 {
-      if eq load64 it NULL {
-        store64 @done 1;
-      }
-      else {
-        printf("%s ", it);
-        store64 @it + sizeof cstr it;
-      }
-    }
-    printf("\n", NULL);
-  }
-  exec_command(command_list);
-}
-
 fn spl_start(filename : cstr) -> u64 {
   let result NoError;
 
@@ -102,61 +83,10 @@ fn spl_start(filename : cstr) -> u64 {
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
               if load64 + @options Options.compile {
-                let path : u8 : MAX_PATH_SIZE cast u8 0;
-                memset(@path, 0, sizeof path);
-                sprintf(@path, "%s.asm", + @options Options.filename);
-                let mode : u64 434; // 0662
-                let flags : u64 or or O_CREAT O_TRUNC O_WRONLY;
-                let fd : u64 open(cast cstr @path, flags, mode);
-                if neq fd ERROR {
-                  if eq compile(TARGET_LINUX_NASM_X86_64, fd) NoError {
-                    close(fd);
-                    { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
-
-                    let message cast cstr tmp_it;
-                    let args : any (- load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec, / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM, load64 + @p Parser.line_count, load64 + @p Parser.source_count);
-                    sprintf(cast ptr message, "total compilation time was %d.%d seconds (%d loc, %d file(s))\n", @args);
-                    print_info(message);
-                  }
-
-                  let exec_path : u8 : MAX_PATH_SIZE cast u8 0;
-                  let o_path : u8 : MAX_PATH_SIZE cast u8 0;
-                  let filename cast cstr load64 + @options Options.filename;
-                  let diff : u64 - cast u64 first_dot(filename) filename;
-                  sprintf(@exec_path, "%s", @filename);
-                  store8 + @exec_path diff 0; // null terminate
-                  let args : any @exec_path;
-                  sprintf(@o_path, "%s.o", @args);
-                  {
-                    let command : cstr (
-                      "/usr/bin/nasm",
-                      "-f elf64",
-                      cast cstr @path,
-                      "-o",
-                      cast cstr @o_path,
-                      cast cstr NULL
-                    );
-                    exec_command_echoed(STDOUT_FILENO, @command);
-                  }
-                  {
-                    let command : cstr (
-                      "/usr/bin/ld",
-                      "-arch",
-                      "x86_64",
-                      cast cstr @o_path,
-                      "-o",
-                      cast cstr @exec_path,
-                      cast cstr NULL
-                    );
-                    exec_command_echoed(STDOUT_FILENO, @command);
-                  }
-                  if load64 + @options Options.run {
-                    let command : cstr (
-                      cast cstr @exec_path,
-                      cast cstr NULL
-                    );
-                    exec_command_echoed(STDOUT_FILENO, @command);
-                  }
+                let target TARGET_LINUX_NASM_X86_64;
+                if eq compile(target, cast cstr load64 + @options Options.filename, load64 + @options Options.run) NoError {
+                  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+                  print_time_elapsed("total compilation time was", @time_start, @time_end);
                 }
               }
               if load64 + @options Options.debug {

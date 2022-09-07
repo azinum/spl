@@ -1098,13 +1098,7 @@ fn ir_start_compile(ast : ptr) -> u64 {
 
   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
-  let message cast cstr tmp_it;
-  let args : any (
-    - load64 + @time_end timespec.tv_sec load64 + @time_start timespec.tv_sec,
-    / - load64 + @time_end timespec.tv_nsec load64 + @time_start timespec.tv_nsec TIME_NANOSECONDS_DENOM
-  );
-  sprintf(cast ptr message, "ir code generation took %d.%d seconds\n", @args);
-  print_info(message);
+  print_time_elapsed("ir code generation took", @time_start, @time_end);
 
   load64 + c Compile.status;
 }

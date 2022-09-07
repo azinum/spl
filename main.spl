@@ -2,10 +2,5 @@
 
 // include "lib/common.spl"
 
-fn thing(some : u64) -> none {
-  print some;
-}
-
 fn main -> none {
-  thing("hello");
 }
