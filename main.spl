@@ -1,6 +1,9 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
+
+fn f(x : u64, y : u64) -> u64 + x y;
 
 fn main -> none {
+  print f(cstr_to_u64("0b0011"), 4);
 }

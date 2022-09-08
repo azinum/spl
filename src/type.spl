@@ -1,0 +1,49 @@
+// type.spl
+
+
+enum u64 (
+  TypeNone,
+  TypeAny,
+  TypePtr,
+  TypeUnsigned64,
+  TypeUnsigned32,
+  TypeUnsigned16,
+  TypeUnsigned8,
+  TypeCString,
+  TypeFunc,
+  TypeSyscallFunc,
+  TypeStruct,
+
+  MAX_PRIMITIVE_TYPE
+);
+
+struct Type (
+  type : u32,
+  id : u32
+);
+
+const MAX_COMPILE_TYPE 255;
+
+// symbol types
+enum u64 (
+  SYM_FUNC_ARG,
+  SYM_FUNC,
+  SYM_LOCAL_VAR,
+  SYM_GLOBAL_VAR
+);
+
+// t : Type*
+fn type_init(t : ptr, type : u64, id : u64) -> none {
+  store32 + t Type.type type;
+  store32 + t Type.id id;
+}
+
+// t : Type*
+fn type_value(t : ptr) -> u64 {
+  load32 + t Type.type;
+}
+
+// t : Type*
+fn type_id(t : ptr) -> u64 {
+  load32 + t Type.id;
+}

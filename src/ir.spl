@@ -56,32 +56,6 @@ enum u64 (
   MAX_IR_CODE
 );
 
-enum u64 (
-  TypeNone,
-  TypeAny,
-  TypePtr,
-  TypeUnsigned64,
-  TypeUnsigned32,
-  TypeUnsigned16,
-  TypeUnsigned8,
-  TypeCString,
-  TypeFunc,
-  TypeSyscallFunc,
-  TypeStruct,
-
-  MAX_PRIMITIVE_TYPE
-);
-
-const MAX_COMPILE_TYPE 255;
-
-// symbol types
-enum u64 (
-  SYM_FUNC_ARG,
-  SYM_FUNC,
-  SYM_LOCAL_VAR,
-  SYM_GLOBAL_VAR
-);
-
 const MAX_NAME_SIZE 64;
 
 struct Symbol (
@@ -92,7 +66,7 @@ struct Symbol (
   konst               : u64,
   local_id            : u64,
   sym_type            : u64,
-  type                : u64,
+  type                : Type,
   token               : Token,
   value               : Value,
   ref_count           : u64
@@ -140,7 +114,7 @@ struct Compile (
   status           : u64,
   entry_point      : u64,
 
-  ts               : u64 : MAX_TYPE_STACK, // type stack
+  ts               : Type : MAX_TYPE_STACK, // type stack
   ts_count         : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
 
   vs               : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.

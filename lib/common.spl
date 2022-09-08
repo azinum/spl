@@ -318,6 +318,10 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
   result;
 }
 
+fn cstr_to_u64(str : cstr) -> u64 {
+  str_to_u64(str, strlen(str));
+}
+
 // standard write functions
 fn write_cstr(mem : ptr, str : cstr) -> u64 {
   let length : u64 strlen(str);

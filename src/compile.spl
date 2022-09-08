@@ -143,7 +143,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   result;
 }
 
-// name : cstr, value : Value*, type : u64
+// name : cstr, value : Value*, type : Type
 fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
   let result NoError;
   let block + c Compile.global;
@@ -162,7 +162,7 @@ fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
     let symbol_index UINT64_MAX;
     if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
-      store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
+      store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
       store64 + symbol Symbol.konst 1;
       store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
       store64 + symbol Symbol.type type;
@@ -196,13 +196,13 @@ fn compile_print_symbol_info(fd : u64) -> none {
     let num_i_digits : u64 digit_count(i);
     let j : u64 0;
 
-    if neq type TypeSyscallFunc {
+    if neq type_value(@type) TypeSyscallFunc {
       while < j - 3 num_i_digits {
         dprintf(fd, "0", NULL);
         store64 @j + 1 j;
       }
       dprintf(fd, "%d: ", @i);
-      if eq type TypeFunc {
+      if eq type_value(@type) TypeFunc {
         let func cast ptr + + symbol Symbol.value Value.func;
         dprintf(fd, "%s(", @name);
 
@@ -212,8 +212,14 @@ fn compile_print_symbol_info(fd : u64) -> none {
         while < arg_index arg_count {
           // Symbol* arg = &c->symbols[func->args[arg_index]];
           let arg cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
-          let num_elements : u64 / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 load64 + arg Symbol.type);
-          dprintf(fd, "%s", + @compile_type_str * sizeof cstr load64 + arg Symbol.type);
+          // type : Type
+          let arg_type : u64 load64 + arg Symbol.type;
+          let num_elements : u64 / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 type_value(@arg_type));
+          let args : any (
+            load64 + @compile_type_str * sizeof cstr type_value(@arg_type),
+            type_id(@arg_type)
+          );
+          dprintf(fd, "%s(%d)", @args);
 
           if > num_elements 1 {
             dprintf(fd, " : %d", @num_elements);
@@ -224,13 +230,19 @@ fn compile_print_symbol_info(fd : u64) -> none {
           }
           store64 @arg_index + 1 arg_index;
         }
-        dprintf(fd, ") -> %s", + @compile_type_str * sizeof cstr load64 + func Function.rtype);
+        // rtype : Type
+        let rtype : u64 load64 + func Function.rtype;
+        let args : any (
+          load64 + @compile_type_str * sizeof cstr type_value(@rtype),
+          type_id(@rtype)
+        );
+        dprintf(fd, ") -> %s(%d)", @args);
       }
       else {
-        let count : u64 / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
-        let type_name cast cstr load64 + @compile_type_str * sizeof cstr type;
-        let args : any (name, type_name);
-        dprintf(fd, "%s : %s", @args);
+        let count : u64 / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
+        let type_name cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
+        let args : any (name, type_name, type_id(@type));
+        dprintf(fd, "%s : %s(%d)", @args);
         if > count 1 {
           dprintf(fd, " : %d", @count);
         }
