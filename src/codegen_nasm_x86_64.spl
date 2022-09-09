@@ -663,12 +663,13 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
         let sym_type : u64 load64 + symbol Symbol.sym_type;
         if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
+          // type : Type
           let type : u64 load64 + symbol Symbol.type;
-          let size : u64 load64 + @compile_type_size * sizeof u64 type;
+          let size : u64 load64 + @compile_type_size * sizeof u64 type_value(@type);
           let count : u64 / load64 + symbol Symbol.size size;
           // imm + (count * size) - size
           let name cast ptr + symbol Symbol.name;
-          if eq type TypePtr {
+          if eq type_value(@type) TypePtr {
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dq", @i);
             let v : u64 0;
@@ -681,7 +682,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             vo(fd, " ; `%s`", @name);
             o(fd, "\n", NULL);
           }
-          else if eq type TypeUnsigned64 {
+          else if eq type_value(@type) TypeUnsigned64 {
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dq", @i);
             let v : u64 0;
@@ -694,7 +695,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             vo(fd, " ; `%s`", @name);
             o(fd, "\n", NULL);
           }
-          else if eq type TypeUnsigned32 {
+          else if eq type_value(@type) TypeUnsigned32 {
             store64 @size sizeof u64;
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dd", @i);
@@ -708,7 +709,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             vo(fd, " ; `%s`", @name);
             o(fd, "\n", NULL);
           }
-          else if eq type TypeUnsigned16 {
+          else if eq type_value(@type) TypeUnsigned16 {
             store64 @size sizeof u64;
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dw", @i);
@@ -722,7 +723,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             vo(fd, " ; `%s`", @name);
             o(fd, "\n", NULL);
           }
-          else if eq type TypeUnsigned8 {
+          else if eq type_value(@type) TypeUnsigned8 {
             store64 @size sizeof u64;
             let imm : u64 - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: db", @i);
@@ -756,11 +757,12 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
         let sym_type : u64 load64 + symbol Symbol.sym_type;
         if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
+          // type : Type
           let type : u64 load64 + symbol Symbol.type;
           let size : u64 load64 + symbol Symbol.size;
           let name cast cstr + symbol Symbol.name;
-          let type_name cast cstr load64 + @compile_type_str * sizeof cstr type;
-          if eq 0 or eq type TypeNone eq type TypeSyscallFunc {
+          let type_name cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
+          if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
             {
               let args : any (
                 i,

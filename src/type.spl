@@ -1,6 +1,5 @@
 // type.spl
 
-
 enum u64 (
   TypeNone,
   TypeAny,

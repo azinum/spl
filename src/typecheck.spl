@@ -1096,7 +1096,14 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         else {
           store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
         }
-        store64 + symbol Symbol.type TypeStruct;
+        let type : Type 0;
+        type_init(
+          @type,
+          TypeStruct,
+          load64 + c Compile.strukt_count
+        );
+        store64 + c Compile.strukt_count + 1 load64 + c Compile.strukt_count;
+        store64 + symbol Symbol.type load64 @type;
         memcpy(+ symbol Symbol.value, @value, sizeof Value);
       }
       else {
