@@ -3,4 +3,5 @@
 include "lib/common.spl"
 
 fn main -> none {
+  printf("Hello, World\n", NULL);
 }

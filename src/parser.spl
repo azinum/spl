@@ -628,7 +628,8 @@ fn parse_include -> ptr {
     }
     if eq guard 0 {
       if < source_count MAX_SOURCE_COUNT {
-        let fd open(filename_path, 0, O_RDONLY);
+        // let fd open(filename_path, 0, O_RDONLY);
+        let fd open_source_file(filename_path);
         if neq fd ERROR {
           let file_source tmp_it;
           let size read_file_into_buffer_and_null_terminate(fd, file_source);
