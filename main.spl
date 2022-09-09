@@ -1,7 +1,33 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
+
+struct T (
+  a : u32,
+  b : u32,
+);
+
+fn f(t : T) -> none {
+  print t;
+}
+
+fn thing -> T {
+  let t : T 0;
+  store64 @t 48;
+  t;
+}
+
+struct A (
+  a : u8,
+  b : u8,
+  c : u8
+);
 
 fn main -> none {
-  printf("Hello, World\n", NULL);
+  print thing();
+  let t : T 0;
+  store64 @t 0;
+  store32 + @t T.a 32;
+  f(t);
+  print t;
 }

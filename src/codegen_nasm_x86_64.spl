@@ -231,6 +231,31 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         o(fd, "mov rax, v%d\n", @args);
         o(fd, "push rax\n", NULL);
       }
+      else if eq dest TypeStruct {
+        let size : u64 load64 + op Op.src1;
+        if eq size 8 {
+          o(fd, "mov rax, [v%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else if eq size 4 {
+          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "mov eax, [v%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else if eq size 2 {
+          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "mov ax, [v%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else if eq size 1 {
+          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "mov al, [v%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else {
+          assert(0, "I_PUSH: bad struct size\n");
+        }
+      }
       else {
         assert(0, "I_PUSH: type not implemented\n");
       }
@@ -258,6 +283,27 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       else if eq dest TypeUnsigned8 {
         o(fd, "mov al, [rbp-%d]\n", @args);
         o(fd, "push rax\n", NULL);
+      }
+      else if eq dest TypeStruct {
+        let size : u64 load64 + op Op.src1;
+        if eq size 8 {
+          o(fd, "push QWORD [rbp-%d]\n", @args);
+        }
+        else if eq size 4 {
+          o(fd, "mov eax, [rbp-%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else if eq size 2 {
+          o(fd, "mov ax, [rbp-%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else if eq size 1 {
+          o(fd, "mov al, [rbp-%d]\n", @args);
+          o(fd, "push rax\n", NULL);
+        }
+        else {
+          assert(0, "I_PUSH_LOCAL: bad struct size\n");
+        }
       }
       else {
         assert(0, "I_PUSH_LOCAL: type not implemented\n");

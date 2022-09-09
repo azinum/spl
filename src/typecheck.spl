@@ -1,5 +1,8 @@
 // typecheck.spl
 
+// TODO(lucas): temporary, allow passing and pushing structs of any size
+const MAX_STRUCT_SIZE sizeof u64;
+
 fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
 let _typecheck typecheck_function;
 
@@ -430,7 +433,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + + ast Ast.token Token.v symbol_index;
           { let _ vs_push(+ symbol Symbol.value); }
           store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
-          { let _ ts_push(load64 + symbol Symbol.type); }
+          let size : u64 load64 + symbol Symbol.size;
+          // type : Type
+          let type : u64 load64 + symbol Symbol.type;
+          if and > size MAX_STRUCT_SIZE eq type_value(@type) TypeStruct {
+            let args : any (MAX_STRUCT_SIZE);
+            typecheck_error_at(+ ast Ast.token, "can not push a struct with size greater than %d\n", @args);
+          }
+          else {
+            { let _ ts_push(type); }
+          }
         }
         else {
           let message tmp_it;
@@ -666,22 +678,25 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
               let arg_symbol_index : u64 UINT64_MAX;
               if eq compile_declare_value(@local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
                 store64 + + func Function.args * sizeof u64 i arg_symbol_index;
-                let arg_type : u64 token_to_compile_type(block, fs, @arg_type_token, NULL);
-                if and
-                    neq type_value(@arg_type) TypeNone
-                    neq type_value(@arg_type) TypeStruct {
-
+                let arg_type_symbol : ptr NULL;
+                let arg_type : u64 token_to_compile_type(block, fs, @arg_type_token, @arg_type_symbol);
+                let size : u64 load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
+                if eq type_value(@arg_type) TypeStruct {
+                  store64 @size load64 + arg_type_symbol Symbol.size;
+                  if > size MAX_STRUCT_SIZE {
+                    let args : any (MAX_STRUCT_SIZE);
+                    typecheck_error_at(@arg_type_token, "can not have a parameter of type struct with a greater size than %d\n", @args);
+                    store64 @fail 1;
+                  }
+                }
+                if eq fail 0 {
                   store64 + arg_symbol Symbol.imm UINT64_MAX;
-                  store64 + arg_symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
+                  store64 + arg_symbol Symbol.size size; // load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
                   store64 + arg_symbol Symbol.konst 0;
                   store64 + arg_symbol Symbol.sym_type SYM_FUNC_ARG;
                   store64 + arg_symbol Symbol.type arg_type;
                   memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
                   store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead
-                }
-                else {
-                  compile_error_at(@arg_type_token, "invalid type in function parameter list\n");
-                  store64 @fail 1;
                 }
               }
               else {

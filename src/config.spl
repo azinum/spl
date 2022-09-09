@@ -1,5 +1,7 @@
 // config.spl
 
+const NUM_LINES_TO_PRINT 3;
+
 struct Config (
   lib_path : u8 : MAX_PATH_SIZE
 );

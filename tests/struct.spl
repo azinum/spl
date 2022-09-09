@@ -15,4 +15,27 @@ fn test_struct -> none {
   assert_equal(A.b, 8, info);
   assert_equal(B.a, 0, info);
   assert_equal(B.b, 8, info);
+
+  {
+    let a : A 0;
+    assert_equal(sizeof a, sizeof A, info);
+    assert_equal(sizeof a, 20, info);
+    assert_equal(sizeof A, 20, info);
+  }
+  {
+    let a : A : 2 0;
+    assert_equal(sizeof a, * 2 sizeof A, info);
+    assert_equal(sizeof a, 40, info);
+  }
+  {
+    let b : B 0;
+    assert_equal(sizeof b, sizeof B, info);
+    assert_equal(sizeof b, 12, info);
+    assert_equal(sizeof B, 12, info);
+  }
+  {
+    let b : B : 2 0;
+    assert_equal(sizeof b, * 2 sizeof B, info);
+    assert_equal(sizeof b, 24, info);
+  }
 }
