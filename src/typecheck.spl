@@ -3,6 +3,11 @@
 // TODO(lucas): temporary, allow passing and pushing structs of any size
 const MAX_STRUCT_SIZE sizeof u64;
 
+enum u64 (
+  TYPE_CONTRACT_LOOKUP,
+  TYPE_CONTRACT_CREATE
+);
+
 fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
 let _typecheck typecheck_function;
 
@@ -65,6 +70,138 @@ fn typecheck_print_stack(fd : u64) -> none {
       load64 + @value Value.num
     );
     dprintf(fd, "%d: `%s`, %d, %d\n", @args);
+    store64 @i + 1 i;
+  }
+}
+
+fn type_print(fd : u64, type : Type) -> none {
+  // check if this is a container type
+  if eq type_value(@type) TypePtr {
+    let args : any (
+      load64 + @compile_type_str * sizeof cstr type_value(@type)
+    );
+    dprintf(fd, "%s(", @args);
+    let next_type : Type 0;
+    store64 @next_type load64 + + c Compile.types * sizeof Type type_id(@type);
+    type_print(fd, next_type);
+    dprintf(fd, ")", NULL);
+  }
+  else if eq type_value(@type) TypeStruct {
+    let args : any (
+      load64 + @compile_type_str * sizeof cstr type_value(@type),
+      type_id(@type)
+    );
+    dprintf(fd, "%s(%d)", @args);
+  }
+  // primitive type
+  else {
+    let args : any (
+      load64 + @compile_type_str * sizeof cstr type_value(@type)
+    );
+    dprintf(fd, "%s", @args);
+  }
+}
+
+fn type_printline(fd : u64, type : Type) -> none {
+  type_print(fd, type);
+  dprintf(fd, "\n", NULL);
+}
+
+fn type_lookup(type : Type) -> u64 {
+  let result : u64 0;
+  let done : u64 0;
+  let i : u64 0;
+  let type_count : u64 load64 + c Compile.type_count;
+  while and eq done 0 < i type_count {
+    let t : Type 0;
+    store64 @t load64 + + c Compile.types * sizeof Type i;
+    if types_are_equal(type, t) {
+      store64 @result i;
+      store64 @done 1;
+    }
+    store64 @i + 1 i;
+  }
+  result;
+}
+
+fn type_push_new(type : Type) -> u64 {
+  let type_count : u64 load64 + c Compile.type_count;
+  if < type_count MAX_COMPILE_TYPE {
+    store64 + + c Compile.types * sizeof Type type_count type;
+    store64 + c Compile.type_count + 1 type_count;
+  }
+  else {
+    assert(0, "compile type capacity reached, increase capacity\n");
+  }
+  type_count; // return id of the newly created type
+}
+
+// contract : Type[]
+// rvalue : Type
+// constraints?
+fn type_from_contract(contract : any, count : u64, mode : u64) -> Type {
+  let result : Type 0;
+  type_init(@result, TypeNone, 0);
+
+  let i : u64 - count 1;
+  let primary_type : Type 0;
+  type_init(@primary_type, TypeNone, 0);
+  let sub_type : Type 0;
+  store64 @sub_type load64 + contract * sizeof any i;
+
+  let fail : u64 0;
+  while and eq fail 0 > i 0 {
+    store64 @primary_type load64 + contract * sizeof any - i 1;
+
+    let type : Type 0;
+    type_init(@type, type_value(@primary_type), type_value(@sub_type));
+
+    store64 @sub_type primary_type;
+
+    let lookup : u64 type_lookup(type);
+    if eq lookup 0 {
+      // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
+      if eq mode TYPE_CONTRACT_CREATE {
+        let new_type_id : u64 type_push_new(type);
+        let new_type_lookup : u64 type_lookup(type);
+        assert(eq new_type_id new_type_lookup, "failed to push new type\n");
+        store64 @sub_type new_type_id;
+        store64 @result type;
+      }
+      else {
+        store64 @fail 1;
+      }
+    }
+    else {
+      // type exists
+      store64 @sub_type lookup;
+      store64 @result type;
+    }
+
+    store64 @i - i 1;
+  }
+
+  if fail {
+    type_init(@result, TypeNone, 0);
+  }
+  result;
+}
+
+fn typecheck_print_types(fd : u64) -> none {
+  dprintf(fd, "typecheck_print_types:\n", NULL);
+  let i : u64 0;
+  let count : u64 load64 + c Compile.type_count;
+  while < i count {
+    let type : Type 0;
+    store64 @type load64 + + c Compile.types * sizeof Type i;
+
+    let args : any (
+      i
+    );
+    dprintf(fd, "%d: ", @args);
+    type_print(fd, type);
+    dprintf(fd, "\n", @args);
+
     store64 @i + 1 i;
   }
 }

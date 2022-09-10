@@ -1,5 +1,11 @@
 // ir.spl
 
+fn o(fd : u64, format : cstr, args : any) -> none {
+  dprintf(fd, format, args);
+}
+
+fn vo_empty(fd : u64, format : cstr, args : any) -> none {}
+
 // Ir_code
 enum u64 (
   I_NOP,
@@ -120,6 +126,7 @@ struct Compile (
   vs               : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
   vs_count         : u64,
 
+  types            : Type : MAX_COMPILE_TYPE,
   type_count       : u64,  // how many types are there, including primitive and user defined types?
 
   warning_count    : u64,
@@ -137,6 +144,7 @@ let _ir_compile ir_func_signature;
 
 enum u64 (
   TARGET_LINUX_NASM_X86_64,
+  TARGET_C,
   MAX_COMPILE_TARGET
 );
 

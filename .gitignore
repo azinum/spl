@@ -6,6 +6,7 @@ examples/*spl.asm
 *.spl.asm
 *.spl.debug
 *.exe
+*.spl.c
 
 .DS_Store
 cspl.dSYM

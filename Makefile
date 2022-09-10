@@ -24,7 +24,7 @@ main: SPL_FLAGS+=run verbose-asm
 main: main.spl
 
 run:
-	./${PROG} spl.spl
+	./${PROG} ${SPL_FLAGS} spl.spl
 
 update_bootstrap:
 	cp spl.spl.asm bootstrap/spl_linux_nasm_x86_64.asm
@@ -43,4 +43,5 @@ install:
 	mkdir -p ${LIB_DIR}/${PROG}
 	cp -rp lib ${LIB_DIR}/${PROG}
 
+.SUFFIXES:
 .PHONY: spl main test examples/* bootstrap

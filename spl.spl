@@ -82,13 +82,58 @@ fn spl_start(filename : cstr) -> u64 {
       );
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
         if eq compile_state_init() NoError {
+          // // contract => ptr(ptr(u64))
+          // {
+          //   const count 3;
+          //   let contract : any (
+          //     type_create(TypePtr, 0),
+          //     type_create(TypePtr, 0),
+          //     type_create(TypeUnsigned64, 0)
+          //   );
+          //   static_assert eq count / sizeof contract sizeof any "";
+          //   let type : Type 0;
+          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
+          //   type_printline(STDOUT_FILENO, type);
+          // }
+          // // contract => ptr(ptr(u64))
+          // {
+          //   const count 3;
+          //   let contract : any (
+          //     type_create(TypePtr, 0),
+          //     type_create(TypePtr, 0),
+          //     type_create(TypeUnsigned64, 0)
+          //   );
+          //   static_assert eq count / sizeof contract sizeof any "";
+          //   let type : Type 0;
+          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_LOOKUP);
+          //   type_printline(STDOUT_FILENO, type);
+          // }
+
+          // typecheck_print_types(STDOUT_FILENO);
+
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
               if load64 + @options Options.compile {
                 let target TARGET_LINUX_NASM_X86_64;
-                if eq compile(target, cast cstr load64 + @options Options.filename, load64 + @options Options.run) NoError {
+
+                let output_file_path : u8 : MAX_PATH_SIZE cast u8 0;
+                let filename cast cstr load64 + @options Options.filename;
+                let diff : u64 - cast u64 first_dot(filename) filename;
+                sprintf(@output_file_path, "%s", @filename);
+                store8 + @output_file_path diff 0; // null terminate
+
+                if eq compile(target, cast cstr @output_file_path) NoError {
                   { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
                   print_time_elapsed("total compilation time was", @time_start, @time_end);
+                  compile_print_final();
+
+                  if load64 + @options Options.run {
+                    let command : cstr (
+                      cast cstr @output_file_path,
+                      cast cstr NULL
+                    );
+                    exec_command_echoed(STDOUT_FILENO, @command);
+                  }
                 }
               }
               if load64 + @options Options.debug {
@@ -110,7 +155,6 @@ fn spl_start(filename : cstr) -> u64 {
               }
             }
           }
-          compile_print_final();
           compile_state_free();
         }
       }
@@ -139,6 +183,7 @@ fn main(argc : u64, argv : any) -> none {
     usage(cast cstr load64 arg);
   }
   else {
+    // TODO(lucas): implement a proper argument parser
     store64 @arg + sizeof ptr arg;
     while neq load64 arg NULL {
       let argument cast cstr load64 arg;
@@ -177,7 +222,9 @@ fn main(argc : u64, argv : any) -> none {
       else {
         store64 + @options Options.filename argument;
       }
-      store64 @arg + sizeof any arg;
+      if neq load64 arg NULL {
+        store64 @arg + sizeof ptr arg;
+      }
     }
     if eq should_exit 0 {
       if neq load64 + @options Options.filename 0 {

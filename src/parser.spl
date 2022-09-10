@@ -58,6 +58,8 @@ fn parse_expr_list -> ptr {
   expr_list;
 }
 
+// type : expr
+// type(type : expr) : expr
 fn parse_type -> ptr {
   let type_expr : ptr NULL;
   let type load64 + @token Token.type;

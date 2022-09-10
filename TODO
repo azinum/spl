@@ -16,3 +16,4 @@
 - fix parsing bug where single `}` are not detected
 - basic introspection
 - library linking
+- clean up verbose output

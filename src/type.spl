@@ -37,6 +37,12 @@ fn type_init(t : ptr, type : u64, id : u64) -> none {
   store32 + t Type.id id;
 }
 
+fn type_create(type : u64, id : u64) -> Type {
+  let result : Type 0;
+  type_init(@result, type, id);
+  result;
+}
+
 // t : Type*
 fn type_value(t : ptr) -> u64 {
   load32 + t Type.type;
@@ -45,4 +51,10 @@ fn type_value(t : ptr) -> u64 {
 // t : Type*
 fn type_id(t : ptr) -> u64 {
   load32 + t Type.id;
+}
+
+fn types_are_equal(a : Type, b : Type) -> u64 {
+  and
+    eq load32 + @a Type.type load32 + @b Type.type
+    eq load32 + @a Type.id   load32 + @b Type.id;
 }

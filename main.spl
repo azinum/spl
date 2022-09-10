@@ -2,32 +2,8 @@
 
 // include "lib/common.spl"
 
-struct T (
-  a : u32,
-  b : u32,
-);
-
-fn f(t : T) -> none {
-  print t;
-}
-
-fn thing -> T {
-  let t : T 0;
-  store64 @t 48;
-  t;
-}
-
-struct A (
-  a : u8,
-  b : u8,
-  c : u8
-);
+fn add(a : u64, b : u64) -> u64 + a b;
 
 fn main -> none {
-  print thing();
-  let t : T 0;
-  store64 @t 0;
-  store32 + @t T.a 32;
-  f(t);
-  print t;
+  let a : u64 add(2, 3);
 }
