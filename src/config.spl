@@ -1,28 +1,28 @@
 // config.spl
 
-const NUM_LINES_TO_PRINT 3;
+const NUM_LINES_TO_PRINT = 3;
 
 struct Config (
   lib_path : u8 : MAX_PATH_SIZE
 );
 
-let config : Config 0;
+let config : Config = 0;
 
 fn config_init -> none {
-  let lib_path "/usr/share/spl";
+  let lib_path = "/usr/share/spl";
   memcpy(+ @config Config.lib_path, lib_path, strlen(lib_path));
 }
 
 fn open_source_file(filename_path : cstr) -> u64 {
-  let path : u8 : MAX_PATH_SIZE cast u8 0;
-  let mode : u64 O_RDONLY;
-  let fd open(filename_path, 0, mode);
+  let path : u8 : MAX_PATH_SIZE = cast u8 0;
+  let mode : u64 = O_RDONLY;
+  let fd = open(filename_path, 0, mode);
   if eq fd ERROR {
-    let args : any (
+    let args : any = (
       + @config Config.lib_path,
       filename_path
     );
-    { let _ snprintf(cast ptr @path, sizeof path, "%s/%s", @args); }
+    { let _ = snprintf(cast ptr @path, sizeof path, "%s/%s", @args); }
     store64 @fd open(cast cstr @path, 0, mode);
   }
   fd;

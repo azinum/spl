@@ -1,9 +1,9 @@
 // common.spl
 // platform independent common/standard library
 
-const ERROR - 0 2;
-const NoError 0;
-const Error 1;
+const ERROR = - 0 2;
+const NoError = 0;
+const Error = 1;
 
 // https://www.asciitable.com/
 enum u8 (
@@ -42,32 +42,32 @@ enum u8 (
 );
 
 // temporary `scratch` buffer
-const TMP_SIZE * 8 32768;
-let tmp : u8 : TMP_SIZE cast u8 0;
-let tmp_it 0;
-let tmp_end 0;
+const TMP_SIZE = * 8 32768;
+let tmp : u8 : TMP_SIZE = cast u8 0;
+let tmp_it = 0;
+let tmp_end = 0;
 
-const UINT64_MAX 0xffffffffffffffff;
-const INT64_MAX  0x7fffffffffffffff;
-const UINT32_MAX 0xffffffff;
-const INT32_MAX  0x7fffffff;
-const UINT16_MAX 0xffff;
-const INT16_MAX  0x7fff;
-const UINT8_MAX  0xff;
-const INT8_MAX   0x7f;
+const UINT64_MAX = 0xffffffffffffffff;
+const INT64_MAX  = 0x7fffffffffffffff;
+const UINT32_MAX = 0xffffffff;
+const INT32_MAX  = 0x7fffffff;
+const UINT16_MAX = 0xffff;
+const INT16_MAX  = 0x7fff;
+const UINT8_MAX  = 0xff;
+const INT8_MAX   = 0x7f;
 
-const u64.max UINT64_MAX;
-const i64.max INT64_MAX;
-const u32.max UINT32_MAX;
-const i32.max INT32_MAX;
-const u16.max UINT16_MAX;
-const i16.max INT16_MAX;
-const u8.max  UINT8_MAX;
-const i8.max  INT8_MAX;
+const u64.max = UINT64_MAX;
+const i64.max = INT64_MAX;
+const u32.max = UINT32_MAX;
+const i32.max = INT32_MAX;
+const u16.max = UINT16_MAX;
+const i16.max = INT16_MAX;
+const u8.max  = UINT8_MAX;
+const i8.max  = INT8_MAX;
 
-const NONE UINT64_MAX;
+const NONE = UINT64_MAX;
 
-const MAX_PATH_SIZE 512;
+const MAX_PATH_SIZE = 512;
 
 struct Buffer (
   data : ptr,
@@ -86,7 +86,7 @@ fn common_init -> none {
 
 // TODO(lucas): branchless version
 fn align(n : u64, alignment : u64) -> u64 {
-  let result : u64 0;
+  let result : u64 = 0;
   if eq 0 % n alignment {
     store64 @result n;
   }
@@ -97,7 +97,7 @@ fn align(n : u64, alignment : u64) -> u64 {
 }
 
 fn strlen(str : cstr) -> u64 {
-  let length : u64 0;
+  let length : u64 = 0;
   while neq 0 load8 str {
     store64 @length + 1 length;
     store64 @str    + 1 str;
@@ -106,7 +106,7 @@ fn strlen(str : cstr) -> u64 {
 }
 
 fn strnlen(str : cstr, max_length : u64) -> u64 {
-  let length : u64 0;
+  let length : u64 = 0;
   while and < length max_length neq 0 load8 str {
     store64 @length + 1 length;
     store64 @str    + 1 str;
@@ -115,11 +115,11 @@ fn strnlen(str : cstr, max_length : u64) -> u64 {
 }
 
 fn strcmp(a : cstr, b : cstr) -> u64 {
-  let result 0;
-  let done 0;
+  let result = 0;
+  let done = 0;
   while eq done 0 {
-    let a_ch load8 a;
-    let b_ch load8 b;
+    let a_ch = load8 a;
+    let b_ch = load8 b;
     if neq a_ch b_ch {
       store64 @result 1;
       store64 @done 1;
@@ -134,12 +134,12 @@ fn strcmp(a : cstr, b : cstr) -> u64 {
 }
 
 fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
-  let result 0;
-  let i 0;
-  let done 0;
+  let result = 0;
+  let i = 0;
+  let done = 0;
   while and < i count eq done 0 {
-    let a_ch load8 a;
-    let b_ch load8 b;
+    let a_ch = load8 a;
+    let b_ch = load8 b;
     if neq a_ch b_ch {
       store64 @result 1;
       store64 @done 1;
@@ -156,7 +156,7 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
 
 // NOTE(lucas): src is expected to be at least as big as dest in terms of size
 fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
-  let count : u64 0;
+  let count : u64 = 0;
   while < count n {
     store8 cast ptr dest load8 cast ptr src;
     store64 @dest  + 1 dest;
@@ -167,7 +167,7 @@ fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
 }
 
 fn memset(mem : ptr, c : u64, n : u64) -> none {
-  let count : u64 0;
+  let count : u64 = 0;
   while < count n {
     store8 mem c;
     store64 @mem   + 1 mem;
@@ -176,7 +176,7 @@ fn memset(mem : ptr, c : u64, n : u64) -> none {
 }
 
 fn memset64(mem : any, c : u64, n : u64) -> none {
-  let count : u64 0;
+  let count : u64 = 0;
   while < count n {
     store64 mem c;
     store64 @mem   + sizeof u64 mem;
@@ -185,7 +185,7 @@ fn memset64(mem : any, c : u64, n : u64) -> none {
 }
 
 fn memcpy(dest : any, src : any, n : u64) -> none {
-  let count : u64 0;
+  let count : u64 = 0;
   while < count n {
     store8 dest load8 src;
     store64 @dest  + 1 dest;
@@ -195,9 +195,9 @@ fn memcpy(dest : any, src : any, n : u64) -> none {
 }
 
 fn digit_count(n : u64) -> u64 {
-  const base : u64 10;
-  let count : u64 0;
-  let done : u64 0;
+  const base : u64 = 10;
+  let count : u64 = 0;
+  let done : u64 = 0;
   while eq done 0 {
     store64 @n / n 10;
     store64 @count + 1 count;
@@ -210,12 +210,12 @@ fn digit_count(n : u64) -> u64 {
 
 // TODO(lucas): implement alternative version of this function where there is no max_size parameter as it already is calculated in the function
 fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
-  const base : u64 10;
-  let count : u64 digit_count(n);
-  let i : u64 0;
+  const base : u64 = 10;
+  let count : u64 = digit_count(n);
+  let i : u64 = 0;
 
   if < max_size count {
-    let diff : u64 - count max_size;
+    let diff : u64 = - count max_size;
     store64 @count max_size;
     store64 @n / n * base diff;
   }
@@ -223,7 +223,7 @@ fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
   store64 @str + str - count 1;
 
   while < i count {
-    let index % n base;
+    let index = % n base;
     store8 str load8 + index "0123456789abcdef";
     store64 @n   / n base;
     store64 @str - str 1;
@@ -258,22 +258,22 @@ fn to_lower(ch : u64) -> u64 {
   ch;
 }
 
-const DIGIT_SEPARATOR : u64 '_';
+const DIGIT_SEPARATOR : u64 = '_';
 
 fn str_to_u64(str : cstr, length : u64) -> u64 {
-  let result   : u64 0;
-  let base     : u64 10;
-  let i        : u64 0;
-  let done     : u64 0;
-  let hex_done : u64 0;
-  let bin_done : u64 0;
+  let result   : u64 = 0;
+  let base     : u64 = 10;
+  let i        : u64 = 0;
+  let done     : u64 = 0;
+  let hex_done : u64 = 0;
+  let bin_done : u64 = 0;
 
   if > length 2 {
     if eq strncmp(str, "0x", 2) 0 {
       store64 @base 16;
       store64 @i 2;
       while and < i length not hex_done {
-        let ch to_lower(load8 + str i);
+        let ch = to_lower(load8 + str i);
         if is_digit(ch) {
           store64 @result + * result base - ch '0';
         }
@@ -292,7 +292,7 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
       store64 @base 2;
       store64 @i 2;
       while and < i length not bin_done {
-        let ch to_lower(load8 + str i);
+        let ch = to_lower(load8 + str i);
         if is_bin(ch) {
           store64 @result + * result base - ch '0';
         }
@@ -308,7 +308,7 @@ fn str_to_u64(str : cstr, length : u64) -> u64 {
   if not done {
     store64 @i 0;
     while < i length {
-      let ch load8 + str i;
+      let ch = load8 + str i;
       if neq ch DIGIT_SEPARATOR {
         store64 @result + * result base - ch '0';
       }
@@ -324,7 +324,7 @@ fn cstr_to_u64(str : cstr) -> u64 {
 
 // standard write functions
 fn write_cstr(mem : ptr, str : cstr) -> u64 {
-  let length : u64 strlen(str);
+  let length : u64 = strlen(str);
   memcpy(mem, str, length);
   length;
 }
@@ -335,27 +335,27 @@ fn write_str(mem : ptr, str : ptr, length : u64) -> u64 {
 }
 
 fn write_u64(mem : ptr, n : u64) -> u64 {
-  let count : u64 digit_count(n);
+  let count : u64 = digit_count(n);
   u64_to_str(n, mem, count);
   count;
 }
 
 fn write_u8(mem : ptr, n : u8) -> u64 {
-  const length : u64 sizeof n;
+  const length : u64 = sizeof n;
   memcpy(mem, @n, length);
   length;
 }
 
 // bounded write functions
 fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
-  let result : u64 0;
+  let result : u64 = 0;
   if > length 0 {
     if eq cast u64 end NULL {
       store64 @result write_cstr(mem, str);
     }
     else {
       if < cast u64 mem end {
-        let diff cast u64 - end mem;
+        let diff = cast u64 - end mem;
         if < length diff {
           memcpy(mem, str, length);
           store64 @result length;
@@ -371,7 +371,7 @@ fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
 }
 
 fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
-  let result : u64 0;
+  let result : u64 = 0;
   if cast ptr str {
     store64 @result bwrite_str(mem, end, str, strlen(str));
   }
@@ -379,15 +379,15 @@ fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
 }
 
 fn bwrite_u64(mem : ptr, end : ptr, n : u64) -> u64 {
-  let result : u64 0;
-  let count : u64 digit_count(n);
+  let result : u64 = 0;
+  let count : u64 = digit_count(n);
   if eq cast u64 end NULL {
     u64_to_str(n, mem, count);
     store64 @result count;
   }
   else {
     if < cast u64 mem end {
-      let diff cast u64 - end mem;
+      let diff = cast u64 - end mem;
       if < count diff {
         u64_to_str(n, mem, count);
         store64 @result count;
@@ -402,8 +402,8 @@ fn bwrite_u64(mem : ptr, end : ptr, n : u64) -> u64 {
 }
 
 fn bwrite_u8(mem : ptr, end : ptr, n : u8) -> u64 {
-  let result : u64 0;
-  const length : u64 sizeof n;
+  let result : u64 = 0;
+  const length : u64 = sizeof n;
   if eq cast u64 end NULL {
     memcpy(mem, @n, length);
     store64 @result length;
@@ -417,7 +417,7 @@ fn bwrite_u8(mem : ptr, end : ptr, n : u8) -> u64 {
 
 // TODO(lucas): handle escape sequences
 fn tmp_push_cstr(str : cstr) -> none {
-  let length : u64 strlen(cast cstr str);
+  let length : u64 = strlen(cast cstr str);
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
         memcpy(tmp_it, str, length);
@@ -444,9 +444,9 @@ fn tmp_push_str(str : any, length : u64) -> none {
 }
 
 fn tmp_push_u64(n : u64) -> none {
-  const MAX_LENGTH 64;
-  let buf : u8 : * sizeof u64 MAX_LENGTH cast u8 0;
-  let length digit_count(n);
+  const MAX_LENGTH = 64;
+  let buf : u8 : * sizeof u64 MAX_LENGTH = cast u8 0;
+  let length = digit_count(n);
   u64_to_str(n, @buf, MAX_LENGTH);
   tmp_push_str(@buf, length);
 }
@@ -462,10 +462,10 @@ fn tmp_push_byte(byte : u8) -> none {
 }
 
 fn first_dot(str : cstr) -> cstr {
-  let it str;
-  let done : u64 0;
+  let it = str;
+  let done : u64 = 0;
   while eq done 0 {
-    let ch : u64 load8 it;
+    let ch : u64 = load8 it;
     if or eq ch '.' eq ch 0 {
       store64 @done 1;
     }
@@ -477,11 +477,11 @@ fn first_dot(str : cstr) -> cstr {
 }
 
 fn djb2_hash(data : ptr, size : u64) -> u64 {
-  let result : u64 5381;
+  let result : u64 = 5381;
   if neq cast u64 data NULL {
-    let i : u64 0;
+    let i : u64 = 0;
     while < i size {
-      let byte : u64 load8 data;
+      let byte : u64 = load8 data;
       store64 @result + byte + result lshift result 5;
       store64 @data + 1 data;
       store64 @i + 1 i;
@@ -491,11 +491,11 @@ fn djb2_hash(data : ptr, size : u64) -> u64 {
 }
 
 fn djb2_hash_cstr(str : cstr) -> u64 {
-  let result : u64 5381;
+  let result : u64 = 5381;
   if neq cast u64 str NULL {
-    let done : u64 0;
+    let done : u64 = 0;
     while eq done 0 {
-      let byte : u64 load8 str;
+      let byte : u64 = load8 str;
       if eq byte 0 {
         store64 @done 1;
       }

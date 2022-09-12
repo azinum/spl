@@ -30,12 +30,12 @@ enum u64 (
   MAX_AST_TYPE
 );
 
-let ast_type_str : cstr : MAX_AST_TYPE "";
+let ast_type_str : cstr : MAX_AST_TYPE = "";
 
 // NOTE(lucas): it's VERY inefficient to use a constant number of internal nodes for the ast, but this will do for now
 // TODO(lucas): come back here and rework all of this when the self hosted compiler is complete
-const MAX_INTERNAL_NODE : u64 512; // how many nodes can each node hold?
-const MAX_AST_NODE : u64 * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
+const MAX_INTERNAL_NODE : u64 = 512; // how many nodes can each node hold?
+const MAX_AST_NODE : u64 = * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
 struct Ast (
   node  : ptr : MAX_INTERNAL_NODE,
@@ -46,12 +46,12 @@ struct Ast (
   konst : u64
 );
 
-let ast_node_memory : u8 : * sizeof Ast MAX_AST_NODE cast u8 0;
-let ast_node : ptr NULL;
-let ast_node_end : ptr NULL;
+let ast_node_memory : u8 : * sizeof Ast MAX_AST_NODE = cast u8 0;
+let ast_node : ptr = NULL;
+let ast_node_end : ptr = NULL;
 
 fn ast_create(type : u64) -> ptr {
-  let node : ptr ast_node;
+  let node : ptr = ast_node;
 
   if < node ast_node_end {
     store64 @ast_node + sizeof Ast ast_node;
@@ -72,10 +72,10 @@ fn ast_create(type : u64) -> ptr {
 }
 
 fn ast_print_node(ast : any, fd : u64) -> none {
-  let count load64 + Ast.count ast;
-  let type  load64 + Ast.type ast;
-  let token + Ast.token ast;
-  let args : any (
+  let count = load64 + Ast.count ast;
+  let type = load64 + Ast.type ast;
+  let token = + Ast.token ast;
+  let args : any = (
     count,
     type
   );
@@ -87,7 +87,7 @@ fn ast_push(ast : ptr, node : ptr) -> none {
   assert(neq 0 ast, "null ast node\n");
   if neq 0 node {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
-    let count : ptr + ast Ast.count;
+    let count : ptr = + ast Ast.count;
     store64 + + ast Ast.node * #count sizeof any node;
     store64 count + 1 #count;
   }
@@ -97,16 +97,16 @@ fn ast_push_node(ast : ptr, type : u64, token : ptr) -> none {
   if eq ast NULL {
     assert(0, "invalid pointer (NULL) to ast\n");
   }
-  let node : ptr ast_create(type);
+  let node : ptr = ast_create(type);
   memcpy(+ node Ast.token, token, sizeof Token);
   ast_push(ast, node);
 }
 
 fn ast_count(ast : any) -> u64 {
-  let count 1;
-  let i 0;
+  let count = 1;
+  let i = 0;
   while < i load64 + ast Ast.count {
-    let node # + + ast Ast.node * i sizeof any;
+    let node = load64 + + ast Ast.node * i sizeof any;
     store64 @count + count ast_count(node);
     store64 @i + 1 i;
   }
@@ -117,17 +117,17 @@ fn ast_child_count(ast : any) -> u64 # + Ast.count ast;
 
 fn ast_print(ast : any, level : u64, fd : u64) -> none {
   if neq 0 ast {
-    let tmp tmp_it;
-    let p tmp_push_cstr;
+    let tmp = tmp_it;
+    let p = tmp_push_cstr;
     {
-      let i 0;
+      let i = 0;
       while < i level {
         p("    ");
         store64 @i + 1 i;
       }
     }
-    let type : u64 load64 + ast Ast.type;
-    let token : ptr cast ptr + ast Ast.token;
+    let type : u64 = load64 + ast Ast.type;
+    let token : ptr = cast ptr + ast Ast.token;
     p("<");
     p(cast cstr load64 + @ast_type_str * type sizeof cstr);
     p(", ");
@@ -140,10 +140,10 @@ fn ast_print(ast : any, level : u64, fd : u64) -> none {
     putsn(fd, tmp, - tmp_it tmp);
     store64 @tmp_it tmp;
     {
-      let i 0;
-      let count load64 + ast Ast.count;
+      let i = 0;
+      let count = load64 + ast Ast.count;
       while < i count {
-        let node # + + ast Ast.node * i sizeof any;
+        let node = load64 + + ast Ast.node * i sizeof any;
         ast_print(node, + 1 level, fd);
         store64 @i + 1 i;
       }

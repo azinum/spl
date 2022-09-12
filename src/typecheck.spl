@@ -1,7 +1,7 @@
 // typecheck.spl
 
 // TODO(lucas): temporary, allow passing and pushing structs of any size
-const MAX_STRUCT_SIZE sizeof u64;
+const MAX_STRUCT_SIZE = sizeof u64;
 
 enum u64 (
   TYPE_CONTRACT_LOOKUP,
@@ -15,17 +15,17 @@ enum u64 (
 );
 
 fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
-let _typecheck typecheck_function;
+let _typecheck = typecheck_function;
 
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
-    let i MAX_SYSCALL_FUNCTION;
-    let count load64 + c Compile.symbol_count;
+    let i = MAX_SYSCALL_FUNCTION;
+    let count = load64 + c Compile.symbol_count;
     while < i count {
-      let symbol : Symbol 0;
+      let symbol : Symbol = 0;
       memcpy(@symbol, + + c Compile.symbols * sizeof Symbol i, sizeof Symbol);
-      let ref_count load64 + @symbol Symbol.ref_count;
-      let sym_type load64 + @symbol Symbol.sym_type;
+      let ref_count = load64 + @symbol Symbol.ref_count;
+      let sym_type = load64 + @symbol Symbol.sym_type;
       if and eq ref_count 0 or eq sym_type SYM_FUNC load64 + @options Options.dce_all {
         ir_compile_warning_at(+ @symbol Symbol.token, "`?` defined but not used\n");
       }
@@ -44,10 +44,10 @@ fn typecheck_error(message : cstr) -> none {
 
 // token : Token*
 fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
-  const fd : u64 STDERR_FILENO;
+  const fd : u64 = STDERR_FILENO;
   if eq load64 + c Compile.status NoError {
     {
-      let args : any (
+      let args : any = (
         load64 + token Token.filename,
         load64 + token Token.line,
         load64 + token Token.column
@@ -62,14 +62,14 @@ fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
 }
 
 fn typecheck_print_stack(fd : u64) -> none {
-  let i 0;
-  let count load64 + c Compile.ts_count;
+  let i = 0;
+  let count = load64 + c Compile.ts_count;
   while < i count {
-    let type : Type 0;
+    let type : Type = 0;
     memcpy(@type, + + c Compile.ts * sizeof Type i, sizeof Type);
-    let value : Value 0;
+    let value : Value = 0;
     memcpy(@value, + + c Compile.vs * sizeof Value i, sizeof Value);
-    let args : any (
+    let args : any = (
       i,
       load64 + @compile_type_str * sizeof cstr load32 + @type Type.type,
       load32 + @type Type.id,
@@ -83,17 +83,17 @@ fn typecheck_print_stack(fd : u64) -> none {
 fn type_print(fd : u64, type : Type) -> none {
   // check if this is a container type
   if eq type_value(@type) TypePtr {
-    let args : any (
+    let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type)
     );
     dprintf(fd, "%s(", @args);
-    let next_type : Type 0;
+    let next_type : Type = 0;
     store64 @next_type load64 + + c Compile.types * sizeof Type type_id(@type);
     type_print(fd, next_type);
     dprintf(fd, ")", NULL);
   }
   else if eq type_value(@type) TypeStruct {
-    let args : any (
+    let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type),
       type_id(@type)
     );
@@ -101,7 +101,7 @@ fn type_print(fd : u64, type : Type) -> none {
   }
   // primitive type
   else {
-    let args : any (
+    let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type)
     );
     dprintf(fd, "%s", @args);
@@ -114,12 +114,12 @@ fn type_printline(fd : u64, type : Type) -> none {
 }
 
 fn type_lookup(type : Type) -> u64 {
-  let result : u64 0;
-  let done : u64 0;
-  let i : u64 0;
-  let type_count : u64 load64 + c Compile.type_count;
+  let result : u64 = 0;
+  let done : u64 = 0;
+  let i : u64 = 0;
+  let type_count : u64 = load64 + c Compile.type_count;
   while and eq done 0 < i type_count {
-    let t : Type 0;
+    let t : Type = 0;
     store64 @t load64 + + c Compile.types * sizeof Type i;
     if types_are_equal(type, t) {
       store64 @result i;
@@ -131,7 +131,7 @@ fn type_lookup(type : Type) -> u64 {
 }
 
 fn type_push_new(type : Type) -> u64 {
-  let type_count : u64 load64 + c Compile.type_count;
+  let type_count : u64 = load64 + c Compile.type_count;
   if < type_count MAX_COMPILE_TYPE {
     store64 + + c Compile.types * sizeof Type type_count type;
     store64 + c Compile.type_count + 1 type_count;
@@ -149,7 +149,7 @@ fn type_is_container(type : Type) -> u64 {
 
 // checks if `type` is valid inside of `container`
 fn type_check_constraints(container : Type, type : Type) -> u64 {
-  let result TYPE_CONSTRAINT_INVALID;
+  let result = TYPE_CONSTRAINT_INVALID;
   if type_is_container(container) {
     if eq type_value(@type) TypeStruct {
       store64 @result TYPE_CONSTRAINT_INVALID;
@@ -170,40 +170,40 @@ fn type_check_constraints(container : Type, type : Type) -> u64 {
 // for now it is not possible to construct types containing structs
 fn type_from_contract(contract : any, count : u64, mode : u64) -> Type {
   assert(neq count 0, "number of elements in contract must be greater than 0\n");
-  let result : Type 0;
+  let result : Type = 0;
   type_init(@result, TypeNone, 0);
 
   if eq count 1 {
-    let type : Type 0;
+    let type : Type = 0;
     store64 @type load64 contract;
-    let lookup : u64 type_lookup(type);
+    let lookup : u64 = type_lookup(type);
     if neq lookup 0 {
       store64 @result type;
     }
   }
 
-  let i : u64 - count 1;
-  let primary_type : Type 0;
+  let i : u64 = - count 1;
+  let primary_type : Type = 0;
   type_init(@primary_type, TypeNone, 0);
-  let sub_type : Type 0;
+  let sub_type : Type = 0;
   store64 @sub_type load64 + contract * sizeof any i;
 
-  let fail : u64 0;
+  let fail : u64 = 0;
   while and eq fail 0 > i 0 {
     store64 @primary_type load64 + contract * sizeof any - i 1;
 
-    let type : Type 0;
+    let type : Type = 0;
     type_init(@type, type_value(@primary_type), type_value(@sub_type));
 
-    let constraint : u64 type_check_constraints(primary_type, sub_type);
+    let constraint : u64 = type_check_constraints(primary_type, sub_type);
     if or eq constraint TYPE_CONSTRAINT_VALID eq constraint TYPE_CONSTRAINT_UNDECIDABLE {
       store64 @sub_type primary_type;
 
-      let lookup : u64 type_lookup(type);
+      let lookup : u64 = type_lookup(type);
       if eq lookup 0 {
         // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
         if eq mode TYPE_CONTRACT_CREATE {
-          let new_type_id : u64 type_push_new(type);
+          let new_type_id : u64 = type_push_new(type);
           assert(neq new_type_id 0, "failed to push new type\n");
           store64 @sub_type new_type_id;
           store64 @result type;
@@ -232,13 +232,13 @@ fn type_from_contract(contract : any, count : u64, mode : u64) -> Type {
 
 fn typecheck_print_types(fd : u64) -> none {
   dprintf(fd, "typecheck_print_types:\n", NULL);
-  let i : u64 0;
-  let count : u64 load64 + c Compile.type_count;
+  let i : u64 = 0;
+  let count : u64 = load64 + c Compile.type_count;
   while < i count {
-    let type : Type 0;
+    let type : Type = 0;
     store64 @type load64 + + c Compile.types * sizeof Type i;
 
-    let args : any (i);
+    let args : any = i;
     dprintf(fd, "%d: ", @args);
     type_print(fd, type);
     dprintf(fd, "\n", NULL);
@@ -249,7 +249,7 @@ fn typecheck_print_types(fd : u64) -> none {
 
 // type : Type, rvalue : Type
 fn ts_push(type : u64) -> u64 {
-  let result : u64 TypeNone;
+  let result : u64 = TypeNone;
   if < load64 + c Compile.ts_count MAX_TYPE_STACK {
     store64 + + c Compile.ts * sizeof result load64 + c Compile.ts_count type;
     store64 + c Compile.ts_count + 1 load64 + c Compile.ts_count;
@@ -263,7 +263,7 @@ fn ts_push(type : u64) -> u64 {
 
 // rvalue : Type
 fn ts_pop -> u64 {
-  let result TypeNone;
+  let result = TypeNone;
   if < load64 + c Compile.ts_count MAX_TYPE_STACK {
     store64 + c Compile.ts_count - load64 + c Compile.ts_count 1;
     store64 @result load64 + + c Compile.ts * sizeof Type load64 + c Compile.ts_count;
@@ -276,7 +276,7 @@ fn ts_pop -> u64 {
 
 // rvalue : Type
 fn ts_top -> u64 {
-  let result TypeNone;
+  let result = TypeNone;
   if < load64 + c Compile.ts_count MAX_TYPE_STACK {
     store64 @result load64 + + c Compile.ts * sizeof Type - load64 + c Compile.ts_count 1;
   }
@@ -285,7 +285,7 @@ fn ts_top -> u64 {
 
 // value : Value*
 fn vs_push(value : ptr) -> u64 {
-  let result NoError;
+  let result = NoError;
   if < load64 + c Compile.vs_count MAX_TYPE_STACK {
     memcpy(+ + c Compile.vs * sizeof Value load64 + c Compile.vs_count, value, sizeof Value);
     store64 + c Compile.vs_count + 1 load64 + c Compile.vs_count;
@@ -311,7 +311,7 @@ fn vs_top(value_out : ptr) -> none {
 }
 
 fn vs_pop(value_out : ptr) -> u64 {
-  let result NoError;
+  let result = NoError;
   if < load64 + c Compile.vs_count MAX_TYPE_STACK {
     if value_out {
       vs_top(value_out);
@@ -326,19 +326,19 @@ fn vs_pop(value_out : ptr) -> u64 {
 }
 
 fn check_func_signatures(a : ptr, b : ptr) -> u64 {
-  let result : u64 1;
+  let result : u64 = 1;
   if and
     eq load64 + a Function.argc load64 + b Function.argc
     eq load64 + a Function.rtype load64 + b Function.rtype {
 
-    let i : u64 0;
-    let argc : u64 load64 + a Function.argc;
-    let done : u64 0;
+    let i : u64 = 0;
+    let argc : u64 = load64 + a Function.argc;
+    let done : u64 = 0;
     while and eq done 0 < i argc {
-      let arg_a : u64 load64 + + a Function.argc * sizeof u64 i;
-      let arg_b : u64 load64 + + b Function.argc * sizeof u64 i;
-      let type_a : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_a Symbol.type;
-      let type_b : u64 load64 + + + c Compile.symbols * sizeof Symbol arg_b Symbol.type;
+      let arg_a : u64 = load64 + + a Function.argc * sizeof u64 i;
+      let arg_b : u64 = load64 + + b Function.argc * sizeof u64 i;
+      let type_a : u64 = load64 + + + c Compile.symbols * sizeof Symbol arg_a Symbol.type;
+      let type_b : u64 = load64 + + + c Compile.symbols * sizeof Symbol arg_b Symbol.type;
       if neq type_a type_b {
         store64 @result 0;
         store64 @done 1;
@@ -355,11 +355,11 @@ fn check_func_signatures(a : ptr, b : ptr) -> u64 {
 
 // ast : Ast*
 fn is_branch_konst_eval(ast : ptr) -> u64 {
-  let konst 1;
-  let i 0;
-  let count load64 + ast Ast.count;
+  let konst = 1;
+  let i = 0;
+  let count = load64 + ast Ast.count;
   while < i count {
-    let node cast ptr load64 + + ast Ast.node * sizeof ptr i;
+    let node = cast ptr load64 + + ast Ast.node * sizeof ptr i;
     if eq load64 + node Ast.konst 0 {
       store64 @konst 0;
       store64 @i count;
@@ -380,8 +380,8 @@ fn is_numerical(type_value : u64) -> u64 {
 // block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
 // rvalue : Type
 fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -> u64 {
-  let result TypeNone;
-  let type load64 + token Token.type;
+  let result = TypeNone;
+  let type = load64 + token Token.type;
   if eq type T_ANY {
     store64 @result TypeAny;
   }
@@ -404,8 +404,8 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
     store64 @result TypeCString;
   }
   else if eq type T_IDENTIFIER {
-    let symbol NULL;
-    let buffer : Buffer 0;
+    let symbol = NULL;
+    let buffer : Buffer = 0;
     buffer_init(@buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
     if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
       if neq symbol_out NULL {
@@ -418,49 +418,49 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
 }
 
 fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  let i 0;
-  let count load64 + ast Ast.count;
+  let i = 0;
+  let count = load64 + ast Ast.count;
   while < i count {
-    let _ _typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
+    let _ = _typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     store64 @i + 1 i;
   }
   NoError;
 }
 
 fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  let result NoError;
-  let konst eq load64 + ast Ast.type AstConstStatement;
-  let ts_count load64 + c Compile.ts_count;
-  let num_elements 1;
-  let rhs cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let ast_type NULL;
+  let result = NoError;
+  let konst = eq load64 + ast Ast.type AstConstStatement;
+  let ts_count = load64 + c Compile.ts_count;
+  let num_elements = 1;
+  let rhs = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let ast_type = NULL;
   if eq load64 + ast Ast.count 2 {
     store64 @ast_type cast ptr load64 + + ast Ast.node * sizeof ptr 1;
   }
 
   // typecheck the rhs of the statement
-  { let _ typecheck_node_list(block, fs, rhs); }
+  { let _ = typecheck_node_list(block, fs, rhs); }
   store64 + rhs Ast.konst is_branch_konst_eval(rhs);
   store64 + ast Ast.konst is_branch_konst_eval(rhs);
 
   // make sure that rhs actually produced any values
-  let ts_delta - load64 + c Compile.ts_count ts_count;
+  let ts_delta = - load64 + c Compile.ts_count ts_count;
   if eq ts_delta 0 {
     typecheck_error_at(+ ast Ast.token, "no value was produced in the rhs of the let statement\n", NULL);
   }
   else {
-    let expl_type_symbol NULL;
+    let expl_type_symbol = NULL;
 
     // typecheck explicit type, if there is one
-    let explicit_type TypeNone;
+    let explicit_type = TypeNone;
     // for if the type is a function
-    let explicit_type_value : Value 0;
+    let explicit_type_value : Value = 0;
     if neq ast_type NULL {
       store64 @explicit_type token_to_compile_type(block, fs, + ast_type Ast.token, @expl_type_symbol);
-      let token : Token 0;
+      let token : Token = 0;
       memcpy(@token, + ast_type Ast.token, sizeof Token);
       if eq type_value(@explicit_type) TypeNone {
-        let message tmp_it;
+        let message = tmp_it;
         tmp_push_cstr("type `");
         tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("` not defined\n");
@@ -474,10 +474,10 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         // array size specifier
         if > load64 + ast_type Ast.count 0 {
-          { let _ _typecheck(block, fs, ast_type); }
-          let value : Value 0;
-          { let _ vs_pop(@value); }
-          let array_specifier_type ts_pop();
+          { let _ = _typecheck(block, fs, ast_type); }
+          let value : Value = 0;
+          { let _ = vs_pop(@value); }
+          let array_specifier_type = ts_pop();
           if eq is_numerical(type_value(@array_specifier_type)) 0 {
             typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
           }
@@ -491,15 +491,15 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
 
-    let imm UINT64_MAX; // index to immediate value, in case this is a constant
+    let imm = UINT64_MAX; // index to immediate value, in case this is a constant
 
-    let value : Value 0;
-    let prev_value : Value 0;
+    let value : Value = 0;
+    let prev_value : Value = 0;
     vs_top(@value);
     vs_top(@prev_value);
 
-    let type ts_top();
-    let prev_type ts_top();
+    let type = ts_top();
+    let prev_type = ts_top();
 
     if neq type_value(@explicit_type) TypeNone {
       store64 @prev_type explicit_type;
@@ -512,8 +512,8 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n", NULL);
     }
     else {
-      let i 0;
-      let done 0;
+      let i = 0;
+      let done = 0;
       while and not done < i ts_delta {
         store64 @type ts_pop();
         if and and neq type prev_type neq type_value(@explicit_type) TypeAny neq type_value(@explicit_type) TypeStruct {
@@ -522,7 +522,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         else {
           store64 @prev_type type;
-          { let _ vs_pop(@value); }
+          { let _ = vs_pop(@value); }
           if and eq type_value(@type) TypeFunc neq type_value(@type) TypeAny {
             if eq check_func_signatures(+ @value Value.func, + @prev_value Value.func) 0 {
               typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
@@ -549,17 +549,17 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
     // if this is a constant, make sure to update the immediate value index
     if eq konst 1 {
-      let decrement * - ts_delta 1 load64 + @compile_type_size * sizeof u64 TypeUnsigned64;
+      let decrement = * - ts_delta 1 load64 + @compile_type_size * sizeof u64 TypeUnsigned64;
       store64 @imm - imm decrement;
     }
 
-    let type_size : u64 load64 + @compile_type_size * sizeof u64 type_value(@type);
+    let type_size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@type);
     if and eq type_value(@type) TypeStruct neq expl_type_symbol NULL {
       store64 @type_size load64 + expl_type_symbol Symbol.size;
     }
 
-    let symbol : ptr NULL;
-    let symbol_index UINT64_MAX;
+    let symbol : ptr = NULL;
+    let symbol_index = UINT64_MAX;
     if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size * num_elements type_size;
@@ -583,47 +583,47 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
 fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
   if eq load64 + c Compile.status NoError {
-    let ast_type load64 + ast Ast.type;
+    let ast_type = load64 + ast Ast.type;
     if eq ast_type AstValue {
-      let token_type load64 + + ast Ast.token Token.type;
+      let token_type = load64 + + ast Ast.token Token.type;
       if eq token_type T_NUMBER {
-        let value : Value 0;
+        let value : Value = 0;
         store64 + @value Value.num load64 + + ast Ast.token Token.v;
         store64 + @value Value.konst 1;
         store64 + ast Ast.konst 1;
-        { let _ vs_push(@value); }
-        { let _ ts_push(TypeUnsigned64); }
+        { let _ = vs_push(@value); }
+        { let _ = ts_push(TypeUnsigned64); }
       }
       else if eq token_type T_CSTRING {
-        let value : Value 0;
+        let value : Value = 0;
         memset(@value, 0, sizeof Value);
-        { let _ vs_push(@value); }
-        { let _ ts_push(TypeCString); }
+        { let _ = vs_push(@value); }
+        { let _ = ts_push(TypeCString); }
       }
       else if eq token_type T_IDENTIFIER {
-        let symbol : ptr NULL;
-        let symbol_index UINT64_MAX;
-        let token_buffer : Buffer 0;
+        let symbol : ptr = NULL;
+        let symbol_index = UINT64_MAX;
+        let token_buffer : Buffer = 0;
         buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
 
         if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
           store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
           store64 + + ast Ast.token Token.v symbol_index;
-          { let _ vs_push(+ symbol Symbol.value); }
+          { let _ = vs_push(+ symbol Symbol.value); }
           store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
-          let size : u64 load64 + symbol Symbol.size;
+          let size : u64 = load64 + symbol Symbol.size;
           // type : Type
-          let type : u64 load64 + symbol Symbol.type;
+          let type : u64 = load64 + symbol Symbol.type;
           if and > size MAX_STRUCT_SIZE eq type_value(@type) TypeStruct {
-            let args : any (MAX_STRUCT_SIZE);
+            let args : any = MAX_STRUCT_SIZE;
             typecheck_error_at(+ ast Ast.token, "can not push a struct with size greater than %d\n", @args);
           }
           else {
-            { let _ ts_push(type); }
+            { let _ = ts_push(type); }
           }
         }
         else {
-          let message tmp_it;
+          let message = tmp_it;
           tmp_push_cstr("symbol `");
           tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
           tmp_push_cstr("` not defined\n");
@@ -633,28 +633,28 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
       }
       else if eq token_type T_AT {
-        let symbol : ptr NULL;
-        let symbol_index UINT64_MAX;
-        let token_buffer : Buffer 0;
+        let symbol : ptr = NULL;
+        let symbol_index = UINT64_MAX;
+        let token_buffer : Buffer = 0;
         buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
         if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
           store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
           store64 + + ast Ast.token Token.v symbol_index;
-          let type load64 + symbol Symbol.type;
+          let type = load64 + symbol Symbol.type;
           if eq type_value(@type) TypeNone {
             // TODO(lucas): this block should not be accessable because no symbol can have type `none`, investigate...
-            let args : any (
+            let args : any = (
               load64 + @compile_type_str * sizeof cstr type_value(@type)
             );
             typecheck_error_at(+ ast Ast.token, "can not take the address of type `%s`\n", @args);
           }
           else {
-            { let _ vs_push(+ symbol Symbol.value); }
-            { let _ ts_push(TypePtr); }
+            { let _ = vs_push(+ symbol Symbol.value); }
+            { let _ = ts_push(TypePtr); }
           }
         }
         else {
-          let message tmp_it;
+          let message = tmp_it;
           tmp_push_cstr("symbol `");
           tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
           tmp_push_cstr("` not defined\n");
@@ -668,32 +668,32 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstExpression {
-      { let _ typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0); }
-      let konst is_branch_konst_eval(ast);
+      { let _ = typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0); }
+      let konst = is_branch_konst_eval(ast);
       store64 + ast Ast.konst konst;
     }
     else if or or eq ast_type AstExprList eq ast_type AstStatement eq ast_type AstStatementList {
-      let _ typecheck_node_list(block, fs, ast);
-      let konst is_branch_konst_eval(ast);
+      let _ = typecheck_node_list(block, fs, ast);
+      let konst = is_branch_konst_eval(ast);
       store64 + ast Ast.konst konst;
     }
     else if eq ast_type AstBinopExpression {
-      { let _ typecheck_node_list(block, fs, ast); }
-      let b : u64 ts_pop();
-      let a : u64 ts_pop();
+      { let _ = typecheck_node_list(block, fs, ast); }
+      let b : u64 = ts_pop();
+      let a : u64 = ts_pop();
       store64 @b type_value(@b);
       store64 @a type_value(@a);
       if and
         or or or is_numerical(a) eq a TypeAny eq a TypePtr eq a TypeCString
         or or or is_numerical(b) eq b TypeAny eq b TypePtr eq b TypeCString {
-        let va : Value 0;
-        let vb : Value 0;
-        { let _ vs_pop(@vb); }
-        { let _ vs_pop(@va); }
+        let va : Value = 0;
+        let vb : Value = 0;
+        { let _ = vs_pop(@vb); }
+        { let _ = vs_pop(@va); }
         store64 + ast Ast.konst and load64 + @va Value.konst load64 + @vb Value.konst;
 
-        let num : u64 0;
-        let token_type load64 + + ast Ast.token Token.type;
+        let num : u64 = 0;
+        let token_type = load64 + + ast Ast.token Token.type;
         if eq token_type T_ADD {
           store64 @num + load64 + @va Value.num load64 + @vb Value.num;
         }
@@ -750,28 +750,28 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         else {
           assert(0, "unhandled operator\n");
         }
-        let value : Value 0;
+        let value : Value = 0;
         store64 + @value Value.num num;
-        let konst : u64 is_branch_konst_eval(ast);
+        let konst : u64 = is_branch_konst_eval(ast);
         store64 + ast Ast.konst konst;
         store64 + @value Value.konst konst;
-        { let _ vs_push(@value); }
-        { let _ ts_push(a); }
+        { let _ = vs_push(@value); }
+        { let _ = ts_push(a); }
       }
       else {
         typecheck_error("type mismatch in binary operator expression\n");
       }
     }
     else if eq ast_type AstUopExpression {
-      let ts_count : u64 load64 + c Compile.ts_count;
-      { let _ typecheck_node_list(block, fs, ast); }
+      let ts_count : u64 = load64 + c Compile.ts_count;
+      { let _ = typecheck_node_list(block, fs, ast); }
       store64 + ast Ast.konst is_branch_konst_eval(ast);
-      let ts_delta : u64 - load64 + c Compile.ts_count ts_count;
+      let ts_delta : u64 = - load64 + c Compile.ts_count ts_count;
       if eq ts_delta 1 {
-        let token_type load64 + + ast Ast.token Token.type;
+        let token_type = load64 + + ast Ast.token Token.type;
         if eq token_type T_PRINT {
-          { let _ vs_pop(NULL); }
-          { let _ ts_pop(); }
+          { let _ = vs_pop(NULL); }
+          { let _ = ts_pop(); }
         }
         else if or or or or
           eq token_type T_DEREF
@@ -779,20 +779,20 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           eq token_type T_LOAD32
           eq token_type T_LOAD16
           eq token_type T_LOAD8 {
-          { let _ ts_pop(); }
-          { let _ ts_push(TypeUnsigned64); }
+          { let _ = ts_pop(); }
+          { let _ = ts_push(TypeUnsigned64); }
         }
         else if eq token_type T_LOGICAL_NOT {
-          let value : Value 0;
-          { let _ vs_pop(@value); }
+          let value : Value = 0;
+          { let _ = vs_pop(@value); }
           store64 + @value Value.num not load64 + @value Value.num;
-          { let _ vs_push(@value); }
+          { let _ = vs_push(@value); }
         }
         else if eq token_type T_NOT {
-          let value : Value 0;
-          { let _ vs_pop(@value); }
+          let value : Value = 0;
+          { let _ = vs_pop(@value); }
           store64 + @value Value.num not load64 + @value Value.num;
-          { let _ vs_push(@value); }
+          { let _ = vs_push(@value); }
         }
       }
       else {
@@ -800,29 +800,29 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if or eq ast_type AstLetStatement eq ast_type AstConstStatement {
-      { let _ typecheck_let_statement(block, fs, ast); }
+      { let _ = typecheck_let_statement(block, fs, ast); }
     }
     else if eq ast_type AstBlockStatement {
-      let local_block : Block 0;
+      let local_block : Block = 0;
       block_init(@local_block, block);
-      { let _ typecheck_node_list(@local_block, fs, ast); }
+      { let _ = typecheck_node_list(@local_block, fs, ast); }
       store64 + ast Ast.konst is_branch_konst_eval(ast);
     }
     else if eq ast_type AstFuncDefinition {
       if eq cast u64 block + c Compile.global {
-        let params cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-        let body   cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-        let rtype_node : ptr NULL;
+        let params = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+        let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+        let rtype_node : ptr = NULL;
         if eq load64 + ast Ast.count 3 {
           store64 @rtype_node load64 + + ast Ast.node * sizeof ptr 2;
         }
 
-        let argc : u64 load64 + params Ast.count;
+        let argc : u64 = load64 + params Ast.count;
         if or eq argc MAX_FUNC_ARGC < argc MAX_FUNC_ARGC { // argc <= MAX_FUNC_ARGC
-          let symbol : ptr NULL;
-          let symbol_index : u64 UINT64_MAX;
+          let symbol : ptr = NULL;
+          let symbol_index : u64 = UINT64_MAX;
           if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
-            let local_block : Block 0;
+            let local_block : Block = 0;
             block_init(@local_block, block);
 
             store64 + symbol Symbol.imm UINT64_MAX;
@@ -832,7 +832,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 + symbol Symbol.type TypeFunc;
             store64 + + ast Ast.token Token.v symbol_index;
             memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
-            let func cast ptr + + symbol Symbol.value Value.func;
+            let func = cast ptr + + symbol Symbol.value Value.func;
             store64 + func Function.ir_address UINT64_MAX;
             store64 + func Function.label symbol_index;
             store64 + func Function.argc argc;
@@ -843,26 +843,26 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
               store64 + func Function.rtype token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
             }
 
-            let i : u64 0;
-            let fail : u64 0;
+            let i : u64 = 0;
+            let fail : u64 = 0;
             while and eq fail 0 < i argc {
-              let arg_node cast ptr load64 + + params Ast.node * sizeof ptr i;
-              let arg : Token 0;
-              let arg_type_token : Token 0;
+              let arg_node = cast ptr load64 + + params Ast.node * sizeof ptr i;
+              let arg : Token = 0;
+              let arg_type_token : Token = 0;
               memcpy(@arg, + arg_node Ast.token, sizeof Token);
               memcpy(@arg_type_token, + load64 + + arg_node Ast.node * sizeof ptr 0 Ast.token, sizeof Token);
 
-              let arg_symbol : ptr NULL;
-              let arg_symbol_index : u64 UINT64_MAX;
+              let arg_symbol : ptr = NULL;
+              let arg_symbol_index : u64 = UINT64_MAX;
               if eq compile_declare_value(@local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
                 store64 + + func Function.args * sizeof u64 i arg_symbol_index;
-                let arg_type_symbol : ptr NULL;
-                let arg_type : u64 token_to_compile_type(block, fs, @arg_type_token, @arg_type_symbol);
-                let size : u64 load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
+                let arg_type_symbol : ptr = NULL;
+                let arg_type : u64 = token_to_compile_type(block, fs, @arg_type_token, @arg_type_symbol);
+                let size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
                 if eq type_value(@arg_type) TypeStruct {
                   store64 @size load64 + arg_type_symbol Symbol.size;
                   if > size MAX_STRUCT_SIZE {
-                    let args : any (MAX_STRUCT_SIZE);
+                    let args : any = MAX_STRUCT_SIZE;
                     typecheck_error_at(@arg_type_token, "can not have a parameter of type struct with a greater size than %d\n", @args);
                     store64 @fail 1;
                   }
@@ -884,30 +884,30 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
               store64 @i + 1 i;
             }
 
-            let ts_count : u64 load64 + c Compile.ts_count;
-            let func_body_block : Block 0;
+            let ts_count : u64 = load64 + c Compile.ts_count;
+            let func_body_block : Block = 0;
             block_init(@func_body_block, @local_block); // to allow for shadowing of function arguments
 
-            { let _ typecheck_node_list(@func_body_block, fs, body); }
-            let konst_body : u64 is_branch_konst_eval(body);
+            { let _ = typecheck_node_list(@func_body_block, fs, body); }
+            let konst_body : u64 = is_branch_konst_eval(body);
             store64 + body Ast.konst konst_body;
             store64 + ast Ast.konst konst_body;
             store64 + + symbol Symbol.value Value.konst konst_body;
 
             // rtype : Type
-            let rtype : u64 TypeNone;
-            let ts_delta : u64 - load64 + c Compile.ts_count ts_count;
+            let rtype : u64 = TypeNone;
+            let ts_delta : u64 = - load64 + c Compile.ts_count ts_count;
             if > ts_delta 1 {
               typecheck_error_at(+ ast Ast.token, "too many values produced by function\n", NULL);
             }
             else {
               if neq ts_delta 0 {
-                { let _ vs_pop(NULL); }
+                { let _ = vs_pop(NULL); }
                 store64 @rtype ts_pop();
               }
 
               if neq rtype_node NULL {
-                let explicit_rtype : u64 token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
+                let explicit_rtype : u64 = token_to_compile_type(block, fs, + rtype_node Ast.token, NULL);
                 if and neq explicit_rtype rtype neq type_value(@explicit_rtype) TypeAny {
                   compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
                 }
@@ -927,7 +927,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           }
         }
         else {
-          let message cast cstr tmp_it;
+          let message = cast cstr tmp_it;
           sprintf(cast ptr message, "reached function parameter count limit of %d\n", @MAX_FUNC_ARGC);
           compile_error_at(+ ast Ast.token, message);
         }
@@ -937,28 +937,28 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstFuncCall {
-      let symbol : ptr NULL;
-      let symbol_index : u64 UINT64_MAX;
-      let token_buffer : Buffer 0;
+      let symbol : ptr = NULL;
+      let symbol_index : u64 = UINT64_MAX;
+      let token_buffer : Buffer = 0;
       buffer_init(cast ptr @token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
       if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
         store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
         store64 + + ast Ast.token Token.v symbol_index;
-        let arg_list cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-        let func : ptr + + symbol Symbol.value Value.func;
-        let type : u64 load64 + symbol Symbol.type;
+        let arg_list = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+        let func : ptr = + + symbol Symbol.value Value.func;
+        let type : u64 = load64 + symbol Symbol.type;
         if or eq type_value(@type) TypeFunc eq type_value(@type) TypeSyscallFunc {
-          let argc : u64 load64 + func Function.argc;
+          let argc : u64 = load64 + func Function.argc;
           if eq argc load64 + arg_list Ast.count {
             store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): store this in the symbol value field, or someplace else
-            let done : u64 0;
-            let i : u64 - argc 1;
+            let done : u64 = 0;
+            let i : u64 = - argc 1;
             if > argc 0 {
               while eq done 0 {
-                let node cast ptr load64 + + arg_list Ast.node * sizeof ptr i;
-                { let _ typecheck(block, fs, node); }
+                let node = cast ptr load64 + + arg_list Ast.node * sizeof ptr i;
+                { let _ = typecheck(block, fs, node); }
                 // arg_in_type : Type
-                let arg_in_type : u64 ts_top();
+                let arg_in_type : u64 = ts_top();
 
                 if eq type_value(@type) TypeSyscallFunc {
                   // any type is allowed here
@@ -967,15 +967,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 }
                 else {
                   // Symbol* arg = &c->symbols[func->args[i]];
-                  let arg_symbol_index : u64 load64 + + func Function.args * sizeof u64 i;
-                  let arg cast ptr + + c Compile.symbols * sizeof Symbol arg_symbol_index;
-                  let arg_type : u64 load64 + arg Symbol.type;
+                  let arg_symbol_index : u64 = load64 + + func Function.args * sizeof u64 i;
+                  let arg = cast ptr + + c Compile.symbols * sizeof Symbol arg_symbol_index;
+                  let arg_type : u64 = load64 + arg Symbol.type;
                   if and
                       neq arg_type arg_in_type
                       neq type_value(@arg_type) TypeAny {
                     {
-                      let message cast cstr tmp_it;
-                      let args : any (
+                      let message = cast cstr tmp_it;
+                      let args : any = (
                         load64 + @compile_type_str * sizeof cstr type_value(@arg_in_type),
                         load64 + @compile_type_str * sizeof cstr type_value(@arg_type)
                       );
@@ -983,17 +983,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     }
                     store64 + c Compile.status NoError; // to print additional error message
                     {
-                      let message cast cstr tmp_it;
-                      let args : any (
-                        + symbol Symbol.name
-                      );
+                      let message = cast cstr tmp_it;
+                      let args : any = + symbol Symbol.name;
                       typecheck_error_at(+ arg Symbol.token, "from function `%s`", @args);
                     }
                     store64 @done 1;
                   }
                 }
-                { let _ vs_pop(NULL); }
-                { let _ ts_pop(); }
+                { let _ = vs_pop(NULL); }
+                { let _ = ts_pop(); }
                 if eq i 0 {
                   store64 @done 1;
                 }
@@ -1004,16 +1002,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             }
 
             // rtype : Type
-            let rtype : u64 load64 + func Function.rtype;
+            let rtype : u64 = load64 + func Function.rtype;
             if neq type_value(@rtype) TypeNone {
               store64 + + symbol Symbol.value Value.konst 0;  // NOTE(lucas): temporary (why?)
               store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
-              { let _ ts_push(rtype); }
-              { let _ vs_push(+ symbol Symbol.value); }
+              { let _ = ts_push(rtype); }
+              { let _ = vs_push(+ symbol Symbol.value); }
             }
           }
           else {
-            let message cast cstr tmp_it;
+            let message = cast cstr tmp_it;
             tmp_push_cstr("function `");
             tmp_push_cstr(cast cstr + symbol Symbol.name);
             tmp_push_cstr("` takes ");
@@ -1027,15 +1025,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         else {
           // type : Type
-          let type : u64 load64 + symbol Symbol.type;
-          let args : any (
+          let type : u64 = load64 + symbol Symbol.type;
+          let args : any = (
             load64 + @compile_type_str * sizeof cstr type_value(@type)
           );
           typecheck_error_at(+ ast Ast.token, "function calls of type `%s` is not permitted\n", @args);
         }
       }
       else {
-        let message tmp_it;
+        let message = tmp_it;
         tmp_push_cstr("symbol `");
         tmp_push_str(cast cstr load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length);
         tmp_push_cstr("` not defined\n");
@@ -1045,16 +1043,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstWhileStatement {
-      let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ typecheck(block, fs, cond); }
+      let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ = typecheck(block, fs, cond); }
       // type : Type
-      let type ts_pop(); // pop condition result
-      { let _ vs_pop(NULL); } // pop condition result
+      let type = ts_pop(); // pop condition result
+      { let _ = vs_pop(NULL); } // pop condition result
       if or eq type_value(@type) TypePtr is_numerical(type) {
-        let local_block : Block 0;
+        let local_block : Block = 0;
         block_init(@local_block, block);
-        { let _ typecheck(@local_block, fs, body); }
+        { let _ = typecheck(@local_block, fs, body); }
         store64 + ast Ast.konst is_branch_konst_eval(ast);
       }
       else {
@@ -1062,21 +1060,21 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstIfStatement {
-      let cond cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let body cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ typecheck(block, fs, cond); }
+      let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ = typecheck(block, fs, cond); }
       // type : Type
-      let type ts_pop(); // pop condition result type
-      { let _ vs_pop(NULL); } // pop condition result value
+      let type = ts_pop(); // pop condition result type
+      { let _ = vs_pop(NULL); } // pop condition result value
       if or eq type_value(@type) TypePtr is_numerical(type) {
-        let local_block : Block 0;
+        let local_block : Block = 0;
         block_init(@local_block, block);
-        { let _ typecheck(@local_block, fs, body); }
+        { let _ = typecheck(@local_block, fs, body); }
         if eq load64 + ast Ast.count 3 {
-          let else_body cast ptr load64 + + ast Ast.node * sizeof ptr 2;
-          let local_block : Block 0;
+          let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
+          let local_block : Block = 0;
           block_init(@local_block, block);
-        { let _ typecheck(@local_block, fs, else_body); }
+        { let _ = typecheck(@local_block, fs, else_body); }
         }
         store64 + ast Ast.konst is_branch_konst_eval(ast);
       }
@@ -1085,16 +1083,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstAssignment {
-      let first cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let second cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ typecheck(block, fs, first); }
+      let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let second = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ = typecheck(block, fs, first); }
       // a : Type
-      let a ts_pop();
-      { let _ typecheck(block, fs, second); }
+      let a = ts_pop();
+      { let _ = typecheck(block, fs, second); }
       if or eq type_value(@a) TypePtr eq type_value(@a) TypeAny {
-        { let _ ts_pop(); }
-        { let _ vs_pop(NULL); }
-        { let _ vs_pop(NULL); }
+        { let _ = ts_pop(); }
+        { let _ = vs_pop(NULL); }
+        { let _ = vs_pop(NULL); }
       }
       else {
         typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", NULL);
@@ -1102,9 +1100,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
     }
     else if eq ast_type AstSizeof {
       // t : Token*
-      let t cast ptr + ast Ast.token;
-      let size : u64 0;
-      let token_type load64 + t Token.type;
+      let t = cast ptr + ast Ast.token;
+      let size : u64 = 0;
+      let token_type = load64 + t Token.type;
       if or eq token_type T_UNSIGNED64 eq token_type T_NUMBER {
         store64 @size sizeof u64;
       }
@@ -1125,8 +1123,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 @size sizeof ptr;
       }
       else if eq token_type T_IDENTIFIER {
-        let symbol NULL;
-        let buffer : Buffer 0;
+        let symbol = NULL;
+        let buffer : Buffer = 0;
         buffer_init(@buffer, cast ptr load64 + t Token.buffer, load64 + t Token.length);
         if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
           store64 @size load64 + symbol Symbol.size;
@@ -1138,30 +1136,30 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       else {
         assert(0, "type not implemented yet\n");
       }
-      let value : Value 0;
+      let value : Value = 0;
       store64 + @value Value.num size;
       store64 + @value Value.konst 1;
-      { let _ vs_push(@value); }
+      { let _ = vs_push(@value); }
       store64 + t Token.v size;
       store64 + ast Ast.konst 1;
-      { let _ ts_push(TypeUnsigned64); }
+      { let _ = ts_push(TypeUnsigned64); }
     }
     else if eq ast_type AstEnum {
-      let type_node cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let enum_node cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      let value : Value 0;
+      let type_node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let enum_node = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      let value : Value = 0;
       store64 + @value Value.num 0;
       store64 + @value Value.konst 1;
-      let i : u64 0;
-      let count : u64 load64 + enum_node Ast.count;
+      let i : u64 = 0;
+      let count : u64 = load64 + enum_node Ast.count;
       // type : Type
-      let type : u64 token_to_compile_type(block, fs, + type_node Ast.token, NULL);
+      let type : u64 = token_to_compile_type(block, fs, + type_node Ast.token, NULL);
       if is_numerical(type) {
         while < i count {
-          let node cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
-          let symbol : ptr NULL;
-          let symbol_index : u64 UINT64_MAX;
-          let imm : u64 ir_push_value(+ @value Value.num, sizeof u64);
+          let node = cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
+          let symbol : ptr = NULL;
+          let symbol_index : u64 = UINT64_MAX;
+          let imm : u64 = ir_push_value(+ @value Value.num, sizeof u64);
 
           if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
             store64 + symbol Symbol.imm imm;
@@ -1189,16 +1187,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstStruct {
-      let fields cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let field_offset : u64 0;
-      let i : u64 0;
-      let count : u64 load64 + fields Ast.count;
-      let fail : u64 0;
+      let fields = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let field_offset : u64 = 0;
+      let i : u64 = 0;
+      let count : u64 = load64 + fields Ast.count;
+      let fail : u64 = 0;
       while and eq fail 0 < i count {
-        let field cast ptr load64 + + fields Ast.node * sizeof ptr i;
-        let field_type cast ptr load64 + + field Ast.node * sizeof ptr 0; // type + array specifier
+        let field = cast ptr load64 + + fields Ast.node * sizeof ptr i;
+        let field_type = cast ptr load64 + + field Ast.node * sizeof ptr 0; // type + array specifier
 
-        let it tmp_it;
+        let it = tmp_it;
         tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
         tmp_push_cstr(".");
         tmp_push_str(load64 + + field Ast.token Token.buffer, load64 + + field Ast.token Token.length);
@@ -1206,10 +1204,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 + + field Ast.token Token.buffer it;
         store64 + + field Ast.token Token.length - tmp_it it;
 
-        let symbol : ptr NULL;
-        let symbol_index : u64 UINT64_MAX;
-        let imm : u64 ir_push_value(@field_offset, sizeof field_offset);
-        let value : Value 0;
+        let symbol : ptr = NULL;
+        let symbol_index : u64 = UINT64_MAX;
+        let imm : u64 = ir_push_value(@field_offset, sizeof field_offset);
+        let value : Value = 0;
         store64 + @value Value.num field_offset;
         store64 + @value Value.konst 1;
 
@@ -1226,9 +1224,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + symbol Symbol.type TypeUnsigned64;
           memcpy(+ symbol Symbol.value, @value, sizeof Value);
 
-          let field_symbol : ptr NULL;
-          let type : u64 token_to_compile_type(block, fs, + field_type Ast.token, @field_symbol);
-          let field_size : u64 0;
+          let field_symbol : ptr = NULL;
+          let type : u64 = token_to_compile_type(block, fs, + field_type Ast.token, @field_symbol);
+          let field_size : u64 = 0;
           if and eq type_value(@type) TypeStruct neq field_symbol NULL {
             store64 @field_size load64 + field_symbol Symbol.size;
           }
@@ -1241,10 +1239,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           }
 
           if neq load64 + field_type Ast.count 0 {
-            { let _ typecheck_node_list(block, fs, field_type); }
-            let array_specifier_type ts_pop();
-            let array_specifier_value : Value 0;
-            { let _ vs_pop(@array_specifier_value); }
+            { let _ = typecheck_node_list(block, fs, field_type); }
+            let array_specifier_type = ts_pop();
+            let array_specifier_value : Value = 0;
+            { let _ = vs_pop(@array_specifier_value); }
             if neq load64 + @array_specifier_value Value.konst 1 {
               compile_error_at(+ field_type Ast.token, "field array specifier must be a compile time constant\n");
               store64 @fail 1;
@@ -1274,9 +1272,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 @i + 1 i;
       }
       // struct symbol definition
-      let symbol : ptr NULL;
-      let symbol_index : u64 UINT64_MAX;
-      let value : Value 0;
+      let symbol : ptr = NULL;
+      let symbol_index : u64 = UINT64_MAX;
+      let value : Value = 0;
       memset(@value, 0, sizeof Value);
 
       if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
@@ -1289,7 +1287,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         else {
           store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
         }
-        let type : Type 0;
+        let type : Type = 0;
         type_init(
           @type,
           TypeStruct,
@@ -1305,20 +1303,20 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
     }
     else if eq ast_type AstType {
       if > load64 + ast Ast.count 0 {
-        { let _ typecheck_node_list(block, fs, ast); }
+        { let _ = typecheck_node_list(block, fs, ast); }
       }
     }
     else if eq ast_type AstCastExpression {
-      let type_expr cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let expr      cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ typecheck(block, fs, expr); }
-      let expr_type : u64 ts_pop();
-      let cast_type : u64 token_to_compile_type(block, fs, + type_expr Ast.token, NULL);
+      let type_expr = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let expr = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ = typecheck(block, fs, expr); }
+      let expr_type : u64 = ts_pop();
+      let cast_type : u64 = token_to_compile_type(block, fs, + type_expr Ast.token, NULL);
       if and neq type_value(@cast_type) TypeNone neq type_value(@cast_type) TypeFunc {
-        { let _ ts_push(cast_type); }
+        { let _ = ts_push(cast_type); }
       }
       else {
-        let args : any (
+        let args : any = (
           load64 + @compile_type_str * sizeof cstr type_value(@expr_type),
           load64 + @compile_type_str * sizeof cstr type_value(@cast_type)
         );
@@ -1326,18 +1324,18 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstStaticAssert {
-      let expr cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let node cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ typecheck(block, fs, expr); }
-      { let _ ts_pop(); }
-      let value : Value 0;
-      { let _ vs_pop(@value); }
+      let expr = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+      let node = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+      { let _ = typecheck(block, fs, expr); }
+      { let _ = ts_pop(); }
+      let value : Value = 0;
+      { let _ = vs_pop(@value); }
       if eq load64 + @value Value.konst 0 {
         typecheck_error("can not do static on an expression that is evaluated at runtime\n");
       }
       else if eq load64 + @value Value.num 0 {
-        let node_token cast ptr + node Ast.token;
-        let message cast cstr tmp_it;
+        let node_token = cast ptr + node Ast.token;
+        let message = cast cstr tmp_it;
         tmp_push_cstr("[static assertion failed]: ");
         tmp_push_str(load64 + node_token Token.buffer, load64 + node_token Token.length);
         tmp_push_cstr("\n");
@@ -1357,17 +1355,17 @@ fn typecheck_program(ast : ptr) -> u64 {
   assert(cast u64 ast, "something went very wrong\n");
   store64 @_typecheck typecheck;
 
-  let time_start : timespec 0;
-  let time_end : timespec 0;
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  let time_start : timespec = 0;
+  let time_end : timespec = 0;
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
-  let i 0;
-  let count load64 + ast Ast.count;
+  let i = 0;
+  let count = load64 + ast Ast.count;
   while < i count {
-    let _ typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
+    let _ = typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     store64 @i + 1 i;
   }
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if neq load64 + c Compile.vs_count 0 {
     typecheck_error("unhandled data on the value stack\n");

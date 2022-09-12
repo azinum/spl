@@ -1,10 +1,10 @@
 // while.spl
 
 fn main -> none {
-  const count : u64 10;
-  let i : u64 0;
+  const count : u64 = 10;
+  let i : u64 = 0;
   while < i count {
     print i;
-    = @i +1 i;
+    = @i + 1 i;
   }
 }

@@ -21,7 +21,7 @@ struct Type (
   id : u32
 );
 
-const MAX_COMPILE_TYPE 255;
+const MAX_COMPILE_TYPE = 255;
 
 // symbol types
 enum u64 (
@@ -38,7 +38,7 @@ fn type_init(t : ptr, type : u64, id : u64) -> none {
 }
 
 fn type_create(type : u64, id : u64) -> Type {
-  let result : Type 0;
+  let result : Type = 0;
   type_init(@result, type, id);
   result;
 }

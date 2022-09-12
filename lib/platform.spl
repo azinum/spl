@@ -3,7 +3,7 @@
 
 include "lib/linux.spl"
 
-const MAX_BUFFER_SIZE : u64 1024;
+const MAX_BUFFER_SIZE : u64 = 1024;
 
 fn read(fd : u64, buf : any, count : u64) -> u64 {
   linux_read(fd, buf, count);
@@ -62,24 +62,24 @@ fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
 }
 
 fn puts(fd : u64, str : cstr) -> none {
-  let n : u64 strlen(str);
+  let n = strlen(str);
   write(fd, str, n);
 }
 
 fn put(str : cstr) -> none {
-  let n : u64 strlen(str);
+  let n = strlen(str);
   write(STDOUT_FILENO, str, n);
 }
 
 fn putu(fd : u64, n : u64) -> none {
-  const MAX_BUFF_SIZE 512;
-  let buff : u8 : MAX_BUFF_SIZE cast u8 0;
+  const MAX_BUFF_SIZE = 512;
+  let buff : u8 : MAX_BUFF_SIZE = cast u8 0;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
   puts(fd, cast cstr @buff);
 }
 
 fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
-  let n : u64 0;
+  let n = 0;
   while neq 0 read(fd, buf, 1) {
     = @buf + 1 buf;
     = @n   + 1 n;
@@ -88,7 +88,7 @@ fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
 }
 
 fn read_file_into_buffer_and_null_terminate(fd : u64, buf : any) -> u64 {
-  let n : u64 0;
+  let n = 0;
   while neq 0 read(fd, buf, 1) {
     = @buf + 1 buf;
     = @n   + 1 n;
@@ -108,18 +108,18 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
 
 // TODO(lucas): writing n characters of string
 fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
-  let result : u64 0;
-  let it str; // string iterator
-  let end : ptr NULL;
+  let result = 0;
+  let it = str; // string iterator
+  let end : ptr = NULL;
   if neq size UINT64_MAX {
     store64 @end + + it size 1; // + 1 for null terminator
   }
-  let fit format; // format iterator
-  let arg : ptr cast ptr args;
-  let done : u64 0;
+  let fit = format; // format iterator
+  let arg : ptr = cast ptr args;
+  let done : u64 = 0;
   while eq done 0 {
-    let it_diff it;
-    let ch cast u64 load8 fit;
+    let it_diff = it;
+    let ch = cast u64 load8 fit;
     if eq ch 0 {
       store64 @it + it bwrite_u8(it, end, cast u8 ch);
       store64 @done 1;
@@ -171,7 +171,7 @@ fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
     store64 @fit + 1 fit;
     store64 @it_diff - cast u64 it it_diff;
     if and neq cast u64 end NULL eq cast u64 it_diff 0 {
-      let _ write_u8(it, cast u8 0);
+      let _ = write_u8(it, cast u8 0);
       store64 @done 1;
     }
   }
@@ -187,7 +187,7 @@ fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
 }
 
 fn sprintf(str : ptr, format : cstr, args : any) -> none {
-  { let _ _sprintf(str, format, args); }
+  { let _ = _sprintf(str, format, args); }
 }
 
 fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
@@ -195,14 +195,14 @@ fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
 }
 
 fn dprintf(fd : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE cast u8 0;
-  let n _sprintf(cast ptr @buffer, format, args);
+  let buffer : u8 : MAX_BUFFER_SIZE = cast u8 0;
+  let n = _sprintf(cast ptr @buffer, format, args);
   write(fd, cast ptr @buffer, n);
 }
 
 fn dnprintf(fd : u64, size : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE cast u8 0;
-  let n snprintf(cast ptr @buffer, size, format, args);
+  let buffer : u8 : MAX_BUFFER_SIZE = cast u8 0;
+  let n = snprintf(cast ptr @buffer, size, format, args);
   write(fd, cast ptr @buffer, n);
 }
 

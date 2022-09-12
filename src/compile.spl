@@ -13,18 +13,18 @@ fn symbol_init(symbol : ptr) -> none {
 
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
-  let result Error;
+  let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
-    let copy : u8 : MAX_NAME_SIZE cast u8 0;
+    let copy : u8 : MAX_NAME_SIZE = cast u8 0;
     memset(@copy, 0, MAX_NAME_SIZE);
     strncpy(cast cstr @copy, cast cstr load64 + name Buffer.data, load64 + name Buffer.length);
-    let i 0;
-    let count load64 + block Block.symbol_count;
-    let found 0;
-    let done 0;
+    let i = 0;
+    let count = load64 + block Block.symbol_count;
+    let found = 0;
+    let done = 0;
     while and eq done 0 < i count {
-      let index : u64 load64 + + block Block.symbols * sizeof u64 i;
-      let sym + + c Compile.symbols * sizeof Symbol index;
+      let index : u64 = load64 + + block Block.symbols * sizeof u64 i;
+      let sym = + + c Compile.symbols * sizeof Symbol index;
       if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
         if neq symbol NULL {
           store64 symbol sym;
@@ -50,19 +50,19 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
 
 // block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
 fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
-  let result Error;
+  let result = Error;
   if < load64 + token Token.length MAX_NAME_SIZE {
     if < load64 + c Compile.symbol_count MAX_SYMBOL {
       if < load64 + block Block.symbol_count MAX_SYMBOL_PER_BLOCK {
-        let levels 0; // how many levels did we descend before we found a symbol?
-        let token_buffer : Buffer 0;
+        let levels = 0; // how many levels did we descend before we found a symbol?
+        let token_buffer : Buffer = 0;
         store64 + @token_buffer Buffer.data   load64 + token Token.buffer;
         store64 + @token_buffer Buffer.length load64 + token Token.length;
 
         // we are only allowed to create a new symbol if none was found in the current block
-        let lookup_result compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
+        let lookup_result = compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
         if and eq lookup_result NoError eq levels 0 {
-          let message cast cstr tmp_it;
+          let message = cast cstr tmp_it;
           tmp_push_cstr("symbol `");
           tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
           tmp_push_cstr("` already exists\n");
@@ -71,11 +71,11 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
           store64 @tmp_it message;
         }
         else {
-          let index load64 + c Compile.symbol_count;
+          let index = load64 + c Compile.symbol_count;
           if neq symbol_index NULL {
             store64 symbol_index index;
           }
-          let block_index_address * load64 + block Block.symbol_count sizeof u64;
+          let block_index_address = * load64 + block Block.symbol_count sizeof u64;
           // block->symbols[block->symbol_count] store64 index;
           store64 + + block Block.symbols block_index_address index;
           // *symbol store64 &c->symbols[index];
@@ -84,7 +84,7 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
           store64 + c Compile.symbol_count + 1 load64 + c Compile.symbol_count;
           store64 + block Block.symbol_count + 1 load64 + block Block.symbol_count;
 
-          let s cast ptr load64 symbol;
+          let s = cast ptr load64 symbol;
           symbol_init(s);
           memcpy(+ s Symbol.token, token, sizeof Token);
           memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
@@ -106,9 +106,9 @@ fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbo
 }
 
 fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
-  let result NoError;
-  let block + c Compile.global;
-  let token : Token 0;
+  let result = NoError;
+  let block = + c Compile.global;
+  let token : Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
   store64 + @token Token.type T_IDENTIFIER;
@@ -117,15 +117,15 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
-  let symbol : ptr NULL;
-  let symbol_index UINT64_MAX;
+  let symbol : ptr = NULL;
+  let symbol_index = UINT64_MAX;
   if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeSyscallFunc;
     store64 + symbol Symbol.sym_type SYM_FUNC;
     store64 + symbol Symbol.type TypeSyscallFunc;
     store64 + + symbol Symbol.token Token.v symbol_index;
     store64 + symbol Symbol.ref_count 1;
-    let func + + symbol Symbol.value Value.func;
+    let func = + + symbol Symbol.value Value.func;
     store64 + func Function.ir_address UINT64_MAX;
     store64 + func Function.label UINT64_MAX;
     store64 + func Function.argc + 1 argc;
@@ -141,9 +141,9 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
 
 // name : cstr, value : Value*, type : Type
 fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
-  let result NoError;
-  let block + c Compile.global;
-  let token : Token 0;
+  let result = NoError;
+  let block = + c Compile.global;
+  let token : Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
   store64 + @token Token.type T_IDENTIFIER;
@@ -152,10 +152,10 @@ fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
-  let imm : u64 ir_push_value(+ value Value.num, sizeof u64);
+  let imm : u64 = ir_push_value(+ value Value.num, sizeof u64);
   if neq imm UINT64_MAX {
-    let symbol : ptr NULL;
-    let symbol_index UINT64_MAX;
+    let symbol : ptr = NULL;
+    let symbol_index = UINT64_MAX;
     if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
@@ -182,16 +182,16 @@ fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
 
 fn compile_print_symbol_info(fd : u64) -> none {
   dprintf(fd, "compile_print_symbol_info:\n", NULL);
-  let message cast cstr tmp_it;
-  let count : u64 load64 + c Compile.symbol_count;
-  let i : u64 0;
+  let message = cast cstr tmp_it;
+  let count : u64 = load64 + c Compile.symbol_count;
+  let i : u64 = 0;
   while < i count {
-    let symbol + + c Compile.symbols * sizeof Symbol i;
-    let name cast cstr + symbol Symbol.name;
+    let symbol = + + c Compile.symbols * sizeof Symbol i;
+    let name = cast cstr + symbol Symbol.name;
     // type : Type
-    let type load64 + symbol Symbol.type;
-    let num_i_digits : u64 digit_count(i);
-    let j : u64 0;
+    let type = load64 + symbol Symbol.type;
+    let num_i_digits : u64 = digit_count(i);
+    let j : u64 = 0;
 
     if neq type_value(@type) TypeSyscallFunc {
       while < j - 3 num_i_digits {
@@ -200,19 +200,19 @@ fn compile_print_symbol_info(fd : u64) -> none {
       }
       dprintf(fd, "%d: ", @i);
       if eq type_value(@type) TypeFunc {
-        let func cast ptr + + symbol Symbol.value Value.func;
+        let func = cast ptr + + symbol Symbol.value Value.func;
         dprintf(fd, "%s(", @name);
 
         // iterate args
-        let arg_index : u64 0;
-        let arg_count : u64 load64 + func Function.argc;
+        let arg_index : u64 = 0;
+        let arg_count : u64 = load64 + func Function.argc;
         while < arg_index arg_count {
           // Symbol* arg = &c->symbols[func->args[arg_index]];
-          let arg cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
+          let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
           // type : Type
-          let arg_type : u64 load64 + arg Symbol.type;
-          let num_elements : u64 / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 type_value(@arg_type));
-          let args : any (
+          let arg_type : u64 = load64 + arg Symbol.type;
+          let num_elements : u64 = / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 type_value(@arg_type));
+          let args : any = (
             load64 + @compile_type_str * sizeof cstr type_value(@arg_type),
             type_id(@arg_type)
           );
@@ -228,23 +228,23 @@ fn compile_print_symbol_info(fd : u64) -> none {
           store64 @arg_index + 1 arg_index;
         }
         // rtype : Type
-        let rtype : u64 load64 + func Function.rtype;
-        let args : any (
+        let rtype : u64 = load64 + func Function.rtype;
+        let args : any = (
           load64 + @compile_type_str * sizeof cstr type_value(@rtype),
           type_id(@rtype)
         );
         dprintf(fd, ") -> %s(%d)", @args);
       }
       else {
-        let count : u64 / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
-        let type_name cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
-        let args : any (name, type_name, type_id(@type));
+        let count : u64 = / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
+        let type_name = cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
+        let args : any = (name, type_name, type_id(@type));
         dprintf(fd, "%s : %s(%d)", @args);
         if > count 1 {
           dprintf(fd, " : %d", @count);
         }
       }
-      let args : any (
+      let args : any = (
         load64 + symbol Symbol.size,
         load64 + symbol Symbol.konst,
         load64 + symbol Symbol.ref_count,
@@ -258,28 +258,28 @@ fn compile_print_symbol_info(fd : u64) -> none {
 }
 
 fn compile(target : u64, output_file_path : cstr) -> u64 {
-  let result NoError;
-  let fd ERROR;
+  let result = NoError;
+  let fd = ERROR;
 
-  let time_start : timespec 0;
-  let time_end : timespec 0;
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  let time_start : timespec = 0;
+  let time_end : timespec = 0;
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
   if eq target TARGET_LINUX_NASM_X86_64 {
-    let path : u8 : MAX_PATH_SIZE cast u8 0;
+    let path : u8 : MAX_PATH_SIZE = cast u8 0;
     sprintf(@path, "%s.spl.asm", @output_file_path);
-    let mode : u64 434; // 0662
-    let flags : u64 or or O_CREAT O_TRUNC O_WRONLY;
+    let mode : u64 = 434; // 0662
+    let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
     store64 @fd open(cast cstr @path, flags, mode);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
 
       if eq result NoError {
-        let o_path : u8 : MAX_PATH_SIZE cast u8 0;
-        let args : any output_file_path;
+        let o_path : u8 : MAX_PATH_SIZE = cast u8 0;
+        let args : any = output_file_path;
         sprintf(@o_path, "%s.o", @args);
         {
-          let command : cstr (
+          let command : cstr = (
             "/usr/bin/nasm",
             "-f elf64",
             cast cstr @path,
@@ -290,7 +290,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
           exec_command_echoed(STDOUT_FILENO, @command);
         }
         {
-          let command : cstr (
+          let command : cstr = (
             "/usr/bin/ld",
             "-arch",
             "x86_64",
@@ -309,7 +309,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
   }
   close(fd);
 
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if eq load64 + c Compile.status NoError {
     print_time_elapsed("code generation took", @time_start, @time_end);
@@ -319,7 +319,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
 }
 
 fn compile_print_final_info(fd : u64) -> none {
-  let args : any (
+  let args : any = (
     load64 + c Compile.warning_count,
     load64 + c Compile.error_count,
     load64 + @p Parser.line_count,
@@ -450,25 +450,25 @@ fn compile_state_init -> u64 {
   store64 + + c Compile.types * sizeof Type TypeSyscallFunc  type_create(TypeSyscallFunc, 0);
   store64 + + c Compile.types * sizeof Type TypeStruct       type_create(TypeStruct, 0);
 
-  { let _ compile_create_syscall("syscall0", 0); }
-  { let _ compile_create_syscall("syscall1", 1); }
-  { let _ compile_create_syscall("syscall2", 2); }
-  { let _ compile_create_syscall("syscall3", 3); }
-  { let _ compile_create_syscall("syscall4", 4); }
-  { let _ compile_create_syscall("syscall5", 5); }
-  { let _ compile_create_syscall("syscall6", 6); }
+  { let _ = compile_create_syscall("syscall0", 0); }
+  { let _ = compile_create_syscall("syscall1", 1); }
+  { let _ = compile_create_syscall("syscall2", 2); }
+  { let _ = compile_create_syscall("syscall3", 3); }
+  { let _ = compile_create_syscall("syscall4", 4); }
+  { let _ = compile_create_syscall("syscall5", 5); }
+  { let _ = compile_create_syscall("syscall6", 6); }
 
   {
-    let value : Value 0;
+    let value : Value = 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;
-    let _ compile_create_value("VERSION_ID", @value, TypeUnsigned64);
+    let _ = compile_create_value("VERSION_ID", @value, TypeUnsigned64);
   }
   {
-    let value : Value 0;
+    let value : Value = 0;
     store64 + @value Value.num 0;
     store64 + @value Value.konst 1;
-    let _ compile_create_value("NULL", @value, TypePtr);
+    let _ = compile_create_value("NULL", @value, TypePtr);
   }
   NoError;
 }

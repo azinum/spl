@@ -2,7 +2,7 @@
 
 include "lib/common.spl"
 
-let lc_cur_seed : u64 0;
+let lc_cur_seed : u64 = 0;
 
 fn lc_random_init(seed : u64) -> none {
   store64 @lc_cur_seed seed;
@@ -18,15 +18,15 @@ fn main -> none {
   common_init();
   lc_random_init(time());
 
-  let mode : u64 434; // 0662
-  let path : cstr "noise.ppm";
-  let fd open(path, or or O_CREAT O_TRUNC O_WRONLY, mode);
+  let mode : u64 = 434; // 0662
+  let path : cstr = "noise.ppm";
+  let fd = open(path, or or O_CREAT O_TRUNC O_WRONLY, mode);
   if neq fd ERROR {
-    let w : u64 128;
-    let h : u64 128;
-    const max_value : u64 255;
+    let w : u64 = 128;
+    let h : u64 = 128;
+    const max_value : u64 = 255;
     // write ppm header
-    let args : any (
+    let args : any = (
       path,
       w,
       h,
@@ -35,12 +35,12 @@ fn main -> none {
     dprintf(fd, "P3\n# `%s`\n%d %d\n%d\n", @args);
 
     // generate and write pixels to ppm file
-    let x : u64 0;
-    let y : u64 0;
+    let x : u64 = 0;
+    let y : u64 = 0;
     while < y h {
       while < x w {
-        let color : u64 % lc_random() max_value;
-        let args : any color, color, color;
+        let color : u64 = % lc_random() max_value;
+        let args : any = color, color, color;
         dprintf(fd, " %d %d %d ", @args);
         if not % x 4 dprintf(fd, "\n", NULL);
         store64 @x + 1 x;

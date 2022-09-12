@@ -71,7 +71,7 @@ enum u64 (
   MAX_TOKEN_TYPE
 );
 
-let token_type_str : cstr : MAX_TOKEN_TYPE "";
+let token_type_str : cstr : MAX_TOKEN_TYPE = "";
 
 struct Token (
   buffer   : ptr,
@@ -84,15 +84,15 @@ struct Token (
   column   : u64
 );
 
-let token : Token 0;
+let token : Token = 0;
 
 // struct Lexer {
-let l.filename : cstr "";
-let l.source : cstr "";
-let l.index : ptr cast ptr 0;
-let l.line : u64 0;
-let l.column : u64 0;
-let l.status : u64 0;
+let l.filename : cstr = "";
+let l.source : cstr = "";
+let l.index : ptr = cast ptr 0;
+let l.line : u64 = 0;
+let l.column : u64 = 0;
+let l.status : u64 = 0;
 // };
 
 fn token_init(token : any, buffer : any, length : u64, type : u64, filename : any, source : any) -> none {
@@ -118,17 +118,17 @@ fn copy_token_into_memory(mem : any) -> none {
 }
 
 fn token_print(token : ptr) -> none {
-  let tmp tmp_it;
-  let p tmp_push_cstr;
+  let tmp = tmp_it;
+  let p = tmp_push_cstr;
 
-  let buffer cast cstr   load64 + token Token.buffer;
-  let length : u64       load64 + token Token.length;
-  let type : u64         load64 + token Token.type;
-  let value : u64        load64 + token Token.v;
-  let filename cast cstr load64 + token Token.filename;
-  let source cast cstr   load64 + token Token.source;
-  let line : u64         load64 + token Token.line;
-  let column : u64       load64 + token Token.column;
+  let buffer = cast cstr   load64 + token Token.buffer;
+  let length : u64 =       load64 + token Token.length;
+  let type : u64 =         load64 + token Token.type;
+  let value : u64 =        load64 + token Token.v;
+  let filename = cast cstr load64 + token Token.filename;
+  let source = cast cstr   load64 + token Token.source;
+  let line : u64 =         load64 + token Token.line;
+  let column : u64 =       load64 + token Token.column;
 
   if eq cast u64 filename 0 store64 @filename "none";
 
@@ -152,9 +152,9 @@ fn token_print(token : ptr) -> none {
 fn lexer_token_type -> u64 load64 + @token Token.type;
 
 fn compare(a : cstr, b : cstr, length : u64) -> u64 {
-  let result 1;
-  let done 0;
-  let i 0;
+  let result = 1;
+  let done = 0;
+  let i = 0;
   while and eq done 0 < i length {
     if neq load8 a load8 b {
       store64 @done 1;
@@ -182,8 +182,8 @@ fn lexer_read_symbol -> none {
   }
   store64 + @token Token.length - l.index load64 + @token Token.buffer;
 
-  let buffer cast cstr load64 + @token Token.buffer;
-  let length : u64 load64 + @token Token.length;
+  let buffer = cast cstr load64 + @token Token.buffer;
+  let length : u64 = load64 + @token Token.length;
 
   if eq 1 compare(buffer, "print", length) {
     store64 + @token Token.type T_PRINT;
@@ -312,7 +312,7 @@ fn lexer_read_number -> none {
 
 fn lexer_error(message : cstr) -> none {
   if eq l.status NoError {
-    let args : any (
+    let args : any = (
       load64 + @token Token.filename,
       load64 + @token Token.line,
       load64 + @token Token.column,
@@ -332,8 +332,8 @@ fn next -> none {
 }
 
 fn lexer_next -> none {
-  let done 0;
-  let ch 0;
+  let done = 0;
+  let ch = 0;
   while not done {
     next();
     store64 @ch load8 load64 + @token Token.buffer;
@@ -369,8 +369,8 @@ fn lexer_next -> none {
       }
     }
     else if eq ch '"' {
-      let delimiter ch;
-      let loop_done 0;
+      let delimiter = ch;
+      let loop_done = 0;
       while eq loop_done 0 {
         if eq load8 l.index 0 {
           lexer_error("unfinished string\n");
@@ -521,12 +521,12 @@ fn lexer_next -> none {
       }
       else if is_digit(ch) {
         lexer_read_number();
-        let number str_to_u64(cast cstr load64 + @token Token.buffer, load64 + @token Token.length);
+        let number = str_to_u64(cast cstr load64 + @token Token.buffer, load64 + @token Token.length);
         store64 + @token Token.v number;
         store64 @done 1;
       }
       else {
-        let tmp tmp_it;
+        let tmp = tmp_it;
         tmp_push_cstr("unrecognized token `");
         tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
         tmp_push_cstr("`\n");

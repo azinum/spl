@@ -1,6 +1,6 @@
 // parser.spl
 
-const MAX_SOURCE_COUNT 64;
+const MAX_SOURCE_COUNT = 64;
 
 struct Parser (
   ast          : ptr,
@@ -11,16 +11,16 @@ struct Parser (
   source_hash  : u64
 );
 
-let p : Parser 0;
+let p : Parser = 0;
 
 fn parser_function -> ptr NULL;
-let parse_entry parser_function;
-let expression parser_function;
-let statements parser_function;
+let parse_entry = parser_function;
+let expression  = parser_function;
+let statements  = parser_function;
 
 fn parser_error(message : cstr) -> none {
   if eq load64 + @p Parser.status NoError {
-    let args : any (load64 + @token Token.filename, load64 + @token Token.line, load64 + @token Token.column, message);
+    let args : any = (load64 + @token Token.filename, load64 + @token Token.line, load64 + @token Token.column, message);
     dprintf(STDERR_FILENO, "[parse-error]: %s:%d:%d: %s", @args);
     printline(STDERR_FILENO, l.source, cast cstr load64 + @token Token.buffer, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + @p Parser.status Error;
@@ -28,7 +28,7 @@ fn parser_error(message : cstr) -> none {
 }
 
 fn expect_semicolon -> none {
-  let type load64 + @token Token.type;
+  let type = load64 + @token Token.type;
   if neq type T_SEMICOLON {
     parser_error("expected `;` semicolon, but got `?`\n");
   }
@@ -40,10 +40,10 @@ fn expect_semicolon -> none {
 // L : `(` expr `,` ... `)`
 //   | `(` empty `)`
 fn parse_expr_list -> ptr {
-  let expr_list ast_create(AstExprList);
-  let type load64 + @token Token.type;
+  let expr_list = ast_create(AstExprList);
+  let type = load64 + @token Token.type;
   if neq type T_RIGHT_P {
-    let done 0;
+    let done = 0;
     while eq done 0 {
       ast_push(expr_list, expression());
       store64 @type load64 + @token Token.type;
@@ -61,8 +61,8 @@ fn parse_expr_list -> ptr {
 // type : expr
 // type(type : expr) : expr
 fn parse_type -> ptr {
-  let type_expr : ptr NULL;
-  let type load64 + @token Token.type;
+  let type_expr : ptr = NULL;
+  let type = load64 + @token Token.type;
   if or or or or or or or or or
     eq type T_NONE
     eq type T_ANY
@@ -78,6 +78,7 @@ fn parse_type -> ptr {
     memcpy(+ type_expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip type
     store64 @type load64 + @token Token.type;
+    // array specifier
     if eq type T_COLON {
       lexer_next(); // skip `:`
       ast_push(type_expr, expression());
@@ -87,8 +88,8 @@ fn parse_type -> ptr {
 }
 
 fn parse_expr -> ptr {
-  let expr : ptr NULL;
-  let type load64 + @token Token.type;
+  let expr : ptr = NULL;
+  let type = load64 + @token Token.type;
   if or
     eq type T_NUMBER
     eq type T_CSTRING {
@@ -97,7 +98,7 @@ fn parse_expr -> ptr {
     lexer_next();
   }
   else if eq type T_IDENTIFIER {
-    let t : Token 0;
+    let t : Token = 0;
     memcpy(@t, @token, sizeof Token);
     lexer_next();
     store64 @type load64 + @token Token.type;
@@ -141,9 +142,9 @@ fn parse_expr -> ptr {
   }
   else if eq type T_AT {
     lexer_next();
-    let t : Token 0;
+    let t : Token = 0;
     memcpy(@t, @token, sizeof Token);
-    let type load64 + @t Token.type;
+    let type = load64 + @t Token.type;
     if eq type T_IDENTIFIER {
       store64 @expr ast_create(AstValue);
       store64 + @t Token.type T_AT;
@@ -163,7 +164,7 @@ fn parse_expr -> ptr {
     eq type T_PRINT
     eq type T_LOGICAL_NOT
     eq type T_NOT {
-    let t : Token 0;
+    let t : Token = 0;
     memcpy(@t, @token, sizeof Token);
     lexer_next();
     store64 @expr ast_create(AstUopExpression);
@@ -172,8 +173,8 @@ fn parse_expr -> ptr {
   }
   else if eq type T_SIZEOF {
     lexer_next();
-    let type load64 + @token Token.type;
-    let ok or or or or or or or or or or
+    let type = load64 + @token Token.type;
+    let ok = or or or or or or or or or or
       eq type T_ANY
       eq type T_PTR
       eq type T_NUMBER
@@ -198,7 +199,7 @@ fn parse_expr -> ptr {
   else if eq type T_LEFT_P {
     lexer_next(); // skip `(`
     store64 @expr parse_expr();
-    let type load64 + @token Token.type;
+    let type = load64 + @token Token.type;
     if neq type T_RIGHT_P {
       parser_error("missing closing `)` parenthesis in expression\n");
     }
@@ -213,7 +214,7 @@ fn parse_expr -> ptr {
     store64 @expr ast_create(AstCastExpression);
     memcpy(+ expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip `cast`
-    let inner_expr ast_create(AstExpression);
+    let inner_expr = ast_create(AstExpression);
     ast_push(expr, parse_type());
     ast_push(inner_expr, parse_expr());
     ast_push(expr, inner_expr);
@@ -226,10 +227,10 @@ fn parse_expr -> ptr {
 }
 
 fn parse_ident_list -> ptr {
-  let ident_list : ptr ast_create(AstExprList);
-  let type T_NONE;
-  let t : Token 0;
-  let done 0;
+  let ident_list : ptr = ast_create(AstExprList);
+  let type = T_NONE;
+  let t : Token = 0;
+  let done = 0;
   while not done {
     memcpy(@t, @token, sizeof Token);
     store64 @type load64 + @token Token.type;
@@ -255,14 +256,14 @@ fn parse_ident_list -> ptr {
 }
 
 fn parse_param_list -> ptr {
-  let param_list : ptr ast_create(AstParamList);
-  let type lexer_token_type();
+  let param_list : ptr = ast_create(AstParamList);
+  let type = lexer_token_type();
   if neq type T_RIGHT_P {
-    let done 0;
+    let done = 0;
     while eq done 0 {
       store64 @type lexer_token_type();
       if eq type T_IDENTIFIER {
-        let ident : Token 0;
+        let ident : Token = 0;
         memcpy(@ident, @token, sizeof Token);
         lexer_next(); // skip argument identifier
         store64 @type lexer_token_type();
@@ -272,9 +273,9 @@ fn parse_param_list -> ptr {
         }
         else {
           lexer_next(); // skip `:`
-          let arg : ptr ast_create(AstArg);
+          let arg : ptr = ast_create(AstArg);
           memcpy(+ arg Ast.token, @ident, sizeof Token);
-          let arg_type parse_type();
+          let arg_type = parse_type();
           if eq arg_type NULL {
             parser_error("expected type after `:`, but got `?`\n");
             store64 @done 1;
@@ -301,9 +302,9 @@ fn parse_param_list -> ptr {
 }
 
 fn parse_struct -> ptr {
-  let struct_expr : ptr ast_create(AstStruct);
+  let struct_expr : ptr = ast_create(AstStruct);
   lexer_next(); // skip `struct`
-  let type lexer_token_type();
+  let type = lexer_token_type();
   if neq type T_IDENTIFIER {
     parser_error("expected identifier after `struct` token, but got `?`\n");
   }
@@ -313,7 +314,7 @@ fn parse_struct -> ptr {
     store64 @type lexer_token_type();
     if eq type T_LEFT_P {
       lexer_next(); // skip `(`
-      let fields : ptr parse_param_list();
+      let fields : ptr = parse_param_list();
       ast_push(struct_expr, fields);
       if eq load64 + fields Ast.count 0 {
         parser_error("missing struct fields\n");
@@ -335,11 +336,11 @@ fn parse_struct -> ptr {
 }
 
 fn parse_statement -> ptr {
-  let stmt : ptr NULL;
-  let type lexer_token_type();
+  let stmt : ptr = NULL;
+  let type = lexer_token_type();
   if or eq type T_CONST eq type T_LET {
-    let branch_type : u64 type;
-    let t : Token 0;
+    let branch_type : u64 = type;
+    let t : Token = 0;
     lexer_next(); // skip const/let
     memcpy(@t, @token, sizeof Token);
     store64 @type load64 + @token Token.type;
@@ -354,7 +355,7 @@ fn parse_statement -> ptr {
       else {
         store64 @stmt ast_create(AstConstStatement);
       }
-      let explicit_type : ptr NULL;
+      let explicit_type : ptr = NULL;
       memcpy(+ stmt Ast.token, @t, sizeof Token); // copy identifier token
       store64 @type load64 + @token Token.type;
       if eq type T_COLON { // explicit type
@@ -373,19 +374,25 @@ fn parse_statement -> ptr {
 
       // rhs of let/const statement
       store64 @type load64 + @token Token.type;
-      if eq type T_LEFT_P {
-        lexer_next(); // skip `(`
-        ast_push(stmt, parse_expr_list());
+      if eq type T_ASSIGN {
+        lexer_next(); // skip `=`
         store64 @type load64 + @token Token.type;
-        if neq type T_RIGHT_P {
-          parser_error("expected closing `)` parenthesis in expression list, but got `?`\n");
+        if eq type T_LEFT_P {
+          lexer_next(); // skip `(`
+          ast_push(stmt, parse_expr_list());
+          store64 @type load64 + @token Token.type;
+          if neq type T_RIGHT_P {
+            parser_error("expected closing `)` parenthesis in expression list, but got `?`\n");
+          }
+          lexer_next(); // skip `)`
         }
-        lexer_next(); // skip `)`
+        else {
+          ast_push(stmt, parse_expr_list());
+        }
       }
       else {
-        ast_push(stmt, parse_expr_list());
+        parser_error("expected `=` in let/const statement, but got `?`\n");
       }
-
       ast_push(stmt, explicit_type);
       expect_semicolon();
     }
@@ -393,7 +400,7 @@ fn parse_statement -> ptr {
   else if eq type T_LEFT_CURLY {
     lexer_next(); // skip `{`
     store64 @stmt ast_create(AstBlockStatement);
-    let sub_stmts statements();
+    let sub_stmts = statements();
     if neq sub_stmts NULL {
       ast_push(stmt, sub_stmts);
       store64 @type load64 + @token Token.type;
@@ -421,7 +428,7 @@ fn parse_statement -> ptr {
     store64 @stmt ast_create(AstWhileStatement);
     memcpy(+ stmt Ast.token, @token, sizeof Token);
     lexer_next(); // skip `while`
-    let cond ast_create(AstExpression);
+    let cond = ast_create(AstExpression);
     memcpy(+ cond Ast.token, @token, sizeof Token);
     ast_push(cond, parse_expr());
     ast_push(stmt, cond);
@@ -445,7 +452,7 @@ fn parse_statement -> ptr {
     store64 @stmt ast_create(AstIfStatement);
     memcpy(+ stmt Ast.token, @token, sizeof Token);
     lexer_next(); // skip `if`
-    let cond ast_create(AstExpression);
+    let cond = ast_create(AstExpression);
     memcpy(+ cond Ast.token, @token, sizeof Token); // copy what ever token that is after `if`
     ast_push(cond, parse_expr());
     ast_push(stmt, cond);
@@ -462,7 +469,7 @@ fn parse_statement -> ptr {
       }
     }
     else {
-      let if_body ast_create(AstStatementList);
+      let if_body = ast_create(AstStatementList);
       ast_push(if_body, parse_statement());
       ast_push(stmt, if_body);
     }
@@ -483,7 +490,7 @@ fn parse_statement -> ptr {
         }
       }
       else {
-        let else_body ast_create(AstStatementList);
+        let else_body = ast_create(AstStatementList);
         ast_push(else_body, parse_statement());
         ast_push(stmt, else_body);
       }
@@ -492,7 +499,7 @@ fn parse_statement -> ptr {
   else if eq type T_ENUM {
     store64 @stmt ast_create(AstEnum);
     lexer_next(); // skip `enum`
-    let type_branch : ptr parse_type();
+    let type_branch : ptr = parse_type();
     if eq type_branch NULL {
       parser_error("expected type in enum expression, but got `?`\n");
     }
@@ -527,7 +534,7 @@ fn parse_statement -> ptr {
       parser_error("expected string in static assert statement, but got `?`\n");
     }
     else {
-      let node ast_create(AstValue);
+      let node = ast_create(AstValue);
       memcpy(+ node Ast.token, @token, sizeof Token);
       ast_push(stmt, node);
       lexer_next(); // skip string
@@ -542,9 +549,9 @@ fn parse_statement -> ptr {
 }
 
 fn parse_func_def -> ptr {
-  let func : ptr NULL;
-  let rtype : ptr NULL;
-  let type : u64 T_NONE;
+  let func : ptr = NULL;
+  let rtype : ptr = NULL;
+  let type : u64 = T_NONE;
   lexer_next(); // skip `fn`
   store64 @type lexer_token_type();
   if neq type T_IDENTIFIER {
@@ -591,7 +598,7 @@ fn parse_func_def -> ptr {
       lexer_next(); // skip `}`
     }
     else {
-      let stmts : ptr ast_create(AstStatementList);
+      let stmts : ptr = ast_create(AstStatementList);
       ast_push(stmts, parse_expr());
       ast_push(func, stmts);
       expect_semicolon();
@@ -602,27 +609,27 @@ fn parse_func_def -> ptr {
 }
 
 fn parse_include -> ptr {
-  let include_body : ptr NULL;
+  let include_body : ptr = NULL;
   lexer_next(); // skip `include`
   if eq lexer_token_type() T_CSTRING {
-    let path load64 + @token Token.buffer;
-    let path_length load64 + @token Token.length;
-    let token_copy : Token 0;
+    let path = load64 + @token Token.buffer;
+    let path_length = load64 + @token Token.length;
+    let token_copy : Token = 0;
 
     lexer_next(); // skip path string
 
     memcpy(@token_copy, @token, sizeof Token);
 
-    let filename_path cast cstr tmp_it;
+    let filename_path = cast cstr tmp_it;
     tmp_push_str(path, + 1 path_length);
     store8 cast ptr (+ filename_path path_length) 0;
 
     // include guard
-    let i : u64 0;
-    let source_count : u64 load64 + @p Parser.source_count;
-    let guard : u64 0;
+    let i : u64 = 0;
+    let source_count : u64 = load64 + @p Parser.source_count;
+    let guard : u64 = 0;
     while and eq guard 0 < i source_count {
-      let included_path cast cstr load64 + + @p Parser.source_paths * sizeof cstr i;
+      let included_path = cast cstr load64 + + @p Parser.source_paths * sizeof cstr i;
       if eq strncmp(included_path, filename_path, MAX_PATH_SIZE) 0 {
         store64 @guard 1;
       }
@@ -630,11 +637,10 @@ fn parse_include -> ptr {
     }
     if eq guard 0 {
       if < source_count MAX_SOURCE_COUNT {
-        // let fd open(filename_path, 0, O_RDONLY);
-        let fd open_source_file(filename_path);
+        let fd = open_source_file(filename_path);
         if neq fd ERROR {
-          let file_source tmp_it;
-          let size read_file_into_buffer_and_null_terminate(fd, file_source);
+          let file_source = tmp_it;
+          let size = read_file_into_buffer_and_null_terminate(fd, file_source);
           close(fd);
           store64 @tmp_it + tmp_it size;
 
@@ -642,12 +648,12 @@ fn parse_include -> ptr {
           store64 + @p Parser.source_count + 1 load64 + @p Parser.source_count;
 
           // copy current lexer state
-          let filename l.filename;
-          let source l.source;
-          let index l.index;
-          let line l.line;
-          let column l.column;
-          let status l.status;
+          let filename = l.filename;
+          let source = l.source;
+          let index = l.index;
+          let line = l.line;
+          let column = l.column;
+          let status = l.status;
 
           lexer_init(filename_path, file_source);
           store64 @include_body parse_entry();
@@ -664,7 +670,7 @@ fn parse_include -> ptr {
           memcpy(@token, @token_copy, sizeof Token);
         }
         else {
-          let message "";
+          let message = "";
           store64 @message tmp_it;
           tmp_push_cstr("failed to include source file `");
           tmp_push_str(path, path_length);
@@ -685,10 +691,10 @@ fn parse_include -> ptr {
 }
 
 fn parse_statements -> ptr {
-  let stmts ast_create(AstStatementList);
-  let done 0;
+  let stmts = ast_create(AstStatementList);
+  let done = 0;
   while not done {
-    let type lexer_token_type();
+    let type = lexer_token_type();
     if eq type T_EOF {
       store64 @done 1;
     }
@@ -699,7 +705,7 @@ fn parse_statements -> ptr {
       store64 @done 1;
     }
     else if eq type T_FN {
-      let func_def : ptr parse_func_def();
+      let func_def : ptr = parse_func_def();
       if eq func_def NULL {
         store64 @done 1;
       }
@@ -708,7 +714,7 @@ fn parse_statements -> ptr {
       }
     }
     else if eq type T_INCLUDE {
-      let include_body : ptr parse_include();
+      let include_body : ptr = parse_include();
       if eq load64 + @p Parser.status NoError {
         ast_push(stmts, include_body);
       }
@@ -717,7 +723,7 @@ fn parse_statements -> ptr {
       }
     }
     else {
-      let stmt parse_statement();
+      let stmt = parse_statement();
       if eq stmt NULL {
         store64 @done 1;
       }
@@ -730,17 +736,17 @@ fn parse_statements -> ptr {
 }
 
 fn parse -> ptr {
-  let time_start : timespec 0;
-  let time_end : timespec 0;
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  let time_start : timespec = 0;
+  let time_end : timespec = 0;
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
   lexer_next();
-  let ast : ptr parse_statements();
+  let ast : ptr = parse_statements();
 
-  { let _ clock_gettime(CLOCK_MONOTONIC, @time_end); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
-  let message cast cstr tmp_it;
-  let args : any (l.filename);
+  let message = cast cstr tmp_it;
+  let args : any = (l.filename);
   store64 @tmp_it + tmp_it _sprintf(cast ptr message, "parsing of `%s` took", @args);
   print_time_elapsed(message, @time_start, @time_end);
   store64 @tmp_it message;

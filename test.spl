@@ -2,8 +2,8 @@
 
 include "lib/common.spl"
 
-let test_count : u64 0;
-let test_success_count : u64 0;
+let test_count : u64 = 0;
+let test_success_count : u64 = 0;
 
 fn test_init -> none {
   store64 @test_count 0;
@@ -13,7 +13,7 @@ fn test_init -> none {
 fn assert_equal(a : u64, b : u64, message : cstr) -> none {
   store64 @test_count + 1 test_count;
   if neq a b {
-    let args : any (a, b, message);
+    let args : any = (a, b, message);
     dprintf(STDERR_FILENO, "assert_equal (%d != %d): %s\n", @args);
   }
   else {
@@ -24,7 +24,7 @@ fn assert_equal(a : u64, b : u64, message : cstr) -> none {
 fn assert_not_equal(a : u64, b : u64, message : cstr) -> none {
   store64 @test_count + 1 test_count;
   if eq a b {
-    let args : any (a, b, message);
+    let args : any = (a, b, message);
     dprintf(STDERR_FILENO, "assert_not_equal failed (%d == %d): %s\n", @args);
   }
   else {
@@ -48,7 +48,7 @@ fn test_start -> none {
 }
 
 fn test_finalize -> none {
-  let args : any (test_success_count, test_count);
+  let args : any = (test_success_count, test_count);
   printf("tests complete (success rate: %d/%d)\n", @args);
 }
 

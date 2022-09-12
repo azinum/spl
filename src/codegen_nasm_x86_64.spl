@@ -1,13 +1,13 @@
 // codegen_nasm_x86_64.spl
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
-  let vo vo_empty;
+  let vo = vo_empty;
 
   if load64 + @options Options.verbose_asm {
     store64 @vo o;
   }
 
-  let func_call_regs_x86_64 : cstr (
+  let func_call_regs_x86_64 : cstr = (
     "rdi",
     "rsi",
     "rdx",
@@ -15,7 +15,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     "r8",
     "r9"
   );
-  let entry "_start";
+  let entry = "_start";
 
   o(fd, "bits 64\n", NULL);
   o(fd, "section .text\n", NULL);
@@ -56,12 +56,12 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
  ret
 ", NULL);
 
-  let i : u64 0;
-  let count : u64 load64 + c Compile.ins_count;
+  let i : u64 = 0;
+  let count : u64 = load64 + c Compile.ins_count;
   while < i count {
     // op : Op*
-    let op cast ptr + + c Compile.ins * sizeof Op i;
-    let ins : u64 load64 + op Op.i;
+    let op = cast ptr + + c Compile.ins * sizeof Op i;
+    let ins : u64 = load64 + op Op.i;
     if eq ins I_NOP {
       o(fd, "nop\n", NULL);
     }
@@ -71,8 +71,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_MOVE {
       vo(fd, "; I_MOVE\n", NULL);
-      let dest : u64 load64 + op Op.dest;
-      let args : any (load64 + op Op.src0, load64 + op Op.src1);
+      let dest : u64 = load64 + op Op.dest;
+      let args : any = (load64 + op Op.src0, load64 + op Op.src1);
       if or or or or
           eq dest TypeAny
           eq dest TypePtr
@@ -100,8 +100,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_MOVE_LOCAL {
       vo(fd, "; I_MOVE_LOCAL\n", NULL);
-      let dest : u64 load64 + op Op.dest;
-      let args : any (load64 + op Op.src0);
+      let dest : u64 = load64 + op Op.dest;
+      let args : any = (load64 + op Op.src0);
       if or or or or
           eq dest TypeAny
           eq dest TypePtr
@@ -181,20 +181,20 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_ADDR_OF {
       vo(fd, "; I_PUSH_ADDR_OF\n", NULL);
-      let args : any (load64 + op Op.src0);
+      let args : any = (load64 + op Op.src0);
       o(fd, "mov rax, v%d\n", @args);
       o(fd, "push rax\n", NULL);
     }
     else if eq ins I_PUSH_LOCAL_ADDR_OF {
       vo(fd, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
-      let args : any (load64 + op Op.src0);
+      let args : any = (load64 + op Op.src0);
       o(fd, "lea rax, [rbp-%d]\n", @args);
       o(fd, "push rax\n", NULL);
     }
     else if eq ins I_PUSH {
       vo(fd, "; I_PUSH\n", NULL);
-      let dest : u64 load64 + op Op.dest;
-      let args : any (load64 + op Op.src0);
+      let dest : u64 = load64 + op Op.dest;
+      let args : any = (load64 + op Op.src0);
       if or or
           eq dest TypeAny
           eq dest TypePtr
@@ -226,7 +226,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         o(fd, "push rax\n", NULL);
       }
       else if eq dest TypeStruct {
-        let size : u64 load64 + op Op.src1;
+        let size : u64 = load64 + op Op.src1;
         if eq size 8 {
           o(fd, "mov rax, [v%d]\n", @args);
           o(fd, "push rax\n", NULL);
@@ -256,8 +256,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_LOCAL {
       vo(fd, "; I_PUSH_LOCAL\n", NULL);
-      let dest : u64 load64 + op Op.dest;
-      let args : any (load64 + op Op.src0);
+      let dest : u64 = load64 + op Op.dest;
+      let args : any = (load64 + op Op.src0);
       if or or or or
           eq dest TypeAny
           eq dest TypePtr
@@ -279,7 +279,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         o(fd, "push rax\n", NULL);
       }
       else if eq dest TypeStruct {
-        let size : u64 load64 + op Op.src1;
+        let size : u64 = load64 + op Op.src1;
         if eq size 8 {
           o(fd, "push QWORD [rbp-%d]\n", @args);
         }
@@ -305,9 +305,9 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_IMM {
       vo(fd, "; I_PUSH_IMM\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       if eq dest TypeUnsigned64 {
-        let value : u64 load64 + + c Compile.imm load64 + op Op.src0;
+        let value : u64 = load64 + + c Compile.imm load64 + op Op.src0;
         o(fd, "mov rax, %d\n", @value);
         o(fd, "push rax\n", NULL);
       }
@@ -466,7 +466,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_RET {
       vo(fd, "; I_RET\n", NULL);
-      let frame_size : u64 load64 + op Op.src0;
+      let frame_size : u64 = load64 + op Op.src0;
       o(fd, "pop rax\n", NULL);
       o(fd, "pop rbp\n", NULL);
       if frame_size {
@@ -476,7 +476,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_NORET {
       vo(fd, "; I_NORET\n", NULL);
-      let frame_size : u64 load64 + op Op.src0;
+      let frame_size : u64 = load64 + op Op.src0;
       o(fd, "pop rbp\n", NULL);
       if frame_size {
         o(fd, "add rsp, %d\n", @frame_size);
@@ -490,10 +490,10 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LABEL {
       vo(fd, "; I_LABEL\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       // symbol : Symbol*
-      let symbol : ptr + + c Compile.symbols * sizeof Symbol dest;
-      let name : ptr + symbol Symbol.name;
+      let symbol : ptr = + + c Compile.symbols * sizeof Symbol dest;
+      let name : ptr = + symbol Symbol.name;
       if eq strcmp(cast cstr + symbol Symbol.name, "main") 0 {
         o(fd, "%s:\n", @name);
       }
@@ -504,12 +504,12 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_CALL {
       vo(fd, "; I_CALL\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       assert(neq dest UINT64_MAX, "I_CALL: invalid argument argument\n");
-      let i : u64 0;
-      let argc : u64 load64 + op Op.src0;
+      let i : u64 = 0;
+      let argc : u64 = load64 + op Op.src0;
       while < i argc {
-        let reg_name cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
+        let reg_name = cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
@@ -522,11 +522,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_ADDR_CALL {
       vo(fd, "; I_ADDR_CALL\n", NULL);
-      let i : u64 0;
-      let argc : u64 load64 + op Op.src0;
+      let i : u64 = 0;
+      let argc : u64 = load64 + op Op.src0;
       o(fd, "pop rax\n", NULL);
       while < i argc {
-        let reg_name cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
+        let reg_name = cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
@@ -539,12 +539,12 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_JMP {
       vo(fd, "; I_JMP\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       o(fd, "jmp L%d\n", @dest);
     }
     else if eq ins I_JZ {
       vo(fd, "; I_JZ\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       o(fd, "pop rax\n", NULL);
       o(fd, "test rax, rax\n", NULL);
       o(fd, "jz L%d\n", @dest);
@@ -553,23 +553,23 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       vo(fd, "; I_BEGIN_FUNC\n", NULL);
       o(fd, "push rbp\n", NULL);
       o(fd, "mov rbp, rsp\n", NULL);
-      let argc : u64 load64 + op Op.src0;
-      let frame_size : u64 load64 + op Op.src1;
-      let i : u64 0;
+      let argc : u64 = load64 + op Op.src0;
+      let frame_size : u64 = load64 + op Op.src1;
+      let i : u64 = 0;
       if frame_size {
         o(fd, "sub rsp, %d\n", @frame_size);
       }
       while < i argc {
-        let arg_index : u64 * sizeof u64 + 1 i; // + 1 because we have pushed rbp onto stack
-        let reg_name cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
-        let args : any (arg_index, reg_name);
+        let arg_index : u64 = * sizeof u64 + 1 i; // + 1 because we have pushed rbp onto stack
+        let reg_name = cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
+        let args : any = (arg_index, reg_name);
         o(fd, "mov [rbp-%d], %s\n", @args);
         store64 @i + 1 i;
       }
     }
     else if eq ins I_LOOP_LABEL {
       vo(fd, "; I_LOOP_LABEL\n", NULL);
-      let dest : u64 load64 + op Op.dest;
+      let dest : u64 = load64 + op Op.dest;
       o(fd, "L%d:\n", @dest);
     }
     else if eq ins I_SYSCALL0 {
@@ -673,16 +673,16 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   o(fd, "section .data\n", NULL);
   // constants
   {
-    let i : u64 0;
-    let cstring_count : u64 load64 + c Compile.cstring_count;
+    let i : u64 = 0;
+    let cstring_count : u64 = load64 + c Compile.cstring_count;
     while < i cstring_count {
-      let buffer cast ptr + + c Compile.imm load64 + + c Compile.cstrings * sizeof u64 i;
-      let length : u64 load64 buffer;
+      let buffer = cast ptr + + c Compile.imm load64 + + c Compile.cstrings * sizeof u64 i;
+      let length : u64 = load64 buffer;
       store64 @buffer + sizeof length buffer;
       o(fd, "str%d: db ", @i);
-      let str_index : u64 0;
+      let str_index : u64 = 0;
       while < str_index length {
-        let ch : u64 load8 + buffer str_index;
+        let ch : u64 = load8 + buffer str_index;
         o(fd, "%d, ", @ch);
         if eq ch 10 { // `\n`
           store64 @str_index + 1 str_index;
@@ -694,27 +694,27 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
   }
   {
-    let i : u64 0;
-    let count : u64 load64 + c Compile.symbol_count;
+    let i : u64 = 0;
+    let count : u64 = load64 + c Compile.symbol_count;
     while < i count {
       // symbol : Symbol*
-      let symbol cast ptr + + c Compile.symbols * sizeof Symbol i;
-      let ref_count : u64 load64 + symbol Symbol.ref_count;
+      let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
+      let ref_count : u64 = load64 + symbol Symbol.ref_count;
       if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        let sym_type : u64 load64 + symbol Symbol.sym_type;
+        let sym_type : u64 = load64 + symbol Symbol.sym_type;
         if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
           // type : Type
-          let type : u64 load64 + symbol Symbol.type;
-          let size : u64 load64 + @compile_type_size * sizeof u64 type_value(@type);
-          let count : u64 / load64 + symbol Symbol.size size;
+          let type : u64 = load64 + symbol Symbol.type;
+          let size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@type);
+          let count : u64 = / load64 + symbol Symbol.size size;
           // imm + (count * size) - size
-          let name cast ptr + symbol Symbol.name;
+          let name = cast ptr + symbol Symbol.name;
           if eq type_value(@type) TypePtr {
-            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dq", @i);
-            let v : u64 0;
+            let v : u64 = 0;
             while < v count {
-              let value : u64 load64 + + c Compile.imm imm;
+              let value : u64 = load64 + + c Compile.imm imm;
               o(fd, " %d,", @value);
               store64 @imm - imm size;
               store64 @v + 1 v;
@@ -723,11 +723,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             o(fd, "\n", NULL);
           }
           else if eq type_value(@type) TypeUnsigned64 {
-            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dq", @i);
-            let v : u64 0;
+            let v : u64 = 0;
             while < v count {
-              let value : u64 load64 + + c Compile.imm imm;
+              let value : u64 = load64 + + c Compile.imm imm;
               o(fd, " %d,", @value);
               store64 @imm - imm size;
               store64 @v + 1 v;
@@ -737,11 +737,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           }
           else if eq type_value(@type) TypeUnsigned32 {
             store64 @size sizeof u64;
-            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dd", @i);
-            let v : u64 0;
+            let v : u64 = 0;
             while < v count {
-              let value : u64 load32 + + c Compile.imm imm;
+              let value : u64 = load32 + + c Compile.imm imm;
               o(fd, " %d,", @value);
               store64 @imm - imm size;
               store64 @v + 1 v;
@@ -751,11 +751,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           }
           else if eq type_value(@type) TypeUnsigned16 {
             store64 @size sizeof u64;
-            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: dw", @i);
-            let v : u64 0;
+            let v : u64 = 0;
             while < v count {
-              let value : u64 load16 + + c Compile.imm imm;
+              let value : u64 = load16 + + c Compile.imm imm;
               o(fd, " %d,", @value);
               store64 @imm - imm size;
               store64 @v + 1 v;
@@ -765,11 +765,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           }
           else if eq type_value(@type) TypeUnsigned8 {
             store64 @size sizeof u64;
-            let imm : u64 - + load64 + symbol Symbol.imm * size count size;
+            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
             o(fd, "v%d: db", @i);
-            let v : u64 0;
+            let v : u64 = 0;
             while < v count {
-              let value : u64 load8 + + c Compile.imm imm;
+              let value : u64 = load8 + + c Compile.imm imm;
               o(fd, " %d,", @value);
               store64 @imm - imm size;
               store64 @v + 1 v;
@@ -788,30 +788,30 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   // symbols
   o(fd, "section .bss\n", NULL);
   {
-    let i : u64 0;
-    let count : u64 load64 + c Compile.symbol_count;
+    let i : u64 = 0;
+    let count : u64 = load64 + c Compile.symbol_count;
     while < i count {
       // symbol : Symbol*
-      let symbol cast ptr + + c Compile.symbols * sizeof Symbol i;
-      let ref_count : u64 load64 + symbol Symbol.ref_count;
+      let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
+      let ref_count : u64 = load64 + symbol Symbol.ref_count;
       if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        let sym_type : u64 load64 + symbol Symbol.sym_type;
+        let sym_type : u64 = load64 + symbol Symbol.sym_type;
         if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
           // type : Type
-          let type : u64 load64 + symbol Symbol.type;
-          let size : u64 load64 + symbol Symbol.size;
-          let name cast cstr + symbol Symbol.name;
-          let type_name cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
+          let type : u64 = load64 + symbol Symbol.type;
+          let size : u64 = load64 + symbol Symbol.size;
+          let name = cast cstr + symbol Symbol.name;
+          let type_name = cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
           if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
             {
-              let args : any (
+              let args : any = (
                 i,
                 size
               );
               o(fd, "v%d: resb %d", @args);
             }
             {
-              let args : any (
+              let args : any = (
                 name,
                 type_name
               );

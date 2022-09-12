@@ -5,9 +5,9 @@
 // where header contains the size of the mapped memory
 
 fn memory_alloc(size : u64) -> ptr {
-  let prot : u64  or PROT_READ   PROT_WRITE;
-  let flags : u64 or MAP_PRIVATE MAP_ANONYMOUS;
-  let data : ptr memory_map(NULL, + sizeof u64 size, prot, flags, 0, 0);
+  let prot : u64 = or PROT_READ   PROT_WRITE;
+  let flags : u64 = or MAP_PRIVATE MAP_ANONYMOUS;
+  let data : ptr = memory_map(NULL, + sizeof u64 size, prot, flags, 0, 0);
   if neq cast u64 data NULL {
     store64 data size;
     store64 @data + sizeof u64 data;
@@ -16,9 +16,9 @@ fn memory_alloc(size : u64) -> ptr {
 }
 
 fn memory_realloc(mem : ptr, new_size : u64) -> ptr {
-  let old_size : u64 load64 cast u64 - mem sizeof u64;
-  let flags : u64 MREMAP_MAYMOVE;
-  let data : ptr memory_remap(cast ptr - mem sizeof u64, + sizeof u64 old_size, + sizeof u64 new_size, flags, NULL);
+  let old_size : u64 = load64 cast u64 - mem sizeof u64;
+  let flags : u64 = MREMAP_MAYMOVE;
+  let data : ptr = memory_remap(cast ptr - mem sizeof u64, + sizeof u64 old_size, + sizeof u64 new_size, flags, NULL);
   if neq cast u64 data NULL {
     store64 data new_size;
     store64 @data + sizeof u64 data;
@@ -28,7 +28,7 @@ fn memory_realloc(mem : ptr, new_size : u64) -> ptr {
 
 fn memory_free(mem : ptr) -> none {
   if neq cast u64 mem NULL {
-    let size : u64 load64 - mem sizeof u64;
+    let size : u64 = load64 - mem sizeof u64;
     memory_unmap(cast ptr - mem sizeof u64, + sizeof u64 size);
   }
 }

@@ -5,18 +5,18 @@ include "lib/common.spl"
 fn main -> none {
   common_init();
 
-  let start : timespec 0;
-  let end : timespec 0;
-  { let _ clock_gettime(CLOCK_MONOTONIC, @start); }
+  let start : timespec = 0;
+  let end : timespec = 0;
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @start); }
 
-  let i : u64 0;
-  let count : u64 100000000;
+  let i : u64 = 0;
+  let count : u64 = 10000000;
   while < i count {
     store64 @i + 1 i;
   }
-  { let _ clock_gettime(CLOCK_MONOTONIC, @end); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, @end); }
 
-  let args : any (
+  let args : any = (
     - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec,
     / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000
   );

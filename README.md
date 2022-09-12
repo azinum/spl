@@ -54,8 +54,8 @@ Program that counts from 0 to 9:
 ```rust
 
 fn main -> none {
-  let i : u64 0;
-  let count : u64 10;
+  let i : u64 = 0;
+  let count : u64 = 10;
   while < i count {
     print i;
     store64 @i + 1 i;
