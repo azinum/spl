@@ -84,24 +84,13 @@ fn spl_start(filename : cstr) -> u64 {
         // ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           // {
-          //   let contract : any (
-          //     type_create(TypePtr, 0),
-          //     type_create(TypeUnsigned64, 0),
-          //     type_create(TypeUnsigned64, 0)
-          //   );
-          //   let count : u64 / sizeof contract sizeof any;
-          //   let type : Type 0;
-          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
-          //   type_printline(STDOUT_FILENO, type);
-          // }
-          // {
-          //   let contract : any (
+          //   let contract : any = (
           //     type_create(TypePtr, 0),
           //     type_create(TypePtr, 0),
           //     type_create(TypeUnsigned64, 0)
           //   );
-          //   let count : u64 / sizeof contract sizeof any;
-          //   let type : Type 0;
+          //   let count : u64 = / sizeof contract sizeof any;
+          //   let type : Type = 0;
           //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
           //   type_printline(STDOUT_FILENO, type);
           // }

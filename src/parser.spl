@@ -59,30 +59,54 @@ fn parse_expr_list -> ptr {
 }
 
 // type : expr
-// type(type : expr) : expr
+// type<type : expr> : expr
+// AstType
+//   AstNone | AstValue (count)
+//   AstType (optional)
 fn parse_type -> ptr {
   let type_expr : ptr = NULL;
-  let type = load64 + @token Token.type;
+  let token_type = load64 + @token Token.type;
   if or or or or or or or or or
-    eq type T_NONE
-    eq type T_ANY
-    eq type T_PTR
-    eq type T_CSTR
-    eq type T_CSTRING
-    eq type T_UNSIGNED64
-    eq type T_UNSIGNED32
-    eq type T_UNSIGNED16
-    eq type T_UNSIGNED8
-    eq type T_IDENTIFIER {
+    eq token_type T_NONE
+    eq token_type T_ANY
+    eq token_type T_PTR
+    eq token_type T_CSTR
+    eq token_type T_CSTRING
+    eq token_type T_UNSIGNED64
+    eq token_type T_UNSIGNED32
+    eq token_type T_UNSIGNED16
+    eq token_type T_UNSIGNED8
+    eq token_type T_IDENTIFIER {
     store64 @type_expr ast_create(AstType);
     memcpy(+ type_expr Ast.token, @token, sizeof Token);
     lexer_next(); // skip type
-    store64 @type load64 + @token Token.type;
-    // array specifier
-    if eq type T_COLON {
-      lexer_next(); // skip `:`
-      ast_push(type_expr, expression());
+
+    let sub_type = NULL;
+
+    store64 @token_type load64 + @token Token.type;
+    // sub type
+    if eq token_type T_LT {
+      lexer_next(); // skip `<`
+      // ast_push(type_expr, parse_type());
+      store64 @sub_type parse_type();
+      store64 @token_type load64 + @token Token.type;
+      if neq token_type T_GT {
+        parser_error("expected closing `>` after sub type, but got `?`\n");
+      }
+      lexer_next(); // skip `>`
     }
+    store64 @token_type load64 + @token Token.type;
+    // array specifier
+    if eq token_type T_COLON {
+      lexer_next(); // skip `:`
+      let array_specifier_node = ast_create(AstExpression);
+      ast_push(array_specifier_node, expression());
+      ast_push(type_expr, array_specifier_node);
+    }
+    else {
+      ast_push(type_expr, ast_create(AstNone));
+    }
+    ast_push(type_expr, sub_type); // push sub type if there was one
   }
   type_expr;
 }

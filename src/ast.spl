@@ -88,7 +88,7 @@ fn ast_push(ast : ptr, node : ptr) -> none {
   if neq 0 node {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
     let count : ptr = + ast Ast.count;
-    store64 + + ast Ast.node * #count sizeof any node;
+    store64 + + ast Ast.node * load64 count sizeof any node;
     store64 count + 1 #count;
   }
 }

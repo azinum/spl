@@ -168,6 +168,7 @@ fn type_check_constraints(container : Type, type : Type) -> u64 {
 // rvalue : Type
 // constraints?
 // for now it is not possible to construct types containing structs
+// TODO(lucas): return something other than none when error has occured
 fn type_from_contract(contract : any, count : u64, mode : u64) -> Type {
   assert(neq count 0, "number of elements in contract must be greater than 0\n");
   let result : Type = 0;
@@ -424,9 +425,17 @@ fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
     let _ = _typecheck(block, fs, cast ptr load64 + + ast Ast.node * sizeof ptr i);
     store64 @i + 1 i;
   }
-  NoError;
+  load64 + c Compile.status;
 }
 
+// AST representation:
+// LetStatement
+//   ExprList
+//     Expression
+//     ...
+//   Type
+//     None | Value (array specifier)
+//     Type (optional sub type)
 fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
   let result = NoError;
   let konst = eq load64 + ast Ast.type AstConstStatement;
@@ -472,19 +481,31 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         if eq type_value(@explicit_type) TypeFunc {
           memcpy(@explicit_type_value, + expl_type_symbol Symbol.value, sizeof Value);
         }
+
         // array size specifier
-        if > load64 + ast_type Ast.count 0 {
-          { let _ = _typecheck(block, fs, ast_type); }
-          let value : Value = 0;
-          { let _ = vs_pop(@value); }
-          let array_specifier_type = ts_pop();
-          if eq is_numerical(type_value(@array_specifier_type)) 0 {
-            typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
-          }
-          else {
-            store64 @num_elements load64 + @value Value.num;
-            if > ts_delta num_elements {
-              typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n", NULL);
+        let array_specifier_node = NULL;
+        let sub_type_node = NULL; // NOTE(lucas): ignore for now
+        let ast_type_count = load64 + ast_type Ast.count;
+        if > ast_type_count 0 {
+          store64 @array_specifier_node cast ptr load64 + + ast_type Ast.node * sizeof ptr 0;
+        }
+        if > ast_type_count 1 {
+          store64 @sub_type_node cast ptr load64 + + ast_type Ast.node * sizeof ptr 1;
+        }
+        if array_specifier_node {
+          if neq load64 + array_specifier_node Ast.type AstNone {
+            { let _ = _typecheck(block, fs, array_specifier_node); }
+            let value : Value = 0;
+            { let _ = vs_pop(@value); }
+            let array_specifier_type = ts_pop();
+            if is_numerical(type_value(@array_specifier_type)) {
+              store64 @num_elements load64 + @value Value.num;
+              if > ts_delta num_elements {
+                typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n", NULL);
+              }
+            }
+            else {
+              typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
             }
           }
         }
@@ -1238,26 +1259,38 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 @field_size load64 + @compile_type_size * sizeof u64 type_value(@type);
           }
 
-          if neq load64 + field_type Ast.count 0 {
-            { let _ = typecheck_node_list(block, fs, field_type); }
-            let array_specifier_type = ts_pop();
-            let array_specifier_value : Value = 0;
-            { let _ = vs_pop(@array_specifier_value); }
-            if neq load64 + @array_specifier_value Value.konst 1 {
-              compile_error_at(+ field_type Ast.token, "field array specifier must be a compile time constant\n");
-              store64 @fail 1;
-            }
-            else if eq is_numerical(array_specifier_type) 0 {
-              compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical\n");
-              store64 @fail 1;
-            }
-            else {
-              if eq load64 + @array_specifier_value Value.num 0 {
-                compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical with a greater value than 0\n");
+          let field_array_specifier = NULL;
+          let field_sub_type = NULL; // NOTE(lucas): ignore for now
+          let field_count = load64 + field_type Ast.count;
+          if > field_count 0 {
+            store64 @field_array_specifier load64 + + field_type Ast.node * sizeof ptr 0;
+          }
+          if > field_count 1 {
+            store64 @field_sub_type load64 + + field_type Ast.node * sizeof ptr 1;
+          }
+
+          if field_array_specifier {
+            if neq load64 + field_array_specifier Ast.type TypeNone {
+              { let _ = typecheck_node_list(block, fs, field_array_specifier); }
+              let array_specifier_type = ts_pop();
+              let array_specifier_value : Value = 0;
+              { let _ = vs_pop(@array_specifier_value); }
+              if neq load64 + @array_specifier_value Value.konst 1 {
+                compile_error_at(+ field_type Ast.token, "field array specifier must be a compile time constant\n");
+                store64 @fail 1;
+              }
+              else if eq is_numerical(array_specifier_type) 0 {
+                compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical\n");
                 store64 @fail 1;
               }
               else {
-                store64 @field_size * field_size load64 + @array_specifier_value Value.num;
+                if eq load64 + @array_specifier_value Value.num 0 {
+                  compile_error_at(+ field_type Ast.token, "field array specifier must be a numerical with a greater value than 0\n");
+                  store64 @fail 1;
+                }
+                else {
+                  store64 @field_size * field_size load64 + @array_specifier_value Value.num;
+                }
               }
             }
           }
@@ -1301,11 +1334,6 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         compile_error_at(+ ast Ast.token, "symbol already exists\n");
       }
     }
-    else if eq ast_type AstType {
-      if > load64 + ast Ast.count 0 {
-        { let _ = typecheck_node_list(block, fs, ast); }
-      }
-    }
     else if eq ast_type AstCastExpression {
       let type_expr = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
       let expr = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
@@ -1345,7 +1373,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else {
-      assert(0, "unreachable\n");
+      let message = cast cstr tmp_it;
+      sprintf(cast ptr message, "unreachable AST node with id `%d`\n", @ast_type);
+      assert(0, message);
     }
   }
   ts_top();
