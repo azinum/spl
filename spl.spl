@@ -81,31 +81,28 @@ fn spl_start(filename : cstr) -> u64 {
         parse()
       );
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
+        ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
-          // // contract => ptr(ptr(u64))
           // {
-          //   const count 3;
           //   let contract : any (
           //     type_create(TypePtr, 0),
-          //     type_create(TypePtr, 0),
+          //     type_create(TypeUnsigned64, 0),
           //     type_create(TypeUnsigned64, 0)
           //   );
-          //   static_assert eq count / sizeof contract sizeof any "";
+          //   let count : u64 / sizeof contract sizeof any;
           //   let type : Type 0;
           //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
           //   type_printline(STDOUT_FILENO, type);
           // }
-          // // contract => ptr(ptr(u64))
           // {
-          //   const count 3;
           //   let contract : any (
           //     type_create(TypePtr, 0),
           //     type_create(TypePtr, 0),
           //     type_create(TypeUnsigned64, 0)
           //   );
-          //   static_assert eq count / sizeof contract sizeof any "";
+          //   let count : u64 / sizeof contract sizeof any;
           //   let type : Type 0;
-          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_LOOKUP);
+          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
           //   type_printline(STDOUT_FILENO, type);
           // }
 
@@ -143,7 +140,7 @@ fn spl_start(filename : cstr) -> u64 {
                 let flags : u64 or or O_CREAT O_TRUNC O_WRONLY;
                 let debug_fd : u64 open(cast cstr @path, flags, mode);
                 if neq debug_fd ERROR {
-                  // ast_print(load64 + @p Parser.ast, 0, debug_fd);
+                  ast_print(load64 + @p Parser.ast, 0, debug_fd);
                   ir_print(debug_fd);
                   compile_print_symbol_info(debug_fd);
                   close(debug_fd);
