@@ -21,7 +21,7 @@ struct Type (
   id : u32
 );
 
-const MAX_COMPILE_TYPE = 255;
+const MAX_COMPILE_TYPE = 512;
 
 // symbol types
 enum u64 (

@@ -89,7 +89,7 @@ fn ast_push(ast : ptr, node : ptr) -> none {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
     let count : ptr = + ast Ast.count;
     store64 + + ast Ast.node * load64 count sizeof any node;
-    store64 count + 1 #count;
+    store64 count + 1 load64 count;
   }
 }
 
@@ -113,7 +113,7 @@ fn ast_count(ast : any) -> u64 {
   count;
 }
 
-fn ast_child_count(ast : any) -> u64 # + Ast.count ast;
+fn ast_child_count(ast : any) -> u64 load64 + Ast.count ast;
 
 fn ast_print(ast : any, level : u64, fd : u64) -> none {
   if neq 0 ast {

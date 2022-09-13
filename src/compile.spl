@@ -360,7 +360,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.type_count MAX_PRIMITIVE_TYPE;
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
-  store64 + c Compile.strukt_count 0;
+  store64 + c Compile.struct_id 1;
 
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";

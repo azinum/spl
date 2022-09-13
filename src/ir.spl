@@ -100,39 +100,45 @@ struct Op (
 const MAX_TYPE_STACK = 256;
 const MAX_INS = * 128 1024;  // TODO(lucas): temp
 
+// how many types can we use to construct a type contract
+const MAX_TYPE_CONTRACT_STACK = 16;
+
 struct Compile (
-  ins              : Op : MAX_INS,
-  ins_count        : u64,
+  ins                 : Op : MAX_INS,
+  ins_count           : u64,
 
-  imm              : u8 : MAX_STATIC_DATA,
-  imm_index        : u64,
+  imm                 : u8 : MAX_STATIC_DATA,
+  imm_index           : u64,
 
-  symbols          : Symbol : MAX_SYMBOL,
-  symbol_count     : u64,
+  symbols             : Symbol : MAX_SYMBOL,
+  symbol_count        : u64,
 
-  cstrings         : u64 : MAX_CSTRING,
-  cstring_count    : u64,
+  cstrings            : u64 : MAX_CSTRING,
+  cstring_count       : u64,
 
-  global           : Block,
+  global              : Block,
 
-  label_count      : u64,  // labels that are used for branching
+  label_count         : u64,  // labels that are used for branching
 
-  status           : u64,
-  entry_point      : u64,
+  status              : u64,
+  entry_point         : u64,
 
-  ts               : Type : MAX_TYPE_STACK, // type stack
-  ts_count         : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
+  ts                  : Type : MAX_TYPE_STACK, // type stack
+  ts_count            : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
 
-  vs               : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
-  vs_count         : u64,
+  vs                  : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
+  vs_count            : u64,
 
-  types            : Type : MAX_COMPILE_TYPE,
-  type_count       : u64,  // how many types are there, including primitive and user defined types?
+  types               : Type : MAX_COMPILE_TYPE,
+  type_count          : u64,  // how many types are there, including primitive and user defined types?
 
-  warning_count    : u64,
-  error_count      : u64,
+  type_contract_stack : Type : MAX_TYPE_CONTRACT_STACK, // stack of types to construct a single type contract
+  type_contract_count : u64, // better naming needed here...
 
-  strukt_count     : u64 // NOTE(lucas): temporary
+  warning_count       : u64,
+  error_count         : u64,
+
+  struct_id           : u64 // NOTE(lucas): temporary
 );
 
 let ir_code_str : cstr : MAX_IR_CODE = "";

@@ -87,18 +87,18 @@ fn spl_start(filename : cstr) -> u64 {
           //   let contract : any = (
           //     type_create(TypePtr, 0),
           //     type_create(TypePtr, 0),
-          //     type_create(TypeUnsigned64, 0)
+          //     type_create(TypeStruct, 0)
           //   );
           //   let count : u64 = / sizeof contract sizeof any;
           //   let type : Type = 0;
-          //   store64 @type type_from_contract(@contract, count, TYPE_CONTRACT_CREATE);
-          //   type_printline(STDOUT_FILENO, type);
+          //   if eq type_from_contract(@contract, count, TYPE_CONTRACT_CREATE, @type) NoError {
+          //     type_printline(STDOUT_FILENO, type);
+          //   }
           // }
-
-          // typecheck_print_types(STDOUT_FILENO);
-
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
+              // typecheck_print_types(STDOUT_FILENO);
+
               if load64 + @options Options.compile {
                 let target = TARGET_LINUX_NASM_X86_64;
 

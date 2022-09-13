@@ -4,5 +4,4 @@
 
 fn main -> none {
   let a : ptr<u64> = NULL;
-  let b : ptr<u64 : 4> = NULL;
 }
