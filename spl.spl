@@ -98,7 +98,7 @@ fn spl_start(filename : cstr) -> u64 {
           // }
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
-              // typecheck_print_types(STDOUT_FILENO);
+              typecheck_print_types(STDOUT_FILENO);
 
               if load64 + @options Options.compile {
                 let target = TARGET_LINUX_NASM_X86_64;

@@ -801,7 +801,6 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           let type : u64 = load64 + symbol Symbol.type;
           let size : u64 = load64 + symbol Symbol.size;
           let name = cast cstr + symbol Symbol.name;
-          let type_name = cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
           if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
             {
               let args : any = (
@@ -812,10 +811,10 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
             }
             {
               let args : any = (
-                name,
-                type_name
+                name
               );
-              vo(fd, " ; `%s` : %s", @args);
+              // TODO(lucas): print type
+              vo(fd, " ; `%s`", @args);
             }
             o(fd, "\n", NULL);
           }
