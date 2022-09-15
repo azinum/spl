@@ -608,7 +608,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
       }
     }
-    else if eq token_type T_AT {
+    else if or eq token_type T_AT eq token_type T_AT_WORD {
       let id : u64 = load64 + + ast Ast.token Token.v;
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
       let ref_count : u64 = load64 + symbol Symbol.ref_count;

@@ -164,14 +164,15 @@ fn parse_expr -> ptr {
     ast_push(expr, parse_expr());
     ast_push(expr, parse_expr());
   }
-  else if eq type T_AT {
+  else if or eq type T_AT eq type T_AT_WORD {
     lexer_next();
     let t : Token = 0;
     memcpy(@t, @token, sizeof Token);
+    let token_type = type;
     let type = load64 + @t Token.type;
     if eq type T_IDENTIFIER {
       store64 @expr ast_create(AstValue);
-      store64 + @t Token.type T_AT;
+      store64 + @t Token.type token_type;
       memcpy(+ expr Ast.token, @t, sizeof Token);
       lexer_next(); // skip identifier
     }

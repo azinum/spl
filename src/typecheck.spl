@@ -589,7 +589,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
       }
       else {
-        // TODO(lucas): handle error
+        typecheck_error_at(cast ptr + ast_type Ast.token, "invalid type construction\n", NULL);
       }
     }
 
@@ -738,7 +738,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 @tmp_it message;
         }
       }
-      else if eq token_type T_AT {
+      else if or eq token_type T_AT eq token_type T_AT_WORD {
         let symbol : ptr = NULL;
         let symbol_index = UINT64_MAX;
         let token_buffer : Buffer = 0;
@@ -748,8 +748,26 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 + + ast Ast.token Token.v symbol_index;
           let type : Type = 0;
           store64 @type load64 + symbol Symbol.type;
-          { let _ = vs_push(+ symbol Symbol.value); }
-          { let _ : Type = 0; store64 @_ ts_push(type_create(TypePtr, 0)); } // TODO(lucas): pointer to which type?
+          if eq token_type T_AT_WORD {
+            let contract : any = (
+              type_create(TypePtr, 0),
+              type
+            );
+            let count : u64 = / sizeof contract sizeof any;
+            let ptr_type : Type = 0;
+            if eq type_from_contract(@contract, count, TYPE_CONTRACT_CREATE, @ptr_type) NoError {
+              { let _ = vs_push(+ symbol Symbol.value); }
+              { let _ : Type = 0; store64 @_ ts_push(ptr_type); } // TODO(lucas): pointer to which type?
+            }
+            else {
+              // TODO(lucas): handle error
+              assert(0, "failed to create type from contract\n");
+            }
+          }
+          else {
+            { let _ = vs_push(+ symbol Symbol.value); }
+            { let _ : Type = 0; store64 @_ ts_push(type_create(TypePtr, 0)); } // TODO(lucas): pointer to which type?
+          }
         }
         else {
           let message = tmp_it;
