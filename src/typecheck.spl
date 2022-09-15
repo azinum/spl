@@ -127,10 +127,20 @@ fn type_lookup(type : Type) -> u64 {
   result;
 }
 
-fn type_push_new(type : Type) -> u64 {
+fn type_from_id(id : u64) -> Type {
+  let result : Type = 0;
+  let type_count : u64 = load64 + c Compile.type_count;
+  if < id type_count {
+    store64 @result load64 + + c Compile.types * sizeof Type id;
+  }
+  result;
+}
+
+fn type_push_new(type : Type, size : u64) -> u64 {
   let type_count : u64 = load64 + c Compile.type_count;
   if < type_count MAX_COMPILE_TYPE {
     store64 + + c Compile.types * sizeof Type type_count type;
+    store64 + + c Compile.type_sizes * sizeof Type type_count size;
     store64 + c Compile.type_count + 1 type_count;
   }
   else {
@@ -152,6 +162,15 @@ fn type_check_constraints(container : Type, type : Type) -> u64 {
   }
   else if and eq type_value(@container) MAX_PRIMITIVE_TYPE > type_value(@container) MAX_PRIMITIVE_TYPE {
     store64 @result TYPE_CONSTRAINT_UNDECIDABLE;
+  }
+  result;
+}
+
+fn type_deflate(type : Type) -> Type {
+  let result : Type = 0;
+  let id = type_id(@type);
+  if neq id 0 {
+    store64 @result type_from_id(id);
   }
   result;
 }
@@ -197,7 +216,7 @@ fn type_from_contract(contract : any, count : u64, mode : u64, result_out : ptr)
         if eq lookup 0 {
           // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
           if eq mode TYPE_CONTRACT_CREATE {
-            let new_type_id : u64 = type_push_new(type);
+            let new_type_id : u64 = type_push_new(type, compile_type_size(type_value(@type)));
             assert(neq new_type_id 0, "failed to push new type\n");
             store64 result_out type;
             store64 @sub_type type; // sub type is now the newly created type
@@ -235,11 +254,12 @@ fn typecheck_print_types(fd : u64) -> none {
   while < i count {
     let type : Type = 0;
     store64 @type load64 + + c Compile.types * sizeof Type i;
+    let size : u64 = load64 + + c Compile.type_sizes * sizeof u64 i;
 
     let args : any = i;
     dprintf(fd, "%d: ", @args);
     type_print(fd, type);
-    dprintf(fd, "\n", NULL);
+    dprintf(fd, ": size = %d\n", @size);
 
     store64 @i + 1 i;
   }
@@ -1387,7 +1407,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         store64 + symbol Symbol.type load64 @type;
         memcpy(+ symbol Symbol.value, @value, sizeof Value);
 
-        let new_type_id : u64 = type_push_new(type); // TODO(lucas): handle error
+        let new_type_id : u64 = type_push_new(type, field_offset); // TODO(lucas): handle error
       }
       else {
         compile_error_at(+ ast Ast.token, "symbol already exists\n");

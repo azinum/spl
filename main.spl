@@ -1,9 +1,6 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 
 fn main -> none {
-  struct T (a : u64);
-  let a : ptr<u64> = NULL;
-  let t : T = 0;
 }

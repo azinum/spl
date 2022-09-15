@@ -1,0 +1,86 @@
+// info.spl
+
+// TODO(lucas): cleanup
+fn print_symbol_info(fd : u64) -> none {
+  dprintf(fd, "print_symbol_info:\n", NULL);
+  let message = cast cstr tmp_it;
+  let count : u64 = load64 + c Compile.symbol_count;
+  let i : u64 = 0;
+  while < i count {
+    let symbol = + + c Compile.symbols * sizeof Symbol i;
+    let name = cast cstr + symbol Symbol.name;
+    let type : Type = 0;
+    store64 @type load64 + symbol Symbol.type;
+    let num_i_digits : u64 = digit_count(i);
+    let j : u64 = 0;
+
+    if neq type_value(@type) TypeSyscallFunc {
+      while < j - 3 num_i_digits {
+        dprintf(fd, "0", NULL);
+        store64 @j + 1 j;
+      }
+      dprintf(fd, "%d: ", @i);
+      if eq type_value(@type) TypeFunc {
+        let func = cast ptr + + symbol Symbol.value Value.func;
+        dprintf(fd, "%s(", @name);
+
+        // iterate args
+        let arg_index : u64 = 0;
+        let arg_count : u64 = load64 + func Function.argc;
+        while < arg_index arg_count {
+          // Symbol* arg = &c->symbols[func->args[arg_index]];
+          let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
+          let arg_type : Type = 0;
+          store64 @arg_type load64 + arg Symbol.type;
+          let arg_type_id = type_lookup(arg_type);
+          let type_size : u64 = compile_type_size(arg_type_id);
+          if eq type_size 0 {
+            store64 @type_size 1;
+          }
+          let num_elements : u64 = / load64 + arg Symbol.size type_size;
+          type_print(fd, arg_type);
+
+          if > num_elements 1 {
+            dprintf(fd, " : %d", @num_elements);
+          }
+
+          if neq arg_index - arg_count 1 {
+            dprintf(fd, ", ", NULL);
+          }
+          store64 @arg_index + 1 arg_index;
+        }
+        let rtype : Type = 0;
+        store64 @rtype load64 + func Function.rtype;
+
+        dprintf(fd, ") -> ", NULL);
+        type_print(fd, rtype);
+      }
+      else {
+        let type_id : u64 = type_lookup(type);
+        let type_size : u64 = compile_type_size(type_id);
+        if eq type_size 0 {
+          store64 @type_size 1;
+        }
+        let count : u64 = / load64 + symbol Symbol.size type_size;
+        let args : any = (
+          name
+        );
+        dprintf(fd, "%s : ", @args);
+        type_print(fd, cast Type type);
+        if > count 1 {
+          dprintf(fd, " : %d", @count);
+        }
+      }
+      let args : any = (
+        load64 + symbol Symbol.size,
+        load64 + symbol Symbol.konst,
+        load64 + symbol Symbol.ref_count,
+        load64 + symbol Symbol.local_id
+      );
+      dprintf(fd, " (size = %d, konst = %d, ref_count = %d, local_id = %d)\n", @args);
+    }
+    store64 @i + 1 i;
+  }
+  store64 @tmp_it message;
+}
+

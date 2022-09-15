@@ -31,6 +31,7 @@ include "src/ir.spl"
 include "src/codegen_nasm_x86_64.spl"
 include "src/compile.spl"
 include "src/typecheck.spl"
+include "src/info.spl"
 
 fn usage(prog : cstr) -> none {
   dprintf(STDOUT_FILENO,
@@ -129,9 +130,9 @@ fn spl_start(filename : cstr) -> u64 {
                 let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
                 let debug_fd : u64 = open(cast cstr @path, flags, mode);
                 if neq debug_fd ERROR {
-                  ast_print(load64 + @p Parser.ast, 0, debug_fd);
+                  // ast_print(load64 + @p Parser.ast, 0, debug_fd);
                   ir_print(debug_fd);
-                  compile_print_symbol_info(debug_fd);
+                  print_symbol_info(debug_fd);
                   close(debug_fd);
                 }
                 else {
