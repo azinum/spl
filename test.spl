@@ -33,6 +33,7 @@ fn assert_not_equal(a : u64, b : u64, message : cstr) -> none {
 }
 
 include "tests/arith.spl"
+include "tests/sizeof.spl"
 include "tests/bitwise.spl"
 include "tests/function.spl"
 include "tests/struct.spl"
@@ -41,6 +42,7 @@ include "tests/array.spl"
 fn test_start -> none {
   printf("running tests...\n", NULL);
   test_arith();
+  test_sizeof();
   test_bitwise();
   test_function();
   test_struct();

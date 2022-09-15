@@ -1,0 +1,23 @@
+// sizeof.spl
+
+fn test_sizeof -> none {
+  let info = "struct.spl:test_struct()";
+  let a : u64 = 0;
+  let b : u32 = cast u32 0;
+  struct T (
+    a : u64,
+    b : u64
+  );
+  let t : T = 0;
+  let c = NULL;
+  assert_equal(sizeof a, sizeof u64, info);
+  assert_equal(sizeof a, 8, info);
+  assert_equal(sizeof b, sizeof u32, info);
+  assert_equal(sizeof b, 4, info);
+  assert_equal(sizeof T, 16, info);
+  assert_equal(sizeof t, 16, info);
+  assert_equal(sizeof t, sizeof T, info);
+  assert_equal(sizeof c, sizeof ptr, info);
+  assert_equal(sizeof c, 8, info);
+  assert_equal(sizeof "hello", sizeof cstr, info);
+}

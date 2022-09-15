@@ -61,43 +61,24 @@ fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
-fn typecheck_print_stack(fd : u64) -> none {
-  let i = 0;
-  let count = load64 + c Compile.ts_count;
-  while < i count {
-    let type : Type = 0;
-    memcpy(@type, + + c Compile.ts * sizeof Type i, sizeof Type);
-    let value : Value = 0;
-    memcpy(@value, + + c Compile.vs * sizeof Value i, sizeof Value);
-    let args : any = (
-      i,
-      load64 + @compile_type_str * sizeof cstr load32 + @type Type.type,
-      load32 + @type Type.id,
-      load64 + @value Value.num
-    );
-    dprintf(fd, "%d: `%s`, %d, %d\n", @args);
-    store64 @i + 1 i;
-  }
-}
-
 fn type_print(fd : u64, type : Type) -> none {
   // check if this is a container type
   if eq type_value(@type) TypePtr {
     let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type)
     );
-    dprintf(fd, "%s(", @args);
+    dprintf(fd, "%s<", @args);
     let next_type : Type = 0;
     store64 @next_type load64 + + c Compile.types * sizeof Type type_id(@type);
     type_print(fd, next_type);
-    dprintf(fd, ")", NULL);
+    dprintf(fd, ">", NULL);
   }
   else if eq type_value(@type) TypeStruct {
     let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type),
       type_id(@type)
     );
-    dprintf(fd, "%s(%d)", @args);
+    dprintf(fd, "%s<%d>", @args);
   }
   // primitive type
   else {
@@ -111,6 +92,22 @@ fn type_print(fd : u64, type : Type) -> none {
 fn type_printline(fd : u64, type : Type) -> none {
   type_print(fd, type);
   dprintf(fd, "\n", NULL);
+}
+
+fn typecheck_print_stack(fd : u64) -> none {
+  let i = 0;
+  let count = load64 + c Compile.ts_count;
+  while < i count {
+    let type : Type = 0;
+    memcpy(@type, + + c Compile.ts * sizeof Type i, sizeof Type);
+    let value : Value = 0;
+    memcpy(@value, + + c Compile.vs * sizeof Value i, sizeof Value);
+    dprintf(fd, "%d: ", @i);
+    type_print(fd, type);
+    let args : any = load64 + @value Value.num;
+    dprintf(fd, " = %d\n", @args);
+    store64 @i + 1 i;
+  }
 }
 
 fn type_lookup(type : Type) -> u64 {
@@ -630,11 +627,11 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
     // if this is a constant, make sure to update the immediate value index
     if eq konst 1 {
-      let decrement = * - ts_delta 1 load64 + @compile_type_size * sizeof u64 TypeUnsigned64;
+      let decrement = * - ts_delta 1 compile_type_size(TypeUnsigned64);
       store64 @imm - imm decrement;
     }
 
-    let type_size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@type);
+    let type_size : u64 = compile_type_size(type_value(@type));
     if and eq type_value(@type) TypeStruct neq expl_type_symbol NULL {
       store64 @type_size load64 + expl_type_symbol Symbol.size;
     }
@@ -907,7 +904,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             block_init(@local_block, block);
 
             store64 + symbol Symbol.imm UINT64_MAX;
-            store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeFunc;
+            store64 + symbol Symbol.size compile_type_size(TypeFunc);
             store64 + symbol Symbol.konst 0;
             store64 + symbol Symbol.sym_type SYM_FUNC;
             store64 + symbol Symbol.type TypeFunc;
@@ -939,7 +936,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 store64 + + func Function.args * sizeof u64 i arg_symbol_index;
                 let arg_type_symbol : ptr = NULL;
                 let arg_type : u64 = token_to_compile_type(block, fs, @arg_type_token, @arg_type_symbol);
-                let size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
+                let size : u64 = compile_type_size(type_value(@arg_type));
                 if eq type_value(@arg_type) TypeStruct {
                   store64 @size load64 + arg_type_symbol Symbol.size;
                   if > size MAX_STRUCT_SIZE {
@@ -950,7 +947,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 }
                 if eq fail 0 {
                   store64 + arg_symbol Symbol.imm UINT64_MAX;
-                  store64 + arg_symbol Symbol.size size; // load64 + @compile_type_size * sizeof u64 type_value(@arg_type);
+                  store64 + arg_symbol Symbol.size size;
                   store64 + arg_symbol Symbol.konst 0;
                   store64 + arg_symbol Symbol.sym_type SYM_FUNC_ARG;
                   store64 + arg_symbol Symbol.type arg_type;
@@ -1066,7 +1063,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     {
                       let message = cast cstr tmp_it;
                       let args : any = + symbol Symbol.name;
-                      typecheck_error_at(+ arg Symbol.token, "from function `%s`", @args);
+                      typecheck_error_at(+ arg Symbol.token, "from function `%s`\n", @args);
                     }
                     store64 @done 1;
                   }
@@ -1244,7 +1241,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
           if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
             store64 + symbol Symbol.imm imm;
-            store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type;
+            store64 + symbol Symbol.size compile_type_size(type_value(@type));
             store64 + symbol Symbol.konst 1;
             if eq cast u64 block + c Compile.global {
               store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
@@ -1316,7 +1313,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 @fail 1;
           }
           else {
-            store64 @field_size load64 + @compile_type_size * sizeof u64 type_value(@type);
+            store64 @field_size compile_type_size(type_value(@type));
           }
 
           let field_array_specifier = NULL;

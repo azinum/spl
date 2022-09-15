@@ -120,7 +120,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   let symbol : ptr = NULL;
   let symbol_index = UINT64_MAX;
   if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
-    store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 TypeSyscallFunc;
+    store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
     store64 + symbol Symbol.sym_type SYM_FUNC;
     store64 + symbol Symbol.type TypeSyscallFunc;
     store64 + + symbol Symbol.token Token.v symbol_index;
@@ -158,7 +158,7 @@ fn compile_create_value(name : cstr, value : ptr, type : u64) -> u64 {
     let symbol_index = UINT64_MAX;
     if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
-      store64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
+      store64 + symbol Symbol.size compile_type_size(type_value(@type));
       store64 + symbol Symbol.konst 1;
       store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
       store64 + symbol Symbol.type type;
@@ -211,7 +211,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
           let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
           // type : Type
           let arg_type : u64 = load64 + arg Symbol.type;
-          let num_elements : u64 = / (load64 + arg Symbol.size) (load64 + @compile_type_size * sizeof u64 type_value(@arg_type));
+          let num_elements : u64 = / load64 + arg Symbol.size compile_type_size(type_value(@arg_type));
           let args : any = (
             load64 + @compile_type_str * sizeof cstr type_value(@arg_type),
             type_id(@arg_type)
@@ -236,7 +236,7 @@ fn compile_print_symbol_info(fd : u64) -> none {
         dprintf(fd, ") -> %s(%d)", @args);
       }
       else {
-        let count : u64 = / load64 + symbol Symbol.size load64 + @compile_type_size * sizeof u64 type_value(@type);
+        let count : u64 = / load64 + symbol Symbol.size compile_type_size(type_value(@type));
         let type_name = cast cstr load64 + @compile_type_str * sizeof cstr type_value(@type);
         let args : any = (name, type_name, type_id(@type));
         dprintf(fd, "%s : %s(%d)", @args);
@@ -425,19 +425,6 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  store64 + @compile_type_size * TypeNone           sizeof u64 0;
-  store64 + @compile_type_size * TypeAny            sizeof u64 sizeof ptr;
-  store64 + @compile_type_size * TypePtr            sizeof u64 sizeof ptr;
-  store64 + @compile_type_size * TypeUnsigned64     sizeof u64 sizeof u64;
-  store64 + @compile_type_size * TypeUnsigned32     sizeof u64 sizeof u32;
-  store64 + @compile_type_size * TypeUnsigned16     sizeof u64 sizeof u16;
-  store64 + @compile_type_size * TypeUnsigned8      sizeof u64 sizeof u8;
-  store64 + @compile_type_size * TypeCString        sizeof u64 sizeof ptr;
-  store64 + @compile_type_size * TypeFunc           sizeof u64 sizeof ptr;
-  store64 + @compile_type_size * TypeSyscallFunc    sizeof u64 sizeof ptr;
-  store64 + @compile_type_size * TypeStruct         sizeof u64 1;
-  store64 + @compile_type_size * MAX_PRIMITIVE_TYPE sizeof u64 0;
-
   store64 + + c Compile.types * sizeof Type TypeNone         type_create(TypeNone, 0);
   store64 + + c Compile.types * sizeof Type TypeAny          type_create(TypeAny, 0);
   store64 + + c Compile.types * sizeof Type TypePtr          type_create(TypePtr, 0);
@@ -449,6 +436,18 @@ fn compile_state_init -> u64 {
   store64 + + c Compile.types * sizeof Type TypeFunc         type_create(TypeFunc, 0);
   store64 + + c Compile.types * sizeof Type TypeSyscallFunc  type_create(TypeSyscallFunc, 0);
   store64 + + c Compile.types * sizeof Type TypeStruct       type_create(TypeStruct, 0);
+
+  store64 + + c Compile.type_sizes * sizeof u64 TypeNone        0;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeAny         sizeof any;
+  store64 + + c Compile.type_sizes * sizeof u64 TypePtr         sizeof ptr;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned64  sizeof u64;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned32  sizeof u32;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned16  sizeof u16;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned8   sizeof u8;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeCString     sizeof cstr;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeFunc        sizeof ptr;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeSyscallFunc sizeof ptr;
+  store64 + + c Compile.type_sizes * sizeof u64 TypeStruct      1;
 
   { let _ = compile_create_syscall("syscall0", 0); }
   { let _ = compile_create_syscall("syscall1", 1); }

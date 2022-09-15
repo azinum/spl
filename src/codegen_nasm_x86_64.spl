@@ -705,7 +705,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
           // type : Type
           let type : u64 = load64 + symbol Symbol.type;
-          let size : u64 = load64 + @compile_type_size * sizeof u64 type_value(@type);
+          let size : u64 = compile_type_size(type_value(@type));
           let count : u64 = / load64 + symbol Symbol.size size;
           // imm + (count * size) - size
           let name = cast ptr + symbol Symbol.name;

@@ -130,6 +130,7 @@ struct Compile (
   vs_count            : u64,
 
   types               : Type : MAX_COMPILE_TYPE,
+  type_sizes          : u64 : MAX_COMPILE_TYPE,
   type_count          : u64,  // how many types are there, including primitive and user defined types?
 
   type_contract_stack : Type : MAX_TYPE_CONTRACT_STACK, // stack of types to construct a single type contract
@@ -143,7 +144,6 @@ struct Compile (
 
 let ir_code_str : cstr : MAX_IR_CODE = "";
 let compile_type_str : cstr : MAX_COMPILE_TYPE = "";
-let compile_type_size : u64 : MAX_COMPILE_TYPE = 0;
 
 fn ir_func_signature(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 NoError;
 let _ir_compile = ir_func_signature;
@@ -170,6 +170,14 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
   store64 + op Op.dest dest;
   store64 + op Op.src0 src0;
   store64 + op Op.src1 src1;
+}
+
+fn compile_type_size(type_id : u64) -> u64 {
+  let result = 0;
+  if < type_id load64 + c Compile.type_count {
+    store64 @result load64 + + c Compile.type_sizes * sizeof u64 type_id;
+  }
+  result;
 }
 
 fn block_init(block : ptr, parent : ptr) -> none {
@@ -732,7 +740,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
       if neq fs NULL {
         let local_id : u64 = load64 + fs Function.locals_offset_counter;
-        let type_size : u64 = load64 + @compile_type_size * sizeof u64 type_value(type);
+        let type_size : u64 = compile_type_size(type_value(type));
         let num_elements : u64 = / load64 + symbol Symbol.size type_size;
         const boundary_size : u64 = sizeof u64;
         let total_size : u64 = align(* num_elements type_size, boundary_size);
