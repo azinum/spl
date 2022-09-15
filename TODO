@@ -6,8 +6,6 @@
 - typed assignment operator
 - struct padding and alignment (user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
 - improve struct field access
-- rework let statements
-	- pass type information to ir code generator
 - do more work on type casting
 - signed integers
 - function inlining

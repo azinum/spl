@@ -2,5 +2,23 @@
 
 // include "lib/common.spl"
 
+fn hello(a : ptr<u64>) -> none {
+  print load64 a;
+}
+
+const thing : u64 = 5;
+
+fn there -> ptr<u64> {
+  cast ptr<u64> @thing;
+}
+
+struct T (
+  a : ptr<u64>
+);
+
 fn main -> none {
+  let a : u64 = 12;
+  let b : ptr<a> = cast ptr<a> @a;
+  hello(b);
+  print load64 there();
 }
