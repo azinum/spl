@@ -2,23 +2,5 @@
 
 // include "lib/common.spl"
 
-struct T (
-  a : u64,
-  b : u64
-);
-
-fn t_init(t : ptr<T>) -> none {
-  store64 + t T.a 12;
-  store64 + t T.b 17;
-}
-
-fn t_print(t : ptr<T>) -> none {
-  print load64 + t T.a;
-  print load64 + t T.b;
-}
-
 fn main -> none {
-  let t : T = 0;
-  t_init(at t);
-  t_print(at t);
 }

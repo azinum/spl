@@ -28,6 +28,7 @@ include "src/lexer.spl"
 include "src/ast.spl"
 include "src/parser.spl"
 include "src/ir.spl"
+include "src/ir_optimize.spl"
 include "src/codegen_nasm_x86_64.spl"
 include "src/compile.spl"
 include "src/typecheck.spl"
@@ -84,22 +85,10 @@ fn spl_start(filename : cstr) -> u64 {
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
         // ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
-          // {
-          //   let contract : any = (
-          //     type_create(TypePtr, 0),
-          //     type_create(TypePtr, 0),
-          //     type_create(TypeStruct, 0)
-          //   );
-          //   let count : u64 = / sizeof contract sizeof any;
-          //   let type : Type = 0;
-          //   if eq type_from_contract(@contract, count, TYPE_CONTRACT_CREATE, @type) NoError {
-          //     type_printline(STDOUT_FILENO, type);
-          //   }
-          // }
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
-              // typecheck_print_types(STDOUT_FILENO);
 
+              // typecheck_print_types(STDOUT_FILENO);
               if load64 + @options Options.compile {
                 let target = TARGET_LINUX_NASM_X86_64;
 

@@ -74,7 +74,7 @@ struct Buffer (
   length : u64
 );
 
-fn buffer_init(buffer : ptr, data : ptr, length : u64) -> none {
+fn buffer_init(buffer : ptr<Buffer>, data : ptr, length : u64) -> none {
   store64 + buffer Buffer.data data;
   store64 + buffer Buffer.length length;
 }
@@ -417,7 +417,7 @@ fn bwrite_u8(mem : ptr, end : ptr, n : u8) -> u64 {
 
 // TODO(lucas): handle escape sequences
 fn tmp_push_cstr(str : cstr) -> none {
-  let length : u64 = strlen(cast cstr str);
+  let length : u64 = strlen(str);
   if > length 0 {
     if < (+ tmp_it length) tmp_end {
         memcpy(tmp_it, str, length);

@@ -4,7 +4,7 @@
 - differentiate between signed and unsigned comparison operators for where it is nessesary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - add ability to use escaped and unescaped `raw` strings
 - typed assignment operator
-- struct padding and alignment (user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
+- struct padding and alignment (end user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
 - improve struct field access
 - do more work on type casting
 - signed integers
@@ -16,3 +16,6 @@
 - library linking
 - improve error printing of invalid type constructions
 	- improve error printing in general
+- self referencing in structs (i.e. struct T (t : ptr<T>))
+    refer to a struct in a struct of the same type ---^
+	- however, it should not be permitted to store a struct in a struct of the same type directly

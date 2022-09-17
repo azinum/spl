@@ -34,7 +34,7 @@ fn fsync(fd : u64) -> none {
 }
 
 fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
-  linux_clock_gettime(clock_id, spec);
+  linux_clock_gettime(clock_id, cast ptr<timespec> spec);
 }
 
 fn memory_map(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
