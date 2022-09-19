@@ -1,3 +1,49 @@
 // ir_optimize.spl
 
+// TODO(lucas): basic optimizations:
+// 1) peephole optimization
+// 2) removing redundant instructions
+// 3) ...
 
+// ir optmization debug information
+struct Ir_debug (
+  ins_reduced : u64
+);
+
+fn ir_debug_info_init(debug : ptr<Ir_debug>) -> none {
+  store64 + debug Ir_debug.ins_reduced 0;
+}
+
+fn ir_debug_info_print(fd : u64, debug : ptr<Ir_debug>) -> none {
+
+  let args : any = (
+    load64 + debug Ir_debug.ins_reduced
+  );
+  dprintf(fd,
+"ir_optimize:
+  %d instructions reduced\n"
+  , @args);
+}
+
+fn ir_reduce(i : u64, debug : ptr<Ir_debug>) -> none {
+  OP(I_NOP, cast ptr fetch_op(i));
+  store64 + debug Ir_debug.ins_reduced + 1 load64 + debug Ir_debug.ins_reduced;
+}
+
+fn ir_optimize -> u64 {
+  let debug : Ir_debug = 0;
+  ir_debug_info_init(at debug);
+
+  let i : u64 = 0;
+  let count : u64 = load64 + c Compile.ins_count;
+
+  while < i count {
+    let op : ptr<Op> = cast ptr<Op> 0;
+    store64 @op fetch_op(i);
+    let ins : u64 = load64 + op Op.i;
+    store64 @i + 1 i;
+  }
+
+  // ir_debug_info_print(STDOUT_FILENO, at debug);
+  load64 + c Compile.status;
+}

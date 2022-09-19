@@ -19,3 +19,4 @@
 - self referencing in structs (i.e. struct T (t : ptr<T>))
     refer to a struct in a struct of the same type ---^
 	- however, it should not be permitted to store a struct in a struct of the same type directly
+- re-organize project structure

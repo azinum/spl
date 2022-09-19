@@ -326,35 +326,45 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr) -
 //   None | Value
 //   Type
 fn collect_types_from_node(block : ptr, fs : ptr, ast : ptr) -> u64 {
-  let count = 0;
+  let result = NoError;
   let sub_type_node = NULL;
   if ast {
     let type : Type = 0;
-    store64 @type token_to_compile_type(block, fs, + ast Ast.token, NULL);
-    if eq type_contract_stack_push(type) NoError {
-      store64 @count 1;
+    let symbol = NULL;
+    store64 @type token_to_compile_type(block, fs, + ast Ast.token, @symbol);
+    if and symbol eq type_value(@type) TypeNone {
+      store64 @result Error;
+    }
+    else if eq type_contract_stack_push(type) NoError {
       if eq load64 + ast Ast.count 2 {
         store64 @sub_type_node load64 + + ast Ast.node * sizeof ptr 1;
       }
+      store64 @result collect_types_from_node(block, fs, sub_type_node);
+      store64 @result NoError;
     }
     else {
-      store64 @count 0;
+      store64 @result Error;
     }
-    store64 @count + count collect_types_from_node(block, fs, sub_type_node);
   }
-  count;
+  result;
 }
 
 // block : Block*, fs : Function*, ast : Ast*, mode : u64, type_out : Type*
-fn type_contract_from_type_node(block : ptr, fs : ptr, ast : ptr, mode : u64, type_out : ptr) -> u64 {
+fn type_contract_from_type_node(block : ptr, fs : ptr, ast : ptr, mode : u64, type_out : ptr, accept_none_type : u64) -> u64 {
   let result = Error;
   let collected_types_result = collect_types_from_node(block, fs, ast);
-  if eq collected_types_result load64 + c Compile.type_contract_count {
+  if eq collected_types_result NoError {
     let type : Type = 0;
     let contract : any = + c Compile.type_contract_stack;
-    if eq type_from_contract(contract, collected_types_result, mode, @type) NoError {
+    let count : u64 = load64 + c Compile.type_contract_count;
+    if eq type_from_contract(contract, count, mode, @type) NoError {
       store64 type_out type;
       store64 @result NoError;
+      if eq accept_none_type 0 {
+        if eq type_value(@type) TypeNone {
+          store64 @result Error;
+        }
+      }
     }
     type_contract_stack_reset();
   }
@@ -543,7 +553,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
     let explicit_type_value : Value = 0;
 
     if neq ast_type NULL {
-      if eq type_contract_from_type_node(block, fs, ast_type, TYPE_CONTRACT_CREATE, @explicit_type) NoError {
+      if eq type_contract_from_type_node(block, fs, ast_type, TYPE_CONTRACT_CREATE, @explicit_type, 0) NoError {
         let token : Token = 0;
         memcpy(@token, + ast_type Ast.token, sizeof Token);
         if eq type_value(@explicit_type) TypeNone {
@@ -757,11 +767,10 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             let ptr_type : Type = 0;
             if eq type_from_contract(@contract, count, TYPE_CONTRACT_CREATE, @ptr_type) NoError {
               { let _ = vs_push(+ symbol Symbol.value); }
-              { let _ : Type = 0; store64 @_ ts_push(ptr_type); } // TODO(lucas): pointer to which type?
+              { let _ : Type = 0; store64 @_ ts_push(ptr_type); }
             }
             else {
-              // TODO(lucas): handle error
-              assert(0, "failed to create type from contract\n");
+              typecheck_error_at(+ ast Ast.token, "invalid pointer type construction\n", NULL);
             }
           }
           else {
@@ -964,7 +973,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             let new_type_id : u64 = type_push_new(type, type_size); // TODO(lucas): handle error
 
             if neq rtype_node NULL {
-              if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, @explicit_rtype) NoError {
+              if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, @explicit_rtype, 1) NoError {
                 store64 + func Function.rtype explicit_rtype;
               }
               else {
@@ -989,7 +998,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 let arg_type : Type = 0;
 
                 let arg_type_node : ptr = cast ptr load64 + + arg_node Ast.node * sizeof ptr 0;
-                if eq type_contract_from_type_node(block, fs, arg_type_node, TYPE_CONTRACT_CREATE, @arg_type) NoError {
+                if eq type_contract_from_type_node(block, fs, arg_type_node, TYPE_CONTRACT_CREATE, @arg_type, 0) NoError {
                   let arg_type_id : u64 = type_lookup(arg_type);
                   assert(neq arg_type_id UINT64_MAX, "invalid type\n");
                   let size : u64 = compile_type_size(arg_type_id);
@@ -1010,6 +1019,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                     memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
                     store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead
                   }
+                }
+                else {
+                  typecheck_error_at(@arg_type_token, "unknown or invalid type\n", NULL);
                 }
               }
               else {
@@ -1357,23 +1369,18 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           let field_size : u64 = 0;
           let field_type : Type = 0;
 
-          if eq type_contract_from_type_node(block, fs, field_type_node, TYPE_CONTRACT_CREATE, @field_type) NoError {
-            let type_id : u64 = type_lookup(field_type); // TODO(lucas): this should not have failed if we are in this block because type_contract_from_type_node ensures this
+          if eq type_contract_from_type_node(block, fs, field_type_node, TYPE_CONTRACT_CREATE, @field_type, 0) NoError {
+            let type_id : u64 = type_lookup(field_type);
             store64 @field_size compile_type_size(type_id);
           }
           else {
-            // TODO(lucas): handle error
-            assert(0, "invalid type in struct\n");
+            typecheck_error_at(+ field_type_node Ast.token, "unknown or invalid type in struct field\n", NULL);
           }
 
           let field_array_specifier = NULL;
-          let field_sub_type = NULL; // NOTE(lucas): ignore for now
           let field_count = load64 + field_type_node Ast.count;
           if > field_count 0 {
             store64 @field_array_specifier load64 + + field_type_node Ast.node * sizeof ptr 0;
-          }
-          if > field_count 1 {
-            store64 @field_sub_type load64 + + field_type_node Ast.node * sizeof ptr 1;
           }
 
           if field_array_specifier {
@@ -1451,7 +1458,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let expr_type : Type = 0;
       store64 @expr_type ts_pop();
       let cast_type : Type = 0;
-      { let _ = type_contract_from_type_node(block, fs, type_expr, TYPE_CONTRACT_CREATE, @cast_type); }
+      { let _ = type_contract_from_type_node(block, fs, type_expr, TYPE_CONTRACT_CREATE, @cast_type, 0); }
       if and neq type_value(@cast_type) TypeNone neq type_value(@cast_type) TypeFunc {
         { let _ : Type = 0; store64 @_ ts_push(cast_type); }
       }

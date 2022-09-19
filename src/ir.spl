@@ -172,6 +172,10 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
   store64 + op Op.src1 src1;
 }
 
+fn fetch_op(i : u64) -> ptr<Op> {
+  cast ptr<Op> + + c Compile.ins * sizeof Op i;
+}
+
 fn compile_type_size(type_id : u64) -> u64 {
   let result = 0;
   if < type_id load64 + c Compile.type_count {
