@@ -1,6 +1,6 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
 fn main -> none {
 }

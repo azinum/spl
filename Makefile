@@ -44,5 +44,9 @@ install:
 	mkdir -p ${LIB_DIR}/${PROG}
 	cp -rp lib ${LIB_DIR}/${PROG}
 
+uninstall:
+	rm ${INSTALL_DIR}/${PROG}
+	rm -dr ${LIB_DIR}/${PROG}
+
 .SUFFIXES:
 .PHONY: spl main test examples/* bootstrap

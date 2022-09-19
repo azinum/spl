@@ -1,0 +1,164 @@
+// bst.spl
+// binary search tree implementation
+
+include "lib/common.spl"
+
+struct Bst (
+  left : ptr,
+  right : ptr,
+  key : u64
+);
+
+const MAX_BST_NODES = 1024;
+let bst_nodes : Bst : MAX_BST_NODES = 0;
+let bst_node_count = 0;
+
+fn bst_allocate_node -> ptr<Bst> {
+  let result = cast ptr<Bst> NULL;
+  if < bst_node_count MAX_BST_NODES {
+    store64 @result + @bst_nodes * sizeof Bst bst_node_count;
+    store64 @bst_node_count + 1 bst_node_count;
+  }
+  result;
+}
+
+fn bst_allocate_and_init_node(key : u64) -> ptr<Bst> {
+  let node = bst_allocate_node();
+  if node {
+    store64 + node Bst.left NULL;
+    store64 + node Bst.right NULL;
+    store64 + node Bst.key key;
+  }
+  node;
+}
+
+fn bst_min_value(root : ptr<Bst>) -> ptr<Bst> {
+  let current = root;
+  let done = 0;
+  while eq done 0 {
+    if current {
+      if load64 + current Bst.left {
+        store64 @current load64 + current Bst.left;
+      }
+      else {
+        store64 @done 1;
+      }
+    }
+    else {
+      store64 @done 1;
+    }
+  }
+  current;
+}
+
+fn bst_search(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+  let result = cast ptr<Bst> NULL;
+  if eq root NULL {
+    store64 @result root;
+  }
+  else if eq key load64 + root Bst.key {
+    store64 @result root;
+  }
+  else {
+    if < load64 + root Bst.key key {
+      store64 @result bst_search(cast ptr<Bst> load64 + root Bst.right, key);
+    }
+    else {
+      store64 @result bst_search(cast ptr<Bst> load64 + root Bst.left, key);
+    }
+  }
+  result;
+}
+
+fn bst_insert(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+  if eq root NULL {
+    store64 @root bst_allocate_and_init_node(key);
+  }
+  else {
+    let node_key = load64 + root Bst.key;
+    if > key node_key {
+      store64 + root Bst.right bst_insert(cast ptr<Bst> load64 + root Bst.right, key);
+    }
+    else if < key node_key {
+      store64 + root Bst.left bst_insert(cast ptr<Bst> load64 + root Bst.left, key);
+    }
+  }
+  root;
+}
+
+fn bst_delete_node(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+  if neq root NULL {
+    let node_key = load64 + root Bst.key;
+    if < key node_key {
+      store64 + root Bst.left bst_delete_node(cast ptr<Bst> load64 + root Bst.left, key);
+    }
+    else if > key node_key {
+      store64 + root Bst.right bst_delete_node(cast ptr<Bst> load64 + root Bst.right, key);
+    }
+    // found the node that we want to delete
+    else {
+      // no children
+      if and
+          eq load64 + root Bst.left NULL
+          eq load64 + root Bst.right NULL {
+        store64 @root NULL;
+      }
+      // one or no children
+      else if eq load64 + root Bst.left NULL {
+        store64 @root load64 + root Bst.right;
+      }
+      else if eq load64 + root Bst.right NULL {
+        store64 @root load64 + root Bst.left;
+      }
+      // two children
+      else {
+        let temp = bst_min_value(cast ptr<Bst> load64 + root Bst.right);
+        store64 + root Bst.key load64 + temp Bst.key;
+        store64 + root Bst.right bst_delete_node(cast ptr<Bst> load64 + root Bst.right, load64 + temp Bst.key);
+      }
+    }
+  }
+  root;
+}
+
+fn _bst_print(root : ptr<Bst>, level : u64, fd : u64) -> none {
+  if root {
+    let i = 0;
+    while < i level {
+      dprintf(fd, "  ", NULL);
+      store64 @i + 1 i;
+    }
+    let key = load64 + root Bst.key;
+    dprintf(fd, "%d\n", @key);
+    _bst_print(cast ptr<Bst> load64 + root Bst.left, + 1 level, fd);
+    _bst_print(cast ptr<Bst> load64 + root Bst.right, + 1 level, fd);
+  }
+}
+
+fn bst_print(root : ptr<Bst>, fd : u64) -> none {
+  _bst_print(root, 0, fd);
+}
+
+fn bst_print_in_order(root : ptr<Bst>, fd : u64) -> none {
+  if root {
+    let key = load64 + root Bst.key;
+    bst_print_in_order(cast ptr<Bst> load64 + root Bst.left, fd);
+    dprintf(fd, "%d\n", @key);
+    bst_print_in_order(cast ptr<Bst> load64 + root Bst.right, fd);
+  }
+}
+
+fn main -> none {
+  store64 @bst_node_count 0;
+  let root = bst_insert(cast ptr<Bst> NULL, 5);
+  { let _ = bst_insert(root, 3); }
+  { let _ = bst_insert(root, 2); }
+  { let _ = bst_insert(root, 4); }
+  { let _ = bst_insert(root, 7); }
+  { let _ = bst_insert(root, 6); }
+  { let _ = bst_insert(root, 8); }
+  { let _ = bst_delete_node(root, 5); }
+  { let _ = bst_delete_node(root, 3); }
+  // bst_print(root, STDOUT_FILENO);
+  bst_print_in_order(root, STDOUT_FILENO);
+}

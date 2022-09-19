@@ -10,7 +10,7 @@ enum u64 (
 
 enum u64 (
   TYPE_CONSTRAINT_VALID, // valid constraint, we're good to continue
-  TYPE_CONSTRAINT_INVALID,  // not a valid constrain, stop
+  TYPE_CONSTRAINT_INVALID,  // not a valid constraint, stop
   TYPE_CONSTRAINT_UNDECIDABLE // unwrapping of type is needed, thus we can not decide if the constraint is valid or not at this moment
 );
 
@@ -977,8 +977,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 store64 + func Function.rtype explicit_rtype;
               }
               else {
-                assert(0, "invalid rtype in function definition\n");
-                // TODO(lucas): handle error
+                typecheck_error_at(+ rtype_node Ast.token, "unknown or invalid return type in function definition\n", NULL);
               }
             }
 

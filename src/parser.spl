@@ -551,7 +551,7 @@ fn parse_statement -> ptr {
   }
   else if eq type T_STATIC_ASSERT {
     store64 @stmt ast_create(AstStaticAssert);
-    // memcpy(+ stmt Ast.token, @token, sizeof Token); // TODO(lucas): some strange behaviour happens here, bug, investigate!! could it something wrong with the token which is being copied here?
+    memcpy(+ stmt Ast.token, @token, sizeof Token); // NOTE(lucas): there was some strange behaviour here, look here if something goes wrong
     lexer_next(); // skip `static_assert`
     ast_push(stmt, parse_expr());
     store64 @type load64 + @token Token.type;

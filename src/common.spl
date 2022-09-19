@@ -22,17 +22,17 @@ fn exec_command_echoed(fd : u64, command_list : ptr) -> none {
   if load64 + @options Options.verbose {
     let it = command_list;
     let done : u64 = 0;
-    printf("[cmd]: ", NULL);
+    dprintf(fd, "[cmd]: ", NULL);
     while eq done 0 {
       if eq load64 it NULL {
         store64 @done 1;
       }
       else {
-        printf("%s ", it);
+        dprintf(fd, "%s ", it);
         store64 @it + sizeof cstr it;
       }
     }
-    printf("\n", NULL);
+    dprintf(fd, "\n", NULL);
   }
   exec_command(command_list);
 }
