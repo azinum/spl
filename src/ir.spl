@@ -1,11 +1,5 @@
 // ir.spl
 
-fn o(fd : u64, format : cstr, args : any) -> none {
-  dprintf(fd, format, args);
-}
-
-fn vo_empty(fd : u64, format : cstr, args : any) -> none {}
-
 // Ir_code
 enum u64 (
   I_NOP,
@@ -62,88 +56,7 @@ enum u64 (
   MAX_IR_CODE
 );
 
-const MAX_NAME_SIZE = 64;
-
-struct Symbol (
-  name                : u8 : MAX_NAME_SIZE,
-  imm                 : u64,
-  size                : u64,
-  num_elements_init   : u64,
-  konst               : u64,
-  local_id            : u64,
-  sym_type            : u64,
-  type                : Type,
-  token               : Token,
-  value               : Value,
-  ref_count           : u64
-);
-
-const MAX_SYMBOL = 4096;
-const MAX_SYMBOL_PER_BLOCK = 1024;
-const MAX_STATIC_DATA = * 128 1024;
-const MAX_CSTRING = 1024;
-const MAX_SYSCALL_FUNCTION = 7;
-
-struct Block (
-  symbols      : u64 : MAX_SYMBOL_PER_BLOCK, // index into compile state symbols
-  symbol_count : u64,
-  parent       : ptr
-);
-
-struct Op (
-  i    : u64,
-  dest : u64,
-  src0 : u64,
-  src1 : u64
-);
-
-const MAX_TYPE_STACK = 256;
-const MAX_INS = * 128 1024;  // TODO(lucas): temp
-
-// how many types can we use to construct a type contract
-const MAX_TYPE_CONTRACT_STACK = 16;
-
-struct Compile (
-  ins                 : Op : MAX_INS,
-  ins_count           : u64,
-
-  imm                 : u8 : MAX_STATIC_DATA,
-  imm_index           : u64,
-
-  symbols             : Symbol : MAX_SYMBOL,
-  symbol_count        : u64,
-
-  cstrings            : u64 : MAX_CSTRING,
-  cstring_count       : u64,
-
-  global              : Block,
-
-  label_count         : u64,  // labels that are used for branching
-
-  status              : u64,
-  entry_point         : u64,
-
-  ts                  : Type : MAX_TYPE_STACK, // type stack
-  ts_count            : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
-
-  vs                  : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
-  vs_count            : u64,
-
-  types               : Type : MAX_COMPILE_TYPE, // types should be stored in a hashmap or some other efficient data structure for quick access and modification
-  type_sizes          : u64 : MAX_COMPILE_TYPE,
-  type_count          : u64,  // how many types are there, including primitive and user defined types?
-
-  type_contract_stack : Type : MAX_TYPE_CONTRACT_STACK, // stack of types to construct a single type contract
-  type_contract_count : u64, // better naming needed here...
-
-  warning_count       : u64,
-  error_count         : u64,
-
-  struct_id           : u64 // NOTE(lucas): temporary
-);
-
 let ir_code_str : cstr : MAX_IR_CODE = "";
-let compile_type_str : cstr : MAX_COMPILE_TYPE = "";
 
 fn ir_func_signature(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 NoError;
 let _ir_compile = ir_func_signature;
@@ -152,9 +65,6 @@ enum u64 (
   TARGET_LINUX_NASM_X86_64,
   MAX_COMPILE_TARGET
 );
-
-// c : Compile*
-let c : ptr = NULL;
 
 // i : u64, op : Op*
 fn OP(i : u64, op : ptr) -> none {
@@ -187,30 +97,6 @@ fn compile_type_size(type_id : u64) -> u64 {
 fn block_init(block : ptr, parent : ptr) -> none {
   store64 + block Block.symbol_count 0;
   store64 + block Block.parent parent;
-}
-
-fn compile_error(message : cstr) -> none {
-  if eq load64 + c Compile.status NoError {
-    dprintf(STDERR_FILENO, "[compile-error]: %s", @message);
-    store64 + c Compile.status Error;
-  }
-  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
-}
-
-// token : Token*
-fn compile_error_at(token : ptr, message : cstr) -> none {
-  if eq load64 + c Compile.status NoError {
-    let args : any = (
-      load64 + token Token.filename,
-      load64 + token Token.line,
-      load64 + token Token.column,
-      message
-    );
-    dprintf(STDERR_FILENO, "[compile-error]: %s:%d:%d: %s", @args);
-    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
-    store64 + c Compile.status Error;
-  }
-  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
 fn ir_compile_warning(message : cstr) -> none {
@@ -290,38 +176,6 @@ fn ir_push_ins(op : ptr, ins_count : ptr) -> u64 {
 fn ir_pop_ins(op : ptr, ins_count : ptr) -> u64 {
   assert(0, "ir_pop_ins(): not implemented yet\n");
   NoError;
-}
-
-fn ir_push_value(value : ptr, size : u64) -> u64 {
-  let result : u64 = UINT64_MAX;
-  let address : u64 = load64 + c Compile.imm_index;
-  if < + address size MAX_STATIC_DATA {
-    memcpy(+ + c Compile.imm address, value, size);
-    store64 + c Compile.imm_index + load64 + c Compile.imm_index size;
-    store64 @result address;
-  }
-  else {
-    assert(0, "out of immediate data memory\n");
-  }
-  result;
-}
-
-fn ir_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
-  let address : u64 = ir_push_value(@length, sizeof length);
-  let value_address : u64 = ir_push_value(buffer, length);
-  if and neq address UINT64_MAX neq value_address UINT64_MAX {
-    if < load64 + c Compile.cstring_count MAX_CSTRING {
-      let cstring_count : u64 = load64 + c Compile.cstring_count;
-      store64 index cstring_count;
-      store64 + + c Compile.cstrings * sizeof u64 cstring_count address;
-      store64 + c Compile.cstring_count + 1 cstring_count;
-    }
-    else {
-      store64 @address UINT64_MAX;
-      assert(0, "cstring capacity reached\n");
-    }
-  }
-  address;
 }
 
 // fs : Function*, symbol : Symbol*, id : u64, ins_count : u64*
@@ -573,7 +427,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     let token : ptr = + ast Ast.token;
     let token_type : u64 = load64 + token Token.type;
     if eq token_type T_NUMBER {
-      let imm : u64 = ir_push_value(+ token Token.v, sizeof u64);
+      let imm : u64 = compile_push_value(+ token Token.v, sizeof u64);
       if neq imm UINT64_MAX {
         let op : Op = 0;
         OP_init(
@@ -591,7 +445,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     }
     else if eq token_type T_CSTRING {
       let index : u64 = UINT64_MAX;
-      let address : u64 = ir_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
+      let address : u64 = compile_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
       if neq address UINT64_MAX {
         let op : Op = 0;
         OP_init(
@@ -1063,7 +917,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     }
   }
   else if eq ast_type AstSizeof {
-    let imm : u64 = ir_push_value(+ + ast Ast.token Token.v, sizeof u64);
+    let imm : u64 = compile_push_value(+ + ast Ast.token Token.v, sizeof u64);
     if neq imm UINT64_MAX {
       let op : Op = 0;
       OP_init(

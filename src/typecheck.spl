@@ -27,7 +27,10 @@ fn typecheck_print_unused -> none {
       let ref_count = load64 + @symbol Symbol.ref_count;
       let sym_type = load64 + @symbol Symbol.sym_type;
       if and eq ref_count 0 or eq sym_type SYM_FUNC load64 + @options Options.dce_all {
-        ir_compile_warning_at(+ @symbol Symbol.token, "`?` defined but not used\n");
+        let args : any = (
+          + @symbol Symbol.name
+        );
+        warning_at(+ @symbol Symbol.token, "`%s` defined but not used\n", @args);
       }
       store64 @i + 1 i;
     }
@@ -649,7 +652,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
         }
         memcpy(@prev_value, @value, sizeof Value);
         if eq konst 1 {
-          store64 @imm ir_push_value(+ @value Value.num, sizeof u64);
+          store64 @imm compile_push_value(+ @value Value.num, sizeof u64);
         }
         store64 @i + 1 i;
       }
@@ -1300,7 +1303,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           let node = cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
           let symbol : ptr = NULL;
           let symbol_index : u64 = UINT64_MAX;
-          let imm : u64 = ir_push_value(+ @value Value.num, sizeof u64);
+          let imm : u64 = compile_push_value(+ @value Value.num, sizeof u64);
 
           if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
             store64 + symbol Symbol.imm imm;
@@ -1347,7 +1350,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
         let symbol : ptr = NULL;
         let symbol_index : u64 = UINT64_MAX;
-        let imm : u64 = ir_push_value(@field_offset, sizeof field_offset);
+        let imm : u64 = compile_push_value(@field_offset, sizeof field_offset);
         let value : Value = 0;
         store64 + @value Value.num field_offset;
         store64 + @value Value.konst 1;

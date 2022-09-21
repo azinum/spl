@@ -4,9 +4,22 @@ fn foo(x : u64) -> u64 + x 7;
 fn bar(x : u64) -> u64 * x x;
 fn baz(x : u64) -> u64 + x x;
 
+fn brr(x : u64) -> u64 {
+  let result = 0;
+  if < x 3 {
+    store64 @result x
+  }
+  else {
+    store64 @result + brr(- x 1) brr(- x 2);
+  }
+  result;
+}
+
 fn test_function -> none {
   let info = "function.spl:test_function()";
   assert_equal(foo(3), 10, info);
   assert_equal(bar(3), 9, info);
   assert_equal(baz(3), 6, info);
+  assert_equal(foo(bar(baz(3))), 43, info);
+  assert_equal(brr(12), 233, info);
 }

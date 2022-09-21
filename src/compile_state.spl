@@ -1,0 +1,262 @@
+// compile_state.spl
+
+const MAX_NAME_SIZE = 64;
+
+struct Symbol (
+  name                : u8 : MAX_NAME_SIZE,
+  imm                 : u64,
+  size                : u64,
+  num_elements_init   : u64,
+  konst               : u64,
+  local_id            : u64,
+  sym_type            : u64,
+  type                : Type,
+  token               : Token,
+  value               : Value,
+  ref_count           : u64
+);
+
+const MAX_SYMBOL = 4096;
+const MAX_SYMBOL_PER_BLOCK = 1024;
+const MAX_STATIC_DATA = * 128 1024;
+const MAX_CSTRING = 1024;
+const MAX_SYSCALL_FUNCTION = 7;
+
+struct Block (
+  symbols      : u64 : MAX_SYMBOL_PER_BLOCK, // index into compile state symbols
+  symbol_count : u64,
+  parent       : ptr
+);
+
+struct Op (
+  i    : u64,
+  dest : u64,
+  src0 : u64,
+  src1 : u64
+);
+
+const MAX_TYPE_STACK = 256;
+const MAX_INS = * 128 1024;  // TODO(lucas): temp
+
+// how many types can we use to construct a type contract
+const MAX_TYPE_CONTRACT_STACK = 16;
+
+struct Compile (
+  ins                 : Op : MAX_INS,
+  ins_count           : u64,
+
+  imm                 : u8 : MAX_STATIC_DATA,
+  imm_index           : u64,
+
+  symbols             : Symbol : MAX_SYMBOL,
+  symbol_count        : u64,
+
+  cstrings            : u64 : MAX_CSTRING,
+  cstring_count       : u64,
+
+  global              : Block,
+
+  label_count         : u64,  // labels that are used for branching
+
+  status              : u64,
+  entry_point         : u64,
+
+  ts                  : Type : MAX_TYPE_STACK, // type stack
+  ts_count            : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
+
+  vs                  : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
+  vs_count            : u64,
+
+  types               : Type : MAX_COMPILE_TYPE, // types should be stored in a hashmap or some other efficient data structure for quick access and modification
+  type_sizes          : u64 : MAX_COMPILE_TYPE,
+  type_count          : u64,  // how many types are there, including primitive and user defined types?
+
+  type_contract_stack : Type : MAX_TYPE_CONTRACT_STACK, // stack of types to construct a single type contract
+  type_contract_count : u64, // better naming needed here...
+
+  warning_count       : u64,
+  error_count         : u64,
+
+  struct_id           : u64 // NOTE(lucas): temporary
+);
+
+// c : Compile*
+let c : ptr = NULL;
+
+let compile_type_str : cstr : MAX_COMPILE_TYPE = "";
+
+fn compile_error(message : cstr) -> none {
+  if eq load64 + c Compile.status NoError {
+    dprintf(STDERR_FILENO, "[compile-error]: %s", @message);
+    store64 + c Compile.status Error;
+  }
+  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
+}
+
+// token : Token*
+fn compile_error_at(token : ptr, message : cstr) -> none {
+  if eq load64 + c Compile.status NoError {
+    let args : any = (
+      load64 + token Token.filename,
+      load64 + token Token.line,
+      load64 + token Token.column,
+      message
+    );
+    dprintf(STDERR_FILENO, "[compile-error]: %s:%d:%d: %s", @args);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
+    store64 + c Compile.status Error;
+  }
+  store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
+}
+
+fn symbol_init(symbol : ptr) -> none {
+  memset(symbol, 0, sizeof Symbol);
+  store64 + symbol Symbol.imm UINT64_MAX;
+  store64 + symbol Symbol.size 0;
+  store64 + symbol Symbol.num_elements_init 0;
+  store64 + symbol Symbol.konst 0;
+  store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+  store64 + symbol Symbol.type TypeNone;
+  store64 + symbol Symbol.ref_count 0;
+}
+
+// block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
+fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
+  let result = Error;
+  if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
+    let copy : u8 : MAX_NAME_SIZE = cast u8 0;
+    memset(@copy, 0, MAX_NAME_SIZE);
+    strncpy(cast cstr @copy, cast cstr load64 + name Buffer.data, load64 + name Buffer.length);
+    let i = 0;
+    let count = load64 + block Block.symbol_count;
+    let found = 0;
+    let done = 0;
+    while and eq done 0 < i count {
+      let index : u64 = load64 + + block Block.symbols * sizeof u64 i;
+      let sym = + + c Compile.symbols * sizeof Symbol index;
+      if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
+        if neq symbol NULL {
+          store64 symbol sym;
+        }
+        if neq symbol_index NULL {
+          store64 symbol_index index;
+        }
+        store64 @result NoError;
+        store64 @done 1;
+        store64 @found 1;
+      }
+      store64 @i + 1 i;
+    }
+    if eq found 0 {
+      if neq levels_descend NULL {
+        store64 levels_descend + 1 load64 levels_descend;
+      }
+      store64 @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
+    }
+  }
+  result;
+}
+
+// block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
+fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+  let result = Error;
+  if < load64 + token Token.length MAX_NAME_SIZE {
+    if < load64 + c Compile.symbol_count MAX_SYMBOL {
+      if < load64 + block Block.symbol_count MAX_SYMBOL_PER_BLOCK {
+        let levels = 0; // how many levels did we descend before we found a symbol?
+        let token_buffer : Buffer = 0;
+        store64 + @token_buffer Buffer.data   load64 + token Token.buffer;
+        store64 + @token_buffer Buffer.length load64 + token Token.length;
+
+        // we are only allowed to create a new symbol if none was found in the current block
+        let lookup_result = compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
+        if and eq lookup_result NoError eq levels 0 {
+          let message = cast cstr tmp_it;
+          tmp_push_cstr("symbol `");
+          tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
+          tmp_push_cstr("` already exists\n");
+          tmp_push_byte(cast u8 0);
+          compile_error(message);
+          store64 @tmp_it message;
+        }
+        else {
+          let index = load64 + c Compile.symbol_count;
+          if neq symbol_index NULL {
+            store64 symbol_index index;
+          }
+          let block_index_address = * load64 + block Block.symbol_count sizeof u64;
+          // block->symbols[block->symbol_count] store64 index;
+          store64 + + block Block.symbols block_index_address index;
+          // *symbol store64 &c->symbols[index];
+          store64 symbol + + c Compile.symbols * sizeof Symbol index;
+
+          store64 + c Compile.symbol_count + 1 load64 + c Compile.symbol_count;
+          store64 + block Block.symbol_count + 1 load64 + block Block.symbol_count;
+
+          let s = cast ptr load64 symbol;
+          symbol_init(s);
+          memcpy(+ s Symbol.token, token, sizeof Token);
+          memcpy(+ s Symbol.name, load64 + token Token.buffer, load64 + token Token.length);
+          store64 @result NoError;
+        }
+      }
+      else {
+        assert(0, "symbol capacity in block reached\n");
+      }
+    }
+    else {
+      assert(0, "symbol capacity reached\n");
+    }
+  }
+  else {
+    assert(0, "value name too long\n");
+  }
+  result;
+}
+
+// TODO(lucas): put somewhere else
+fn warning_at(token : ptr, message : cstr, args : any) -> none {
+  if eq load64 + @options Options.enable_warnings 1 {
+    let info_args : any = (
+      load64 + token Token.filename,
+      load64 + token Token.line,
+      load64 + token Token.column
+    );
+    dprintf(STDERR_FILENO, "[warning]: %s:%d:%d: ", @info_args);
+    dprintf(STDERR_FILENO, message, args);
+    printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
+  }
+  store64 + c Compile.warning_count + 1 load64 + c Compile.warning_count;
+}
+
+fn compile_push_value(value : ptr, size : u64) -> u64 {
+  let result : u64 = UINT64_MAX;
+  let address : u64 = load64 + c Compile.imm_index;
+  if < + address size MAX_STATIC_DATA {
+    memcpy(+ + c Compile.imm address, value, size);
+    store64 + c Compile.imm_index + load64 + c Compile.imm_index size;
+    store64 @result address;
+  }
+  else {
+    assert(0, "out of immediate data memory\n");
+  }
+  result;
+}
+
+fn compile_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
+  let address : u64 = compile_push_value(@length, sizeof length);
+  let value_address : u64 = compile_push_value(buffer, length);
+  if and neq address UINT64_MAX neq value_address UINT64_MAX {
+    if < load64 + c Compile.cstring_count MAX_CSTRING {
+      let cstring_count : u64 = load64 + c Compile.cstring_count;
+      store64 index cstring_count;
+      store64 + + c Compile.cstrings * sizeof u64 cstring_count address;
+      store64 + c Compile.cstring_count + 1 cstring_count;
+    }
+    else {
+      store64 @address UINT64_MAX;
+      assert(0, "cstring capacity reached\n");
+    }
+  }
+  address;
+}

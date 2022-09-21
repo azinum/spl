@@ -23,11 +23,12 @@ include "src/type.spl"
 include "src/value.spl"
 include "src/ast.spl"
 include "src/parser.spl"
-include "src/ir.spl" // needs access to typechecker
+include "src/compile_state.spl"
+include "src/ir.spl"
 include "src/ir_optimize.spl"
+include "src/typecheck.spl"
 include "src/codegen_nasm_x86_64.spl"
 include "src/compile.spl"
-include "src/typecheck.spl"
 include "src/info.spl"
 
 fn usage(prog : cstr) -> none {
@@ -117,6 +118,7 @@ fn spl_start(filename : cstr) -> u64 {
                     // ast_print(load64 + @p Parser.ast, 0, debug_fd);
                     ir_print(debug_fd);
                     print_symbol_info(debug_fd);
+                    typecheck_print_types(debug_fd);
                     close(debug_fd);
                   }
                   else {
