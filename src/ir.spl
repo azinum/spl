@@ -86,19 +86,6 @@ fn fetch_op(i : u64) -> ptr<Op> {
   cast ptr<Op> + + c Compile.ins * sizeof Op i;
 }
 
-fn compile_type_size(type_id : u64) -> u64 {
-  let result = 0;
-  if < type_id load64 + c Compile.type_count {
-    store64 @result load64 + + c Compile.type_sizes * sizeof u64 type_id;
-  }
-  result;
-}
-
-fn block_init(block : ptr, parent : ptr) -> none {
-  store64 + block Block.symbol_count 0;
-  store64 + block Block.parent parent;
-}
-
 fn ir_compile_warning(message : cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
     dprintf(STDERR_FILENO, "[ir-compile-warning]: %s", @message);
@@ -542,6 +529,9 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         OP(I_PRINT, @op);
       }
       else if eq type T_DEREF {
+        OP(I_LOAD64, @op);
+      }
+      else if eq type T_DEREF_WORD {
         OP(I_LOAD64, @op);
       }
       else if eq type T_LOAD64 {

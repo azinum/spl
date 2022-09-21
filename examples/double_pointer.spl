@@ -2,8 +2,9 @@
 
 fn main -> none {
   let a = 0;
-  let b = @a;
+  let b = at a;
   store64 b 12;
-  let dptr : ptr = @b;
-  print load64 load64 dptr;
+  let dptr = at b;
+  let c : u64 = deref deref dptr;
+  print c;
 }

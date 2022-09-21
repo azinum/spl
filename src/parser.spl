@@ -180,8 +180,9 @@ fn parse_expr -> ptr {
       parser_error("expected identifier after `@`, but got `?`\n");
     }
   }
-  else if or or or or or or or
+  else if or or or or or or or or
     eq type T_DEREF
+    eq type T_DEREF_WORD
     eq type T_LOAD64
     eq type T_LOAD32
     eq type T_LOAD16

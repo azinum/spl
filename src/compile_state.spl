@@ -260,3 +260,8 @@ fn compile_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
   }
   address;
 }
+
+fn block_init(block : ptr, parent : ptr) -> none {
+  store64 + block Block.symbol_count 0;
+  store64 + block Block.parent parent;
+}

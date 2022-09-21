@@ -113,6 +113,14 @@ fn typecheck_print_stack(fd : u64) -> none {
   }
 }
 
+fn compile_type_size(type_id : u64) -> u64 {
+  let result = 0;
+  if < type_id load64 + c Compile.type_count {
+    store64 @result load64 + + c Compile.type_sizes * sizeof u64 type_id;
+  }
+  result;
+}
+
 fn type_lookup(type : Type) -> u64 {
   let result : u64 = UINT64_MAX;
   let done : u64 = 0;
@@ -171,9 +179,12 @@ fn type_check_constraints(container : Type, type : Type) -> u64 {
 
 fn type_deflate(type : Type) -> Type {
   let result : Type = 0;
+  type_init(@result, TypeNone, 0);
   let id = type_id(@type);
   if neq id 0 {
-    store64 @result type_from_id(id);
+    if type_is_container(type) {
+      store64 @result type_from_id(id);
+    }
   }
   result;
 }
@@ -908,6 +919,18 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           eq token_type T_LOAD8 {
           { let _ : Type = 0; store64 @_ ts_pop(); }
           { let _ : Type = 0; store64 @_ ts_push(type_create(TypeUnsigned64, 0)); }
+        }
+        else if eq token_type T_DEREF_WORD {
+          let type : Type = 0;
+          store64 @type ts_pop();
+          let deflated_type : Type = 0;
+          store64 @deflated_type type_deflate(type);
+          if neq type_value(@deflated_type) TypeNone {
+            { let _ : Type = 0; store64 @_ ts_push(deflated_type); }
+          }
+          else {
+            typecheck_error_at(+ ast Ast.token, "can not deflate type\n", NULL);
+          }
         }
         else if eq token_type T_LOGICAL_NOT {
           let value : Value = 0;

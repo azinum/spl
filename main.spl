@@ -3,4 +3,7 @@
 include "lib/common.spl"
 
 fn main -> none {
+  let b = 12;
+  let a = at b;
+  print deref a;
 }

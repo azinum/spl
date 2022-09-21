@@ -12,6 +12,7 @@ enum u64 (
   T_AT, // `@`
   T_AT_WORD, // `at` NOTE(lucas): temporary keyword
   T_DEREF,
+  T_DEREF_WORD, // `deref`
   T_ADD,
   T_SUB,
   T_MUL,
@@ -300,6 +301,9 @@ fn lexer_read_symbol -> none {
   else if eq 1 compare(buffer, "at", length) {
     store64 + @token Token.type T_AT_WORD;
   }
+  else if eq 1 compare(buffer, "deref", length) {
+    store64 + @token Token.type T_DEREF_WORD;
+  }
   else {
     store64 + @token Token.type T_IDENTIFIER;
   }
@@ -573,6 +577,7 @@ fn lexer_init(filename : any, source : any) -> none {
   store64 + @token_type_str * T_AT            sizeof cstr "T_AT";
   store64 + @token_type_str * T_AT_WORD       sizeof cstr "T_AT_WORD";
   store64 + @token_type_str * T_DEREF         sizeof cstr "T_DEREF";
+  store64 + @token_type_str * T_DEREF_WORD    sizeof cstr "T_DEREF_WORD";
   store64 + @token_type_str * T_ADD           sizeof cstr "T_ADD";
   store64 + @token_type_str * T_SUB           sizeof cstr "T_SUB";
   store64 + @token_type_str * T_MUL           sizeof cstr "T_MUL";
