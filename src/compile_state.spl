@@ -1,7 +1,5 @@
 // compile_state.spl
 
-const MAX_NAME_SIZE = 64;
-
 struct Symbol (
   name                : u8 : MAX_NAME_SIZE,
   imm                 : u64,
@@ -77,7 +75,8 @@ struct Compile (
   warning_count       : u64,
   error_count         : u64,
 
-  struct_id           : u64 // NOTE(lucas): temporary
+  struct_id           : u64,
+  struct_type_info    : Struct_type_info : MAX_COMPILE_TYPE
 );
 
 // c : Compile*
