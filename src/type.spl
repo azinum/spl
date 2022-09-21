@@ -1,5 +1,7 @@
 // type.spl
 
+const MAX_NAME_SIZE = 64;
+
 enum u64 (
   TypeNone,
   TypeAny,
@@ -29,6 +31,21 @@ enum u64 (
   SYM_FUNC,
   SYM_LOCAL_VAR,
   SYM_GLOBAL_VAR
+);
+
+// TODO(lucas): dynamic allocation
+const MAX_NUM_STRUCT_FIELDS = 64;
+
+// TODO(lucas): field offset
+struct Struct_field (
+  name : u8 : MAX_NAME_SIZE,
+  type : Type,
+  count : u64
+);
+
+struct Struct_type_info (
+  fields : Struct_field : MAX_NUM_STRUCT_FIELDS,
+  count : u64
 );
 
 // t : Type*

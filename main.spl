@@ -1,9 +1,16 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
+
+struct B (
+  a : u64,
+  b : u64
+);
+
+struct A (
+  a : u64,
+  b : B
+);
 
 fn main -> none {
-  let b = 12;
-  let a = at b;
-  print deref a;
 }

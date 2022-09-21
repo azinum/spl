@@ -16,6 +16,9 @@ enum u64 (
 
 fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
 let _typecheck = typecheck_function;
+fn type_print_func_sig(fd : u64, type : Type) -> none {}
+let _type_print = type_print_func_sig;
+let _type_printline = type_print_func_sig;
 
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
@@ -64,6 +67,118 @@ fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
+fn struct_field_init(field : ptr<Struct_field>, name : ptr<u8>, length : u64, type : Type, count : u64) -> u64 {
+  let result = Error;
+  if < length MAX_NAME_SIZE {
+    strncpy(cast cstr + field Struct_field.name, cast cstr name, length);
+    store64 + field Struct_field.type type;
+    store64 + field Struct_field.count count;
+    store64 @result NoError;
+  }
+  result;
+}
+
+fn struct_type_info_init(info : ptr<Struct_type_info>) -> none {
+  store64 + info Struct_type_info.count 0;
+}
+
+fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8>) -> ptr<Struct_field> {
+  let result = cast ptr<Struct_field> NULL;
+
+  let i = 0;
+  let count = load64 + info Struct_type_info.count;
+  while < i count {
+    let lookup = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field i;
+    if eq strncmp(cast cstr + lookup Struct_field.name, cast cstr name, MAX_NAME_SIZE) 0 {
+      store64 @result lookup;
+    }
+    store64 @i + 1 i;
+  }
+
+  result;
+}
+
+fn struct_create_field(info : ptr<Struct_type_info>, field : ptr<Struct_field>) -> u64 {
+  let result = Error;
+  if eq struct_lookup_field(info, cast ptr<u8> + field Struct_field.name) NULL {
+    let index = cast ptr<u64> + info Struct_type_info.count;
+    let new_field = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field deref index;
+    store64 index + 1 deref index;
+    memcpy(new_field, field, sizeof Struct_field);
+    store64 @result NoError;
+  }
+  result;
+}
+
+fn struct_fetch_field(info : ptr<Struct_type_info>, field_index : u64) -> ptr<Struct_field> {
+  let result = cast ptr<Struct_field> NULL;
+  let count = load64 + info Struct_type_info.count;
+  if < field_index count {
+    store64 @result + + info Struct_type_info.fields * sizeof Struct_field field_index;
+  }
+  result;
+}
+
+fn struct_fetch_type_info(id : u64) -> ptr<Struct_type_info> {
+  let result = cast ptr<Struct_type_info> NULL;
+  let struct_id = load64 + c Compile.struct_id;
+  if < id struct_id {
+    store64 @result + + c Compile.struct_type_info * sizeof Struct_type_info id;
+  }
+  result;
+}
+
+fn struct_type_push(info : ptr<Struct_type_info>) -> u64 {
+  let result = NoError;
+  let index = load64 + c Compile.struct_id;
+  memcpy(cast any + + c Compile.struct_type_info * sizeof Struct_type_info index, info, sizeof Struct_type_info);
+  result;
+}
+
+fn struct_type_info_print(fd : u64, info : ptr<Struct_type_info>, flat : u64) -> none {
+  let i = 0;
+  let count = load64 + info Struct_type_info.count;
+  dprintf(fd, "( ", NULL);
+  if eq flat 0 {
+    dprintf(fd, "\n", NULL);
+  }
+  while < i count {
+    let field = struct_fetch_field(info, i);
+    let field_type : Type = 0;
+    let field_count = load64 + field Struct_field.count;
+
+    store64 @field_type load64 + field Struct_field.type;
+
+    let args : any = (
+      + field Struct_field.name
+    );
+    if eq flat 0 {
+      dprintf(fd, "  ", NULL);
+    }
+    dprintf(fd, "%s : ", @args);
+    _type_print(fd, field_type);
+    if > field_count 1 {
+      dprintf(fd, " : %d", @field_count);
+    }
+    store64 @i + 1 i;
+    if < i count {
+      dprintf(fd, ",", NULL);
+    }
+    if eq flat 0 {
+      dprintf(fd, "\n", NULL);
+    }
+    else {
+      dprintf(fd, " ", NULL);
+    }
+  }
+  dprintf(fd, ")", NULL);
+}
+
+fn struct_type_info_printline(fd : u64, info : ptr<Struct_type_info>, flat : u64) -> none {
+  struct_type_info_print(fd, info, flat);
+  dprintf(fd, "\n", NULL);
+}
+
 fn type_print(fd : u64, type : Type) -> none {
   // check if this is a container type
   if eq type_value(@type) TypePtr {
@@ -76,7 +191,17 @@ fn type_print(fd : u64, type : Type) -> none {
     type_print(fd, next_type);
     dprintf(fd, ">", NULL);
   }
-  else if or eq type_value(@type) TypeStruct eq type_value(@type) TypeFunc {
+  else if eq type_value(@type) TypeStruct {
+    let id = type_id(@type);
+    let args : any = (
+      load64 + @compile_type_str * sizeof cstr type_value(@type),
+      id
+    );
+    dprintf(fd, "%s<%d> ", @args);
+    let type_info = struct_fetch_type_info(id);
+    struct_type_info_print(fd, type_info, 1);
+  }
+  else if eq type_value(@type) TypeFunc {
     let args : any = (
       load64 + @compile_type_str * sizeof cstr type_value(@type),
       type_id(@type)
@@ -1359,9 +1484,16 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let i : u64 = 0;
       let count : u64 = load64 + fields Ast.count;
       let fail : u64 = 0;
+
+      let type_info : Struct_type_info = 0;
+      struct_type_info_init(at type_info);
+      let struct_type_field : Struct_field = 0;
+
       while and eq fail 0 < i count {
         let field = cast ptr load64 + + fields Ast.node * sizeof ptr i;
         let field_type_node = cast ptr load64 + + field Ast.node * sizeof ptr 0; // type + array specifier
+        let field_name = cast cstr load64 + + field Ast.token Token.buffer;
+        let field_length = load64 + + field Ast.token Token.length;
 
         let it = tmp_it;
         tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
@@ -1434,6 +1566,11 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
               }
             }
           }
+          // done constructing this struct field
+          if eq fail 0 {
+            { let _ = struct_field_init(at struct_type_field, cast ptr<u8> field_name, field_length, field_type, field_count); }
+            { let _ = struct_create_field(at type_info, at struct_type_field); }
+          }
 
           // update field offset
           store64 @field_offset + field_offset field_size;
@@ -1466,6 +1603,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           TypeStruct,
           load64 + c Compile.struct_id
         );
+        { let _ = struct_type_push(at type_info); }
         store64 + c Compile.struct_id + 1 load64 + c Compile.struct_id;
         store64 + symbol Symbol.type type;
         memcpy(+ symbol Symbol.value, @value, sizeof Value);
@@ -1525,6 +1663,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 fn typecheck_program(ast : ptr) -> u64 {
   assert(cast u64 ast, "something went very wrong\n");
   store64 @_typecheck typecheck;
+  store64 @_type_print type_print;
+  store64 @_type_printline type_printline;
 
   let time_start : timespec = 0;
   let time_end : timespec = 0;
