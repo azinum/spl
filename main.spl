@@ -2,5 +2,15 @@
 
 // include "lib/common.spl"
 
+struct B (
+  a : u64,
+  b : u64
+);
+
+struct A (
+  a : u64,
+  b : B
+);
+
 fn main -> none {
 }
