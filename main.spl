@@ -1,16 +1,9 @@
 // main.spl
 
-// include "lib/common.spl"
-
-struct B (
-  a : u64,
-  b : u64
-);
-
-struct A (
-  a : u64,
-  b : B
-);
+include "lib/common.spl"
+include "lib/random.spl"
 
 fn main -> none {
+  random_init(RANDOM_LC, time());
+  print random_range(0, 10);
 }

@@ -37,6 +37,10 @@ fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
   linux_clock_gettime(clock_id, cast ptr<timespec> spec);
 }
 
+fn nanosleep(req : ptr, remaining : ptr) -> none {
+  linux_nanosleep(cast ptr<timespec> req, cast ptr<timespec> remaining);
+}
+
 fn memory_map(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
   linux_mmap(start, length, prot, flags, fd, offset);
 }

@@ -368,9 +368,12 @@ fn linux_exit(error_code : u64) -> none { let _ = syscall1(SYS_exit, error_code)
 fn linux_time -> u64 syscall1(SYS_time, 0);
 fn linux_fsync(fd : u64) -> none { print syscall1(SYS_fsync, fd); }
 
-// spec : timespec*
 fn linux_clock_gettime(clock_id : u64, spec : ptr<timespec>) -> u64 {
   syscall2(SYS_clock_gettime, clock_id, spec);
+}
+
+fn linux_nanosleep(req : ptr<timespec>, remaining : ptr<timespec>) -> none {
+  let _ = syscall2(SYS_nanosleep, req, remaining);
 }
 
 fn linux_mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {

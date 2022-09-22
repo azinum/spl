@@ -1,0 +1,28 @@
+// random.spl
+
+enum u64 (
+  RANDOM_LC,
+
+  MAX_RANDOM_GENERATOR
+);
+
+let current_random_seed = 0;
+
+fn random_func_signature -> u64 0;
+let random = random_func_signature;
+
+fn random_lc -> u64 {
+  store64 @current_random_seed % + (* (current_random_seed) 16807) 13 2147483647;
+  current_random_seed;
+}
+
+fn random_init(mode : u64, seed : u64) -> none {
+  store64 @current_random_seed seed;
+  if eq mode RANDOM_LC {
+    store64 @random random_lc;
+  }
+}
+
+fn random_range(from : u64, to : u64) -> u64 {
+  + from % random() + to 1;
+}
