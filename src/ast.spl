@@ -181,3 +181,6 @@ fn ast_init -> none {
   store64 @ast_node @ast_node_memory;
   store64 @ast_node_end + ast_node * sizeof Ast MAX_AST_NODE;
 }
+
+fn ast_free(ast : ptr) -> none {
+}

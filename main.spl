@@ -1,9 +1,7 @@
 // main.spl
 
 include "lib/common.spl"
-include "lib/random.spl"
+// include "lib/random.spl"
 
 fn main -> none {
-  random_init(RANDOM_LC, time());
-  print random_range(0, 10);
 }

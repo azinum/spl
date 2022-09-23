@@ -134,6 +134,7 @@ fn spl_start(filename : cstr) -> u64 {
         }
       }
       parser_free();
+      ast_free(NULL);
     }
     close(fd);
   }
