@@ -1542,12 +1542,14 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 @field_array_specifier load64 + + field_type_node Ast.node * sizeof ptr 0;
           }
 
+          let array_specifier_value : Value = 0;
+          store64 + @array_specifier_value Value.num 1;
+
           if field_array_specifier {
             if neq load64 + field_array_specifier Ast.type TypeNone {
               { let _ = typecheck_node_list(block, fs, field_array_specifier); }
               let array_specifier_type : Type = 0;
               store64 @array_specifier_type ts_pop();
-              let array_specifier_value : Value = 0;
               { let _ = vs_pop(@array_specifier_value); }
               if neq load64 + @array_specifier_value Value.konst 1 {
                 compile_error_at(+ field_type_node Ast.token, "field array specifier must be a compile time constant\n");
@@ -1570,7 +1572,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           }
           // done constructing this struct field
           if eq fail 0 {
-            { let _ = struct_field_init(at struct_type_field, cast ptr<u8> field_name, field_length, field_type, field_count, field_offset); }
+            { let _ = struct_field_init(at struct_type_field, cast ptr<u8> field_name, field_length, field_type, load64 + @array_specifier_value Value.num, field_offset); }
             { let _ = struct_create_field(at type_info, at struct_type_field); }
           }
 
