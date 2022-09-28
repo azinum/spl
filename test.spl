@@ -1,4 +1,5 @@
 // test.spl
+// basic test suite for a subset of language features
 
 include "lib/common.spl"
 
@@ -38,6 +39,7 @@ include "tests/bitwise.spl"
 include "tests/function.spl"
 include "tests/struct.spl"
 include "tests/array.spl"
+include "tests/const.spl"
 
 fn test_start -> none {
   printf("running tests...\n", NULL);
@@ -47,6 +49,7 @@ fn test_start -> none {
   test_function();
   test_struct();
   test_array();
+  test_const();
 }
 
 fn test_finalize -> none {

@@ -1,0 +1,65 @@
+// const.spl
+
+fn test_const -> none {
+  let info = "const.spl:test_const()";
+  {
+    const a = 0;
+    assert_equal(a, 0, info);
+  }
+  {
+    const a = + 2 2;
+    assert_equal(a, 4, info);
+  }
+  {
+    const a = - 4 2;
+    assert_equal(a, 2, info);
+  }
+  {
+    const a = * 2 2;
+    assert_equal(a, 4, info);
+  }
+  {
+    const a = / 8 2;
+    assert_equal(a, 4, info);
+  }
+  {
+    const a = % 10 6;
+    assert_equal(a, 4, info);
+  }
+  {
+    const a = lshift 1 7;
+    assert_equal(a, 128, info);
+  }
+  {
+    const a = rshift 128 7;
+    assert_equal(a, 1, info);
+  }
+  {
+    const a = < 4 1;
+    assert_equal(a, 0, info);
+  }
+  {
+    const a = > 4 1;
+    assert_equal(a, 1, info);
+  }
+  {
+    const a = eq 4 4;
+    assert_equal(a, 1, info);
+  }
+  {
+    const a = neq 4 4;
+    assert_equal(a, 0, info);
+  }
+  {
+    const a = and 0b1100 0b1001;
+    assert_equal(a, 8, info);
+  }
+  {
+    const a = not 0xf;
+    assert_equal(a, 0, info);
+  }
+  {
+    const a = ~0b1;
+    assert_equal(a, - UINT64_MAX 1, info);
+  }
+}
