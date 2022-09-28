@@ -42,7 +42,6 @@ OPTIONS:
    no-debug        - do not write debug information
    enable-warnings - enable basic warnings
    disable-dce     - disable dead code elimination
-   dce-all         - eliminate all dead code, including all symbols
    verbose         - enable verbose output
    verbose-asm     - enable verbose assembly code
    version         - print spl version id
@@ -177,9 +176,6 @@ fn spl_main(argc : u64, argv : any) -> none {
       }
       else if eq 0 strcmp(argument, "disable-dce") {
         store64 + @options Options.disable_dce 1;
-      }
-      else if eq 0 strcmp(argument, "dce-all") {
-        store64 + @options Options.dce_all 1;
       }
       else if eq 0 strcmp(argument, "verbose") {
         store64 + @options Options.verbose 1;
