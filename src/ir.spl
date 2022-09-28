@@ -576,24 +576,23 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
       }
 
-      // type : Type*
-      let type : ptr = + symbol Symbol.type;
+      let type = cast ptr<Type> + symbol Symbol.type;
 
-      if eq type_value(type) TypeCString {
+      if eq type_value(cast ptr type) TypeCString {
         // NOTE(lucas): we change the type from CString -> Ptr because symbol is pointing to a string
         // store64 type TypePtr;
-        type_init(type, TypePtr, TypeCString);
+        type_init(cast ptr type, TypePtr, TypeCString);
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
       // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
       if neq fs NULL {
         let local_id : u64 = load64 + fs Function.locals_offset_counter;
-        let type_size : u64 = compile_type_size(type_value(type));
+        let type_size : u64 = compile_type_size(type_value(cast ptr type));
         let num_elements : u64 = / load64 + symbol Symbol.size type_size;
         const boundary_size : u64 = sizeof u64;
         let total_size : u64 = align(* num_elements type_size, boundary_size);
         store64 + fs Function.locals_offset_counter + load64 + fs Function.locals_offset_counter total_size;
-        if neq type_value(type) TypeStruct {
+        if neq type_value(cast ptr type) TypeStruct {
           if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
             let i : u64 = 0;
             let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
@@ -603,7 +602,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
               let op : Op = 0;
               OP_init(
                 I_MOVE_LOCAL,
-                type_value(type),
+                type_value(cast ptr type),
                 + local_id * + 1 load64 + fs Function.argc sizeof u64,
                 NONE,
                 @op

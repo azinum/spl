@@ -1392,7 +1392,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       }
     }
     else if eq ast_type AstSizeof {
-      // t : Token*
+      // t : ptr<Token>
       let t = cast ptr + ast Ast.token;
       let size : u64 = 0;
       let token_type = load64 + t Token.type;
@@ -1673,12 +1673,7 @@ fn typecheck_program(ast : ptr) -> u64 {
   let time_end : timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
-  let i = 0;
-  let count = load64 + ast Ast.count;
-  while < i count {
-    let _ = typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr i);
-    store64 @i + 1 i;
-  }
+  let _ = typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if neq load64 + c Compile.vs_count 0 {

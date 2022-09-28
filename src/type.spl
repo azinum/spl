@@ -48,24 +48,24 @@ struct Struct_type_info (
   count : u64
 );
 
-// t : Type*
-fn type_init(t : ptr, type : u64, id : u64) -> none {
-  store32 + t Type.type type;
-  store32 + t Type.id id;
+// t : ptr<Type>
+fn type_init(type : ptr, type_value : u64, id : u64) -> none {
+  store32 + type Type.type type_value;
+  store32 + type Type.id id;
 }
 
-fn type_create(type : u64, id : u64) -> Type {
+fn type_create(type_value : u64, id : u64) -> Type {
   let result : Type = 0;
-  type_init(@result, type, id);
+  type_init(@result, type_value, id);
   result;
 }
 
-// t : Type*
-fn type_value(t : ptr) -> u64 {
-  load32 + t Type.type;
+// type : ptr<Type>
+fn type_value(type : ptr) -> u64 {
+  load32 + type Type.type;
 }
 
-// t : Type*
+// t : ptr<Type>
 fn type_id(t : ptr) -> u64 {
   load32 + t Type.id;
 }

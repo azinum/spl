@@ -2,11 +2,6 @@
 
 // include "lib/common.spl"
 // include "lib/random.spl"
-const COUNT = 12;
-
-struct T (
-  a : u8 : * 2 COUNT
-);
 
 fn main -> none {
 }

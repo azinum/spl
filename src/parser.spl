@@ -198,7 +198,7 @@ fn parse_expr -> ptr {
     ast_push(expr, parse_expr());
   }
   else if eq type T_SIZEOF {
-    lexer_next();
+    lexer_next(); // skip `sizeof`
     let type = load64 + @token Token.type;
     let ok = or or or or or or or or or or
       eq type T_ANY
