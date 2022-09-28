@@ -446,6 +446,15 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
  push rbx\n"
       , NULL);
     }
+    else if eq ins I_XOR {
+      vo(fd, "; I_OR\n", NULL);
+      o(fd,
+"pop rax
+ pop rbx
+ xor rbx, rax
+ push rbx\n"
+      , NULL);
+    }
     else if eq ins I_EQ {
       vo(fd, "; I_EQ\n", NULL);
       o(fd,

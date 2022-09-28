@@ -14,4 +14,7 @@ fn test_bitwise -> none {
   assert_equal(rshift 32 2, 8, info);
   assert_equal(~~1, 1, info);
   assert_equal(~(- UINT64_MAX 3), 3, info);
+  assert_equal(xor 0b0011 0b0110, 5, info);
+  assert_equal(xor 0b1111 0b1111, 0, info);
+  assert_equal(xor xor 0b0011 0b0110 0b0110, 3, info);
 }

@@ -144,7 +144,7 @@ fn parse_expr -> ptr {
       memcpy(+ expr Ast.token, @t, sizeof Token);
     }
   }
-  else if or or or or or or or or or or or or
+  else if or or or or or or or or or or or or or
     eq type T_ADD
     eq type T_SUB
     eq type T_MUL
@@ -156,6 +156,7 @@ fn parse_expr -> ptr {
     eq type T_GT
     eq type T_AND
     eq type T_OR
+    eq type T_XOR
     eq type T_EQ
     eq type T_NEQ {
     store64 @expr ast_create(AstBinopExpression);

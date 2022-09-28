@@ -4,4 +4,10 @@
 // include "lib/random.spl"
 
 fn main -> none {
+  print xor
+    0b0011
+    0b0110;
+  print
+    0b0101;
+  print xor 0b0011 0b0110;
 }

@@ -209,6 +209,7 @@ fn compile_state_init -> u64 {
   store64 + @ir_code_str * I_LOGICAL_NOT        sizeof cstr "I_LOGICAL_NOT";
   store64 + @ir_code_str * I_NOT                sizeof cstr "I_NOT";
   store64 + @ir_code_str * I_OR                 sizeof cstr "I_OR";
+  store64 + @ir_code_str * I_XOR                sizeof cstr "I_XOR";
   store64 + @ir_code_str * I_EQ                 sizeof cstr "I_EQ";
   store64 + @ir_code_str * I_NEQ                sizeof cstr "I_NEQ";
   store64 + @ir_code_str * I_RET                sizeof cstr "I_RET";

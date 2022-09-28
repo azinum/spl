@@ -32,6 +32,7 @@ enum u64 (
   I_LOGICAL_NOT,
   I_NOT,
   I_OR,
+  I_XOR,
   I_EQ,
   I_NEQ,
   I_RET, // <x, frame_size, x>
@@ -508,6 +509,9 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       }
       else if eq type T_OR {
         OP(I_OR, @op);
+      }
+      else if eq type T_XOR {
+        OP(I_XOR, @op);
       }
       else if eq type T_EQ {
         OP(I_EQ, @op);
