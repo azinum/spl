@@ -145,6 +145,27 @@ fn spl_start(filename : cstr) -> u64 {
   result;
 }
 
+fn version_id_print(fd : u64) -> none {
+  const BUFFER_SIZE = 22;
+  let in_buff : u8 : BUFFER_SIZE = cast u8 0;
+  let out_buff : u8 : BUFFER_SIZE = cast u8 0;
+  memset(@in_buff, 0, sizeof in_buff);
+  memset(@out_buff, 0, sizeof out_buff);
+
+  u64_to_str(VERSION_ID, @in_buff, - BUFFER_SIZE 2);
+
+  let it = @in_buff;
+  let out_it = @out_buff;
+  while load8 it {
+    store8 out_it % + 33 % load16 it INT8_MAX INT8_MAX;
+    store64 @it + sizeof u16 it;
+    store64 @out_it + 1 out_it;
+  }
+
+  let args : any = @out_buff;
+  dprintf(fd, "spl version id: %s\n", @args);
+}
+
 fn spl_main(argc : u64, argv : any) -> none {
   common_init();
   config_init();
@@ -184,7 +205,7 @@ fn spl_main(argc : u64, argv : any) -> none {
         store64 + @options Options.verbose_asm 1;
       }
       else if eq 0 strcmp(argument, "version") {
-        dprintf(STDOUT_FILENO, "spl version id: %d\n", @VERSION_ID);
+        version_id_print(STDOUT_FILENO);
         store64 @should_exit 1;
       }
       else if eq 0 strcmp(argument, "help") {

@@ -208,7 +208,7 @@ fn digit_count(n : u64) -> u64 {
   count;
 }
 
-// TODO(lucas): implement alternative version of this function where there is no max_size parameter as it already is calculated in the function
+// TODO(lucas): this function is a bit broken when passing certain max_sizes. u64_to_str(1234, @buff, 2) for instance yields 61, but should yield 12.
 fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
   const base : u64 = 10;
   let count : u64 = digit_count(n);
@@ -229,6 +229,11 @@ fn u64_to_str(n : u64, str : any, max_size : u64) -> none {
     store64 @str - str 1;
     store64 @i   + 1 i;
   }
+}
+
+fn u64_to_str2(n : u64, str : any) -> none {
+  const max_size = 20;
+  u64_to_str(n, str, max_size);
 }
 
 fn is_digit(ch : u64) -> u64 {
