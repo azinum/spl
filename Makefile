@@ -12,7 +12,7 @@ clean:
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl
 
-examples: SPL_FLAGS+='verbose-asm'
+examples: SPL_FLAGS+=verbose-asm
 examples: ${SPL_EXAMPLES}
 
 run_examples: SPL_FLAGS+=run

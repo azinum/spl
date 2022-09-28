@@ -2,7 +2,7 @@
 
 enum u64 (
   RANDOM_LC,
-
+  RANDOM_XORSHIFT,
   MAX_RANDOM_GENERATOR
 );
 
@@ -16,10 +16,21 @@ fn random_lc -> u64 {
   current_random_seed;
 }
 
+fn random_xorshift -> u64 {
+  store64 @current_random_seed xor current_random_seed lshift current_random_seed 13;
+  store64 @current_random_seed xor current_random_seed rshift current_random_seed 17;
+  store64 @current_random_seed xor current_random_seed lshift current_random_seed 5;
+
+  current_random_seed;
+}
+
 fn random_init(mode : u64, seed : u64) -> none {
   store64 @current_random_seed seed;
   if eq mode RANDOM_LC {
     store64 @random random_lc;
+  }
+  else if eq mode RANDOM_XORSHIFT {
+    store64 @random random_xorshift;
   }
 }
 

@@ -1,22 +1,11 @@
 // noise.spl
 
 include "lib/common.spl"
-
-let lc_cur_seed : u64 = 0;
-
-fn lc_random_init(seed : u64) -> none {
-  store64 @lc_cur_seed seed;
-}
-
-fn lc_random -> u64 {
-  store64 @lc_cur_seed % + (* (lc_cur_seed) 16807) 13 2147483647;
-  lc_cur_seed;
-}
-
+include "lib/random.spl"
 
 fn main -> none {
   common_init();
-  lc_random_init(time());
+  random_init(RANDOM_LC, time());
 
   let mode : u64 = 434; // 0662
   let path : cstr = "noise.ppm";
@@ -35,18 +24,17 @@ fn main -> none {
     dprintf(fd, "P3\n# `%s`\n%d %d\n%d\n", @args);
 
     // generate and write pixels to ppm file
-    let x : u64 = 0;
     let y : u64 = 0;
     while < y h {
+      let x : u64 = 0;
       while < x w {
-        let color : u64 = % lc_random() max_value;
+        let color : u64 = random_range(0, max_value);
         let args : any = color, color, color;
         dprintf(fd, " %d %d %d ", @args);
         if not % x 4 dprintf(fd, "\n", NULL);
         store64 @x + 1 x;
       }
       dprintf(fd, "\n", NULL);
-      store64 @x 0;
       store64 @y + 1 y;
     }
     close(fd);
