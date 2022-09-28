@@ -1007,8 +1007,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 @num or load64 + @va Value.num load64 + @vb Value.num;
         }
         else if eq token_type T_XOR {
-          // store64 @num or load64 + @va Value.num load64 + @vb Value.num;
-          store64 @num 0;
+          store64 @num xor load64 + @va Value.num load64 + @vb Value.num;
         }
         else if eq token_type T_EQ {
           store64 @num eq load64 + @va Value.num load64 + @vb Value.num;

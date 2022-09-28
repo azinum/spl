@@ -28868,8 +28868,34 @@ test rax, rax
 jz L704
 lea rax, [rbp-760]
 push rax
-mov rax, 0
+lea rax, [rbp-632]
 push rax
+mov rax, [v1038]
+push rax
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
+lea rax, [rbp-736]
+push rax
+mov rax, [v1038]
+push rax
+pop rax
+pop rbx
+add rbx, rax
+push rbx
+pop rax
+xor rbx, rbx
+mov rbx, [rax]
+push rbx
+pop rax
+pop rbx
+xor rbx, rax
+push rbx
 pop rbx
 pop rax
 mov [rax], rbx
@@ -55149,7 +55175,7 @@ str722: db 118, 101, 114, 115, 105, 111, 110, 0
 str723: db 115, 112, 108, 32, 118, 101, 114, 115, 105, 111, 110, 32, 105, 100, 58, 32, 37, 100, 10, 0
 str724: db 104, 101, 108, 112, 0
 str725: db 110, 111, 32, 105, 110, 112, 117, 116, 32, 102, 105, 108, 101, 32, 119, 97, 115, 32, 115, 112, 101, 99, 105, 102, 105, 101, 100, 10, 0
-v7: dq 4517400600136369255,
+v7: dq 18353282656767144933,
 v8: dq 0,
 v9: dq 0,
 v10: dq 8,
