@@ -15,6 +15,7 @@ struct Options (
 let options : Options = 0;
 
 include "lib/common.spl"
+include "lib/hash.spl"
 include "src/common.spl"
 include "src/config.spl"
 include "src/misc.spl"

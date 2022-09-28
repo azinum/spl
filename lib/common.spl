@@ -481,37 +481,5 @@ fn first_dot(str : cstr) -> cstr {
   it;
 }
 
-fn djb2_hash(data : ptr, size : u64) -> u64 {
-  let result : u64 = 5381;
-  if neq cast u64 data NULL {
-    let i : u64 = 0;
-    while < i size {
-      let byte : u64 = load8 data;
-      store64 @result + byte + result lshift result 5;
-      store64 @data + 1 data;
-      store64 @i + 1 i;
-    }
-  }
-  result;
-}
-
-fn djb2_hash_cstr(str : cstr) -> u64 {
-  let result : u64 = 5381;
-  if neq cast u64 str NULL {
-    let done : u64 = 0;
-    while eq done 0 {
-      let byte : u64 = load8 str;
-      if eq byte 0 {
-        store64 @done 1;
-      }
-      else {
-        store64 @result + byte + result lshift result 5;
-        store64 @str + 1 str;
-      }
-    }
-  }
-  result;
-}
-
 include "lib/platform.spl"
 include "lib/memory.spl"

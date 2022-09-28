@@ -1,14 +1,9 @@
 // main.spl
 
 include "lib/common.spl"
-include "lib/random.spl"
+include "lib/hash.spl"
 
 fn main -> none {
-  random_init(RANDOM_XORSHIFT, time());
-  let i = 0;
-  const count = 20;
-  while < i count {
-    print random_range(0, 100);
-    store64 @i + 1 i;
-  }
+  let s = "hello";
+  print sdbm_hash(cast ptr s, strlen(s));
 }
