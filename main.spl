@@ -1,9 +1,7 @@
 // main.spl
 
-include "lib/common.spl"
-include "lib/hash.spl"
+// include "lib/common.spl"
+// include "lib/hash.spl"
 
 fn main -> none {
-  let s = "hello";
-  print sdbm_hash(cast ptr s, strlen(s));
 }

@@ -276,6 +276,13 @@ fn compile_state_init -> u64 {
   { let _ = compile_create_syscall("syscall6", 6); }
 
   {
+    let contract : any = type_create(TypePtr, 0), type_create(TypeCString, 0);
+    let count = / sizeof contract sizeof any;
+    let result : Type = 0;
+    let _ = type_from_contract(@contract, count, TYPE_CONTRACT_CREATE, @result);
+  }
+
+  {
     let value : Value = 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;

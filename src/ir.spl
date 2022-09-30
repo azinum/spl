@@ -583,8 +583,8 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
       let type = cast ptr<Type> + symbol Symbol.type;
 
       if eq type_value(cast ptr type) TypeCString {
-        // NOTE(lucas): we change the type from CString -> Ptr because symbol is pointing to a string
-        // store64 type TypePtr;
+        // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
+        // TODO(lucas): ir code generator should not be responsible for this
         type_init(cast ptr type, TypePtr, TypeCString);
       }
       // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
