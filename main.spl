@@ -4,10 +4,11 @@
 // include "lib/hash.spl"
 
 fn hello(x : u64) -> none {
-  let a = x, 2;
+  let a : u8 = x, 2, 3;
   print a;
+  print load8 + 1 at a;
 }
 
 fn main -> none {
-  hello(3);
+  hello(33);
 }

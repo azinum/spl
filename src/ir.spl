@@ -201,7 +201,7 @@ fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
       OP_init(
         I_PUSH_LOCAL,
         type,
-        + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+        load64 + symbol Symbol.local_id,
         size,
         @op
       );
@@ -222,7 +222,7 @@ fn ir_push_symbol(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
     OP_init(
       I_PUSH_LOCAL,
       type,
-      + sizeof u64 * sizeof u64 arg_id,
+      * sizeof u64 + 1 arg_id,
       size,
       @op
     );
@@ -264,7 +264,7 @@ fn ir_push_addr_of(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
       OP_init(
         I_PUSH_LOCAL_ADDR_OF,
         type,
-        + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+        load64 + symbol Symbol.local_id,
         NONE,
         @op
       );
@@ -284,7 +284,7 @@ fn ir_push_addr_of(fs : ptr, symbol : ptr, id : u64, ins_count : ptr) -> u64 {
     OP_init(
       I_PUSH_LOCAL_ADDR_OF,
       type,
-      + sizeof u64 * sizeof u64 id,
+      * sizeof u64 + 1 id,
       NONE,
       @op
     );
@@ -581,35 +581,61 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     }
     // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
     // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
-    if neq fs NULL {
-      let local_id : u64 = load64 + fs Function.locals_offset;
-      let type_size : u64 = compile_type_size(type_value(cast ptr type));
-      let num_elements : u64 = / load64 + symbol Symbol.size type_size;
-      const BOUNDARY_ALIGNMENT = 8;
-      let total_size : u64 = align(* num_elements type_size, BOUNDARY_ALIGNMENT);
-      store64 + fs Function.locals_offset + load64 + fs Function.locals_offset total_size;
-      if neq type_value(cast ptr type) TypeStruct {
-        if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
-          let i : u64 = 0;
-          let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
-          let diff : u64 = - num_elements num_elements_init;
-          store64 @local_id + local_id * diff type_size;
-          while < i num_elements_init {
-            let op : Op = 0;
-            OP_init(
-              I_MOVE_LOCAL,
-              type_value(cast ptr type),
-              + local_id * + 1 load64 + fs Function.argc sizeof u64,
-              NONE,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-            store64 @local_id + type_size local_id;
-            store64 @i + 1 i;
+    if fs {
+        let type_id : u64 = type_lookup(deref type);
+        assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
+        let type_size : u64 = compile_type_size(type_id);
+        let size : u64 = load64 + symbol Symbol.size;
+        let num_elements : u64 = / load64 + symbol Symbol.size type_size;
+        let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
+        const BOUNDARY_ALIGNMENT = 8;
+        let frame_size = align(size, BOUNDARY_ALIGNMENT);
+
+        let effective_frame_size = * num_elements_init type_size;
+        // ir code generation for let statements
+        // example:
+        //   let a : u64 = 1, 2, 3;
+        //
+        // FRAME:
+        //   ELEM IDX   | OFFSET     | NOTES
+        //   -          | 8  -> 0    | spill due to boundary alignment
+        //   2          | 16 -> 8    | bottom
+        //   1          | 24 -> 16   |
+        //   0          | 32 -> 24   | top
+        //
+        // element 0 is located at the `top` of the frame
+        //
+        // boundary_size = 16
+        // frame_size = align(3*8, boundary_size) = 32
+
+        let frame_absolute_bottom = load64 + fs Function.locals_offset;
+        let args_size = * sizeof u64 load64 + fs Function.argc;
+        let frame_bottom = + args_size + frame_absolute_bottom - frame_size effective_frame_size;
+
+        let local_index = + frame_bottom type_size;
+        if neq type_value(cast ptr type) TypeStruct {
+          if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
+            let i = 0;
+            let count = num_elements_init;
+            while < i count {
+              let op : Op = 0;
+              OP_init(
+                I_MOVE_LOCAL,
+                type_value(cast ptr type),
+                local_index,
+                NONE,
+                @op
+              );
+              { let _ = ir_push_ins(@op, ins_count); }
+              store64 @i + 1 i;
+              if < i count {
+                store64 @local_index + local_index type_size;
+              }
+            }
           }
         }
-      }
-      store64 + symbol Symbol.local_id - load64 + fs Function.locals_offset sizeof u64;
+        store64 + symbol Symbol.local_id local_index;
+        store64 + fs Function.locals_offset + frame_absolute_bottom frame_size;
     }
   }
   else if eq ast_type AstFuncDefinition {
@@ -656,7 +682,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
           OP_init(
             I_PUSH_LOCAL,
             type_value(@type),
-            + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+            load64 + symbol Symbol.local_id,
             NONE,
             @op
           );
@@ -695,7 +721,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
           OP_init(
             I_PUSH_LOCAL,
             type_value(@type),
-            + sizeof u64 * sizeof u64 arg,
+            * sizeof u64 + 1 arg,
             NONE,
             @op
           );
