@@ -29,7 +29,7 @@ fn typecheck_print_unused -> none {
       memcpy(@symbol, + + c Compile.symbols * sizeof Symbol i, sizeof Symbol);
       let ref_count = load64 + @symbol Symbol.ref_count;
       let sym_type = load64 + @symbol Symbol.sym_type;
-      if and eq ref_count 0 or eq sym_type SYM_FUNC load64 + @options Options.dce_all {
+      if and eq ref_count 0 eq sym_type SYM_FUNC {
         let args : any = (
           + @symbol Symbol.name
         );
@@ -1126,7 +1126,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             store64 + func Function.ir_address UINT64_MAX;
             store64 + func Function.label symbol_index;
             store64 + func Function.argc argc;
-            store64 + func Function.locals_offset_counter 0;
+            store64 + func Function.locals_offset 0;
             store64 + func Function.rtype type_create(TypeNone, 0);
 
             let new_type_id : u64 = type_push_new(type, type_size); // TODO(lucas): handle error

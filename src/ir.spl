@@ -385,8 +385,8 @@ fn ir_compile_func(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     { let _ = ir_compile_stmts(block, func, body, @func_size); }
     // begin_func : Op*
     let begin_func : ptr = + + c Compile.ins * sizeof Op begin_func_address;
-    let frame_size : u64 = + load64 + func Function.locals_offset_counter * sizeof u64 load64 + func Function.argc;
-    const FRAME_ALIGNMENT = 16;
+    let frame_size : u64 = + load64 + func Function.locals_offset * sizeof u64 load64 + func Function.argc;
+    const FRAME_ALIGNMENT = 8;
     store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
     assert(eq 0 % frame_size FRAME_ALIGNMENT, "invalid stack frame alignment\n");
     store64 + begin_func Op.src1 frame_size;
@@ -449,18 +449,12 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     else if eq token_type T_IDENTIFIER {
       let id : u64 = load64 + + ast Ast.token Token.v;
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-      let ref_count : u64 = load64 + symbol Symbol.ref_count;
-      if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
-      }
+      { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
     }
     else if or eq token_type T_AT eq token_type T_AT_WORD {
       let id : u64 = load64 + + ast Ast.token Token.v;
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-      let ref_count : u64 = load64 + symbol Symbol.ref_count;
-      if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
-      }
+      { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
     }
     else {
       assert(0, "value type not implemented\n");
@@ -571,54 +565,51 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   else if eq ast_type AstLetStatement {
     let id : u64 = load64 + + ast Ast.token Token.v;
     let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-    let ref_count : u64 = load64 + symbol Symbol.ref_count;
 
-    if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-      let node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let count : u64 = ast_count(node);
-      if eq count 1 {
-        memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
-      }
+    let node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+    let count : u64 = ast_count(node);
+    if eq count 1 {
+      memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
+    }
 
-      let type = cast ptr<Type> + symbol Symbol.type;
+    let type = cast ptr<Type> + symbol Symbol.type;
 
-      if eq type_value(cast ptr type) TypeCString {
-        // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
-        // TODO(lucas): ir code generator should not be responsible for this
-        type_init(cast ptr type, TypePtr, TypeCString);
-      }
-      // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
-      // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
-      if neq fs NULL {
-        let local_id : u64 = load64 + fs Function.locals_offset_counter;
-        let type_size : u64 = compile_type_size(type_value(cast ptr type));
-        let num_elements : u64 = / load64 + symbol Symbol.size type_size;
-        const boundary_size : u64 = sizeof u64;
-        let total_size : u64 = align(* num_elements type_size, boundary_size);
-        store64 + fs Function.locals_offset_counter + load64 + fs Function.locals_offset_counter total_size;
-        if neq type_value(cast ptr type) TypeStruct {
-          if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
-            let i : u64 = 0;
-            let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
-            let diff : u64 = - num_elements num_elements_init;
-            store64 @local_id + local_id * diff type_size;
-            while < i num_elements_init {
-              let op : Op = 0;
-              OP_init(
-                I_MOVE_LOCAL,
-                type_value(cast ptr type),
-                + local_id * + 1 load64 + fs Function.argc sizeof u64,
-                NONE,
-                @op
-              );
-              { let _ = ir_push_ins(@op, ins_count); }
-              store64 @local_id + type_size local_id;
-              store64 @i + 1 i;
-            }
+    if eq type_value(cast ptr type) TypeCString {
+      // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
+      // TODO(lucas): ir code generator should not be responsible for this
+      type_init(cast ptr type, TypePtr, TypeCString);
+    }
+    // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
+    // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
+    if neq fs NULL {
+      let local_id : u64 = load64 + fs Function.locals_offset;
+      let type_size : u64 = compile_type_size(type_value(cast ptr type));
+      let num_elements : u64 = / load64 + symbol Symbol.size type_size;
+      const BOUNDARY_ALIGNMENT = 8;
+      let total_size : u64 = align(* num_elements type_size, BOUNDARY_ALIGNMENT);
+      store64 + fs Function.locals_offset + load64 + fs Function.locals_offset total_size;
+      if neq type_value(cast ptr type) TypeStruct {
+        if eq ir_compile_stmts(block, fs, ast, ins_count) NoError {
+          let i : u64 = 0;
+          let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
+          let diff : u64 = - num_elements num_elements_init;
+          store64 @local_id + local_id * diff type_size;
+          while < i num_elements_init {
+            let op : Op = 0;
+            OP_init(
+              I_MOVE_LOCAL,
+              type_value(cast ptr type),
+              + local_id * + 1 load64 + fs Function.argc sizeof u64,
+              NONE,
+              @op
+            );
+            { let _ = ir_push_ins(@op, ins_count); }
+            store64 @local_id + type_size local_id;
+            store64 @i + 1 i;
           }
         }
-        store64 + symbol Symbol.local_id - load64 + fs Function.locals_offset_counter sizeof u64;
       }
+      store64 + symbol Symbol.local_id - load64 + fs Function.locals_offset sizeof u64;
     }
   }
   else if eq ast_type AstFuncDefinition {
@@ -633,112 +624,110 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   else if eq ast_type AstFuncCall {
     let id : u64 = load64 + + ast Ast.token Token.v;
     let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-    let ref_count : u64 = load64 + symbol Symbol.ref_count;
-    if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-      // func : Function*
-      let func = cast ptr + + symbol Symbol.value Value.func;
-      let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      if eq ir_compile_func_call_args(block, fs, args, ins_count) NoError { // compile function arguments in reverse order
-        // type : Type
-        let type : u64 = load64 + symbol Symbol.type;
-        // rtype : Type
-        let rtype : u64 = load64 + func Function.rtype;
-        let op : Op = 0;
-        if or eq type_value(@type) TypeAny eq type_value(@type) TypeFunc {
-          let sym_type : u64 = load64 + symbol Symbol.sym_type;
-          let rvalue : u64 = NONE;
-          let argc : u64 = load64 + func Function.argc;
-          if neq type_value(@rtype) TypeNone {
-            store64 @rvalue 0;
-          }
-          if eq sym_type SYM_FUNC {
-            OP_init(
-              I_CALL,
-              load64 + func Function.label,
-              argc,
-              rvalue,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-          }
-          else if eq sym_type SYM_LOCAL_VAR {
-            assert(eq load64 + symbol Symbol.konst 0, "something went very wrong\n");
-            OP_init(
-              I_PUSH_LOCAL,
-              type_value(@type),
-              + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
-              NONE,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-            OP_init(
-              I_ADDR_CALL,
-              NONE,
-              argc,
-              rvalue,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-          }
-          else if eq sym_type SYM_GLOBAL_VAR {
-            OP_init(
-              I_PUSH,
-              type_value(@type),
-              id,
-              NONE,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-            OP(I_LOAD64, @op); // NOTE(lucas): dereference the variable and get access to the function pointer
-            { let _ = ir_push_ins(@op, ins_count); }
-            OP_init(
-              I_ADDR_CALL,
-              NONE,
-              argc,
-              rvalue,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-          }
-          else if eq sym_type SYM_FUNC_ARG {
-            let arg : u64 = load64 + + symbol Symbol.token Token.v;
-            OP_init(
-              I_PUSH_LOCAL,
-              type_value(@type),
-              + sizeof u64 * sizeof u64 arg,
-              NONE,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-            OP_init(
-              I_ADDR_CALL,
-              NONE,
-              argc,
-              rvalue,
-              @op
-            );
-            { let _ = ir_push_ins(@op, ins_count); }
-          }
-          else {
-            assert(0, "function call of this symbol type is not implemented\n");
-          }
+
+    // func : Function*
+    let func = cast ptr + + symbol Symbol.value Value.func;
+    let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+    if eq ir_compile_func_call_args(block, fs, args, ins_count) NoError { // compile function arguments in reverse order
+      // type : Type
+      let type : u64 = load64 + symbol Symbol.type;
+      // rtype : Type
+      let rtype : u64 = load64 + func Function.rtype;
+      let op : Op = 0;
+      if or eq type_value(@type) TypeAny eq type_value(@type) TypeFunc {
+        let sym_type : u64 = load64 + symbol Symbol.sym_type;
+        let rvalue : u64 = NONE;
+        let argc : u64 = load64 + func Function.argc;
+        if neq type_value(@rtype) TypeNone {
+          store64 @rvalue 0;
         }
-        else if eq type TypeSyscallFunc {
-          let syscall_map : u64 = (
-            I_SYSCALL0,
-            I_SYSCALL1,
-            I_SYSCALL2,
-            I_SYSCALL3,
-            I_SYSCALL4,
-            I_SYSCALL5,
-            I_SYSCALL6
+        if eq sym_type SYM_FUNC {
+          OP_init(
+            I_CALL,
+            load64 + func Function.label,
+            argc,
+            rvalue,
+            @op
           );
-          OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, @op);
+          { let _ = ir_push_ins(@op, ins_count); }
+        }
+        else if eq sym_type SYM_LOCAL_VAR {
+          assert(eq load64 + symbol Symbol.konst 0, "something went very wrong\n");
+          OP_init(
+            I_PUSH_LOCAL,
+            type_value(@type),
+            + load64 + symbol Symbol.local_id * sizeof u64 + 1 load64 + fs Function.argc,
+            NONE,
+            @op
+          );
+          { let _ = ir_push_ins(@op, ins_count); }
+          OP_init(
+            I_ADDR_CALL,
+            NONE,
+            argc,
+            rvalue,
+            @op
+          );
+          { let _ = ir_push_ins(@op, ins_count); }
+        }
+        else if eq sym_type SYM_GLOBAL_VAR {
+          OP_init(
+            I_PUSH,
+            type_value(@type),
+            id,
+            NONE,
+            @op
+          );
+          { let _ = ir_push_ins(@op, ins_count); }
+          OP(I_LOAD64, @op); // NOTE(lucas): dereference the variable and get access to the function pointer
+          { let _ = ir_push_ins(@op, ins_count); }
+          OP_init(
+            I_ADDR_CALL,
+            NONE,
+            argc,
+            rvalue,
+            @op
+          );
+          { let _ = ir_push_ins(@op, ins_count); }
+        }
+        else if eq sym_type SYM_FUNC_ARG {
+          let arg : u64 = load64 + + symbol Symbol.token Token.v;
+          OP_init(
+            I_PUSH_LOCAL,
+            type_value(@type),
+            + sizeof u64 * sizeof u64 arg,
+            NONE,
+            @op
+          );
+          { let _ = ir_push_ins(@op, ins_count); }
+          OP_init(
+            I_ADDR_CALL,
+            NONE,
+            argc,
+            rvalue,
+            @op
+          );
           { let _ = ir_push_ins(@op, ins_count); }
         }
         else {
-          compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
+          assert(0, "function call of this symbol type is not implemented\n");
         }
+      }
+      else if eq type TypeSyscallFunc {
+        let syscall_map : u64 = (
+          I_SYSCALL0,
+          I_SYSCALL1,
+          I_SYSCALL2,
+          I_SYSCALL3,
+          I_SYSCALL4,
+          I_SYSCALL5,
+          I_SYSCALL6
+        );
+        OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, @op);
+        { let _ = ir_push_ins(@op, ins_count); }
+      }
+      else {
+        compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
       }
     }
   }

@@ -3,5 +3,11 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
+fn hello(x : u64) -> none {
+  let a = x, 2;
+  print a;
+}
+
 fn main -> none {
+  hello(3);
 }

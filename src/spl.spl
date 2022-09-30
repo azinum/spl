@@ -7,7 +7,6 @@ struct Options (
   filename        : cstr,
   enable_warnings : u64,
   disable_dce     : u64,
-  dce_all         : u64,
   verbose         : u64,
   verbose_asm     : u64
 );
@@ -57,7 +56,6 @@ fn spl_options_init -> none {
   store64 + @options Options.filename NULL;
   store64 + @options Options.enable_warnings 0;
   store64 + @options Options.disable_dce 0;
-  store64 + @options Options.dce_all 0;
   store64 + @options Options.verbose 0;
   store64 + @options Options.verbose_asm 0;
 }

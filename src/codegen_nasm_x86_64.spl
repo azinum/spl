@@ -575,7 +575,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         o(fd, "sub rsp, %d\n", @frame_size);
       }
       while < i argc {
-        let arg_index : u64 = * sizeof u64 + 1 i; // + 1 because we have pushed rbp onto stack
+        let arg_index : u64 = * sizeof u64 + 1 i;
         let reg_name = cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
         let args : any = (arg_index, reg_name);
         o(fd, "mov [rbp-%d], %s\n", @args);
@@ -676,9 +676,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
  mov rax, rsp
  add rax, 8
  mov rsi, rax
- push rbp
  call main
- pop rbp
  mov rax, 60 ; exit syscall
  mov rdi, 0 ; return code
  syscall
@@ -714,87 +712,84 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     while < i count {
       // symbol : Symbol*
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
-      let ref_count : u64 = load64 + symbol Symbol.ref_count;
-      if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        let sym_type : u64 = load64 + symbol Symbol.sym_type;
-        if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
-          // type : Type
-          let type : u64 = load64 + symbol Symbol.type;
-          let size : u64 = compile_type_size(type_value(@type));
-          let count : u64 = / load64 + symbol Symbol.size size;
-          // imm + (count * size) - size
-          let name = cast ptr + symbol Symbol.name;
-          if eq type_value(@type) TypePtr {
-            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-            o(fd, "v%d: dq", @i);
-            let v : u64 = 0;
-            while < v count {
-              let value : u64 = load64 + + c Compile.imm imm;
-              o(fd, " %d,", @value);
-              store64 @imm - imm size;
-              store64 @v + 1 v;
-            }
-            vo(fd, " ; `%s`", @name);
-            o(fd, "\n", NULL);
+      let sym_type : u64 = load64 + symbol Symbol.sym_type;
+      if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
+        // type : Type
+        let type : u64 = load64 + symbol Symbol.type;
+        let size : u64 = compile_type_size(type_value(@type));
+        let count : u64 = / load64 + symbol Symbol.size size;
+        // imm + (count * size) - size
+        let name = cast ptr + symbol Symbol.name;
+        if eq type_value(@type) TypePtr {
+          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+          o(fd, "v%d: dq", @i);
+          let v : u64 = 0;
+          while < v count {
+            let value : u64 = load64 + + c Compile.imm imm;
+            o(fd, " %d,", @value);
+            store64 @imm - imm size;
+            store64 @v + 1 v;
           }
-          else if eq type_value(@type) TypeUnsigned64 {
-            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-            o(fd, "v%d: dq", @i);
-            let v : u64 = 0;
-            while < v count {
-              let value : u64 = load64 + + c Compile.imm imm;
-              o(fd, " %d,", @value);
-              store64 @imm - imm size;
-              store64 @v + 1 v;
-            }
-            vo(fd, " ; `%s`", @name);
-            o(fd, "\n", NULL);
+          vo(fd, " ; `%s`", @name);
+          o(fd, "\n", NULL);
+        }
+        else if eq type_value(@type) TypeUnsigned64 {
+          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+          o(fd, "v%d: dq", @i);
+          let v : u64 = 0;
+          while < v count {
+            let value : u64 = load64 + + c Compile.imm imm;
+            o(fd, " %d,", @value);
+            store64 @imm - imm size;
+            store64 @v + 1 v;
           }
-          else if eq type_value(@type) TypeUnsigned32 {
-            store64 @size sizeof u64;
-            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-            o(fd, "v%d: dd", @i);
-            let v : u64 = 0;
-            while < v count {
-              let value : u64 = load32 + + c Compile.imm imm;
-              o(fd, " %d,", @value);
-              store64 @imm - imm size;
-              store64 @v + 1 v;
-            }
-            vo(fd, " ; `%s`", @name);
-            o(fd, "\n", NULL);
+          vo(fd, " ; `%s`", @name);
+          o(fd, "\n", NULL);
+        }
+        else if eq type_value(@type) TypeUnsigned32 {
+          store64 @size sizeof u64;
+          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+          o(fd, "v%d: dd", @i);
+          let v : u64 = 0;
+          while < v count {
+            let value : u64 = load32 + + c Compile.imm imm;
+            o(fd, " %d,", @value);
+            store64 @imm - imm size;
+            store64 @v + 1 v;
           }
-          else if eq type_value(@type) TypeUnsigned16 {
-            store64 @size sizeof u64;
-            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-            o(fd, "v%d: dw", @i);
-            let v : u64 = 0;
-            while < v count {
-              let value : u64 = load16 + + c Compile.imm imm;
-              o(fd, " %d,", @value);
-              store64 @imm - imm size;
-              store64 @v + 1 v;
-            }
-            vo(fd, " ; `%s`", @name);
-            o(fd, "\n", NULL);
+          vo(fd, " ; `%s`", @name);
+          o(fd, "\n", NULL);
+        }
+        else if eq type_value(@type) TypeUnsigned16 {
+          store64 @size sizeof u64;
+          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+          o(fd, "v%d: dw", @i);
+          let v : u64 = 0;
+          while < v count {
+            let value : u64 = load16 + + c Compile.imm imm;
+            o(fd, " %d,", @value);
+            store64 @imm - imm size;
+            store64 @v + 1 v;
           }
-          else if eq type_value(@type) TypeUnsigned8 {
-            store64 @size sizeof u64;
-            let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-            o(fd, "v%d: db", @i);
-            let v : u64 = 0;
-            while < v count {
-              let value : u64 = load8 + + c Compile.imm imm;
-              o(fd, " %d,", @value);
-              store64 @imm - imm size;
-              store64 @v + 1 v;
-            }
-            vo(fd, " ; `%s`", @name);
-            o(fd, "\n", NULL);
+          vo(fd, " ; `%s`", @name);
+          o(fd, "\n", NULL);
+        }
+        else if eq type_value(@type) TypeUnsigned8 {
+          store64 @size sizeof u64;
+          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+          o(fd, "v%d: db", @i);
+          let v : u64 = 0;
+          while < v count {
+            let value : u64 = load8 + + c Compile.imm imm;
+            o(fd, " %d,", @value);
+            store64 @imm - imm size;
+            store64 @v + 1 v;
           }
-          else {
-            assert(0, "type not implemented\n");
-          }
+          vo(fd, " ; `%s`", @name);
+          o(fd, "\n", NULL);
+        }
+        else {
+          assert(0, "type not implemented\n");
         }
       }
       store64 @i + 1 i;
@@ -808,31 +803,28 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     while < i count {
       // symbol : Symbol*
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
-      let ref_count : u64 = load64 + symbol Symbol.ref_count;
-      if not and and eq ref_count 0 eq load64 + @options Options.disable_dce 0 eq load64 + @options Options.dce_all 1 {
-        let sym_type : u64 = load64 + symbol Symbol.sym_type;
-        if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
-          // type : Type
-          let type : u64 = load64 + symbol Symbol.type;
-          let size : u64 = load64 + symbol Symbol.size;
-          let name = cast cstr + symbol Symbol.name;
-          if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
-            {
-              let args : any = (
-                i,
-                size
-              );
-              o(fd, "v%d: resb %d", @args);
-            }
-            {
-              let args : any = (
-                name
-              );
-              // TODO(lucas): print type
-              vo(fd, " ; `%s`", @args);
-            }
-            o(fd, "\n", NULL);
+      let sym_type : u64 = load64 + symbol Symbol.sym_type;
+      if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
+        // type : Type
+        let type : u64 = load64 + symbol Symbol.type;
+        let size : u64 = load64 + symbol Symbol.size;
+        let name = cast cstr + symbol Symbol.name;
+        if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
+          {
+            let args : any = (
+              i,
+              size
+            );
+            o(fd, "v%d: resb %d", @args);
           }
+          {
+            let args : any = (
+              name
+            );
+            // TODO(lucas): print type
+            vo(fd, " ; `%s`", @args);
+          }
+          o(fd, "\n", NULL);
         }
       }
       store64 @i + 1 i;

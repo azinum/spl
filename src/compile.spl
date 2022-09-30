@@ -24,7 +24,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
     store64 + func Function.ir_address UINT64_MAX;
     store64 + func Function.label UINT64_MAX;
     store64 + func Function.argc + 1 argc;
-    store64 + func Function.locals_offset_counter 0;
+    store64 + func Function.locals_offset 0;
     store64 + func Function.rtype TypeUnsigned64;
   }
   else {
