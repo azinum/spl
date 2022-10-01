@@ -1227,11 +1227,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 ts_pop(at rtype);
               }
 
-              if neq rtype_node NULL {
+              if rtype_node {
                 if and neq types_are_equal(explicit_rtype, rtype) 1 neq type_value(@explicit_rtype) TypeAny {
                   // TODO(lucas): more detailed error message
                   compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
                 }
+              }
+              // type inference for the return type
+              else {
+                memcpy(+ func Function.rtype, at rtype, sizeof Type);
               }
 
               if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {

@@ -3,12 +3,11 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-fn hello(x : u64) -> none {
-  let a : u8 = x, 2, 3;
-  print a;
-  print load8 + 1 at a;
+fn hello(x : u64) {
+  let result = x;
+  result;
 }
 
 fn main -> none {
-  hello(33);
+  print hello(3);
 }

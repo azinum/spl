@@ -43,7 +43,7 @@ enum u8 (
 
 // temporary `scratch` buffer
 const TMP_SIZE = * 8 32768;
-let tmp : u8 : TMP_SIZE = cast u8 0;
+let tmp : u8 : TMP_SIZE = 0;
 let tmp_it = 0;
 let tmp_end = 0;
 
@@ -329,7 +329,7 @@ fn cstr_to_u64(str : cstr) -> u64 {
 
 // standard write functions
 fn write_cstr(mem : ptr, str : cstr) -> u64 {
-  let length : u64 = strlen(str);
+  let length = strlen(str);
   memcpy(mem, str, length);
   length;
 }
@@ -340,20 +340,20 @@ fn write_str(mem : ptr, str : ptr, length : u64) -> u64 {
 }
 
 fn write_u64(mem : ptr, n : u64) -> u64 {
-  let count : u64 = digit_count(n);
+  let count = digit_count(n);
   u64_to_str(n, mem, count);
   count;
 }
 
 fn write_u8(mem : ptr, n : u8) -> u64 {
-  const length : u64 = sizeof n;
+  const length = sizeof n;
   memcpy(mem, @n, length);
   length;
 }
 
 // bounded write functions
 fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
-  let result : u64 = 0;
+  let result = 0;
   if > length 0 {
     if eq cast u64 end NULL {
       store64 @result write_cstr(mem, str);
@@ -376,7 +376,7 @@ fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
 }
 
 fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
-  let result : u64 = 0;
+  let result = 0;
   if cast ptr str {
     store64 @result bwrite_str(mem, end, str, strlen(str));
   }
@@ -450,7 +450,7 @@ fn tmp_push_str(str : any, length : u64) -> none {
 
 fn tmp_push_u64(n : u64) -> none {
   const MAX_LENGTH = 64;
-  let buf : u8 : * sizeof u64 MAX_LENGTH = cast u8 0;
+  let buf : u8 : * sizeof u64 MAX_LENGTH = 0;
   let length = digit_count(n);
   u64_to_str(n, @buf, MAX_LENGTH);
   tmp_push_str(@buf, length);
