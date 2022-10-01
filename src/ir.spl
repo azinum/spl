@@ -577,7 +577,7 @@ fn ir_compile(block : ptr, fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     if eq type_value(cast ptr type) TypeCString {
       // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
       // TODO(lucas): ir code generator should not be responsible for this
-      type_init(cast ptr type, TypePtr, TypeCString);
+      type_init(type, TypePtr, TypeCString);
     }
     // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
     // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)

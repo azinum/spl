@@ -714,9 +714,10 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
       let sym_type : u64 = load64 + symbol Symbol.sym_type;
       if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
-        // type : Type
-        let type : u64 = load64 + symbol Symbol.type;
-        let size : u64 = compile_type_size(type_value(@type));
+        let type : Type = 0;
+        memcpy(at type, + symbol Symbol.type, sizeof Type);
+        let type_id = type_lookup(at type);
+        let size : u64 = compile_type_size(type_id);
         let count : u64 = / load64 + symbol Symbol.size size;
         // imm + (count * size) - size
         let name = cast ptr + symbol Symbol.name;
@@ -805,8 +806,8 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
       let sym_type : u64 = load64 + symbol Symbol.sym_type;
       if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
-        // type : Type
-        let type : u64 = load64 + symbol Symbol.type;
+        let type : Type = 0;
+        memcpy(at type, + symbol Symbol.type, sizeof Type);
         let size : u64 = load64 + symbol Symbol.size;
         let name = cast cstr + symbol Symbol.name;
         if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {

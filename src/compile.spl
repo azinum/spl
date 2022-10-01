@@ -244,17 +244,17 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  type_init(+ + c Compile.types * sizeof Type TypeNone, TypeNone, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeAny, TypeAny, 0);
-  type_init(+ + c Compile.types * sizeof Type TypePtr, TypePtr, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeUnsigned64, TypeUnsigned64, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeUnsigned32, TypeUnsigned32, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeUnsigned16, TypeUnsigned16, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeUnsigned8, TypeUnsigned8, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeCString, TypeCString, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeFunc, TypeFunc, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeSyscallFunc, TypeSyscallFunc, 0);
-  type_init(+ + c Compile.types * sizeof Type TypeStruct, TypeStruct, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeNone, TypeNone, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeAny, TypeAny, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypePtr, TypePtr, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned64, TypeUnsigned64, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned32, TypeUnsigned32, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned16, TypeUnsigned16, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned8, TypeUnsigned8, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeCString, TypeCString, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeFunc, TypeFunc, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeSyscallFunc, TypeSyscallFunc, 0);
+  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeStruct, TypeStruct, 0);
 
   store64 + + c Compile.type_sizes * sizeof u64 TypeNone        0;
   store64 + + c Compile.type_sizes * sizeof u64 TypeAny         sizeof any;
@@ -279,8 +279,8 @@ fn compile_state_init -> u64 {
   {
     const count = 2;
     let contract : Type : count = 0;
-    type_init(cast ptr + at contract * sizeof Type 0, TypePtr, 0);
-    type_init(cast ptr + at contract * sizeof Type 1, TypeCString, 0);
+    type_init(+ at contract * sizeof Type 0, TypePtr, 0);
+    type_init(+ at contract * sizeof Type 1, TypeCString, 0);
     let result : Type = 0;
     let _ = type_from_contract(at contract, count, TYPE_CONTRACT_CREATE, at result);
   }
@@ -290,7 +290,7 @@ fn compile_state_init -> u64 {
     store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;
     let type : Type = 0;
-    type_init(@type, TypeUnsigned64, 0);
+    type_init(at type, TypeUnsigned64, 0);
     let _ = compile_create_value("VERSION_ID", @value, at type);
   }
   {
@@ -298,7 +298,7 @@ fn compile_state_init -> u64 {
     store64 + @value Value.num 0;
     store64 + @value Value.konst 1;
     let type : Type = 0;
-    type_init(@type, TypePtr, 0);
+    type_init(at type, TypePtr, 0);
     let _ = compile_create_value("NULL", @value, at type);
   }
   NoError;
