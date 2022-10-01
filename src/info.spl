@@ -10,7 +10,7 @@ fn print_symbol_info(fd : u64) -> none {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
     let type : Type = 0;
-    store64 @type load64 + symbol Symbol.type;
+    memcpy(@type, + symbol Symbol.type, sizeof Type);
     let num_i_digits : u64 = digit_count(i);
     let j : u64 = 0;
 
@@ -31,14 +31,14 @@ fn print_symbol_info(fd : u64) -> none {
           // Symbol* arg = &c->symbols[func->args[arg_index]];
           let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
           let arg_type : Type = 0;
-          store64 @arg_type load64 + arg Symbol.type;
-          let arg_type_id = type_lookup(arg_type);
+          memcpy(at arg_type, + arg Symbol.type, sizeof Type);
+          let arg_type_id = type_lookup(at arg_type);
           let type_size : u64 = compile_type_size(arg_type_id);
           if eq type_size 0 {
             store64 @type_size 1;
           }
           let num_elements : u64 = / load64 + arg Symbol.size type_size;
-          type_print(fd, arg_type);
+          type_print(fd, at arg_type);
 
           if > num_elements 1 {
             dprintf(fd, " : %d", @num_elements);
@@ -53,10 +53,10 @@ fn print_symbol_info(fd : u64) -> none {
         store64 @rtype load64 + func Function.rtype;
 
         dprintf(fd, ") -> ", NULL);
-        type_print(fd, rtype);
+        type_print(fd, at rtype);
       }
       else {
-        let type_id : u64 = type_lookup(type);
+        let type_id : u64 = type_lookup(at type);
         let type_size : u64 = compile_type_size(type_id);
         if eq type_size 0 {
           store64 @type_size 1;
@@ -66,7 +66,7 @@ fn print_symbol_info(fd : u64) -> none {
           name
         );
         dprintf(fd, "%s : ", @args);
-        type_print(fd, cast Type type);
+        type_print(fd, at type);
         if > count 1 {
           dprintf(fd, " : %d", @count);
         }
