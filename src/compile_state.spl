@@ -115,7 +115,7 @@ fn symbol_init(symbol : ptr) -> none {
   store64 + symbol Symbol.num_elements_init 0;
   store64 + symbol Symbol.konst 0;
   store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
-  store64 + symbol Symbol.type TypeNone;
+  type_init(cast ptr<Type> + symbol Symbol.type, TypeNone, 0);
   store64 + symbol Symbol.ref_count 0;
 }
 

@@ -50,7 +50,7 @@ fn print_symbol_info(fd : u64) -> none {
           store64 @arg_index + 1 arg_index;
         }
         let rtype : Type = 0;
-        store64 @rtype load64 + func Function.rtype;
+        memcpy(at rtype, + func Function.rtype, sizeof Type);
 
         dprintf(fd, ") -> ", NULL);
         type_print(fd, at rtype);

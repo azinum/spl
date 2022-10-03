@@ -21,6 +21,7 @@ enum u64 (
 struct Type (
   type : u32,
   id : u32
+  // ,_ : u64
 );
 
 const MAX_COMPILE_TYPE = 1024;
@@ -53,20 +54,14 @@ fn type_init(type : ptr<Type>, type_value : u64, id : u64) -> none {
   store32 + type Type.id id;
 }
 
-fn type_create(type_value : u64, id : u64) -> Type {
-  let result : Type = 0;
-  type_init(at result, type_value, id);
-  result;
-}
-
 // type : ptr<Type>
 fn type_value(type : ptr) -> u64 {
   load32 + type Type.type;
 }
 
-// t : ptr<Type>
-fn type_id(t : ptr) -> u64 {
-  load32 + t Type.id;
+// type : ptr<Type>
+fn type_id(type : ptr) -> u64 {
+  load32 + type Type.id;
 }
 
 fn types_are_equal(a : ptr<Type>, b : ptr<Type>) -> u64 {

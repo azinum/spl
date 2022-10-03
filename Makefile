@@ -18,7 +18,7 @@ examples: ${SPL_EXAMPLES}
 run_examples: SPL_FLAGS+=run
 run_examples: ${SPL_EXAMPLES}
 
-test: SPL_FLAGS+=run
+test: SPL_FLAGS+=verbose-asm run
 test: ${SPL_TEST}
 
 main: SPL_FLAGS+=verbose-asm run
@@ -34,7 +34,7 @@ bootstrap:
 	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && ld -arch x86_64 spl.o -o spl
 
 performance_test:
-	perf record -e cycles -c 2000000 ./spl spl.spl
+	perf record -e cycles -c 2000000 ./spl spl.spl verbose-asm
 	perf report -n -f
 	rm -f perf.data perf.data.old
 

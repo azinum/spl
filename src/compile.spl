@@ -17,7 +17,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   if eq compile_declare_value(block, NULL, @token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
     store64 + symbol Symbol.sym_type SYM_FUNC;
-    store64 + symbol Symbol.type TypeSyscallFunc;
+    type_init(cast ptr<Type> + symbol Symbol.type, TypeSyscallFunc, 0);
     store64 + + symbol Symbol.token Token.v symbol_index;
     store64 + symbol Symbol.ref_count 1;
     let func = + + symbol Symbol.value Value.func;
@@ -25,7 +25,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
     store64 + func Function.label UINT64_MAX;
     store64 + func Function.argc + 1 argc;
     store64 + func Function.locals_offset 0;
-    store64 + func Function.rtype TypeUnsigned64;
+    type_init(cast ptr<Type> + func Function.rtype, TypeUnsigned64, 0);
   }
   else {
     compile_error("symbol already exists\n");
@@ -284,7 +284,6 @@ fn compile_state_init -> u64 {
     let result : Type = 0;
     let _ = type_from_contract(at contract, count, TYPE_CONTRACT_CREATE, at result);
   }
-
   {
     let value : Value = 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
