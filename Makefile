@@ -11,7 +11,6 @@ clean:
 
 ${SPL_SRC}:
 ${SPL_SRC}:
-${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl
 
 examples: SPL_FLAGS+=verbose-asm

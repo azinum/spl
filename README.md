@@ -32,7 +32,6 @@ OPTIONS:
   no-debug        - do not write debug information
   enable-warnings - enable basic warnings
   disable-dce     - disable dead code elimination
-  dce-all         - eliminate all dead code, including all symbols
   verbose         - enable verbose output
   verbose-asm     - enable verbose assembly code
   version         - print spl version id

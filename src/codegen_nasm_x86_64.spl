@@ -785,7 +785,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         let count : u64 = / load64 + symbol Symbol.size size;
         // imm + (count * size) - size
         let name = cast ptr + symbol Symbol.name;
-        if eq type_value(@type) TypePtr {
+        if eq type_value(at type) TypePtr {
           let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
           o(fd, "v%d: dq", @i);
           let v : u64 = 0;
@@ -798,7 +798,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           vo(fd, " ; `%s`", @name);
           o(fd, "\n", NULL);
         }
-        else if eq type_value(@type) TypeUnsigned64 {
+        else if eq type_value(at type) TypeUnsigned64 {
           let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
           o(fd, "v%d: dq", @i);
           let v : u64 = 0;
@@ -811,7 +811,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           vo(fd, " ; `%s`", @name);
           o(fd, "\n", NULL);
         }
-        else if eq type_value(@type) TypeUnsigned32 {
+        else if eq type_value(at type) TypeUnsigned32 {
           store64 @size sizeof u64;
           let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
           o(fd, "v%d: dd", @i);
@@ -825,7 +825,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           vo(fd, " ; `%s`", @name);
           o(fd, "\n", NULL);
         }
-        else if eq type_value(@type) TypeUnsigned16 {
+        else if eq type_value(at type) TypeUnsigned16 {
           store64 @size sizeof u64;
           let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
           o(fd, "v%d: dw", @i);
@@ -839,7 +839,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           vo(fd, " ; `%s`", @name);
           o(fd, "\n", NULL);
         }
-        else if eq type_value(@type) TypeUnsigned8 {
+        else if eq type_value(at type) TypeUnsigned8 {
           store64 @size sizeof u64;
           let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
           o(fd, "v%d: db", @i);
@@ -874,7 +874,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         memcpy(at type, + symbol Symbol.type, sizeof Type);
         let size : u64 = load64 + symbol Symbol.size;
         let name = cast cstr + symbol Symbol.name;
-        if eq 0 or eq type_value(@type) TypeNone eq type_value(@type) TypeSyscallFunc {
+        if eq 0 or eq type_value(at type) TypeNone eq type_value(at type) TypeSyscallFunc {
           {
             let args : any = (
               i,
