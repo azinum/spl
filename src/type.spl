@@ -20,8 +20,8 @@ enum u64 (
 
 struct Type (
   type : u32,
-  id : u32
-  // ,_ : u64
+  id : u32,
+  // _ : u64
 );
 
 const MAX_COMPILE_TYPE = 1024;

@@ -109,6 +109,17 @@ fn token_init(token : any, buffer : any, length : u64, type : u64, filename : an
   store64 + token Token.column   1;
 }
 
+fn token_init_empty(token : ptr<Token>) -> none {
+  store64 + token Token.buffer   "";
+  store64 + token Token.length   0;
+  store64 + token Token.type     T_NONE;
+  store64 + token Token.v        0;
+  store64 + token Token.filename "internal";
+  store64 + token Token.source   "";
+  store64 + token Token.line     0;
+  store64 + token Token.column   0;
+}
+
 fn copy_token_into_memory(mem : any) -> none {
   store64 + mem Token.buffer   + @token Token.buffer;
   store64 + mem Token.length   + @token Token.length;
