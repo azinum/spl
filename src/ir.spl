@@ -73,6 +73,7 @@ fn OP(i : u64, op : ptr) -> none {
   store64 + op Op.dest NONE;
   store64 + op Op.src0 NONE;
   store64 + op Op.src1 NONE;
+  debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
 // i : u64, dest : u64, src0 : u64, src1 : u64, op : Op*
@@ -81,6 +82,7 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr) -> none {
   store64 + op Op.dest dest;
   store64 + op Op.src0 src0;
   store64 + op Op.src1 src1;
+  debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
 fn fetch_op(i : u64) -> ptr<Op> {
@@ -348,6 +350,8 @@ fn ir_compile_uop(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 }
 
 fn ir_compile_func(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
+
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
   let id : u64 = load64 + + ast Ast.token Token.v;
   assert(neq id UINT64_MAX, "bad function id\n");
@@ -408,6 +412,7 @@ fn ir_compile_func(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 
 fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   let ast_type : u64 = load64 + ast Ast.type;
+  debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
 
   if eq ast_type AstValue {
     let token : ptr = + ast Ast.token;
@@ -583,6 +588,9 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         let type_id : u64 = type_lookup(type);
         assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
         let type_size : u64 = compile_type_size(type_id);
+        if eq type_size 0 {
+          type_printline(STDOUT_FILENO, type);
+        }
         let size : u64 = load64 + symbol Symbol.size;
         let num_elements : u64 = / load64 + symbol Symbol.size type_size;
         let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;

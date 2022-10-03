@@ -26,11 +26,17 @@ struct Block (
   parent       : ptr
 );
 
+struct Debug_info (
+  token : Token
+);
+
 struct Op (
   i    : u64,
   dest : u64,
   src0 : u64,
-  src1 : u64
+  src1 : u64,
+
+  info : Debug_info
 );
 
 const MAX_TYPE_STACK = 256;
@@ -76,7 +82,9 @@ struct Compile (
   error_count         : u64,
 
   struct_id           : u64,
-  struct_type_info    : Struct_type_info : MAX_COMPILE_TYPE
+  struct_type_info    : Struct_type_info : MAX_COMPILE_TYPE,
+
+  info                : Debug_info
 );
 
 // c : Compile*
@@ -106,6 +114,18 @@ fn compile_error_at(token : ptr, message : cstr) -> none {
     store64 + c Compile.status Error;
   }
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
+}
+
+fn debug_info_init(debug_info : ptr<Debug_info>) -> none {
+  token_init_empty(cast ptr<Token> + debug_info Debug_info.token);
+}
+
+fn debug_info_update(debug_info : ptr<Debug_info>, debug_token : ptr<Token>) -> none {
+  memcpy(+ debug_info Debug_info.token, debug_token, sizeof Token);
+}
+
+fn debug_info_copy(dest : ptr<Debug_info>, source : ptr<Debug_info>) -> none {
+  memcpy(dest, source, sizeof Debug_info);
 }
 
 fn symbol_init(symbol : ptr) -> none {

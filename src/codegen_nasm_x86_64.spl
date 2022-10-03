@@ -6,11 +6,33 @@ fn o(fd : u64, format : cstr, args : any) -> none {
 
 fn vo_empty(fd : u64, format : cstr, args : any) -> none {}
 
+fn vo_write_debug_info(fd : u64, op : ptr<Op>) -> none {
+  const BUFFER_SIZE = 512;
+  let buffer : u8 : BUFFER_SIZE = 0;
+  let token = cast ptr<Token> + op Op.info;
+  {
+    let args : any = load64 + token Token.filename, load64 + token Token.line, load64 + token Token.column;
+    let _ = snprintf(@buffer, BUFFER_SIZE, "; %s:%d:%d:", @args);
+  }
+  {
+    let args : any = @buffer;
+    dprintf(fd, "%s\n", @args);
+  }
+  dprintf(fd, "%%ifdef DEBUG_INFO\n", NULL);
+  printline(fd, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, 1);
+
+  dprintf(fd, "%%endif\n", NULL);
+}
+
+fn vo_write_debug_info_empty(fd : u64, op : ptr<Op>) -> none {}
+
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   let vo = vo_empty;
+  let vo_debug = vo_write_debug_info_empty;
 
   if load64 + @options Options.verbose_asm {
     store64 @vo o;
+    // store64 @vo_debug vo_write_debug_info;
   }
 
   let func_call_regs_x86_64 : cstr = (
@@ -66,7 +88,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   let count : u64 = load64 + c Compile.ins_count;
   while < i count {
     // op : Op*
-    let op = cast ptr + + c Compile.ins * sizeof Op i;
+    let op = cast ptr<Op> + + c Compile.ins * sizeof Op i;
     let ins : u64 = load64 + op Op.i;
     if eq ins I_NOP {
       o(fd, "nop\n", NULL);
@@ -77,6 +99,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_MOVE {
       vo(fd, "; I_MOVE\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       let args : any = (load64 + op Op.src0, load64 + op Op.src1);
       if or or or or
@@ -106,6 +129,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_MOVE_LOCAL {
       vo(fd, "; I_MOVE_LOCAL\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       let args : any = (load64 + op Op.src0);
       if or or or or
@@ -135,30 +159,35 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_STORE64 {
       vo(fd, "; I_STORE64\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rbx\n", NULL);
       o(fd, "pop rax\n", NULL);
       o(fd, "mov [rax], rbx\n", NULL);
     }
     else if eq ins I_STORE32 {
       vo(fd, "; I_STORE32\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rbx\n", NULL);
       o(fd, "pop rax\n", NULL);
       o(fd, "mov [rax], ebx\n", NULL);
     }
     else if eq ins I_STORE16 {
       vo(fd, "; I_STORE16\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rbx\n", NULL);
       o(fd, "pop rax\n", NULL);
       o(fd, "mov [rax], bx\n", NULL);
     }
     else if eq ins I_STORE8 {
       vo(fd, "; I_STORE8\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rbx\n", NULL);
       o(fd, "pop rax\n", NULL);
       o(fd, "mov [rax], bl\n", NULL);
     }
     else if eq ins I_LOAD64 {
       vo(fd, "; I_LOAD64\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rax\n", NULL);
       o(fd, "xor rbx, rbx\n", NULL);
       o(fd, "mov rbx, [rax]\n", NULL);
@@ -166,6 +195,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LOAD32 {
       vo(fd, "; I_LOAD32\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rax\n", NULL);
       o(fd, "xor rbx, rbx\n", NULL);
       o(fd, "mov ebx, [rax]\n", NULL);
@@ -173,6 +203,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LOAD16 {
       vo(fd, "; I_LOAD16\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rax\n", NULL);
       o(fd, "xor rbx, rbx\n", NULL);
       o(fd, "mov bx, [rax]\n", NULL);
@@ -180,6 +211,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LOAD8 {
       vo(fd, "; I_LOAD8\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rax\n", NULL);
       o(fd, "xor rbx, rbx\n", NULL);
       o(fd, "mov bl, [rax]\n", NULL);
@@ -187,20 +219,23 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_ADDR_OF {
       vo(fd, "; I_PUSH_ADDR_OF\n", NULL);
-      let args : any = (load64 + op Op.src0);
+      vo_debug(fd, op);
+      let args : any = load64 + op Op.src0;
       o(fd, "mov rax, v%d\n", @args);
       o(fd, "push rax\n", NULL);
     }
     else if eq ins I_PUSH_LOCAL_ADDR_OF {
       vo(fd, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
-      let args : any = (load64 + op Op.src0);
+      vo_debug(fd, op);
+      let args : any = load64 + op Op.src0;
       o(fd, "lea rax, [rbp-%d]\n", @args);
       o(fd, "push rax\n", NULL);
     }
     else if eq ins I_PUSH {
       vo(fd, "; I_PUSH\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
-      let args : any = (load64 + op Op.src0);
+      let args : any = load64 + op Op.src0;
       if or or
           eq dest TypeAny
           eq dest TypePtr
@@ -262,8 +297,9 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_LOCAL {
       vo(fd, "; I_PUSH_LOCAL\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
-      let args : any = (load64 + op Op.src0);
+      let args : any = load64 + op Op.src0;
       if or or or or
           eq dest TypeAny
           eq dest TypePtr
@@ -311,6 +347,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PUSH_IMM {
       vo(fd, "; I_PUSH_IMM\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       if eq dest TypeUnsigned64 {
         let value : u64 = load64 + + c Compile.imm load64 + op Op.src0;
@@ -323,6 +360,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_ADD {
       vo(fd, "; I_ADD\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -332,6 +370,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_SUB {
       vo(fd, "; I_SUB\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -341,6 +380,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_MUL {
       vo(fd, "; I_MUL\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -350,6 +390,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_DIV {
       vo(fd, "; I_DIV\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "xor rdx, rdx
  pop r8
@@ -360,6 +401,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LSHIFT {
       vo(fd, "; I_LSHIFT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rcx
  pop rax
@@ -369,6 +411,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_RSHIFT {
       vo(fd, "; I_RSHIFT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rcx
  pop rax
@@ -378,6 +421,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_DIVMOD {
       vo(fd, "; I_DIVMOD\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "xor rdx, rdx
  pop rbx
@@ -388,6 +432,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LT {
       vo(fd, "; I_LT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
  mov rdx, 1
@@ -400,6 +445,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_GT {
       vo(fd, "; I_GT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
  mov rdx, 1
@@ -412,6 +458,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_AND {
       vo(fd, "; I_AND\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -421,6 +468,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LOGICAL_NOT {
       vo(fd, "; I_LOGICAL_NOT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  cmp rax, 0
@@ -431,6 +479,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_NOT {
       vo(fd, "; I_NOT\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  not rax
@@ -439,6 +488,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_OR {
       vo(fd, "; I_OR\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -448,6 +498,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_XOR {
       vo(fd, "; I_OR\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
@@ -457,6 +508,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_EQ {
       vo(fd, "; I_EQ\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
  mov rdx, 1
@@ -469,6 +521,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_NEQ {
       vo(fd, "; I_NEQ\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
  mov rdx, 1
@@ -481,6 +534,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_RET {
       vo(fd, "; I_RET\n", NULL);
+      vo_debug(fd, op);
       let frame_size : u64 = load64 + op Op.src0;
       o(fd, "pop rax\n", NULL);
       o(fd, "pop rbp\n", NULL);
@@ -491,6 +545,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_NORET {
       vo(fd, "; I_NORET\n", NULL);
+      vo_debug(fd, op);
       let frame_size : u64 = load64 + op Op.src0;
       o(fd, "pop rbp\n", NULL);
       if frame_size {
@@ -500,11 +555,13 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_PRINT {
       vo(fd, "; I_PRINT\n", NULL);
+      vo_debug(fd, op);
       o(fd, "pop rdi\n", NULL);
       o(fd, "call print\n", NULL);
     }
     else if eq ins I_LABEL {
       vo(fd, "; I_LABEL\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       // symbol : Symbol*
       let symbol : ptr = + + c Compile.symbols * sizeof Symbol dest;
@@ -519,6 +576,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_CALL {
       vo(fd, "; I_CALL\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       assert(neq dest UINT64_MAX, "I_CALL: invalid argument argument\n");
       let i : u64 = 0;
@@ -537,6 +595,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_ADDR_CALL {
       vo(fd, "; I_ADDR_CALL\n", NULL);
+      vo_debug(fd, op);
       let i : u64 = 0;
       let argc : u64 = load64 + op Op.src0;
       o(fd, "pop rax\n", NULL);
@@ -554,11 +613,13 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_JMP {
       vo(fd, "; I_JMP\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       o(fd, "jmp L%d\n", @dest);
     }
     else if eq ins I_JZ {
       vo(fd, "; I_JZ\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       o(fd, "pop rax\n", NULL);
       o(fd, "test rax, rax\n", NULL);
@@ -566,6 +627,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_BEGIN_FUNC {
       vo(fd, "; I_BEGIN_FUNC\n", NULL);
+      vo_debug(fd, op);
       o(fd, "push rbp\n", NULL);
       o(fd, "mov rbp, rsp\n", NULL);
       let argc : u64 = load64 + op Op.src0;
@@ -584,11 +646,13 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
     else if eq ins I_LOOP_LABEL {
       vo(fd, "; I_LOOP_LABEL\n", NULL);
+      vo_debug(fd, op);
       let dest : u64 = load64 + op Op.dest;
       o(fd, "L%d:\n", @dest);
     }
     else if eq ins I_SYSCALL0 {
       vo(fd, "; I_SYSCALL0\n", NULL);
+      vo_debug(fd, op);
       o(fd,
 "pop rax
  syscall

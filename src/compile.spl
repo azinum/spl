@@ -180,6 +180,8 @@ fn compile_state_init -> u64 {
   store64 + c Compile.error_count 0;
   store64 + c Compile.struct_id 1;
 
+  debug_info_init(cast ptr<Debug_info> + c Compile.info);
+
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
   store64 + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
@@ -300,6 +302,7 @@ fn compile_state_init -> u64 {
     type_init(at type, TypePtr, 0);
     let _ = compile_create_value("NULL", @value, at type);
   }
+  // typecheck_print_types(STDOUT_FILENO);
   NoError;
 }
 
