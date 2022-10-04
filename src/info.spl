@@ -14,13 +14,13 @@ fn print_symbol_info(fd : u64) -> none {
     let num_i_digits : u64 = digit_count(i);
     let j : u64 = 0;
 
-    if neq type_value(at type) TypeSyscallFunc {
+    if neq type_base(at type) TypeSyscallFunc {
       while < j - 3 num_i_digits {
         dprintf(fd, "0", NULL);
         store64 @j + 1 j;
       }
       dprintf(fd, "%d: ", @i);
-      if eq type_value(at type) TypeFunc {
+      if eq type_base(at type) TypeFunc {
         let func = cast ptr + + symbol Symbol.value Value.func;
         dprintf(fd, "%s(", @name);
 

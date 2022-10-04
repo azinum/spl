@@ -183,42 +183,42 @@ fn struct_type_info_printline(fd : u64, info : ptr<Struct_type_info>, flat : u64
 
 // for now `ptr` is the only type that is a container i.e. a type that can contain other types
 fn type_is_container(type : ptr<Type>) -> u64 {
-  eq type_value(type) TypePtr;
+  eq type_base(type) TypePtr;
 }
 
 fn type_print(fd : u64, type : ptr<Type>) -> none {
   // check if this is a container type
   if type_is_container(type) {
     let args : any = (
-      load64 + @compile_type_str * sizeof cstr type_value(type)
+      load64 + @compile_type_str * sizeof cstr type_base(type)
     );
     dprintf(fd, "%s<", @args);
     let next_type : Type = 0;
-    memcpy(at next_type, + + c Compile.types * sizeof Type type_id(type), sizeof Type);
+    memcpy(at next_type, + + c Compile.types * sizeof Type type_sub_id(type), sizeof Type);
     type_print(fd, at next_type);
     dprintf(fd, ">", NULL);
   }
-  else if eq type_value(type) TypeStruct {
-    let id = type_id(type);
+  else if eq type_base(type) TypeStruct {
+    let id = type_sub_id(type);
     let args : any = (
-      load64 + @compile_type_str * sizeof cstr type_value(type),
+      load64 + @compile_type_str * sizeof cstr type_base(type),
       id
     );
     dprintf(fd, "%s<%d> ", @args);
     let type_info = struct_fetch_type_info(id);
     struct_type_info_print(fd, type_info, 1);
   }
-  else if eq type_value(type) TypeFunc {
+  else if eq type_base(type) TypeFunc {
     let args : any = (
-      load64 + @compile_type_str * sizeof cstr type_value(type),
-      type_id(type)
+      load64 + @compile_type_str * sizeof cstr type_base(type),
+      type_sub_id(type)
     );
     dprintf(fd, "%s<%d>", @args);
   }
   // primitive type
   else {
     let args : any = (
-      load64 + @compile_type_str * sizeof cstr type_value(type)
+      load64 + @compile_type_str * sizeof cstr type_base(type)
     );
     dprintf(fd, "%s", @args);
   }
@@ -297,7 +297,7 @@ fn type_check_constraints(container : ptr<Type>, type : ptr<Type>) -> u64 {
   if type_is_container(container) {
     store64 @result TYPE_CONSTRAINT_VALID;
   }
-  else if and eq type_value(container) MAX_PRIMITIVE_TYPE > type_value(container) MAX_PRIMITIVE_TYPE {
+  else if and eq type_base(container) MAX_PRIMITIVE_TYPE > type_base(container) MAX_PRIMITIVE_TYPE {
     store64 @result TYPE_CONSTRAINT_UNDECIDABLE;
   }
   result;
@@ -307,7 +307,7 @@ fn type_deflate(type : ptr<Type>, type_out : ptr<Type>) -> none {
   if type_out {
     type_init(type_out, TypeNone, 0);
   }
-  let id = type_id(type);
+  let id = type_sub_id(type);
   if neq id 0 {
     if type_is_container(type) {
       if type_out {
@@ -348,7 +348,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
     let sub_type_id = type_lookup(at sub_type);
     if neq sub_type_id UINT64_MAX {
       let type : Type = 0;
-      type_init(at type, type_value(at primary_type), sub_type_id);
+      type_init(at type, type_base(at primary_type), sub_type_id);
 
       let constraint : u64 = type_check_constraints(at primary_type, at sub_type);
       if or eq constraint TYPE_CONSTRAINT_VALID eq constraint TYPE_CONSTRAINT_UNDECIDABLE {
@@ -473,7 +473,7 @@ fn collect_types_from_node(block : ptr, fs : ptr, ast : ptr) -> u64 {
     let type : Type = 0;
     let symbol = NULL;
     token_to_compile_type(block, fs, + ast Ast.token, @symbol, at type);
-    if and symbol eq type_value(at type) TypeNone {
+    if and symbol eq type_base(at type) TypeNone {
       store64 @result Error;
     }
     else if eq type_contract_stack_push(at type) NoError {
@@ -502,7 +502,7 @@ fn type_contract_from_type_node(block : ptr, fs : ptr, ast : ptr, mode : u64, ty
       memcpy(type_out, at type, sizeof Type);
       store64 @result NoError;
       if eq accept_none_type 0 {
-        if eq type_value(at type) TypeNone {
+        if eq type_base(at type) TypeNone {
           store64 @result Error;
         }
       }
@@ -651,7 +651,7 @@ fn is_branch_konst_eval(ast : ptr) -> u64 {
 }
 
 fn is_numerical(type : ptr<Type>) -> u64 {
-  let value = type_value(type);
+  let value = type_base(type);
   or or or
     eq value TypeUnsigned64
     eq value TypeUnsigned32
@@ -712,7 +712,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       if eq type_contract_from_type_node(block, fs, ast_type, TYPE_CONTRACT_CREATE, at explicit_type, 0) NoError {
         let token : Token = 0;
         memcpy(@token, + ast_type Ast.token, sizeof Token);
-        if eq type_value(at explicit_type) TypeNone {
+        if eq type_base(at explicit_type) TypeNone {
           let message = tmp_it;
           tmp_push_cstr("type `");
           tmp_push_str(load64 + @token Token.buffer, load64 + @token Token.length);
@@ -722,8 +722,8 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
           store64 @tmp_it message;
         }
         else {
-          if eq type_value(at explicit_type) TypeFunc {
-            let id : u64 = type_id(at explicit_type);
+          if eq type_base(at explicit_type) TypeFunc {
+            let id : u64 = type_sub_id(at explicit_type);
             store64 @expl_type_symbol + + c Compile.symbols * sizeof Symbol id;
             memcpy(at explicit_type_value, + expl_type_symbol Symbol.value, sizeof Value);
           }
@@ -771,9 +771,9 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
     let prev_type : Type = 0;
     ts_top(at prev_type);
 
-    if neq type_value(at explicit_type) TypeNone {
+    if neq type_base(at explicit_type) TypeNone {
       memcpy(at prev_type, at explicit_type, sizeof Type);
-      if eq type_value(at explicit_type) TypeFunc {
+      if eq type_base(at explicit_type) TypeFunc {
         memcpy(@prev_value, @explicit_type_value, sizeof Value);
       }
     }
@@ -787,11 +787,11 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       while and not done < i ts_delta {
         ts_pop(at type);
         { let _ = vs_pop(@value); }
-        if or eq type_value(at explicit_type) TypeStruct eq type_value(at explicit_type) TypeAny {
+        if or eq type_base(at explicit_type) TypeStruct eq type_base(at explicit_type) TypeAny {
           // do nothing, all is permitted here
         }
         else {
-          if and eq type_value(at type) TypeFunc eq type_value(at prev_type) TypeFunc {
+          if and eq type_base(at type) TypeFunc eq type_base(at prev_type) TypeFunc {
             if eq check_func_signatures(+ @value Value.func, + @prev_value Value.func) 0 {
               typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
               store64 @done 1;
@@ -819,7 +819,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
       store64 @num_elements ts_delta;
     }
 
-    if neq type_value(at explicit_type) TypeNone {
+    if neq type_base(at explicit_type) TypeNone {
       memcpy(at type, at explicit_type, sizeof Type);
     }
 
@@ -889,7 +889,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           let size : u64 = load64 + symbol Symbol.size;
           let type : Type = 0;
           memcpy(at type, + symbol Symbol.type, sizeof Type);
-          if and > size MAX_STRUCT_SIZE eq type_value(at type) TypeStruct {
+          if and > size MAX_STRUCT_SIZE eq type_base(at type) TypeStruct {
             let args : any = MAX_STRUCT_SIZE;
             typecheck_error_at(+ ast Ast.token, "can not push a struct with size greater than %d\n", @args);
           }
@@ -969,8 +969,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       ts_pop(at b);
       ts_pop(at a);
       if and
-        or or or is_numerical(at a) eq type_value(at a) TypeAny eq type_value(at a) TypePtr eq type_value(at a) TypeCString
-        or or or is_numerical(at b) eq type_value(at b) TypeAny eq type_value(at b) TypePtr eq type_value(at b) TypeCString {
+        or or or is_numerical(at a) eq type_base(at a) TypeAny eq type_base(at a) TypePtr eq type_base(at a) TypeCString
+        or or or is_numerical(at b) eq type_base(at b) TypeAny eq type_base(at b) TypePtr eq type_base(at b) TypeCString {
         let va : Value = 0;
         let vb : Value = 0;
         { let _ = vs_pop(@vb); }
@@ -1075,7 +1075,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           ts_pop(at type);
           let deflated_type : Type = 0;
           type_deflate(at type, at deflated_type);
-          if neq type_value(at deflated_type) TypeNone {
+          if neq type_base(at deflated_type) TypeNone {
             ts_push(at deflated_type, cast ptr<Type> NULL);
           }
           else {
@@ -1178,7 +1178,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                   let arg_type_id : u64 = type_lookup(at arg_type);
                   assert(neq arg_type_id UINT64_MAX, "invalid type\n");
                   let size : u64 = compile_type_size(arg_type_id);
-                  if eq type_value(at arg_type) TypeStruct {
+                  if eq type_base(at arg_type) TypeStruct {
                     store64 @size compile_type_size(arg_type_id);
                     if > size MAX_STRUCT_SIZE {
                       let args : any = MAX_STRUCT_SIZE;
@@ -1230,7 +1230,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
               }
 
               if rtype_node {
-                if and neq types_are_equal(at explicit_rtype, at rtype) 1 neq type_value(at explicit_rtype) TypeAny {
+                if and neq types_are_equal(at explicit_rtype, at rtype) 1 neq type_base(at explicit_rtype) TypeAny {
                   // TODO(lucas): more detailed error message
                   compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
                 }
@@ -1272,7 +1272,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
         let func : ptr = + + symbol Symbol.value Value.func;
         let type : Type = 0;
         memcpy(at type, + symbol Symbol.type, sizeof Type);
-        if or eq type_value(at type) TypeFunc eq type_value(at type) TypeSyscallFunc {
+        if or eq type_base(at type) TypeFunc eq type_base(at type) TypeSyscallFunc {
           let argc : u64 = load64 + func Function.argc;
           if eq argc load64 + arg_list Ast.count {
             store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): store this in the symbol value field, or someplace else
@@ -1285,7 +1285,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 let arg_in_type : Type = 0;
                 ts_top(at arg_in_type);
 
-                if eq type_value(at type) TypeSyscallFunc {
+                if eq type_base(at type) TypeSyscallFunc {
                   // any type is allowed here
                   // we still want to type check the arguments of the call
                   // which is why this is here instead of outside the loop
@@ -1299,7 +1299,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
                   if and
                       neq types_are_equal(at arg_type, at arg_in_type) 1
-                      neq type_value(at arg_type) TypeAny {
+                      neq type_base(at arg_type) TypeAny {
                     {
                       // TODO(lucas): error message type strings
                       typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", NULL);
@@ -1325,7 +1325,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
             let rtype : Type = 0;
             memcpy(at rtype, + func Function.rtype, sizeof Type);
-            if neq type_value(at rtype) TypeNone {
+            if neq type_base(at rtype) TypeNone {
               store64 + + symbol Symbol.value Value.konst 0;  // NOTE(lucas): temporary (why?)
               store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
               { let _ = vs_push(+ symbol Symbol.value); }
@@ -1370,7 +1370,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let type : Type = 0;
       ts_pop(at type); // pop type of condition result
       { let _ = vs_pop(NULL); } // pop value of condition result
-      if or or eq type_value(at type) TypeCString eq type_value(at type) TypePtr is_numerical(at type) {
+      if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
         let local_block : Block = 0;
         block_init(@local_block, block);
         { let _ = typecheck(@local_block, fs, body); }
@@ -1387,7 +1387,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let type : Type = 0;
       ts_pop(at type); // pop type of condition result
       { let _ = vs_pop(NULL); } // pop value of condition result
-      if or or eq type_value(at type) TypeCString eq type_value(at type) TypePtr is_numerical(at type) {
+      if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
         let local_block : Block = 0;
         block_init(@local_block, block);
         { let _ = typecheck(@local_block, fs, body); }
@@ -1410,7 +1410,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       let a : Type = 0;
       ts_pop(at a);
       { let _ = typecheck(block, fs, second); }
-      if or eq type_value(at a) TypePtr eq type_value(at a) TypeAny {
+      if or eq type_base(at a) TypePtr eq type_base(at a) TypeAny {
         ts_pop(cast ptr<Type> NULL);
         { let _ = vs_pop(NULL); }
         { let _ = vs_pop(NULL); }
@@ -1485,7 +1485,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
           if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
             store64 + symbol Symbol.imm imm;
-            store64 + symbol Symbol.size compile_type_size(type_value(at type));
+            store64 + symbol Symbol.size compile_type_size(type_base(at type));
             store64 + symbol Symbol.konst 1;
             if eq cast u64 block + c Compile.global {
               store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
@@ -1653,7 +1653,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       ts_pop(at expr_type);
       let cast_type : Type = 0;
       { let _ = type_contract_from_type_node(block, fs, type_expr, TYPE_CONTRACT_CREATE, at cast_type, 0); }
-      if and neq type_value(at cast_type) TypeNone neq type_value(at cast_type) TypeFunc {
+      if and neq type_base(at cast_type) TypeNone neq type_base(at cast_type) TypeFunc {
         ts_push(at cast_type, cast ptr<Type> NULL);
       }
       else {
