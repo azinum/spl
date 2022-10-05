@@ -99,7 +99,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
         {
           let command : cstr = (
             "/usr/bin/nasm",
-            // "-g",
+            "-g",
             "-f elf64",
             cast cstr @path,
             "-o",
@@ -173,6 +173,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.cstring_count 0;
   block_init(+ c Compile.global, NULL);
   store64 + c Compile.block_count 0;
+  store64 + c Compile.block_count_largest 0;
   store64 + c Compile.label_count 0;
   store64 + c Compile.status NoError;
   store64 + c Compile.entry_point 0;

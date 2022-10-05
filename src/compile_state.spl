@@ -17,7 +17,7 @@ struct Symbol (
 const MAX_SYMBOL = 4096;
 const MAX_SYMBOL_PER_BLOCK = 1024;
 const MAX_STATIC_DATA = * 128 1024;
-const MAX_CSTRING = 1024;
+const MAX_CSTRING = 2048;
 const MAX_SYSCALL_FUNCTION = 7;
 
 struct Block (
@@ -26,7 +26,7 @@ struct Block (
   parent       : ptr
 );
 
-const MAX_BLOCK = 512;
+const MAX_BLOCK = 256;
 
 struct Debug_info (
   token : Token
@@ -64,6 +64,7 @@ struct Compile (
 
   blocks              : Block : MAX_BLOCK, // block stack is used to reduce stack usage
   block_count         : u64,
+  block_count_largest : u64, // what was the largest block stack size during the whole compilation?
 
   label_count         : u64,  // labels that are used for branching
 
@@ -293,10 +294,15 @@ fn block_init(block : ptr, parent : ptr) -> none {
 fn block_push(parent : ptr<Block>) -> ptr<Block> {
   let block = cast ptr<Block> NULL;
   let block_count = cast ptr<u64> + c Compile.block_count;
+  let block_count_largest = cast ptr<u64> + c Compile.block_count_largest;
+
   if < deref block_count MAX_BLOCK {
     store64 @block + + c Compile.blocks * sizeof Block deref block_count;
     block_init(cast ptr block, cast ptr parent);
     store64 block_count + 1 deref block_count;
+    if < deref block_count_largest deref block_count {
+      store64 block_count_largest deref block_count;
+    }
   }
   else {
     assert(0, "block_push: block stack overflow\n");
@@ -312,4 +318,30 @@ fn block_pop -> none {
   else {
     assert(0, "block_pop: block stack underflow\n");
   }
+}
+
+fn compile_state_print(fd : u64) -> none {
+  dprintf(fd, "compile_state_print:\n", NULL);
+  let args : any =
+    load64 + c Compile.ins_count,
+    MAX_INS,
+    load64 + c Compile.imm_index,
+    MAX_STATIC_DATA,
+    load64 + c Compile.symbol_count,
+    MAX_SYMBOL,
+    load64 + c Compile.cstring_count,
+    MAX_CSTRING,
+    load64 + c Compile.block_count_largest,
+    MAX_BLOCK,
+    load64 + c Compile.type_count,
+    MAX_COMPILE_TYPE
+  ;
+  dprintf(fd,
+"ins_count           = %d/%d
+ imm_index           = %d/%d
+ symbol_count        = %d/%d
+ cstring_count       = %d/%d
+ block_count_largest = %d/%d
+ type_count          = %d/%d\n"
+  , @args);
 }

@@ -1,7 +1,7 @@
 // info.spl
 
 // TODO(lucas): cleanup
-fn print_symbol_info(fd : u64) -> none {
+fn symbol_info_print(fd : u64) -> none {
   dprintf(fd, "print_symbol_info:\n", NULL);
   let message = cast cstr tmp_it;
   let count : u64 = load64 + c Compile.symbol_count;
