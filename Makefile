@@ -38,6 +38,13 @@ performance_test:
 	perf report -n -f
 	rm -f perf.data perf.data.old
 
+memory_leak_test:
+	valgrind --leak-check=full \
+		--show-leak-kinds=all \
+		--track-origins=yes \
+		--verbose \
+		./spl spl.spl
+
 stack_usage:
 	valgrind --tool=drd --show-stack-usage=yes ./spl spl.spl
 
