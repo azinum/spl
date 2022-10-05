@@ -14,7 +14,7 @@ enum u64 (
   TYPE_CONSTRAINT_UNDECIDABLE // unwrapping of type is needed, thus we can not decide if the constraint is valid or not at this moment
 );
 
-fn typecheck_function(block : ptr, fs : ptr, ast : ptr) -> u64 0;
+fn typecheck_function(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 0;
 let _typecheck = typecheck_function;
 fn type_print_func_sig(fd : u64, type : ptr<Type>) -> none {}
 let _type_print = type_print_func_sig;
@@ -424,7 +424,7 @@ fn type_contract_stack_push(type : ptr<Type>) -> u64 {
 }
 
 // block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
-fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
+fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
   type_init(type_out, TypeNone, 0);
   let token_type = load64 + token Token.type;
   if eq token_type T_ANY {
@@ -466,7 +466,7 @@ fn token_to_compile_type(block : ptr, fs : ptr, token : ptr, symbol_out : ptr, t
 //   None | Value
 //   Type
 // block : ptr<Block>, fs : ptr<Function>, ast : ptr<Ast>
-fn collect_types_from_node(block : ptr, fs : ptr, ast : ptr) -> u64 {
+fn collect_types_from_node(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   let result = NoError;
   let sub_type_node = NULL;
   if ast {
@@ -491,7 +491,7 @@ fn collect_types_from_node(block : ptr, fs : ptr, ast : ptr) -> u64 {
 }
 
 // block : Block*, fs : Function*, ast : Ast*, mode : u64, type_out : Type*
-fn type_contract_from_type_node(block : ptr, fs : ptr, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
+fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
   let result = Error;
   let collected_types_result = collect_types_from_node(block, fs, ast);
   if eq collected_types_result NoError {
@@ -659,7 +659,7 @@ fn is_numerical(type : ptr<Type>) -> u64 {
     eq value TypeUnsigned8;
 }
 
-fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_node_list(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   let i = 0;
   let count = load64 + ast Ast.count;
   while < i count {
@@ -677,7 +677,7 @@ fn typecheck_node_list(block : ptr, fs : ptr, ast : ptr) -> u64 {
 //   Type
 //     None | Value (array specifier)
 //     Type (optional sub type)
-fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   let result = NoError;
   let konst = eq load64 + ast Ast.type AstConstStatement;
   let ts_count = load64 + c Compile.ts_count;
@@ -856,7 +856,7 @@ fn typecheck_let_statement(block : ptr, fs : ptr, ast : ptr) -> u64 {
   result;
 }
 
-fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
+fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   if eq load64 + c Compile.status NoError {
     let ast_type = load64 + ast Ast.type;
     if eq ast_type AstValue {
@@ -1103,9 +1103,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       { let _ = typecheck_let_statement(block, fs, ast); }
     }
     else if eq ast_type AstBlockStatement {
-      let local_block : Block = 0;
-      block_init(@local_block, block);
-      { let _ = typecheck_node_list(@local_block, fs, ast); }
+      let local_block = block_push(cast ptr<Block> block);
+      { let _ = typecheck_node_list(local_block, fs, ast); }
+      block_pop();
       store64 + ast Ast.konst is_branch_konst_eval(ast);
     }
     else if eq ast_type AstFuncDefinition {
@@ -1125,9 +1125,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
           let symbol : ptr = NULL;
           let symbol_index : u64 = UINT64_MAX;
           if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
-            let local_block : Block = 0;
-            block_init(@local_block, block);
-
+            let local_block = block_push(cast ptr<Block> block);
             let type : Type = 0;
             type_init(at type, TypeFunc, symbol_index);
             let type_size : u64 = compile_type_size(TypeFunc);
@@ -1169,7 +1167,7 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
 
               let arg_symbol : ptr = NULL;
               let arg_symbol_index : u64 = UINT64_MAX;
-              if eq compile_declare_value(@local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
+              if eq compile_declare_value(local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
                 store64 + + func Function.args * sizeof u64 i arg_symbol_index;
                 let arg_type : Type = 0;
 
@@ -1208,10 +1206,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
             }
 
             let ts_count : u64 = load64 + c Compile.ts_count;
-            let func_body_block : Block = 0;
-            block_init(@func_body_block, @local_block); // to allow for shadowing of function arguments
+            let func_body_block = block_push(local_block);
 
-            { let _ = typecheck_node_list(@func_body_block, fs, body); }
+            { let _ = typecheck_node_list(func_body_block, fs, body); }
             let konst_body : u64 = is_branch_konst_eval(body);
             store64 + body Ast.konst konst_body;
             store64 + ast Ast.konst konst_body;
@@ -1245,6 +1242,8 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
                 store64 + c Compile.entry_point + load64 + c Compile.entry_point 1;
               }
             }
+            block_pop(); // func_body_block
+            block_pop(); // local_block
           }
           else {
             compile_error_at(+ ast Ast.token, "symbol already exists\n");
@@ -1371,9 +1370,9 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       ts_pop(at type); // pop type of condition result
       { let _ = vs_pop(NULL); } // pop value of condition result
       if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
-        let local_block : Block = 0;
-        block_init(@local_block, block);
-        { let _ = typecheck(@local_block, fs, body); }
+        let local_block = block_push(cast ptr<Block> block);
+        { let _ = typecheck(local_block, fs, body); }
+        block_pop(); // local_block
         store64 + ast Ast.konst is_branch_konst_eval(ast);
       }
       else {
@@ -1388,14 +1387,15 @@ fn typecheck(block : ptr, fs : ptr, ast : ptr) -> u64 {
       ts_pop(at type); // pop type of condition result
       { let _ = vs_pop(NULL); } // pop value of condition result
       if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
-        let local_block : Block = 0;
-        block_init(@local_block, block);
-        { let _ = typecheck(@local_block, fs, body); }
+        let local_block = block_push(cast ptr<Block> block);
+        { let _ = typecheck(local_block, fs, body); }
+        block_pop(); // local_block
+
         if eq load64 + ast Ast.count 3 {
           let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
-          let local_block : Block = 0;
-          block_init(@local_block, block);
-        { let _ = typecheck(@local_block, fs, else_body); }
+          let else_local_block = block_push(cast ptr<Block> block);
+          { let _ = typecheck(else_local_block, fs, else_body); }
+          block_pop(); // else_local_block
         }
         store64 + ast Ast.konst is_branch_konst_eval(ast);
       }
@@ -1701,7 +1701,7 @@ fn typecheck_program(ast : ptr) -> u64 {
   let time_end : timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
-  let _ = typecheck(+ c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
+  let _ = typecheck(cast ptr<Block> + c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if neq load64 + c Compile.vs_count 0 {
@@ -1710,6 +1710,10 @@ fn typecheck_program(ast : ptr) -> u64 {
 
   if and neq load64 + c Compile.ts_count 0 eq load64 + c Compile.status NoError {
     typecheck_error("unhandled data on the type stack\n");
+  }
+
+  if and neq load64 + c Compile.block_count 0 eq load64 + c Compile.status NoError {
+    typecheck_error("block stack not empty\n");
   }
 
   if eq load64 + c Compile.status NoError {

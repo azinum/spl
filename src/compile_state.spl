@@ -26,6 +26,8 @@ struct Block (
   parent       : ptr
 );
 
+const MAX_BLOCK = 512;
+
 struct Debug_info (
   token : Token
 );
@@ -59,6 +61,9 @@ struct Compile (
   cstring_count       : u64,
 
   global              : Block,
+
+  blocks              : Block : MAX_BLOCK, // block stack is used to reduce stack usage
+  block_count         : u64,
 
   label_count         : u64,  // labels that are used for branching
 
@@ -140,7 +145,7 @@ fn symbol_init(symbol : ptr) -> none {
 }
 
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
-fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
+fn compile_lookup_value(block : ptr<Block>, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
     let copy : u8 : MAX_NAME_SIZE = cast u8 0;
@@ -170,14 +175,14 @@ fn compile_lookup_value(block : ptr, fs : ptr, name : ptr, symbol : ptr, symbol_
       if neq levels_descend NULL {
         store64 levels_descend + 1 load64 levels_descend;
       }
-      store64 @result compile_lookup_value(cast ptr load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
+      store64 @result compile_lookup_value(cast ptr<Block> load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
     }
   }
   result;
 }
 
 // block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
-fn compile_declare_value(block : ptr, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+fn compile_declare_value(block : ptr<Block>, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
   let result = Error;
   if < load64 + token Token.length MAX_NAME_SIZE {
     if < load64 + c Compile.symbol_count MAX_SYMBOL {
@@ -257,7 +262,7 @@ fn compile_push_value(value : ptr, size : u64) -> u64 {
     store64 @result address;
   }
   else {
-    assert(0, "out of immediate data memory\n");
+    assert(0, "compile_push_value: out of immediate data memory\n");
   }
   result;
 }
@@ -274,7 +279,7 @@ fn compile_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
     }
     else {
       store64 @address UINT64_MAX;
-      assert(0, "cstring capacity reached\n");
+      assert(0, "compile_push_cstring: cstring capacity reached\n");
     }
   }
   address;
@@ -283,4 +288,28 @@ fn compile_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
 fn block_init(block : ptr, parent : ptr) -> none {
   store64 + block Block.symbol_count 0;
   store64 + block Block.parent parent;
+}
+
+fn block_push(parent : ptr<Block>) -> ptr<Block> {
+  let block = cast ptr<Block> NULL;
+  let block_count = cast ptr<u64> + c Compile.block_count;
+  if < deref block_count MAX_BLOCK {
+    store64 @block + + c Compile.blocks * sizeof Block deref block_count;
+    block_init(cast ptr block, cast ptr parent);
+    store64 block_count + 1 deref block_count;
+  }
+  else {
+    assert(0, "block_push: block stack overflow\n");
+  }
+  block;
+}
+
+fn block_pop -> none {
+  let block_count = cast ptr<u64> + c Compile.block_count;
+  if > deref block_count 0 {
+    store64 block_count - deref block_count 1;
+  }
+  else {
+    assert(0, "block_pop: block stack underflow\n");
+  }
 }

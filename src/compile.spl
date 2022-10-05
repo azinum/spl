@@ -2,7 +2,7 @@
 
 fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   let result = NoError;
-  let block = + c Compile.global;
+  let block = cast ptr<Block> + c Compile.global;
   let token : Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
@@ -37,7 +37,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
 // name : cstr, value : Value*, type : Type
 fn compile_create_value(name : cstr, value : ptr, type : ptr<Type>) -> u64 {
   let result = NoError;
-  let block = + c Compile.global;
+  let block = cast ptr<Block> + c Compile.global;
   let token : Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
@@ -99,6 +99,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
         {
           let command : cstr = (
             "/usr/bin/nasm",
+            // "-g",
             "-f elf64",
             cast cstr @path,
             "-o",
@@ -165,11 +166,13 @@ fn compile_print_final -> none {
 
 fn compile_state_init -> u64 {
   store64 @c memory_alloc(sizeof Compile);
+  assert(cast u64 c, "memory allocation of compile state failed\n");
   store64 + c Compile.ins_count 0;
   store64 + c Compile.imm_index 0;
   store64 + c Compile.symbol_count 0;
   store64 + c Compile.cstring_count 0;
   block_init(+ c Compile.global, NULL);
+  store64 + c Compile.block_count 0;
   store64 + c Compile.label_count 0;
   store64 + c Compile.status NoError;
   store64 + c Compile.entry_point 0;
@@ -302,7 +305,6 @@ fn compile_state_init -> u64 {
     type_init(at type, TypePtr, 0);
     let _ = compile_create_value("NULL", @value, at type);
   }
-  // typecheck_print_types(STDOUT_FILENO);
   NoError;
 }
 

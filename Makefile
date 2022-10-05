@@ -9,6 +9,7 @@ SPL_FLAGS=
 clean:
 	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
 
+${SPL_SRC}: SPL_FLAGS+=verbose-asm
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl
 
@@ -37,6 +38,9 @@ performance_test:
 	perf record -e cycles -c 2000000 ./spl spl.spl verbose-asm
 	perf report -n -f
 	rm -f perf.data perf.data.old
+
+stack_usage:
+	valgrind --tool=drd --show-stack-usage=yes ./spl spl.spl
 
 install:
 	chmod o+x ${PROG}

@@ -19,10 +19,12 @@ enum u64 (
 );
 
 struct Type (
-  base : u64, // base or container type
+  base : u64,     // base or container type
   sub_id : u64,   // sub type id
+  info_id : u64,  // index to additional type info for structs, functions, and others
   hash : u64,
-  info : u64 // index to additional type info for structs, functions, and others
+  // count : u64,
+  // size : u64,
 );
 
 const MAX_COMPILE_TYPE = 1024;
@@ -53,8 +55,8 @@ struct Struct_type_info (
 fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64) -> none {
   store64 + type Type.base base_type;
   store64 + type Type.sub_id sub_id;
+  store64 + type Type.info_id UINT64_MAX;
   store64 + type Type.hash 0;
-  store64 + type Type.info UINT64_MAX;
 }
 
 fn type_base(type : ptr<Type>) -> u64 {
