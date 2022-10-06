@@ -159,9 +159,7 @@ fn struct_type_info_print(fd : u64, info : ptr<Struct_type_info>, flat : u64) ->
     }
     dprintf(fd, "%s : ", @args);
     _type_print(fd, at field_type);
-    if > field_count 1 {
-      dprintf(fd, " : %d", @field_count);
-    }
+
     store64 @i + 1 i;
     if < i count {
       dprintf(fd, ",", NULL);
@@ -442,93 +440,13 @@ fn type_contract_stack_push(type : ptr<Type>) -> u64 {
   result;
 }
 
-// block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
-fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
-  type_init(type_out, TypeNone, 0, 0, 1);
-  let token_type = load64 + token Token.type;
-  if eq token_type T_ANY {
-    type_init(type_out, TypeAny, 0, sizeof any, 1);
-  }
-  else if eq token_type T_PTR {
-    type_init(type_out, TypePtr, 0, sizeof ptr, 1);
-  }
-  else if eq token_type T_UNSIGNED64 {
-    type_init(type_out, TypeUnsigned64, 0, sizeof u64, 1);
-  }
-  else if eq token_type T_UNSIGNED32 {
-    type_init(type_out, TypeUnsigned32, 0, sizeof u32, 1);
-  }
-  else if eq token_type T_UNSIGNED16 {
-    type_init(type_out, TypeUnsigned16, 0, sizeof u16, 1);
-  }
-  else if eq token_type T_UNSIGNED8 {
-    type_init(type_out, TypeUnsigned8, 0, sizeof u8, 1);
-  }
-  else if or eq token_type T_CSTRING eq token_type T_CSTR {
-    type_init(type_out, TypeCString, 0, sizeof cstr, 1);
-  }
-  else if eq token_type T_IDENTIFIER {
-    let symbol = NULL;
-    let buffer : Buffer = 0;
-    buffer_init(at buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
-    if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
-      if neq symbol_out NULL {
-        store64 symbol_out symbol;
-      }
-      memcpy(type_out, + symbol Symbol.type, sizeof Type);
-    }
-  }
-}
-
-// result is stored in Compile.type_contract_stack
-// Type
-//   None | Value
-//   Type
-// block : ptr<Block>, fs : ptr<Function>, ast : ptr<Ast>
-fn collect_types_from_node(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
-  let result = NoError;
-  let sub_type_node = NULL;
-  if ast {
-    let type : Type = 0;
-    let symbol = NULL;
-    token_to_compile_type(block, fs, + ast Ast.token, @symbol, at type);
-    if and symbol eq type_base(at type) TypeNone {
-      store64 @result Error;
-    }
-    else if eq type_contract_stack_push(at type) NoError {
-      if eq load64 + ast Ast.count 2 {
-        store64 @sub_type_node load64 + + ast Ast.node * sizeof ptr 1;
-      }
-      store64 @result collect_types_from_node(block, fs, sub_type_node);
-      store64 @result NoError;
-    }
-    else {
-      store64 @result Error;
-    }
-  }
-  result;
-}
-
-// block : Block*, fs : Function*, ast : Ast*, mode : u64, type_out : Type*
-fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
-  let result = Error;
-  let collected_types_result = collect_types_from_node(block, fs, ast);
-  if eq collected_types_result NoError {
-    let type : Type = 0;
-    let contract = cast ptr<Type> + c Compile.type_contract_stack;
-    let count : u64 = load64 + c Compile.type_contract_count;
-    if eq type_from_contract(contract, count, mode, at type) NoError {
-      memcpy(type_out, at type, sizeof Type);
-      store64 @result NoError;
-      if eq accept_none_type 0 {
-        if eq type_base(at type) TypeNone {
-          store64 @result Error;
-        }
-      }
-    }
-    type_contract_stack_reset();
-  }
-  result;
+fn is_numerical(type : ptr<Type>) -> u64 {
+  let value = type_base(type);
+  or or or
+    eq value TypeUnsigned64
+    eq value TypeUnsigned32
+    eq value TypeUnsigned16
+    eq value TypeUnsigned8;
 }
 
 fn ts_push(type : ptr<Type>, type_out : ptr<Type>) -> none {
@@ -626,6 +544,109 @@ fn vs_pop(value_out : ptr<Value>) -> u64 {
   result;
 }
 
+// block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
+fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
+  type_init(type_out, TypeNone, 0, 0, 1);
+  let token_type = load64 + token Token.type;
+  if eq token_type T_ANY {
+    type_init(type_out, TypeAny, 0, sizeof any, 1);
+  }
+  else if eq token_type T_PTR {
+    type_init(type_out, TypePtr, 0, sizeof ptr, 1);
+  }
+  else if eq token_type T_UNSIGNED64 {
+    type_init(type_out, TypeUnsigned64, 0, sizeof u64, 1);
+  }
+  else if eq token_type T_UNSIGNED32 {
+    type_init(type_out, TypeUnsigned32, 0, sizeof u32, 1);
+  }
+  else if eq token_type T_UNSIGNED16 {
+    type_init(type_out, TypeUnsigned16, 0, sizeof u16, 1);
+  }
+  else if eq token_type T_UNSIGNED8 {
+    type_init(type_out, TypeUnsigned8, 0, sizeof u8, 1);
+  }
+  else if or eq token_type T_CSTRING eq token_type T_CSTR {
+    type_init(type_out, TypeCString, 0, sizeof cstr, 1);
+  }
+  else if eq token_type T_IDENTIFIER {
+    let symbol = NULL;
+    let buffer : Buffer = 0;
+    buffer_init(at buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
+    if eq compile_lookup_value(block, fs, @buffer, @symbol, NULL, NULL) NoError {
+      if neq symbol_out NULL {
+        store64 symbol_out symbol;
+      }
+      memcpy(type_out, + symbol Symbol.type, sizeof Type);
+    }
+  }
+}
+
+// result is stored in Compile.type_contract_stack
+// Type
+//   None | Value
+//   Type
+// block : ptr<Block>, fs : ptr<Function>, ast : ptr<Ast>
+fn collect_types_from_node(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+  let result = NoError;
+  let sub_type_node = NULL;
+  if ast {
+    let type : Type = 0;
+    let symbol = NULL;
+    token_to_compile_type(block, fs, + ast Ast.token, @symbol, at type);
+    let array_specifier_node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+    if neq load64 + array_specifier_node Ast.type AstNone {
+      { let _ = _typecheck(block, fs, array_specifier_node); }
+      let value : Value = 0;
+      { let _ = vs_pop(at value); }
+      let array_specifier_type : Type = 0;
+      ts_pop(at array_specifier_type);
+      if is_numerical(at array_specifier_type) {
+        store64 + at type Type.count load64 + at value Value.num;
+      }
+      else {
+        store64 @result Error;
+      }
+    }
+    if and symbol eq type_base(at type) TypeNone {
+      store64 @result Error;
+    }
+    else if eq type_contract_stack_push(at type) NoError {
+      if eq load64 + ast Ast.count 2 {
+        store64 @sub_type_node load64 + + ast Ast.node * sizeof ptr 1;
+      }
+      store64 @result collect_types_from_node(block, fs, sub_type_node);
+      store64 @result NoError;
+    }
+    else {
+      store64 @result Error;
+    }
+  }
+  result;
+}
+
+// block : Block*, fs : Function*, ast : Ast*, mode : u64, type_out : Type*
+fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
+  let result = Error;
+  let collected_types_result = collect_types_from_node(block, fs, ast);
+  if eq collected_types_result NoError {
+    let type : Type = 0;
+    let contract = cast ptr<Type> + c Compile.type_contract_stack;
+    let count : u64 = load64 + c Compile.type_contract_count;
+    if eq type_from_contract(contract, count, mode, at type) NoError {
+      memcpy(type_out, at type, sizeof Type);
+      store64 @result NoError;
+      if eq accept_none_type 0 {
+        if eq type_base(at type) TypeNone {
+          store64 @result Error;
+        }
+      }
+    }
+    type_contract_stack_reset();
+  }
+  result;
+}
+
 fn check_func_signatures(a : ptr, b : ptr) -> u64 {
   let result : u64 = 1;
   if and
@@ -669,15 +690,6 @@ fn is_branch_konst_eval(ast : ptr) -> u64 {
     store64 @i + 1 i;
   }
   konst;
-}
-
-fn is_numerical(type : ptr<Type>) -> u64 {
-  let value = type_base(type);
-  or or or
-    eq value TypeUnsigned64
-    eq value TypeUnsigned32
-    eq value TypeUnsigned16
-    eq value TypeUnsigned8;
 }
 
 fn typecheck_node_list(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
@@ -940,10 +952,10 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           if eq token_type T_AT_WORD {
             const count = 2;
             let contract : Type : count = 0;
-            type_init(+ at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
+            type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
             memcpy(+ at contract * sizeof Type 1, at type, sizeof Type);
             let ptr_type : Type = 0;
-            if eq type_from_contract(at contract, count, TYPE_CONTRACT_CREATE, at ptr_type) NoError {
+            if eq type_from_contract(cast ptr<Type> at contract, count, TYPE_CONTRACT_CREATE, at ptr_type) NoError {
               { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
               ts_push(at ptr_type, cast ptr<Type> NULL);
             }

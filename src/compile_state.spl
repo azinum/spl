@@ -95,7 +95,7 @@ struct Compile (
 // c : Compile*
 let c : ptr = NULL;
 
-let compile_type_str : cstr : MAX_COMPILE_TYPE = "";
+let compile_type_str : cstr : MAX_COMPILE_TYPE = cast cstr : MAX_COMPILE_TYPE "";
 
 fn compile_error(message : cstr) -> none {
   if eq load64 + c Compile.status NoError {

@@ -3,6 +3,13 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
+fn some(thing : ptr<u64 : 4>) -> none {}
+
+struct T (
+  a : u64 : 2
+);
+
 fn main -> none {
-  let a = 12;
+  let a : u64 : 4 = 12;
+  some(at a);
 }

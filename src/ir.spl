@@ -57,7 +57,7 @@ enum u64 (
   MAX_IR_CODE
 );
 
-let ir_code_str : cstr : MAX_IR_CODE = "";
+let ir_code_str : cstr : MAX_IR_CODE = cast cstr : MAX_IR_CODE "";
 
 fn ir_func_signature(fs : ptr, ast : ptr, ins_count : ptr) -> u64 NoError;
 let _ir_compile = ir_func_signature;

@@ -30,7 +30,7 @@ enum u64 (
   MAX_AST_TYPE
 );
 
-let ast_type_str : cstr : MAX_AST_TYPE = "";
+let ast_type_str : cstr : MAX_AST_TYPE = cast cstr : MAX_AST_TYPE "";
 
 // NOTE(lucas): it's VERY inefficient to use a constant number of internal nodes for the ast, but this will do for now
 // TODO(lucas): come back here and rework all of this when the self hosted compiler is complete

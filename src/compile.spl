@@ -273,10 +273,10 @@ fn compile_state_init -> u64 {
   {
     const count = 2;
     let contract : Type : count = 0;
-    type_init(+ at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
-    type_init(+ at contract * sizeof Type 1, TypeCString, 0, sizeof cstr, 1);
+    type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
+    type_init(cast ptr<Type> + at contract * sizeof Type 1, TypeCString, 0, sizeof cstr, 1);
     let result : Type = 0;
-    let _ = type_from_contract(at contract, count, TYPE_CONTRACT_CREATE, at result);
+    let _ = type_from_contract(cast ptr<Type> at contract, count, TYPE_CONTRACT_CREATE, at result);
   }
   {
     let value : Value = 0;
