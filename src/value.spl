@@ -22,5 +22,5 @@ fn function_init(func : ptr<Function>) -> none {
   store64 + func Function.label 0;
   store64 + func Function.argc 0;
   store64 + func Function.locals_offset 0;
-  type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0);
+  type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, sizeof ptr);
 }

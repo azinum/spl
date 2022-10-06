@@ -52,13 +52,13 @@ struct Struct_type_info (
   count : u64
 );
 
-fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64) -> none {
+fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64) -> none {
   store64 + type Type.base base_type;
   store64 + type Type.sub_id sub_id;
   store64 + type Type.info_id UINT64_MAX;
   store64 + type Type.hash 0;
-  // store64 + type Type.count 0;
-  // store64 + type Type.size 0;
+  store64 + type Type.count 1;
+  store64 + type Type.size size;
 }
 
 fn type_base(type : ptr<Type>) -> u64 {
