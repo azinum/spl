@@ -53,12 +53,12 @@ struct Struct_type_info (
   count : u64
 );
 
-fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64) -> none {
+fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64, count : u64) -> none {
   store64 + type Type.base base_type;
   store64 + type Type.sub_id sub_id;
   store64 + type Type.info_id UINT64_MAX;
   store64 + type Type.hash 0;
-  store64 + type Type.count 1;
+  store64 + type Type.count count;
   store64 + type Type.size size;
 }
 
@@ -71,7 +71,8 @@ fn type_sub_id(type : ptr<Type>) -> u64 {
 }
 
 fn types_are_equal(a : ptr<Type>, b : ptr<Type>) -> u64 {
-  and
+  and and
     eq load64 + a Type.base     load64 + b Type.base
-    eq load64 + a Type.sub_id   load64 + b Type.sub_id;
+    eq load64 + a Type.sub_id   load64 + b Type.sub_id
+    eq load64 + a Type.count    load64 + b Type.count;
 }

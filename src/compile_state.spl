@@ -140,7 +140,7 @@ fn symbol_init(symbol : ptr) -> none {
   store64 + symbol Symbol.num_elements_init 0;
   store64 + symbol Symbol.konst 0;
   store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
-  type_init(cast ptr<Type> + symbol Symbol.type, TypeNone, 0, 0);
+  type_init(cast ptr<Type> + symbol Symbol.type, TypeNone, 0, 0, 1);
   store64 + symbol Symbol.ref_count 0;
 }
 
@@ -253,7 +253,7 @@ fn warning_at(token : ptr, message : cstr, args : any) -> none {
   store64 + c Compile.warning_count + 1 load64 + c Compile.warning_count;
 }
 
-fn compile_push_value(value : ptr, size : u64) -> u64 {
+fn compile_push_value(value : any, size : u64) -> u64 {
   let result : u64 = UINT64_MAX;
   let address : u64 = load64 + c Compile.imm_index;
   if < + address size MAX_STATIC_DATA {

@@ -221,6 +221,10 @@ fn type_print(fd : u64, type : ptr<Type>) -> none {
       load64 + @compile_type_str * sizeof cstr type_base(type)
     );
     dprintf(fd, "%s", @args);
+    let count = load64 + type Type.count;
+    if > count 1 {
+      dprintf(fd, " : %d", @count);
+    }
   }
 }
 
@@ -306,7 +310,7 @@ fn type_check_constraints(container : ptr<Type>, type : ptr<Type>) -> u64 {
 
 fn type_deflate(type : ptr<Type>, type_out : ptr<Type>) -> none {
   if type_out {
-    type_init(type_out, TypeNone, 0, 0);
+    type_init(type_out, TypeNone, 0, 0, 1);
   }
   let id = type_sub_id(type);
   if neq id 0 {
@@ -324,7 +328,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
   let result = NoError;
   let fail : u64 = 0;
 
-  type_init(result_out, TypeNone, 0, 0);
+  type_init(result_out, TypeNone, 0, 0, 1);
 
   if eq count 1 {
     let type : Type = 0;
@@ -333,53 +337,69 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
     if neq lookup UINT64_MAX {
       memcpy(result_out, at type, sizeof Type);
     }
+    else if eq mode TYPE_CONTRACT_CREATE {
+      // TODO(lucas): check if this type is valid
+      { let _ = type_push_new(at type); }
+      memcpy(result_out, at type, sizeof Type);
+    }
     else {
       store64 @fail 1;
     }
   }
+  else {
+    let i : u64 = - count 1;
+    let primary_type : Type = 0;
+    type_init(
+      at primary_type,
+      TypeNone,
+      0, // sub type id
+      0, // size
+      1  // count
+    );
+    let sub_type : Type = 0;
+    memcpy(at sub_type, + contract * sizeof Type i, sizeof Type);
 
-  let i : u64 = - count 1;
-  let primary_type : Type = 0;
-  type_init(at primary_type, TypeNone, 0, 0);
-  let sub_type : Type = 0;
-  memcpy(at sub_type, + contract * sizeof Type i, sizeof Type);
+    while and eq fail 0 > i 0 {
+      memcpy(at primary_type, + contract * sizeof Type - i 1, sizeof Type);
+      let sub_type_id = type_lookup(at sub_type);
+      if and eq mode TYPE_CONTRACT_CREATE eq sub_type_id UINT64_MAX {
+        store64 @sub_type_id type_push_new(at sub_type);
+      }
+      if neq sub_type_id UINT64_MAX {
+        let primary_type_count : u64 = load64 + at primary_type Type.count;
+        let type : Type = 0;
+        type_init(at type, type_base(at primary_type), sub_type_id, load64 + at primary_type Type.size, primary_type_count);
 
-  while and eq fail 0 > i 0 {
-    memcpy(at primary_type, + contract * sizeof Type - i 1, sizeof Type);
-    let sub_type_id = type_lookup(at sub_type);
-    if neq sub_type_id UINT64_MAX {
-      let type : Type = 0;
-      type_init(at type, type_base(at primary_type), sub_type_id, load64 + at primary_type Type.size);
-
-      let constraint : u64 = type_check_constraints(at primary_type, at sub_type);
-      if or eq constraint TYPE_CONSTRAINT_VALID eq constraint TYPE_CONSTRAINT_UNDECIDABLE {
-        let lookup : u64 = type_lookup(at type);
-        if eq lookup UINT64_MAX {
-          // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
-          if eq mode TYPE_CONTRACT_CREATE {
-            let new_type_id : u64 = type_push_new(at type);
-            assert(neq new_type_id 0, "failed to push new type\n");
-            memcpy(result_out, at type, sizeof Type);
-            memcpy(at sub_type, at type, sizeof Type); // sub type is now the newly created type
+        let constraint : u64 = type_check_constraints(at primary_type, at sub_type);
+        if or eq constraint TYPE_CONSTRAINT_VALID eq constraint TYPE_CONSTRAINT_UNDECIDABLE {
+          let lookup : u64 = type_lookup(at type);
+          if eq lookup UINT64_MAX {
+            // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
+            if eq mode TYPE_CONTRACT_CREATE {
+              let new_type_id : u64 = type_push_new(at type);
+              assert(neq new_type_id 0, "failed to push new type\n");
+              memcpy(result_out, at type, sizeof Type);
+              memcpy(at sub_type, at type, sizeof Type); // sub type is now the newly created type
+            }
+            else {
+              store64 @fail 1;
+            }
           }
           else {
-            store64 @fail 1;
+            // type exists
+            memcpy(result_out, at type, sizeof Type);
+            memcpy(at sub_type, at type, sizeof Type); // sub type is the newly created type
           }
         }
-        else {
-          // type exists
-          memcpy(result_out, at type, sizeof Type);
-          memcpy(at sub_type, at type, sizeof Type); // sub type is the newly created type
+        else { // constraint failed
+          store64 @fail 1;
         }
       }
-      else { // constraint failed
+      else {
         store64 @fail 1;
       }
+      store64 @i - i 1;
     }
-    else {
-      store64 @fail 1;
-    }
-    store64 @i - i 1;
   }
 
   if fail {
@@ -424,28 +444,28 @@ fn type_contract_stack_push(type : ptr<Type>) -> u64 {
 
 // block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
 fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
-  type_init(type_out, TypeNone, 0, 0);
+  type_init(type_out, TypeNone, 0, 0, 1);
   let token_type = load64 + token Token.type;
   if eq token_type T_ANY {
-    type_init(type_out, TypeAny, 0, sizeof any);
+    type_init(type_out, TypeAny, 0, sizeof any, 1);
   }
   else if eq token_type T_PTR {
-    type_init(type_out, TypePtr, 0, sizeof ptr);
+    type_init(type_out, TypePtr, 0, sizeof ptr, 1);
   }
   else if eq token_type T_UNSIGNED64 {
-    type_init(type_out, TypeUnsigned64, 0, sizeof u64);
+    type_init(type_out, TypeUnsigned64, 0, sizeof u64, 1);
   }
   else if eq token_type T_UNSIGNED32 {
-    type_init(type_out, TypeUnsigned32, 0, sizeof u32);
+    type_init(type_out, TypeUnsigned32, 0, sizeof u32, 1);
   }
   else if eq token_type T_UNSIGNED16 {
-    type_init(type_out, TypeUnsigned16, 0, sizeof u16);
+    type_init(type_out, TypeUnsigned16, 0, sizeof u16, 1);
   }
   else if eq token_type T_UNSIGNED8 {
-    type_init(type_out, TypeUnsigned8, 0, sizeof u8);
+    type_init(type_out, TypeUnsigned8, 0, sizeof u8, 1);
   }
   else if or eq token_type T_CSTRING eq token_type T_CSTR {
-    type_init(type_out, TypeCString, 0, sizeof cstr);
+    type_init(type_out, TypeCString, 0, sizeof cstr, 1);
   }
   else if eq token_type T_IDENTIFIER {
     let symbol = NULL;
@@ -513,7 +533,7 @@ fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : 
 
 fn ts_push(type : ptr<Type>, type_out : ptr<Type>) -> none {
   if type_out {
-    type_init(type_out, TypeNone, 0, 0);
+    type_init(type_out, TypeNone, 0, 0, 1);
   }
   let ts_count = cast ptr<u64> + c Compile.ts_count;
   if < deref ts_count MAX_TYPE_STACK {
@@ -530,13 +550,13 @@ fn ts_push(type : ptr<Type>, type_out : ptr<Type>) -> none {
 
 fn ts_push_primitive(primitive : u64, type_out : ptr<Type>) -> none {
   let type : Type = 0;
-  type_init(at type, primitive, 0, compile_type_size(primitive));
+  type_init(at type, primitive, 0, compile_type_size(primitive), 1);
   ts_push(at type, type_out);
 }
 
 fn ts_pop(type_out : ptr<Type>) -> none {
   if type_out {
-    type_init(type_out, TypeNone, 0, 0);
+    type_init(type_out, TypeNone, 0, 0, 1);
   }
   let ts_count = cast ptr<u64> + c Compile.ts_count;
   if < deref ts_count MAX_TYPE_STACK {
@@ -552,7 +572,7 @@ fn ts_pop(type_out : ptr<Type>) -> none {
 
 fn ts_top(type_out : ptr<Type>) -> none {
   if type_out {
-    type_init(type_out, TypeNone, 0, 0);
+    type_init(type_out, TypeNone, 0, 0, 1);
   }
   let ts_count = cast ptr<u64> + c Compile.ts_count;
   if < deref ts_count MAX_TYPE_STACK {
@@ -704,7 +724,7 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
 
     // typecheck explicit type, if there is one
     let explicit_type : Type = 0;
-    type_init(at explicit_type, TypeNone, 0, 0);
+    type_init(at explicit_type, TypeNone, 0, 0, 1);
 
     // for if the type is a function
     let explicit_type_value : Value = 0;
@@ -920,7 +940,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           if eq token_type T_AT_WORD {
             const count = 2;
             let contract : Type : count = 0;
-            type_init(+ at contract * sizeof Type 0, TypePtr, 0, sizeof ptr);
+            type_init(+ at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
             memcpy(+ at contract * sizeof Type 1, at type, sizeof Type);
             let ptr_type : Type = 0;
             if eq type_from_contract(at contract, count, TYPE_CONTRACT_CREATE, at ptr_type) NoError {
@@ -934,7 +954,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           else {
             { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
             let ptr_type : Type = 0;
-            type_init(at ptr_type, TypePtr, 0, sizeof ptr);
+            type_init(at ptr_type, TypePtr, 0, sizeof ptr, 1);
             ts_push(at ptr_type, cast ptr<Type> NULL);
           }
         }
@@ -1118,7 +1138,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         }
 
         let explicit_rtype : Type = 0;
-        type_init(at explicit_rtype, TypeNone, 0, 0);
+        type_init(at explicit_rtype, TypeNone, 0, 0, 1);
 
         let argc : u64 = load64 + params Ast.count;
         if or eq argc MAX_FUNC_ARGC < argc MAX_FUNC_ARGC { // argc <= MAX_FUNC_ARGC
@@ -1127,7 +1147,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
             let local_block = block_push(cast ptr<Block> block);
             let type : Type = 0;
-            type_init(at type, TypeFunc, symbol_index, sizeof ptr);
+            type_init(at type, TypeFunc, symbol_index, sizeof ptr, 1);
             let type_size : u64 = compile_type_size(TypeFunc);
 
             store64 + symbol Symbol.imm UINT64_MAX;
@@ -1143,7 +1163,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
             store64 + func Function.label symbol_index;
             store64 + func Function.argc argc;
             store64 + func Function.locals_offset 0;
-            type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size);
+            type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size, 1);
 
             let new_type_id : u64 = type_push_new(at type); // TODO(lucas): handle error
 
@@ -1215,7 +1235,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
             store64 + + symbol Symbol.value Value.konst konst_body;
 
             let rtype : Type = 0;
-            type_init(at rtype, TypeNone, 0, 0);
+            type_init(at rtype, TypeNone, 0, 0, 1);
             let ts_delta : u64 = - load64 + c Compile.ts_count ts_count;
             if > ts_delta 1 {
               typecheck_error_at(+ ast Ast.token, "too many values produced by function\n", NULL);
@@ -1550,7 +1570,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           else {
             store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
           }
-          type_init(cast ptr<Type> + symbol Symbol.type, TypeUnsigned64, 0, sizeof u64);
+          type_init(cast ptr<Type> + symbol Symbol.type, TypeUnsigned64, 0, sizeof u64, 1);
           memcpy(+ symbol Symbol.value, @value, sizeof Value);
 
           let field_size : u64 = 0;
@@ -1634,7 +1654,8 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
           at type,
           TypeStruct,
           load64 + c Compile.struct_id,
-          field_offset // size
+          field_offset, // size
+          1
         );
         { let _ = struct_type_push(at type_info); }
         memcpy(+ symbol Symbol.type, at type, sizeof Type);
