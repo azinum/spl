@@ -4,5 +4,5 @@
 // include "lib/hash.spl"
 
 fn main -> none {
-
+  let a = 12;
 }

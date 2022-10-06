@@ -587,9 +587,7 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         let type_id : u64 = type_lookup(type);
         assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
         let type_size : u64 = compile_type_size(type_id);
-        if eq type_size 0 {
-          type_printline(STDOUT_FILENO, type);
-        }
+        assert(neq type_size 0, "invalid size of type\n");
         let size : u64 = load64 + symbol Symbol.size;
         let num_elements : u64 = / load64 + symbol Symbol.size type_size;
         let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
@@ -597,7 +595,7 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
         let frame_size = align(size, BOUNDARY_ALIGNMENT);
 
         let effective_frame_size = * num_elements_init type_size;
-        // ir code generation for let statements
+        // ir code generation for let statements (in a function with 0 arguments)
         // example:
         //   let a : u64 = 1, 2, 3;
         //

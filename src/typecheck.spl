@@ -827,7 +827,7 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
 
     // if this is a constant, make sure to update the immediate value index
     if eq konst 1 {
-      let decrement = * - ts_delta 1 compile_type_size(TypeUnsigned64);
+      let decrement = * sizeof u64 - ts_delta 1;
       store64 @imm - imm decrement;
     }
 
@@ -852,7 +852,6 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
       memcpy(+ symbol Symbol.value, @value, sizeof Value);
       store64 + + symbol Symbol.token Token.v symbol_index;
       store64 + + ast Ast.token Token.v symbol_index;
-      memcpy(at result, at type, sizeof Type);
     }
   }
   result;
