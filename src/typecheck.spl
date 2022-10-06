@@ -245,10 +245,19 @@ fn typecheck_print_stack(fd : u64) -> none {
   }
 }
 
+fn type_from_id(id : u64, type_out : ptr<Type>) -> none {
+  let type_count : u64 = load64 + c Compile.type_count;
+  if < id type_count {
+    memcpy(type_out, + + c Compile.types * sizeof Type id, sizeof Type);
+  }
+}
+
 fn compile_type_size(type_id : u64) -> u64 {
   let result = 0;
   if < type_id load64 + c Compile.type_count {
-    store64 @result load64 + + c Compile.type_sizes * sizeof u64 type_id;
+    let type : Type = 0;
+    type_from_id(type_id, at type);
+    store64 @result load64 + at type Type.size;
   }
   result;
 }
@@ -270,19 +279,11 @@ fn type_lookup(type : ptr<Type>) -> u64 {
   result;
 }
 
-fn type_from_id(id : u64, type_out : ptr<Type>) -> none {
-  let type_count : u64 = load64 + c Compile.type_count;
-  if < id type_count {
-    memcpy(type_out, + + c Compile.types * sizeof Type id, sizeof Type);
-  }
-}
-
-fn type_push_new(type : ptr<Type>, size : u64) -> u64 {
+fn type_push_new(type : ptr<Type>) -> u64 {
   let type_count = cast ptr<u64> + c Compile.type_count;
   let id = deref type_count;
   if < deref type_count MAX_COMPILE_TYPE {
     memcpy(+ + c Compile.types * sizeof Type deref type_count, type, sizeof Type);
-    store64 + + c Compile.type_sizes * sizeof u64 deref type_count size;
     store64 type_count + 1 deref type_count;
   }
   else {
@@ -356,9 +357,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
         if eq lookup UINT64_MAX {
           // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
           if eq mode TYPE_CONTRACT_CREATE {
-            let lookup = type_lookup(at primary_type);
-            let lookup_size = compile_type_size(lookup);
-            let new_type_id : u64 = type_push_new(at type, lookup_size);
+            let new_type_id : u64 = type_push_new(at type);
             assert(neq new_type_id 0, "failed to push new type\n");
             memcpy(result_out, at type, sizeof Type);
             memcpy(at sub_type, at type, sizeof Type); // sub type is now the newly created type
@@ -396,12 +395,11 @@ fn typecheck_print_types(fd : u64) -> none {
   while < i count {
     let type : Type = 0;
     memcpy(at type, + + c Compile.types * sizeof Type i, sizeof Type);
-    let size : u64 = load64 + + c Compile.type_sizes * sizeof u64 i;
 
     dprintf(fd, "%d: ", @i);
     type_print(fd, at type);
-    let args : any = size, load64 + at type Type.size;
-    dprintf(fd, ": size = %d (type.size = %d)\n", @args);
+    let args : any = load64 + at type Type.size;
+    dprintf(fd, ": size = %d\n", @args);
 
     store64 @i + 1 i;
   }
@@ -1145,9 +1143,9 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
             store64 + func Function.label symbol_index;
             store64 + func Function.argc argc;
             store64 + func Function.locals_offset 0;
-            type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, 0);
+            type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size);
 
-            let new_type_id : u64 = type_push_new(at type, type_size); // TODO(lucas): handle error
+            let new_type_id : u64 = type_push_new(at type); // TODO(lucas): handle error
 
             if neq rtype_node NULL {
               if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, at explicit_rtype, 1) NoError {
@@ -1642,7 +1640,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         memcpy(+ symbol Symbol.type, at type, sizeof Type);
         memcpy(+ symbol Symbol.value, @value, sizeof Value);
 
-        let new_type_id : u64 = type_push_new(at type, field_offset); // TODO(lucas): handle error
+        let new_type_id : u64 = type_push_new(at type); // TODO(lucas): handle error
       }
       else {
         compile_error_at(+ ast Ast.token, "symbol already exists\n");

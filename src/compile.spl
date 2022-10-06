@@ -262,18 +262,6 @@ fn compile_state_init -> u64 {
   type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeSyscallFunc, TypeSyscallFunc, 0, sizeof ptr);
   type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeStruct, TypeStruct, 0, 1); // why is empty struct size 1?
 
-  store64 + + c Compile.type_sizes * sizeof u64 TypeNone        0;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeAny         sizeof any;
-  store64 + + c Compile.type_sizes * sizeof u64 TypePtr         sizeof ptr;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned64  sizeof u64;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned32  sizeof u32;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned16  sizeof u16;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeUnsigned8   sizeof u8;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeCString     sizeof cstr;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeFunc        sizeof ptr;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeSyscallFunc sizeof ptr;
-  store64 + + c Compile.type_sizes * sizeof u64 TypeStruct      1;
-
   { let _ = compile_create_syscall("syscall0", 0); }
   { let _ = compile_create_syscall("syscall1", 1); }
   { let _ = compile_create_syscall("syscall2", 2); }

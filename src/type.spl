@@ -2,6 +2,7 @@
 
 const MAX_NAME_SIZE = 64;
 
+// primitive types maps directly to the list of types
 enum u64 (
   TypeNone,
   TypeAny,
@@ -24,7 +25,7 @@ struct Type (
   info_id : u64,  // index to additional type info for structs, functions, and others
   hash : u64,     // hash of the type for quick equality checks
   count : u64,
-  size : u64,
+  size : u64
 );
 
 const MAX_COMPILE_TYPE = 1024;
