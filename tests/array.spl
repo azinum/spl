@@ -31,4 +31,12 @@ fn test_array -> none {
     let a : T : a_size = 0;
     assert_equal(sizeof a, * sizeof T a_size, info);
   }
+  {
+    let a : u64 : 4 = 0;
+    assert_equal(sizeof a, 32, info);
+  }
+  {
+    let a : u64 = 1, 2, 3, 4;
+    assert_equal(sizeof a, 32, info);
+  }
 }

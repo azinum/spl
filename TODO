@@ -20,3 +20,6 @@
     refer to a struct in a struct of the same type ---^
 	- however, it should not be permitted to store a struct in a struct of the same type directly
 - user access to file, line, column information in code
+- array assignments in let/const statements:
+	- const a = 1, 2, 3, 4;
+	- const b = a; // yields bad results

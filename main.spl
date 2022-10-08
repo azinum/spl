@@ -3,5 +3,18 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
+fn f(x : u64) -> u64 * x x;
+fn g(x : u64) -> u64 + x x;
+
 fn main -> none {
+  let a : u64 = 1, 2, 3, 4;
+  let b = 1, 2, 3, 4;
+  let c : u64 : 4 = 0;
+  let d = a;
+  print sizeof a;
+  print sizeof b;
+  print sizeof c;
+  print sizeof d;
+
+  let funcs = f, g;
 }
