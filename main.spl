@@ -5,10 +5,6 @@
 
 fn some(thing : ptr<u64 : 4>) -> none {}
 
-struct T (
-  a : u64 : 2
-);
-
 fn main -> none {
   let a : u64 : 4 = 12;
   some(at a);

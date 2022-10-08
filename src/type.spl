@@ -24,8 +24,8 @@ struct Type (
   sub_id : u64,   // sub type id
   info_id : u64,  // index to additional type info for structs, functions, and others
   hash : u64,     // hash of the type for quick equality checks
-  count : u64,
-  size : u64
+  count : u64,    // count of elements that this type constitutes
+  size : u64      // size of each element
 );
 
 const MAX_COMPILE_TYPE = 1024;
@@ -44,7 +44,6 @@ const MAX_NUM_STRUCT_FIELDS = 64;
 struct Struct_field (
   name : u8 : MAX_NAME_SIZE,
   type : Type,
-  count : u64,
   offset : u64
 );
 

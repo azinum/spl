@@ -10,7 +10,7 @@ fn symbol_info_print(fd : u64) -> none {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
     let type : Type = 0;
-    memcpy(@type, + symbol Symbol.type, sizeof Type);
+    memcpy(at type, + symbol Symbol.type, sizeof Type);
     let num_i_digits : u64 = digit_count(i);
     let j : u64 = 0;
 
@@ -56,20 +56,9 @@ fn symbol_info_print(fd : u64) -> none {
         type_print(fd, at rtype);
       }
       else {
-        let type_id : u64 = type_lookup(at type);
-        let type_size : u64 = compile_type_size(type_id);
-        if eq type_size 0 {
-          store64 @type_size 1;
-        }
-        let count : u64 = / load64 + symbol Symbol.size type_size;
-        let args : any = (
-          name
-        );
+        let args : any = name;
         dprintf(fd, "%s : ", @args);
         type_print(fd, at type);
-        if > count 1 {
-          dprintf(fd, " : %d", @count);
-        }
       }
       let args : any = (
         load64 + symbol Symbol.size,
