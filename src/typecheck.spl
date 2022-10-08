@@ -204,6 +204,10 @@ fn type_print(fd : u64, type : ptr<Type>) -> none {
     dprintf(fd, "%s<%d> ", @args);
     let type_info = struct_fetch_type_info(id);
     struct_type_info_print(fd, type_info, 1);
+    let count = load64 + type Type.count;
+    if > count 1 {
+      dprintf(fd, "[%d]", @count);
+    }
   }
   else if eq type_base(type) TypeFunc {
     let args : any = (
@@ -293,6 +297,15 @@ fn type_push_new(type : ptr<Type>) -> u64 {
   id; // return id of the newly created type
 }
 
+// same as type_push_new but hash the type as well
+// simply hashes the type struct itself
+// TODO(lucas): hash of info_id as well
+fn type_commit_new(type : ptr<Type>) -> u64 {
+  let hash = sdbm_hash(type, sizeof Type);
+  store64 + type Type.hash hash;
+  type_push_new(type);
+}
+
 // checks if `type` is valid inside of `container`
 fn type_check_constraints(container : ptr<Type>, type : ptr<Type>) -> u64 {
   let result = TYPE_CONSTRAINT_INVALID;
@@ -336,7 +349,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
     }
     else if eq mode TYPE_CONTRACT_CREATE {
       // TODO(lucas): check if this type is valid
-      { let _ = type_push_new(at type); }
+      { let _ = type_commit_new(at type); }
       memcpy(result_out, at type, sizeof Type);
     }
     else {
@@ -360,7 +373,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
       memcpy(at primary_type, + contract * sizeof Type - i 1, sizeof Type);
       let sub_type_id = type_lookup(at sub_type);
       if and eq mode TYPE_CONTRACT_CREATE eq sub_type_id UINT64_MAX {
-        store64 @sub_type_id type_push_new(at sub_type);
+        store64 @sub_type_id type_commit_new(at sub_type);
       }
       if neq sub_type_id UINT64_MAX {
         let primary_type_count : u64 = load64 + at primary_type Type.count;
@@ -373,7 +386,7 @@ fn type_from_contract(contract : ptr<Type>, count : u64, mode : u64, result_out 
           if eq lookup UINT64_MAX {
             // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
             if eq mode TYPE_CONTRACT_CREATE {
-              let new_type_id : u64 = type_push_new(at type);
+              let new_type_id : u64 = type_commit_new(at type);
               assert(neq new_type_id 0, "failed to push new type\n");
               memcpy(result_out, at type, sizeof Type);
               memcpy(at sub_type, at type, sizeof Type); // sub type is now the newly created type
@@ -974,7 +987,7 @@ fn typecheck_func_definition(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         store64 + func Function.locals_offset 0;
         type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size, 1);
 
-        let new_type_id : u64 = type_push_new(at type); // TODO(lucas): handle error
+        let new_type_id : u64 = type_commit_new(at type); // TODO(lucas): handle error
 
         if neq rtype_node NULL {
           if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, at explicit_rtype, 1) NoError {
@@ -1270,11 +1283,11 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
               if is_numerical(at array_specifier_type) {
                 store64 @num_elements load64 + @value Value.num;
                 if > ts_delta num_elements {
-                  typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n", NULL);
+                  typecheck_error_at(cast ptr + load64 + array_specifier_node Ast.node Ast.token, "number of elements in rhs exceeded the array size specifier\n", NULL);
                 }
               }
               else {
-                typecheck_error_at(cast ptr + load64 + ast_type Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
+                typecheck_error_at(cast ptr + load64 + array_specifier_node Ast.node Ast.token, "only numeric values are allowed in array size specifier\n", NULL);
               }
             }
           }
@@ -1514,7 +1527,7 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
     memcpy(+ symbol Symbol.type, at type, sizeof Type);
     memcpy(+ symbol Symbol.value, @value, sizeof Value);
 
-    let new_type_id : u64 = type_push_new(at type); // TODO(lucas): handle error
+    let new_type_id : u64 = type_commit_new(at type); // TODO(lucas): handle error
   }
   else {
     compile_error_at(+ ast Ast.token, "symbol already exists\n");

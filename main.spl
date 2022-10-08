@@ -3,9 +3,5 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-fn some(thing : ptr<u64 : 4>) -> none {}
-
 fn main -> none {
-  let a : u64 : 4 = 12;
-  some(at a);
 }
