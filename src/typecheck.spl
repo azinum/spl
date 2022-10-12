@@ -67,6 +67,34 @@ fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
+fn type_context_init(context : ptr<Type_context>) -> none {
+  type_init(cast ptr<Type> + context Type_context.type, TypeNone, 0, 0, 1);
+  store64 + context Type_context.offset 0;
+  store64 + context Type_context.symbol_id UINT64_MAX;
+}
+
+fn type_context_push(context : ptr<Type_context>) -> u64 {
+  let id = cast ptr<u64> + c Compile.type_context_count;
+  let result = UINT64_MAX;
+  if < deref id MAX_TYPE_CONTEXT {
+    store64 @result deref id;
+    memcpy(+ + c Compile.type_contexts * sizeof Type_context deref id, context, sizeof Type_context);
+    store64 id + 1 deref id;
+  }
+  else {
+    assert(0, "type context capacity reached\n");
+  }
+  result;
+}
+
+fn type_context_from_id(id : u64) -> ptr<Type_context> {
+  let result = cast ptr<Type_context> NULL;
+  if < id load64 + c Compile.type_context_count {
+    store64 @result + + c Compile.type_contexts * sizeof Type_context id;
+  }
+  result;
+}
+
 fn struct_field_init(field : ptr<Struct_field>, name : ptr<u8>, length : u64, type : ptr<Type>, offset : u64) -> u64 {
   let result = Error;
   if < length MAX_NAME_SIZE {
@@ -82,7 +110,7 @@ fn struct_type_info_init(info : ptr<Struct_type_info>) -> none {
   store64 + info Struct_type_info.count 0;
 }
 
-fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8>) -> ptr<Struct_field> {
+fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8 : MAX_NAME_SIZE>) -> ptr<Struct_field> {
   let result = cast ptr<Struct_field> NULL;
 
   let i = 0;
@@ -100,7 +128,7 @@ fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8>) -> ptr<Stru
 
 fn struct_create_field(info : ptr<Struct_type_info>, field : ptr<Struct_field>) -> u64 {
   let result = Error;
-  if eq struct_lookup_field(info, cast ptr<u8> + field Struct_field.name) NULL {
+  if eq struct_lookup_field(info, cast ptr<u8 : MAX_NAME_SIZE> + field Struct_field.name) NULL {
     let index = cast ptr<u64> + info Struct_type_info.count;
     let new_field = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field deref index;
     store64 index + 1 deref index;
@@ -197,7 +225,7 @@ fn type_print(fd : u64, type : ptr<Type>) -> none {
       load64 + @compile_type_str * sizeof cstr type_base(type),
       id
     );
-    dprintf(fd, "%s<%d> ", @args);
+    dprintf(fd, "%s<%d>", @args);
     let type_info = struct_fetch_type_info(id);
     struct_type_info_print(fd, type_info, 1);
   }
@@ -246,6 +274,9 @@ fn type_from_id(id : u64, type_out : ptr<Type>) -> none {
   let type_count : u64 = load64 + c Compile.type_count;
   if < id type_count {
     memcpy(type_out, + + c Compile.types * sizeof Type id, sizeof Type);
+  }
+  else {
+    assert(0, "type_from_id: bad type id\n");
   }
 }
 
@@ -420,9 +451,7 @@ fn typecheck_print_types(fd : u64) -> none {
     memcpy(at type, + + c Compile.types * sizeof Type i, sizeof Type);
 
     dprintf(fd, "%d: ", @i);
-    type_print(fd, at type);
-    let args : any = * load64 + at type Type.count load64 + at type Type.size;
-    dprintf(fd, ": size = %d\n", @args);
+    type_printline(fd, at type);
 
     store64 @i + 1 i;
   }
@@ -1375,6 +1404,12 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   let count : u64 = load64 + fields Ast.count;
   let fail : u64 = 0;
 
+  let struct_name : Buffer = 0;
+  buffer_init(
+    at struct_name,
+    cast ptr load64 + + ast Ast.token Token.buffer,
+    load64 + + ast Ast.token Token.length
+  );
   let type_info : Struct_type_info = 0;
   struct_type_info_init(at type_info);
   let struct_type_field : Struct_field = 0;
@@ -1386,7 +1421,7 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
     let field_length = load64 + + field Ast.token Token.length;
 
     let it = tmp_it;
-    tmp_push_str(load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+    tmp_push_str(cast cstr load64 + at struct_name Buffer.data, load64 + at struct_name Buffer.length);
     tmp_push_cstr(".");
     tmp_push_str(load64 + + field Ast.token Token.buffer, load64 + + field Ast.token Token.length);
 
@@ -1505,6 +1540,97 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   }
   else {
     compile_error_at(+ ast Ast.token, "symbol already exists\n");
+  }
+  load64 + c Compile.status;
+}
+
+// FIELD ACCESS
+//
+// the typechecker is only concerned with the final field that is going to be accessed,
+// however the ir code generator needs information about how to actually access that field.
+// if an intermediate field is a pointer to some data, that pointer needs to be accessed in some way.
+//
+// typechecker needs:
+//    - type of the accessed field, to be pushed onto the type stack, and that's it.
+// ir needs:
+//    - (at minimum): type of field, offset to said field
+//    - (at most): a stack of intermediate fields (or some other representation), containing the offsets and types of those fields.
+//        that way, the ir knows how to generate code to access the data of the field in question.
+//
+// example:
+//
+// struct B (
+//    x : u64,
+//    y : u64
+// );
+//
+// struct A (
+//    a : u64,
+//    b : ptr<B>
+// );
+//
+// fn hello -> none {
+//    let a : A = 0;
+//    print :a:b:x;
+//    print load64 + (load64 + at a A.b) 8; // :a:b:y
+// }
+//
+// the generated code for `:a:b:x` would be along the lines of:
+//    I_PUSH_LOCAL 8 | as :a is on the stack we can directly access :b from here (offset of 8 will point to A.b)
+//    I_PUSH_IMM   8 | we want to access B.y, which has an offset of 8
+//    I_ADD          | add that offset to the pointer of A.b
+//    I_LOADx        | load y based on its type
+//                   | we're done
+//
+fn typecheck_field_access(block : ptr<Block>, fs : ptr, ast : ptr, type_context : ptr<Type_context>) -> u64 {
+  let symbol = NULL;
+  let symbol_id = UINT64_MAX;
+  let buffer : Buffer = 0;
+  buffer_init(at buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+  if eq compile_lookup_value(block, fs, @buffer, @symbol, @symbol_id, NULL) NoError {
+    store64 + type_context Type_context.symbol_id symbol_id;
+    let type = cast ptr<Type> + symbol Symbol.type;
+    if eq type_base(type) TypeStruct {
+      let field_nodes = cast ptr + ast Ast.node;
+      let i = 0;
+      let count = load64 + ast Ast.count;
+
+      let struct_type_info = struct_fetch_type_info(type_sub_id(type));
+      let struct_field = cast ptr<Struct_field> NULL;
+      let offset = 0;
+
+      while < i count {
+        let node = cast ptr load64 + field_nodes * sizeof ptr i;
+        let field_name : u8 : MAX_NAME_SIZE = 0;
+        memset(at field_name, 0, sizeof field_name);
+        memcpy(at field_name, load64 + + node Ast.token Token.buffer, load64 + + node Ast.token Token.length);
+        store64 at struct_field struct_lookup_field(struct_type_info, at field_name);
+        if struct_field {
+          store64 @offset + offset load64 + struct_field Struct_field.offset;
+          store64 @type + struct_field Struct_field.type;
+          if eq type_base(type) TypeStruct {
+            // update struct_type_info as this field is a struct
+            store64 @struct_type_info struct_fetch_type_info(type_sub_id(type));
+          }
+        }
+        else {
+          let args : any = at field_name;
+          typecheck_error_at(+ node Ast.token, "struct `?` has no field named `%s`\n", @args);
+        }
+        store64 @i + 1 i;
+      }
+
+      if type_context {
+        memcpy(+ type_context Type_context.type, type, sizeof Type);
+        store64 + type_context Type_context.offset offset;
+      }
+    }
+    else {
+      typecheck_error_at(+ ast Ast.token, "field access is only allowed on struct types\n", NULL);
+    }
+  }
+  else {
+    compile_error_at(+ ast Ast.token, "symbol not defined\n");
   }
   load64 + c Compile.status;
 }
@@ -1720,7 +1846,7 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
       let value : Value = 0;
       { let _ = vs_pop(at value); }
       if eq load64 + @value Value.konst 0 {
-        typecheck_error("can not do static on an expression that is evaluated at runtime\n");
+        typecheck_error("can not do static assert on an expression that is evaluated at runtime\n");
       }
       else if eq load64 + @value Value.num 0 {
         let node_token = cast ptr + node Ast.token;
@@ -1731,6 +1857,23 @@ fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         tmp_push_byte(cast u8 0);
         compile_error_at(+ expr Ast.token, message);
         store64 @tmp_it message;
+      }
+    }
+    else if eq ast_type AstFieldAccess {
+      let type_context : Type_context = 0;
+      type_context_init(at type_context);
+      if eq typecheck_field_access(block, fs, ast, at type_context) NoError {
+        let id = type_context_push(at type_context);
+        if neq id UINT64_MAX {
+          store64 + ast Ast.type_context_id id;
+          ts_push(cast ptr<Type> + at type_context Type_context.type, cast ptr<Type> NULL);
+          let value : Value = 0;
+          memset(at value, 0, sizeof Value);
+          { let _ = vs_push(at value); }
+        }
+        else {
+          assert(0, "failed to push type context\n"); // TODO(lucas): handle error
+        }
       }
     }
     else {

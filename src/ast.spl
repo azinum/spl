@@ -26,6 +26,7 @@ enum u64 (
   AstCastExpression,
   AstStaticAssert,
   AstArg,
+  AstFieldAccess,
 
   MAX_AST_TYPE
 );
@@ -42,7 +43,8 @@ struct Ast (
   count : u64,
   type  : u64,
   token : Token,
-  konst : u64
+  konst : u64,
+  type_context_id : u64
 );
 
 let ast_node_memory : Ast : MAX_AST_NODE = 0;
@@ -59,6 +61,7 @@ fn ast_create(type : u64) -> ptr {
     store64 + node Ast.count 0;
     store64 + node Ast.type type;
     store64 + node Ast.konst 0;
+    store64 + node Ast.type_context_id UINT64_MAX;
 
     token_init(+ Ast.token node, "T_EOF", 5, T_EOF, l.filename, l.source);
   }
@@ -66,6 +69,12 @@ fn ast_create(type : u64) -> ptr {
     assert(0, "ast node capacity reached\n");
     store64 @node NULL;
   }
+  node;
+}
+
+fn ast_create_with_token(type : u64, token : ptr<Token>) -> ptr {
+  let node = ast_create(type);
+  memcpy(+ node Ast.token, token, sizeof Token);
   node;
 }
 
@@ -175,6 +184,7 @@ fn ast_init -> none {
   store64 + @ast_type_str * AstCastExpression  sizeof cstr "CastExpression";
   store64 + @ast_type_str * AstStaticAssert    sizeof cstr "StaticAssert";
   store64 + @ast_type_str * AstArg             sizeof cstr "Arg";
+  store64 + @ast_type_str * AstFieldAccess     sizeof cstr "FieldAccess";
 
   store64 @ast_node @ast_node_memory;
   store64 @ast_node_end + ast_node * sizeof Ast MAX_AST_NODE;

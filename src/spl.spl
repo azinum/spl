@@ -115,8 +115,8 @@ fn spl_start(filename : cstr) -> u64 {
                   if neq debug_fd ERROR {
                     // ast_print(load64 + @p Parser.ast, 0, debug_fd);
                     ir_print(debug_fd);
-                    symbol_info_print(debug_fd);
                     typecheck_print_types(debug_fd);
+                    symbol_info_print(debug_fd);
                     compile_state_print(debug_fd);
                     close(debug_fd);
                   }

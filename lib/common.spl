@@ -166,7 +166,7 @@ fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
   store8 cast ptr dest 0;
 }
 
-fn memset(mem : ptr, c : u64, n : u64) -> none {
+fn memset(mem : any, c : u64, n : u64) -> none {
   let count : u64 = 0;
   while < count n {
     store8 mem c;

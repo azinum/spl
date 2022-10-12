@@ -171,7 +171,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.imm_index 0;
   store64 + c Compile.symbol_count 0;
   store64 + c Compile.cstring_count 0;
-  block_init(+ c Compile.global, NULL);
+  block_init(cast ptr<Block> + c Compile.global, cast ptr<Block> NULL);
   store64 + c Compile.block_count 0;
   store64 + c Compile.block_count_largest 0;
   store64 + c Compile.label_count 0;
@@ -183,6 +183,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
   store64 + c Compile.struct_id 1;
+  store64 + c Compile.type_context_count 0;
 
   debug_info_init(cast ptr<Debug_info> + c Compile.info);
 

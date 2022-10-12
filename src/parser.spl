@@ -58,6 +58,41 @@ fn parse_expr_list -> ptr {
   expr_list;
 }
 
+// :ident:ident:...
+// FieldAccess
+//    Value[] (T_IDENTIFIER)
+fn parse_field_access_expr -> ptr {
+  let expr = NULL;
+  let done = 0;
+  while eq done 0 {
+    let token_type = lexer_token_type();
+    if eq token_type T_COLON {
+      lexer_next(); // skip `:`
+      store64 @token_type lexer_token_type();
+      if eq token_type T_IDENTIFIER {
+        if expr {
+          ast_push(
+            expr,
+            ast_create_with_token(AstValue, at token)
+          );
+        }
+        else {
+          store64 @expr ast_create_with_token(AstFieldAccess, at token);
+        }
+        lexer_next(); // skip identifier
+      }
+      else {
+        parser_error("expected identifier after `:` in field access expression, but got `?`\n");
+        store64 @done 1
+      }
+    }
+    else {
+      store64 @done 1;
+    }
+  }
+  expr;
+}
+
 // type : expr
 // type<type : expr> : expr
 // AstType
@@ -245,6 +280,9 @@ fn parse_expr -> ptr {
     ast_push(expr, parse_type());
     ast_push(inner_expr, parse_expr());
     ast_push(expr, inner_expr);
+  }
+  else if eq type T_COLON {
+    store64 @expr parse_field_access_expr();
   }
   else if neq type T_EOF {
     parser_error("unexpected token `?` in expression\n");

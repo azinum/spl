@@ -949,6 +949,21 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   else if eq ast_type AstCastExpression {
     { let _ = ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 1, ins_count); }
   }
+  else if eq ast_type AstFieldAccess {
+    let type_context_id = load64 + ast Ast.type_context_id;
+    let type_context = type_context_from_id(type_context_id);
+    let symbol_id = load64 + type_context Type_context.symbol_id;
+    if neq symbol_id UINT64_MAX {
+      let symbol : Symbol = 0;
+      memcpy(at symbol, + + c Compile.symbols * sizeof Symbol symbol_id, sizeof Symbol);
+      memcpy(+ at symbol Symbol.type, + type_context Type_context.type, sizeof Type);
+      store64 + at symbol Symbol.local_id - load64 + at symbol Symbol.local_id load64 + type_context Type_context.offset;
+      { let _ = ir_push_symbol(fs, @symbol, symbol_id, ins_count); }
+    }
+    else {
+      compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
+    }
+  }
   else {
     compile_error_at(+ ast Ast.token, "invalid or unhandled AST branch type\n");
   }

@@ -86,8 +86,11 @@ struct Compile (
   warning_count       : u64,
   error_count         : u64,
 
-  struct_id           : u64,
   struct_type_info    : Struct_type_info : MAX_COMPILE_TYPE,
+  struct_id           : u64,
+
+  type_contexts       : Type_context : MAX_TYPE_CONTEXT,
+  type_context_count  : u64,
 
   info                : Debug_info
 );
@@ -285,7 +288,7 @@ fn compile_push_cstring(buffer : ptr, length : u64, index : ptr) -> u64 {
   address;
 }
 
-fn block_init(block : ptr, parent : ptr) -> none {
+fn block_init(block : ptr<Block>, parent : ptr<Block>) -> none {
   store64 + block Block.symbol_count 0;
   store64 + block Block.parent parent;
 }
@@ -297,7 +300,7 @@ fn block_push(parent : ptr<Block>) -> ptr<Block> {
 
   if < deref block_count MAX_BLOCK {
     store64 @block + + c Compile.blocks * sizeof Block deref block_count;
-    block_init(cast ptr block, cast ptr parent);
+    block_init(block, parent);
     store64 block_count + 1 deref block_count;
     if < deref block_count_largest deref block_count {
       store64 block_count_largest deref block_count;

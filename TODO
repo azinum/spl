@@ -23,3 +23,4 @@
 - array assignments in let/const statements:
 	- const a = 1, 2, 3, 4;
 	- const b = a; // yields bad results
+- test suite for the standard library, at least for the most commonly used parts of the library

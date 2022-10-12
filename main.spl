@@ -3,18 +3,31 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-fn f(x : u64) -> u64 * x x;
-fn g(x : u64) -> u64 + x x;
+struct B (
+  x : u64,
+  y : u64
+);
+
+struct A (
+  a : u64,
+  b : B,
+  c : u64
+);
+
+fn b_init(b : ptr<B>) -> none {
+  store64 + b B.x 17;
+  store64 + b B.y 19;
+}
+
+fn a_init(a : ptr<A>) -> none {
+  store64 + a A.a 12;
+  b_init(cast ptr<B> + a A.b);
+  store64 + a A.c 13;
+}
 
 fn main -> none {
-  let a : u64 = 1, 2, 3, 4;
-  let b = 1, 2, 3, 4;
-  let c : u64 : 4 = 0;
-  let d = a;
-  print sizeof a;
-  print sizeof b;
-  print sizeof c;
-  print sizeof d;
-
-  let funcs = f, g;
+  let a : A = 0;
+  a_init(at a);
+  print :a:c;
+  print :a:b:x;
 }
