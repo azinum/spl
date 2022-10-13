@@ -3,7 +3,7 @@
 
 include "lib/linux.spl"
 
-const MAX_BUFFER_SIZE : u64 = 1024;
+const MAX_BUFFER_SIZE = 1024;
 
 fn read(fd : u64, buf : any, count : u64) -> u64 {
   linux_read(fd, buf, count);
@@ -66,18 +66,16 @@ fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
 }
 
 fn puts(fd : u64, str : cstr) -> none {
-  let n = strlen(str);
-  write(fd, str, n);
+  write(fd, str, strlen(str));
 }
 
 fn put(str : cstr) -> none {
-  let n = strlen(str);
-  write(STDOUT_FILENO, str, n);
+  write(STDOUT_FILENO, str, strlen(str));
 }
 
 fn putu(fd : u64, n : u64) -> none {
   const MAX_BUFF_SIZE = 512;
-  let buff : u8 : MAX_BUFF_SIZE = cast u8 0;
+  let buff : u8 : MAX_BUFF_SIZE = 0;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
   puts(fd, cast cstr @buff);
 }
@@ -85,8 +83,8 @@ fn putu(fd : u64, n : u64) -> none {
 fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
   let n = 0;
   while neq 0 read(fd, buf, 1) {
-    = @buf + 1 buf;
-    = @n   + 1 n;
+    store64 @buf + 1 buf;
+    store64 @n   + 1 n;
   }
   n;
 }
@@ -98,7 +96,7 @@ fn read_file_into_buffer_and_null_terminate(fd : u64, buf : any) -> u64 {
     = @n   + 1 n;
   }
   store8 buf 0;
-  = @n + 1 n;
+  store64 @n + 1 n;
   n;
 }
 
@@ -114,7 +112,7 @@ fn putsn(fd : u64, str : any, n : u64) -> none {
 fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
   let result = 0;
   let it = str; // string iterator
-  let end : ptr = NULL;
+  let end = NULL;
   if neq size UINT64_MAX {
     store64 @end + + it size 1; // + 1 for null terminator
   }
@@ -199,13 +197,13 @@ fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
 }
 
 fn dprintf(fd : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE = cast u8 0;
+  let buffer : u8 : MAX_BUFFER_SIZE = 0;
   let n = _sprintf(cast ptr @buffer, format, args);
   write(fd, cast ptr @buffer, n);
 }
 
 fn dnprintf(fd : u64, size : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE = cast u8 0;
+  let buffer : u8 : MAX_BUFFER_SIZE = 0;
   let n = snprintf(cast ptr @buffer, size, format, args);
   write(fd, cast ptr @buffer, n);
 }

@@ -154,7 +154,6 @@ fn strncmp(a : cstr, b : cstr, count : u64) -> u64 {
   result;
 }
 
-// NOTE(lucas): src is expected to be at least as big as dest in terms of size
 fn strncpy(dest : cstr, src : cstr, n : u64) -> none {
   let count : u64 = 0;
   while < count n {
@@ -355,11 +354,11 @@ fn write_u8(mem : ptr, n : u8) -> u64 {
 fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
   let result = 0;
   if > length 0 {
-    if eq cast u64 end NULL {
+    if eq end NULL {
       store64 @result write_cstr(mem, str);
     }
     else {
-      if < cast u64 mem end {
+      if < mem end {
         let diff = cast u64 - end mem;
         if < length diff {
           memcpy(mem, str, length);
@@ -377,7 +376,7 @@ fn bwrite_str(mem : ptr, end : ptr, str : cstr, length : u64) -> u64 {
 
 fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
   let result = 0;
-  if cast ptr str {
+  if str {
     store64 @result bwrite_str(mem, end, str, strlen(str));
   }
   result;
@@ -386,12 +385,12 @@ fn bwrite_cstr(mem : ptr, end : ptr, str : cstr) -> u64 {
 fn bwrite_u64(mem : ptr, end : ptr, n : u64) -> u64 {
   let result : u64 = 0;
   let count : u64 = digit_count(n);
-  if eq cast u64 end NULL {
+  if eq end NULL {
     u64_to_str(n, mem, count);
     store64 @result count;
   }
   else {
-    if < cast u64 mem end {
+    if < mem end {
       let diff = cast u64 - end mem;
       if < count diff {
         u64_to_str(n, mem, count);
@@ -409,11 +408,11 @@ fn bwrite_u64(mem : ptr, end : ptr, n : u64) -> u64 {
 fn bwrite_u8(mem : ptr, end : ptr, n : u8) -> u64 {
   let result : u64 = 0;
   const length : u64 = sizeof n;
-  if eq cast u64 end NULL {
+  if eq end NULL {
     memcpy(mem, @n, length);
     store64 @result length;
   }
-  else if < cast u64 mem end {
+  else if < mem end {
     memcpy(mem, @n, length);
     store64 @result length;
   }
@@ -449,7 +448,7 @@ fn tmp_push_str(str : any, length : u64) -> none {
 }
 
 fn tmp_push_u64(n : u64) -> none {
-  const MAX_LENGTH = 64;
+  const MAX_LENGTH = 32;
   let buf : u8 : * sizeof u64 MAX_LENGTH = 0;
   let length = digit_count(n);
   u64_to_str(n, @buf, MAX_LENGTH);

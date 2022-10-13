@@ -761,7 +761,6 @@ fn typecheck_value(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
     if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, NULL) NoError {
       store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
       store64 + + ast Ast.token Token.v symbol_index;
-      { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
       store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
       let size : u64 = load64 + symbol Symbol.size;
       let type : Type = 0;
@@ -771,6 +770,7 @@ fn typecheck_value(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         typecheck_error_at(+ ast Ast.token, "can not push a struct with size greater than %d\n", @args);
       }
       else {
+        { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
         ts_push(at type, cast ptr<Type> NULL);
       }
     }

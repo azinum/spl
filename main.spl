@@ -1,33 +1,24 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 // include "lib/hash.spl"
 
-struct B (
-  x : u64,
-  y : u64
-);
-
-struct A (
+struct Foo (
   a : u64,
-  b : B,
-  c : u64
+  b : u64,
 );
 
-fn b_init(b : ptr<B>) -> none {
-  store64 + b B.x 17;
-  store64 + b B.y 19;
+fn foo_init(foo : ptr<Foo>) -> none {
+  store64 + foo Foo.a 12;
+  store64 + foo Foo.b 17;
 }
 
-fn a_init(a : ptr<A>) -> none {
-  store64 + a A.a 12;
-  b_init(cast ptr<B> + a A.b);
-  store64 + a A.c 13;
+fn foo_print(foo : ptr<Foo>) -> none {
+  printf("%d, %d\n", foo);
 }
 
 fn main -> none {
-  let a : A = 0;
-  a_init(at a);
-  print :a:c;
-  print :a:b:x;
+  let foo : Foo = 0;
+  foo_init(at foo);
+  foo_print(at foo);
 }
