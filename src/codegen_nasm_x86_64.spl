@@ -27,6 +27,7 @@ fn vo_write_debug_info(fd : u64, op : ptr<Op>) -> none {
 fn vo_write_debug_info_empty(fd : u64, op : ptr<Op>) -> none {}
 
 fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
+  colors_disable();
   let vo = vo_empty;
   let vo_debug = vo_write_debug_info_empty;
 
@@ -895,5 +896,6 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       store64 @i + 1 i;
     }
   }
+  colors_enable();
   load64 + c Compile.status;
 }

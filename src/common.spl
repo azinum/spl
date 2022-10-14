@@ -3,17 +3,24 @@
 fn HERE dprintf(STDOUT_FILENO, "HERE\n", NULL);
 
 fn err(message : cstr) -> none {
-  dprintf(STDERR_FILENO, "[error]: %s", @message);
+  color_set(COLOR_ERROR);
+  dprintf(STDERR_FILENO, "[error]: ", NULL);
+  color_reset();
+  dprintf(STDERR_FILENO, "%s", @message);
 }
 
 fn error(message : cstr, args : any) -> none {
+  color_set(COLOR_ERROR);
   dprintf(STDERR_FILENO, "[error]: ", NULL);
+  color_reset();
   dprintf(STDERR_FILENO, message, args);
 }
 
 fn print_info(message : cstr) -> none {
   if load64 + @options Options.verbose {
+    color_set(COLOR_INFO);
     dprintf(STDOUT_FILENO, "[info]: ", NULL);
+    color_reset();
     dprintf(STDOUT_FILENO, message, NULL);
   }
 }
@@ -22,7 +29,9 @@ fn exec_command_echoed(fd : u64, command_list : ptr) -> none {
   if load64 + @options Options.verbose {
     let it = command_list;
     let done : u64 = 0;
+    color_set(COLOR_INFO);
     dprintf(fd, "[cmd]: ", NULL);
+    color_reset();
     while eq done 0 {
       if eq load64 it NULL {
         store64 @done 1;

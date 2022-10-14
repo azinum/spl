@@ -42,7 +42,10 @@ fn typecheck_print_unused -> none {
 
 fn typecheck_error(message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
-    dprintf(STDERR_FILENO, "[typecheck-error]: %s", @message);
+    color_set(COLOR_ERROR);
+    dprintf(STDERR_FILENO, "[typecheck-error]: ", NULL);
+    color_reset();
+    dprintf(STDERR_FILENO, "%s", @message);
     store64 + c Compile.status Error;
   }
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
@@ -58,7 +61,11 @@ fn typecheck_error_at(token : ptr, format : cstr, args : any) -> none {
         load64 + token Token.line,
         load64 + token Token.column
       );
-      dprintf(fd, "[typecheck-error]: %s:%d:%d: ", @args);
+      color_set(COLOR_ERROR);
+      dprintf(fd, "[typecheck-error]: ", NULL);
+      color_set(COLOR_EXTRA);
+      dprintf(fd, "%s:%d:%d: ", @args);
+      color_reset();
     }
     dprintf(fd, format, args);
     printline(fd, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);

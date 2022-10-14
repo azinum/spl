@@ -2,6 +2,12 @@
 
 const NUM_LINES_TO_PRINT = 3;
 
+const COLOR_WARN = COLOR_BOLD_PURPLE;
+const COLOR_ERROR = COLOR_BOLD_RED;
+const COLOR_INFO = COLOR_YELLOW;
+const COLOR_HINT = COLOR_PURPLE;
+const COLOR_EXTRA = COLOR_BOLD_WHITE;
+
 struct Config (
   lib_path : u8[MAX_PATH_SIZE]
 );

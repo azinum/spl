@@ -341,7 +341,12 @@ fn lexer_error(message : cstr) -> none {
       load64 + @token Token.column,
       message
     );
-    dprintf(STDERR_FILENO, "[lex-error]: %s:%d:%d: %s", @args);
+    color_set(COLOR_ERROR);
+    dprintf(STDERR_FILENO, "[lex-error]: ", NULL);
+    color_set(COLOR_EXTRA);
+    dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
+    color_reset();
+    dprintf(STDERR_FILENO, "%s", @message);
     printline(STDERR_FILENO, l.source, cast cstr load64 + @token Token.buffer, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 @l.status Error;
   }

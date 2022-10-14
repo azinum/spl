@@ -16,9 +16,8 @@ let options : Options = 0;
 
 include "lib/common.spl"
 include "lib/hash.spl"
-include "src/colors.spl"
-include "src/common.spl"
 include "src/config.spl"
+include "src/common.spl"
 include "src/misc.spl"
 include "src/lexer.spl"
 include "src/type.spl"
@@ -66,10 +65,9 @@ fn spl_options_init -> none {
 
 fn spl_start(filename : cstr) -> u64 {
   let result = NoError;
-
-  // color_set(COLOR_BOLD_RED);
-  // printf("HELLO THERE\n", NULL);
-  // color_reset();
+  if eq load64 + @options Options.disable_colors 0 {
+    colors_init(STDOUT_FILENO);
+  }
 
   let time_start : timespec = 0;
   let time_end : timespec = 0;
@@ -179,7 +177,6 @@ fn spl_main(argc : u64, argv : any) -> none {
   config_init();
   ast_init();
   spl_options_init();
-  colors_init(STDOUT_FILENO);
 
   let arg = argv;
   let i = 0;

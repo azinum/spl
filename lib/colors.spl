@@ -29,7 +29,8 @@ enum u64 (
 struct Colors (
   color_code : u8[COLOR_CODE_SIZE],
   color_codes : cstr[MAX_COLOR],
-  fd : u64
+  fd : u64,
+  enabled : u64
 );
 
 let colors : Colors = 0;
@@ -64,23 +65,38 @@ fn colors_init(fd : u64) -> none {
   store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_PURPLE "1;35";
   store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_CYAN   "1;36";
   store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_WHITE  "1;37";
-}
 
-fn color_set_fd(fd : u64) -> none {
   store64 + at colors Colors.fd fd;
+  store64 + at colors Colors.enabled 1;
 }
 
 fn color_set(color : u64) -> none {
-  print color;
-  if and
-    eq load64 + @options Options.disable_colors 0
-    < color MAX_COLOR {
+  if load64 + at colors Colors.enabled {
+    if < color MAX_COLOR {
       memcpy(+ + at colors Colors.color_code 2, load64 + + at colors Colors.color_codes * sizeof cstr color, 4);
       write(load64 + at colors Colors.fd, + at colors Colors.color_code, COLOR_CODE_SIZE);
     }
   }
+  // FIXME(lucas): COMPILER BUG: if and <expr> <expr> { ... }
+  // if and eq load64 + @options Options.disable_colors 0 < color MAX_COLOR {
+  //     memcpy(+ + at colors Colors.color_code 2, load64 + + at colors Colors.color_codes * sizeof cstr color, 4);
+  //     write(load64 + at colors Colors.fd, + at colors Colors.color_code, COLOR_CODE_SIZE);
+  //   }
+  // }
 }
 
 fn color_reset -> none {
   color_set(COLOR_NONE);
+}
+
+fn colors_disable -> none {
+  store64 + at colors Colors.enabled 0;
+}
+
+fn colors_enable -> none {
+  store64 + at colors Colors.enabled 1;
+}
+
+fn color_set_fd(fd : u64) -> none {
+  store64 + at colors Colors.fd fd;
 }
