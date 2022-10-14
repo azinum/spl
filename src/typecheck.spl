@@ -95,7 +95,7 @@ fn type_context_from_id(id : u64) -> ptr<Type_context> {
   result;
 }
 
-fn struct_field_init(field : ptr<Struct_field>, name : ptr<u8>, length : u64, type : ptr<Type>, offset : u64) -> u64 {
+fn struct_field_init(field : ptr<Struct_field>, name : ptr<u8[MAX_NAME_SIZE]>, length : u64, type : ptr<Type>, offset : u64) -> u64 {
   let result = Error;
   if < length MAX_NAME_SIZE {
     strncpy(cast cstr + field Struct_field.name, cast cstr name, length);
@@ -1458,43 +1458,11 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         typecheck_error_at(+ field_type_node Ast.token, "unknown or invalid type in struct field\n", NULL);
       }
 
-      let field_array_specifier = NULL;
-      let field_count = load64 + field_type_node Ast.count;
-      if > field_count 0 {
-        store64 @field_array_specifier load64 + + field_type_node Ast.node * sizeof ptr 0;
-      }
+      store64 @field_size * load64 + at field_type Type.size load64 + at field_type Type.count;
 
-      let array_specifier_value : Value = 0;
-      store64 + @array_specifier_value Value.num 1;
-
-      if field_array_specifier {
-        if neq load64 + field_array_specifier Ast.type AstNone {
-          { let _ = typecheck_node_list(block, fs, field_array_specifier); }
-          let array_specifier_type : Type = 0;
-          ts_pop(at array_specifier_type);
-          { let _ = vs_pop(at array_specifier_value); }
-          if neq load64 + @array_specifier_value Value.konst 1 {
-            compile_error_at(+ field_type_node Ast.token, "field array specifier must be a compile time constant\n");
-            store64 @fail 1;
-          }
-          else if eq is_numerical(at array_specifier_type) 0 {
-            compile_error_at(+ field_type_node Ast.token, "field array specifier must be a numerical\n");
-            store64 @fail 1;
-          }
-          else {
-            if eq load64 + @array_specifier_value Value.num 0 {
-              compile_error_at(+ field_type_node Ast.token, "field array specifier must be a numerical with a greater value than 0\n");
-              store64 @fail 1;
-            }
-            else {
-              store64 @field_size * field_size load64 + @array_specifier_value Value.num;
-            }
-          }
-        }
-      }
       // done constructing this struct field
       if eq fail 0 {
-        { let _ = struct_field_init(at struct_type_field, cast ptr<u8> field_name, field_length, at field_type, field_offset); }
+        { let _ = struct_field_init(at struct_type_field, cast ptr<u8[MAX_NAME_SIZE]> field_name, field_length, at field_type, field_offset); }
         { let _ = struct_create_field(at type_info, at struct_type_field); }
       }
 
