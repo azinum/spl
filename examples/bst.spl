@@ -10,7 +10,7 @@ struct Bst (
 );
 
 const MAX_BST_NODES = 1024;
-let bst_nodes : Bst : MAX_BST_NODES = 0;
+let bst_nodes : Bst[MAX_BST_NODES] = 0;
 let bst_node_count = 0;
 
 fn bst_allocate_node -> ptr<Bst> {

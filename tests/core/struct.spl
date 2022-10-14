@@ -23,7 +23,7 @@ fn test_struct -> none {
     assert_equal(sizeof A, 20, info);
   }
   {
-    let a : A : 2 = 0;
+    let a : A[2] = 0;
     assert_equal(sizeof a, * 2 sizeof A, info);
     assert_equal(sizeof a, 40, info);
   }
@@ -34,7 +34,7 @@ fn test_struct -> none {
     assert_equal(sizeof B, 12, info);
   }
   {
-    let b : B : 2 = 0;
+    let b : B[2] = 0;
     assert_equal(sizeof b, * 2 sizeof B, info);
     assert_equal(sizeof b, 24, info);
   }

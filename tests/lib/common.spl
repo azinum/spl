@@ -46,7 +46,7 @@ fn test_lib_common -> none {
 
   // memset()
   {
-    let m : u8 : 32 = 0;
+    let m : u8[32] = 0;
     memset(at m, 'a', sizeof m);
     let i = 0;
     const count = sizeof m;

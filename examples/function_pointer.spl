@@ -6,7 +6,7 @@ fn baz(x : u64) -> u64 + x x;
 
 fn main -> none {
   const count : u64 = 3;
-  let funcs : foo : count = foo, bar, baz;
+  let funcs : foo[count] = foo, bar, baz;
   let i : u64 = 0;
   let index : u64 = 0;
   let func = funcs;

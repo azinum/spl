@@ -3,7 +3,7 @@
 include "lib/common.spl"
 
 fn version1 -> none {
-  let hello_world : u8 : 16 = cast u8 0;
+  let hello_world : u8[16] = cast u8 0;
   store64 @hello_world 6278066737626506568;
   store64 + @hello_world sizeof u64 7792634774869013103;
   let size : u64 = 13;
@@ -11,7 +11,7 @@ fn version1 -> none {
 }
 
 fn version2 -> none {
-  let hello_world : u8 : 13 = cast u8 0;
+  let hello_world : u8[13] = cast u8 0;
   let str = @hello_world;
   store8 str 'H'; store64 @str + 1 str;
   store8 str 'e'; store64 @str + 1 str;
