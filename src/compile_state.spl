@@ -155,7 +155,7 @@ fn symbol_init(symbol : ptr) -> none {
 }
 
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
-fn compile_lookup_value(block : ptr<Block>, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
+fn compile_lookup_value(block : ptr<Block>, fs : ptr<Function>, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
     let copy : u8[MAX_NAME_SIZE] = 0;
@@ -192,7 +192,7 @@ fn compile_lookup_value(block : ptr<Block>, fs : ptr, name : ptr, symbol : ptr, 
 }
 
 // block : Block*, fs : Function*, token : Token*, symbol : Symbol**, symbol_index : u64*
-fn compile_declare_value(block : ptr<Block>, fs : ptr, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
+fn compile_declare_value(block : ptr<Block>, fs : ptr<Function>, token : ptr, symbol : ptr, symbol_index : ptr) -> u64 {
   let result = Error;
   if < load64 + token Token.length MAX_NAME_SIZE {
     if < load64 + c Compile.symbol_count MAX_SYMBOL {

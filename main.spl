@@ -1,6 +1,6 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 // include "lib/hash.spl"
 
 fn main -> none {

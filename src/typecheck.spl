@@ -14,7 +14,7 @@ enum u64 (
   TYPE_CONSTRAINT_UNDECIDABLE // unwrapping of type is needed, thus we can not decide if the constraint is valid or not at this moment
 );
 
-fn typecheck_function(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 0;
+fn typecheck_function(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 0;
 let _typecheck = typecheck_function;
 fn type_print_func_sig(fd : u64, type : ptr<Type>) -> none {}
 let _type_print = type_print_func_sig;
@@ -592,7 +592,7 @@ fn vs_pop(value_out : ptr<Value>) -> u64 {
 }
 
 // block : Block*, fs : Function*, token : Token*, symbol_out : Symbol**
-fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
+fn token_to_compile_type(block : ptr<Block>, fs : ptr<Function>, token : ptr, symbol_out : ptr, type_out : ptr<Type>) -> none {
   type_init(type_out, TypeNone, 0, 0, 1);
   let token_type = load64 + token Token.type;
   if eq token_type T_ANY {
@@ -634,7 +634,7 @@ fn token_to_compile_type(block : ptr<Block>, fs : ptr, token : ptr, symbol_out :
 //   None | Value
 //   Type
 // block : ptr<Block>, fs : ptr<Function>, ast : ptr<Ast>
-fn collect_types_from_node(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn collect_types_from_node(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let result = NoError;
   let sub_type_node = NULL;
   if ast {
@@ -673,7 +673,7 @@ fn collect_types_from_node(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
 }
 
 // block : Block*, fs : Function*, ast : Ast*, mode : u64, type_out : Type*
-fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
+fn type_contract_from_type_node(block : ptr<Block>, fs : ptr<Function>, ast : ptr, mode : u64, type_out : ptr<Type>, accept_none_type : u64) -> u64 {
   let result = Error;
   let collected_types_result = collect_types_from_node(block, fs, ast);
   if eq collected_types_result NoError {
@@ -694,7 +694,7 @@ fn type_contract_from_type_node(block : ptr<Block>, fs : ptr, ast : ptr, mode : 
   result;
 }
 
-fn check_func_signatures(a : ptr, b : ptr) -> u64 {
+fn check_func_signatures(a : ptr<Function>, b : ptr<Function>) -> u64 {
   let result : u64 = 1;
   if and
     eq load64 + a Function.argc load64 + b Function.argc
@@ -739,7 +739,7 @@ fn is_branch_konst_eval(ast : ptr) -> u64 {
   konst;
 }
 
-fn typecheck_node_list(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_node_list(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let i = 0;
   let count = load64 + ast Ast.count;
   while < i count {
@@ -749,7 +749,7 @@ fn typecheck_node_list(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_value(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_value(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let token_type = load64 + + ast Ast.token Token.type;
   if eq token_type T_NUMBER {
     let value : Value = 0;
@@ -844,7 +844,7 @@ fn typecheck_value(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_binop_expr(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_binop_expr(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   { let _ = typecheck_node_list(block, fs, ast); }
   let b : Type = 0;
   let a : Type = 0;
@@ -934,7 +934,7 @@ fn typecheck_binop_expr(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_uop_expr(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_uop_expr(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let ts_count : u64 = load64 + c Compile.ts_count;
   { let _ = typecheck_node_list(block, fs, ast); }
   store64 + ast Ast.konst is_branch_konst_eval(ast);
@@ -985,7 +985,7 @@ fn typecheck_uop_expr(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_func_definition(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_func_definition(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   if eq cast u64 block + c Compile.global {
     let params = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
     let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
@@ -1014,8 +1014,8 @@ fn typecheck_func_definition(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         memcpy(+ symbol Symbol.type, at type, sizeof Type);
         store64 + + ast Ast.token Token.v symbol_index;
         memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
-        let func = cast ptr + + symbol Symbol.value Value.func;
-        function_init(cast ptr<Function> func);
+        let func = cast ptr<Function> + + symbol Symbol.value Value.func;
+        function_init(func);
         store64 + func Function.ir_address UINT64_MAX;
         store64 + func Function.label symbol_index;
         store64 + func Function.argc argc;
@@ -1138,7 +1138,7 @@ fn typecheck_func_definition(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_func_call(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_func_call(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let symbol : ptr = NULL;
   let symbol_index : u64 = UINT64_MAX;
   let token_buffer : Buffer = 0;
@@ -1147,7 +1147,7 @@ fn typecheck_func_call(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
     store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
     store64 + + ast Ast.token Token.v symbol_index;
     let arg_list = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    let func : ptr = + + symbol Symbol.value Value.func;
+    let func = cast ptr<Function> + + symbol Symbol.value Value.func;
     let type : Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
     if or eq type_base(at type) TypeFunc eq type_base(at type) TypeSyscallFunc {
@@ -1252,7 +1252,7 @@ fn typecheck_func_call(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
 //     None | Value (array specifier)
 //     Type (optional sub type)
 // TODO(lucas): simplify
-fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_let_statement(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let result = NoError;
   let konst = eq load64 + ast Ast.type AstConstStatement;
   let ts_count = load64 + c Compile.ts_count;
@@ -1331,7 +1331,7 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
         }
         else {
           if and eq type_base(at type) TypeFunc eq type_base(at prev_type) TypeFunc {
-            if eq check_func_signatures(+ @value Value.func, + @prev_value Value.func) 0 {
+            if eq check_func_signatures(cast ptr<Function> + at value Value.func, cast ptr<Function> + at prev_value Value.func) 0 {
               typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
               store64 @done 1;
             }
@@ -1410,7 +1410,7 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
   result;
 }
 
-fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck_struct(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   let fields = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let field_offset : u64 = 0;
   let i : u64 = 0;
@@ -1563,7 +1563,7 @@ fn typecheck_struct(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
 //    I_LOADx        | load y based on its type
 //                   | we're done
 //
-fn typecheck_field_access(block : ptr<Block>, fs : ptr, ast : ptr, type_context : ptr<Type_context>) -> u64 {
+fn typecheck_field_access(block : ptr<Block>, fs : ptr<Function>, ast : ptr, type_context : ptr<Type_context>) -> u64 {
   let symbol = NULL;
   let symbol_id = UINT64_MAX;
   let buffer : Buffer = 0;
@@ -1616,7 +1616,7 @@ fn typecheck_field_access(block : ptr<Block>, fs : ptr, ast : ptr, type_context 
   load64 + c Compile.status;
 }
 
-fn typecheck(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
+fn typecheck(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
   if eq load64 + c Compile.status NoError {
     let ast_type = load64 + ast Ast.type;
     if eq ast_type AstValue {
@@ -1877,7 +1877,7 @@ fn typecheck_program(ast : ptr) -> u64 {
   let time_end : timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
-  let _ = typecheck(cast ptr<Block> + c Compile.global, NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
+  let _ = typecheck(cast ptr<Block> + c Compile.global, cast ptr<Function> NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
   if neq load64 + c Compile.vs_count 0 {
