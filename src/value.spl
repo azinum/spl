@@ -8,7 +8,7 @@ struct Function (
   argc                  : u64,
   locals_offset         : u64,
   rtype                 : Type,
-  args                  : u64 : MAX_FUNC_ARGC
+  args                  : u64[MAX_FUNC_ARGC]
 );
 
 struct Value (

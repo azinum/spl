@@ -75,7 +75,7 @@ fn put(str : cstr) -> none {
 
 fn putu(fd : u64, n : u64) -> none {
   const MAX_BUFF_SIZE = 512;
-  let buff : u8 : MAX_BUFF_SIZE = 0;
+  let buff : u8[MAX_BUFF_SIZE] = 0;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
   puts(fd, cast cstr @buff);
 }
@@ -197,13 +197,13 @@ fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
 }
 
 fn dprintf(fd : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE = 0;
+  let buffer : u8[MAX_BUFFER_SIZE] = 0;
   let n = _sprintf(cast ptr @buffer, format, args);
   write(fd, cast ptr @buffer, n);
 }
 
 fn dnprintf(fd : u64, size : u64, format : cstr, args : any) -> none {
-  let buffer : u8 : MAX_BUFFER_SIZE = 0;
+  let buffer : u8[MAX_BUFFER_SIZE] = 0;
   let n = snprintf(cast ptr @buffer, size, format, args);
   write(fd, cast ptr @buffer, n);
 }

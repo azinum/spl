@@ -3,21 +3,9 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-struct Foo (
-  a : u64,
-  b : u64,
-);
-
-fn foo_init(foo : ptr<Foo>) -> none {
-  store64 + foo Foo.a 12;
-  store64 + foo Foo.b 17;
-}
-
-fn foo_print(foo : ptr<Foo>) -> none {
-  // printf("%d, %d\n", foo);
-}
+fn hello(input : ptr<u64[4]>) -> none {}
 
 fn main -> none {
-  let foo : Foo = 0;
-  foo_init(at foo);
+  let a : u64[4] = 0;
+  hello(at a);
 }

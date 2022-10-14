@@ -44,7 +44,7 @@ fn printline(fd : u64, source : cstr, index : cstr, token_length : u64, print_ar
   }
 
   const MAX_BUFFER_SIZE = 512;
-  let buffer : u8 : MAX_BUFFER_SIZE = cast u8 0;
+  let buffer : u8[MAX_BUFFER_SIZE] = 0;
   let line_length : u64 = - + end_offset start_offset 1;
   let args : any = + - at_index start_offset 1;
   dnprintf(fd, line_length, "%s", @args);

@@ -110,7 +110,7 @@ fn struct_type_info_init(info : ptr<Struct_type_info>) -> none {
   store64 + info Struct_type_info.count 0;
 }
 
-fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8 : MAX_NAME_SIZE>) -> ptr<Struct_field> {
+fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8[MAX_NAME_SIZE]>) -> ptr<Struct_field> {
   let result = cast ptr<Struct_field> NULL;
 
   let i = 0;
@@ -128,7 +128,7 @@ fn struct_lookup_field(info : ptr<Struct_type_info>, name : ptr<u8 : MAX_NAME_SI
 
 fn struct_create_field(info : ptr<Struct_type_info>, field : ptr<Struct_field>) -> u64 {
   let result = Error;
-  if eq struct_lookup_field(info, cast ptr<u8 : MAX_NAME_SIZE> + field Struct_field.name) NULL {
+  if eq struct_lookup_field(info, cast ptr<u8[MAX_NAME_SIZE]> + field Struct_field.name) NULL {
     let index = cast ptr<u64> + info Struct_type_info.count;
     let new_field = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field deref index;
     store64 index + 1 deref index;
@@ -795,7 +795,7 @@ fn typecheck_value(block : ptr<Block>, fs : ptr, ast : ptr) -> u64 {
       memcpy(at type, + symbol Symbol.type, sizeof Type);
       if eq token_type T_AT_WORD {
         const count = 2;
-        let contract : Type : count = 0;
+        let contract : Type[count] = 0;
         type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
         memcpy(+ at contract * sizeof Type 1, at type, sizeof Type);
         let ptr_type : Type = 0;
@@ -1600,7 +1600,7 @@ fn typecheck_field_access(block : ptr<Block>, fs : ptr, ast : ptr, type_context 
 
       while < i count {
         let node = cast ptr load64 + field_nodes * sizeof ptr i;
-        let field_name : u8 : MAX_NAME_SIZE = 0;
+        let field_name : u8[MAX_NAME_SIZE] = 0;
         memset(at field_name, 0, sizeof field_name);
         memcpy(at field_name, load64 + + node Ast.token Token.buffer, load64 + + node Ast.token Token.length);
         store64 at struct_field struct_lookup_field(struct_type_info, at field_name);

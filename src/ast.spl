@@ -31,7 +31,7 @@ enum u64 (
   MAX_AST_TYPE
 );
 
-let ast_type_str : cstr : MAX_AST_TYPE = cast cstr : MAX_AST_TYPE "";
+let ast_type_str : cstr[MAX_AST_TYPE] = cast cstr[MAX_AST_TYPE] "";
 
 // NOTE(lucas): it's VERY inefficient to use a constant number of internal nodes for the ast, but this will do for now
 // TODO(lucas): come back here and rework all of this when the self hosted compiler is complete
@@ -39,7 +39,7 @@ const MAX_INTERNAL_NODE : u64 = 512; // how many nodes can each node hold?
 const MAX_AST_NODE : u64 = * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
 struct Ast (
-  node  : ptr : MAX_INTERNAL_NODE,
+  node  : ptr[MAX_INTERNAL_NODE],
   count : u64,
   type  : u64,
   token : Token,
@@ -47,7 +47,7 @@ struct Ast (
   type_context_id : u64
 );
 
-let ast_node_memory : Ast : MAX_AST_NODE = 0;
+let ast_node_memory : Ast[MAX_AST_NODE] = 0;
 let ast_node : ptr = NULL;
 let ast_node_end : ptr = NULL;
 

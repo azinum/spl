@@ -8,7 +8,7 @@ fn vo_empty(fd : u64, format : cstr, args : any) -> none {}
 
 fn vo_write_debug_info(fd : u64, op : ptr<Op>) -> none {
   const BUFFER_SIZE = 512;
-  let buffer : u8 : BUFFER_SIZE = 0;
+  let buffer : u8[BUFFER_SIZE] = 0;
   let token = cast ptr<Token> + op Op.info;
   {
     let args : any = load64 + token Token.filename, load64 + token Token.line, load64 + token Token.column;

@@ -43,7 +43,7 @@ enum u8 (
 
 // temporary `scratch` buffer
 const TMP_SIZE = * 8 32768;
-let tmp : u8 : TMP_SIZE = 0;
+let tmp : u8[TMP_SIZE] = 0;
 let tmp_it = 0;
 let tmp_end = 0;
 
@@ -449,7 +449,7 @@ fn tmp_push_str(str : any, length : u64) -> none {
 
 fn tmp_push_u64(n : u64) -> none {
   const MAX_LENGTH = 32;
-  let buf : u8 : * sizeof u64 MAX_LENGTH = 0;
+  let buf : u8[* sizeof u64 MAX_LENGTH] = 0;
   let length = digit_count(n);
   u64_to_str(n, @buf, MAX_LENGTH);
   tmp_push_str(@buf, length);

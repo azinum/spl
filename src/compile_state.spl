@@ -1,7 +1,7 @@
 // compile_state.spl
 
 struct Symbol (
-  name                : u8 : MAX_NAME_SIZE,
+  name                : u8[MAX_NAME_SIZE],
   imm                 : u64,
   size                : u64,
   num_elements_init   : u64,
@@ -21,7 +21,7 @@ const MAX_CSTRING = 2048;
 const MAX_SYSCALL_FUNCTION = 7;
 
 struct Block (
-  symbols      : u64 : MAX_SYMBOL_PER_BLOCK, // index into compile state symbols
+  symbols      : u64[MAX_SYMBOL_PER_BLOCK], // index into compile state symbols
   symbol_count : u64,
   parent       : ptr
 );
@@ -48,21 +48,21 @@ const MAX_INS = * 128 1024;  // TODO(lucas): temp
 const MAX_TYPE_CONTRACT_STACK = 16;
 
 struct Compile (
-  ins                 : Op : MAX_INS,
+  ins                 : Op[MAX_INS],
   ins_count           : u64,
 
-  imm                 : u8 : MAX_STATIC_DATA,
+  imm                 : u8[MAX_STATIC_DATA],
   imm_index           : u64,
 
-  symbols             : Symbol : MAX_SYMBOL,
+  symbols             : Symbol[MAX_SYMBOL],
   symbol_count        : u64,
 
-  cstrings            : u64 : MAX_CSTRING,
+  cstrings            : u64[MAX_CSTRING],
   cstring_count       : u64,
 
   global              : Block,
 
-  blocks              : Block : MAX_BLOCK, // block stack is used to reduce stack usage
+  blocks              : Block[MAX_BLOCK], // block stack is used to reduce stack usage
   block_count         : u64,
   block_count_largest : u64, // what was the largest block stack size during the whole compilation?
 
@@ -71,25 +71,25 @@ struct Compile (
   status              : u64,
   entry_point         : u64,
 
-  ts                  : Type : MAX_TYPE_STACK, // type stack
+  ts                  : Type[MAX_TYPE_STACK], // type stack
   ts_count            : u64, // this should be signed integer, but that is not implemented yet, so type stack overflow will be detected by using UINT64_MAX.
 
-  vs                  : Value : MAX_TYPE_STACK, // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
+  vs                  : Value[MAX_TYPE_STACK], // value stack. sometimes we need to grab values in the type checking phase. it also allows for some basic compile time evaluation of stuff.
   vs_count            : u64,
 
-  types               : Type : MAX_COMPILE_TYPE, // types should be stored in a hashmap or some other efficient data structure for quick access and modification
+  types               : Type[MAX_COMPILE_TYPE], // types should be stored in a hashmap or some other efficient data structure for quick access and modification
   type_count          : u64,  // how many types are there, including primitive and user defined types?
 
-  type_contract_stack : Type : MAX_TYPE_CONTRACT_STACK, // stack of types to construct a single type contract
+  type_contract_stack : Type[MAX_TYPE_CONTRACT_STACK], // stack of types to construct a single type contract
   type_contract_count : u64, // better naming needed here...
 
   warning_count       : u64,
   error_count         : u64,
 
-  struct_type_info    : Struct_type_info : MAX_COMPILE_TYPE,
+  struct_type_info    : Struct_type_info[MAX_COMPILE_TYPE],
   struct_id           : u64,
 
-  type_contexts       : Type_context : MAX_TYPE_CONTEXT,
+  type_contexts       : Type_context[MAX_TYPE_CONTEXT],
   type_context_count  : u64,
 
   info                : Debug_info
@@ -98,7 +98,7 @@ struct Compile (
 // c : Compile*
 let c : ptr = NULL;
 
-let compile_type_str : cstr : MAX_COMPILE_TYPE = cast cstr : MAX_COMPILE_TYPE "";
+let compile_type_str : cstr[MAX_COMPILE_TYPE] = cast cstr[MAX_COMPILE_TYPE] "";
 
 fn compile_error(message : cstr) -> none {
   if eq load64 + c Compile.status NoError {
@@ -151,7 +151,7 @@ fn symbol_init(symbol : ptr) -> none {
 fn compile_lookup_value(block : ptr<Block>, fs : ptr, name : ptr, symbol : ptr, symbol_index : ptr, levels_descend : ptr) -> u64 {
   let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
-    let copy : u8 : MAX_NAME_SIZE = cast u8 0;
+    let copy : u8[MAX_NAME_SIZE] = 0;
     memset(@copy, 0, MAX_NAME_SIZE);
     strncpy(cast cstr @copy, cast cstr load64 + name Buffer.data, load64 + name Buffer.length);
     let i = 0;

@@ -86,7 +86,7 @@ fn spl_start(filename : cstr) -> u64 {
                 if load64 + @options Options.compile {
                   let target = TARGET_LINUX_NASM_X86_64;
 
-                  let output_file_path : u8 : MAX_PATH_SIZE = cast u8 0;
+                  let output_file_path : u8[MAX_PATH_SIZE] = cast u8 0;
                   let filename = cast cstr load64 + @options Options.filename;
                   let diff : u64 = - cast u64 first_dot(filename) filename;
                   sprintf(@output_file_path, "%s", @filename);
@@ -107,7 +107,7 @@ fn spl_start(filename : cstr) -> u64 {
                   }
                 }
                 if load64 + @options Options.debug {
-                  let path : u8 : MAX_PATH_SIZE = cast u8 0;
+                  let path : u8[MAX_PATH_SIZE] = 0;
                   sprintf(@path, "%s.debug", + @options Options.filename);
                   let mode : u64 = 434; // 0662
                   let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
@@ -147,8 +147,8 @@ fn spl_start(filename : cstr) -> u64 {
 
 fn version_id_print(fd : u64) -> none {
   const BUFFER_SIZE = 22;
-  let in_buff : u8 : BUFFER_SIZE = cast u8 0;
-  let out_buff : u8 : BUFFER_SIZE = cast u8 0;
+  let in_buff : u8[BUFFER_SIZE] = 0;
+  let out_buff : u8[BUFFER_SIZE] = 0;
   memset(@in_buff, 0, sizeof in_buff);
   memset(@out_buff, 0, sizeof out_buff);
 

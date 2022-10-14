@@ -84,7 +84,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
   { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
 
   if eq target TARGET_LINUX_NASM_X86_64 {
-    let path : u8 : MAX_PATH_SIZE = cast u8 0;
+    let path : u8[MAX_PATH_SIZE] = 0;
     sprintf(@path, "%s.spl.asm", @output_file_path);
     let mode : u64 = 434; // 0662
     let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
@@ -94,7 +94,7 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
       { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
 
       if eq result NoError {
-        let o_path : u8 : MAX_PATH_SIZE = cast u8 0;
+        let o_path : u8[MAX_PATH_SIZE] = 0;
         let args : any = output_file_path;
         sprintf(@o_path, "%s.o", @args);
         {
@@ -273,7 +273,7 @@ fn compile_state_init -> u64 {
 
   {
     const count = 2;
-    let contract : Type : count = 0;
+    let contract : Type[count] = 0;
     type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
     type_init(cast ptr<Type> + at contract * sizeof Type 1, TypeCString, 0, sizeof cstr, 1);
     let result : Type = 0;

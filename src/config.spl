@@ -3,7 +3,7 @@
 const NUM_LINES_TO_PRINT = 3;
 
 struct Config (
-  lib_path : u8 : MAX_PATH_SIZE
+  lib_path : u8[MAX_PATH_SIZE]
 );
 
 let config : Config = 0;
@@ -14,7 +14,7 @@ fn config_init -> none {
 }
 
 fn open_source_file(filename_path : cstr) -> u64 {
-  let path : u8 : MAX_PATH_SIZE = cast u8 0;
+  let path : u8[MAX_PATH_SIZE] = 0;
   let mode : u64 = O_RDONLY;
   let fd = open(filename_path, 0, mode);
   if eq fd ERROR {

@@ -41,13 +41,13 @@ enum u64 (
 const MAX_NUM_STRUCT_FIELDS = 64;
 
 struct Struct_field (
-  name : u8 : MAX_NAME_SIZE,
+  name : u8[MAX_NAME_SIZE],
   type : Type,
   offset : u64
 );
 
 struct Struct_type_info (
-  fields : Struct_field : MAX_NUM_STRUCT_FIELDS,
+  fields : Struct_field[MAX_NUM_STRUCT_FIELDS],
   count : u64
 );
 

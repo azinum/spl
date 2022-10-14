@@ -6,7 +6,7 @@ struct Parser (
   ast          : ptr,
   status       : u64,
   line_count   : u64,
-  source_paths : cstr : MAX_SOURCE_COUNT,
+  source_paths : cstr[MAX_SOURCE_COUNT],
   source_count : u64,
   source_hash  : u64
 );
@@ -132,11 +132,16 @@ fn parse_type -> ptr {
     }
     store64 @token_type load64 + @token Token.type;
     // array specifier
-    if eq token_type T_COLON {
-      lexer_next(); // skip `:`
+    if eq token_type T_LEFT_BRACKET {
+      lexer_next(); // skip `[`
       let array_specifier_node = ast_create(AstExpression);
       ast_push(array_specifier_node, expression());
       ast_push(type_expr, array_specifier_node);
+      store64 @token_type load64 + @token Token.type;
+      if neq token_type T_RIGHT_BRACKET {
+        parser_error("expected closing `]` in array specifier, but got `?`\n");
+      }
+      lexer_next(); // skip `]`
     }
     else {
       ast_push(type_expr, ast_create(AstNone));
