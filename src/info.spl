@@ -37,12 +37,7 @@ fn symbol_info_print(fd : u64) -> none {
           if eq type_size 0 {
             store64 @type_size 1;
           }
-          let num_elements : u64 = / load64 + arg Symbol.size type_size;
           type_print(fd, at arg_type);
-
-          if > num_elements 1 {
-            dprintf(fd, " : %d", @num_elements);
-          }
 
           if neq arg_index - arg_count 1 {
             dprintf(fd, ", ", NULL);

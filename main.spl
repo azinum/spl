@@ -1,6 +1,6 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 // include "lib/hash.spl"
 
 struct Foo (
@@ -14,12 +14,10 @@ fn foo_init(foo : ptr<Foo>) -> none {
 }
 
 fn foo_print(foo : ptr<Foo>) -> none {
-  printf("%d, %d\n", foo);
+  // printf("%d, %d\n", foo);
 }
 
 fn main -> none {
   let foo : Foo = 0;
   foo_init(at foo);
-  foo_print(at foo);
-  print :foo:a;
 }

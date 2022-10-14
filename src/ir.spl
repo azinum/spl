@@ -310,6 +310,57 @@ fn ir_compile_stmts(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
+fn ir_compile_value(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let token : ptr = + ast Ast.token;
+  let token_type : u64 = load64 + token Token.type;
+  if eq token_type T_NUMBER {
+    let imm : u64 = compile_push_value(+ token Token.v, sizeof u64);
+    if neq imm UINT64_MAX {
+      let op : Op = 0;
+      OP_init(
+        I_PUSH_IMM,
+        TypeUnsigned64,
+        imm,
+        NONE,
+        @op
+      );
+      { let _ = ir_push_ins(@op, ins_count); }
+    }
+    else {
+      assert(0, "out of immediate data memory\n");
+    }
+  }
+  else if eq token_type T_CSTRING {
+    let index : u64 = UINT64_MAX;
+    let address : u64 = compile_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
+    if neq address UINT64_MAX {
+      let op : Op = 0;
+      OP_init(
+        I_PUSH,
+        TypeCString,
+        index,
+        NONE,
+        @op
+      );
+      { let _ = ir_push_ins(@op, ins_count); }
+    }
+  }
+  else if eq token_type T_IDENTIFIER {
+    let id : u64 = load64 + + ast Ast.token Token.v;
+    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+    { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
+  }
+  else if or eq token_type T_AT eq token_type T_AT_WORD {
+    let id : u64 = load64 + + ast Ast.token Token.v;
+    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+    { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
+  }
+  else {
+    assert(0, "value type not implemented\n");
+  }
+  load64 + c Compile.status;
+}
+
 fn ir_compile_func_call_args(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   let count : u64 = load64 + ast Ast.count;
   if > count 0 {
@@ -330,23 +381,93 @@ fn ir_compile_func_call_args(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
 
 fn ir_compile_binop(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   assert(eq load64 + ast Ast.count 2, "expected 2 branches in binary operator expression\n");
-
-  let i : u64 = 0;
-  let count : u64 = load64 + ast Ast.count;
-  let done : u64 = 0;
-  while and eq done 0 < i count {
-    let node = cast ptr load64 + + ast Ast.node * sizeof ptr i;
-    if neq _ir_compile(fs, node, ins_count) NoError {
-      store64 @done 1;
-    }
-    store64 @i + 1 i;
-  }
+  { let _ = _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0, ins_count); }
+  { let _ = _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 1, ins_count); }
   load64 + c Compile.status;
 }
 
 fn ir_compile_uop(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   assert(eq load64 + ast Ast.count 1, "expected 1 branch in unary operator expression\n");
   _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0, ins_count);
+}
+
+fn ir_compile_let_statement(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let id : u64 = load64 + + ast Ast.token Token.v;
+  let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+
+  let node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let count : u64 = ast_count(node);
+  if eq count 1 {
+    memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
+  }
+
+  let type = cast ptr<Type> + symbol Symbol.type;
+
+  if eq type_base(type) TypeCString {
+    // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
+    // TODO(lucas): ir code generator should not be responsible for this
+    type_init(type, TypePtr, TypeCString, sizeof ptr, 1);
+  }
+  // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
+  // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
+  if fs {
+      let type_id : u64 = type_lookup(type);
+      assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
+      let type_size : u64 = compile_type_size(type_id);
+      assert(neq type_size 0, "invalid size of type\n");
+      let size : u64 = load64 + symbol Symbol.size;
+      let num_elements : u64 = / load64 + symbol Symbol.size type_size;
+      let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
+      const BOUNDARY_ALIGNMENT = 8;
+      let frame_size = align(size, BOUNDARY_ALIGNMENT);
+
+      let effective_frame_size = * num_elements_init type_size;
+      // ir code generation for let statements (in a function with 0 arguments)
+      // example:
+      //   let a : u64 = 1, 2, 3;
+      //
+      // FRAME:
+      //   ELEM IDX   | OFFSET     | NOTES
+      //   -          | 8  -> 0    | spill due to boundary alignment
+      //   2          | 16 -> 8    | bottom
+      //   1          | 24 -> 16   |
+      //   0          | 32 -> 24   | top
+      //
+      // element 0 is located at the `top` of the frame
+      //
+      // boundary_size = 16
+      // frame_size = align(3*8, boundary_size) = 32
+
+      let frame_absolute_bottom = load64 + fs Function.locals_offset;
+      let args_size = * sizeof u64 load64 + fs Function.argc;
+      let frame_bottom = + args_size + frame_absolute_bottom - frame_size effective_frame_size;
+
+      let local_index = + frame_bottom type_size;
+      if neq type_base(type) TypeStruct {
+        if eq ir_compile_stmts(fs, ast, ins_count) NoError {
+          let i = 0;
+          let count = num_elements_init;
+          while < i count {
+            let op : Op = 0;
+            OP_init(
+              I_MOVE_LOCAL,
+              type_base(type),
+              local_index,
+              NONE,
+              @op
+            );
+            { let _ = ir_push_ins(@op, ins_count); }
+            store64 @i + 1 i;
+            if < i count {
+              store64 @local_index + local_index type_size;
+            }
+          }
+        }
+      }
+      store64 + symbol Symbol.local_id local_index;
+      store64 + fs Function.locals_offset + frame_absolute_bottom frame_size;
+  }
+  load64 + c Compile.status;
 }
 
 fn ir_compile_func(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
@@ -409,58 +530,327 @@ fn ir_compile_func(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
-  let ast_type : u64 = load64 + ast Ast.type;
-  debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
+fn ir_compile_func_call(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let id : u64 = load64 + + ast Ast.token Token.v;
+  let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
 
-  if eq ast_type AstValue {
-    let token : ptr = + ast Ast.token;
-    let token_type : u64 = load64 + token Token.type;
-    if eq token_type T_NUMBER {
-      let imm : u64 = compile_push_value(+ token Token.v, sizeof u64);
-      if neq imm UINT64_MAX {
-        let op : Op = 0;
+  // func : Function*
+  let func = cast ptr + + symbol Symbol.value Value.func;
+  let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order
+    let type : Type = 0;
+    memcpy(at type, + symbol Symbol.type, sizeof Type);
+    let rtype : Type = 0;
+    memcpy(at rtype, + func Function.rtype, sizeof Type);
+    let op : Op = 0;
+    if or eq type_base(at type) TypeAny eq type_base(at type) TypeFunc {
+      let sym_type : u64 = load64 + symbol Symbol.sym_type;
+      let rvalue : u64 = NONE;
+      let argc : u64 = load64 + func Function.argc;
+      if neq type_base(at rtype) TypeNone {
+        store64 @rvalue 0;
+      }
+      if eq sym_type SYM_FUNC {
         OP_init(
-          I_PUSH_IMM,
-          TypeUnsigned64,
-          imm,
+          I_CALL,
+          load64 + func Function.label,
+          argc,
+          rvalue,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+      }
+      else if eq sym_type SYM_LOCAL_VAR {
+        assert(eq load64 + symbol Symbol.konst 0, "something went very wrong\n");
+        OP_init(
+          I_PUSH_LOCAL,
+          type_base(at type),
+          load64 + symbol Symbol.local_id,
           NONE,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+        OP_init(
+          I_ADDR_CALL,
+          NONE,
+          argc,
+          rvalue,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+      }
+      else if eq sym_type SYM_GLOBAL_VAR {
+        OP_init(
+          I_PUSH,
+          type_base(at type),
+          id,
+          NONE,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+        OP(I_LOAD64, @op); // NOTE(lucas): dereference the variable and get access to the function pointer
+        { let _ = ir_push_ins(@op, ins_count); }
+        OP_init(
+          I_ADDR_CALL,
+          NONE,
+          argc,
+          rvalue,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+      }
+      else if eq sym_type SYM_FUNC_ARG {
+        let arg : u64 = load64 + + symbol Symbol.token Token.v;
+        OP_init(
+          I_PUSH_LOCAL,
+          type_base(at type),
+          * sizeof u64 + 1 arg,
+          NONE,
+          @op
+        );
+        { let _ = ir_push_ins(@op, ins_count); }
+        OP_init(
+          I_ADDR_CALL,
+          NONE,
+          argc,
+          rvalue,
           @op
         );
         { let _ = ir_push_ins(@op, ins_count); }
       }
       else {
-        assert(0, "out of immediate data memory\n");
+        assert(0, "function call of this symbol type is not implemented\n");
       }
     }
-    else if eq token_type T_CSTRING {
-      let index : u64 = UINT64_MAX;
-      let address : u64 = compile_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
-      if neq address UINT64_MAX {
-        let op : Op = 0;
+    else if eq type_base(at type) TypeSyscallFunc {
+      let syscall_map : u64 = (
+        I_SYSCALL0,
+        I_SYSCALL1,
+        I_SYSCALL2,
+        I_SYSCALL3,
+        I_SYSCALL4,
+        I_SYSCALL5,
+        I_SYSCALL6
+      );
+      OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, @op);
+      { let _ = ir_push_ins(@op, ins_count); }
+    }
+    else {
+      compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
+    }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_assignment(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  if eq ir_compile_binop(fs, ast, ins_count) NoError {
+    let type : u64 = load64 + + ast Ast.token Token.type;
+    let op : Op = 0;
+    if or
+        eq type T_ASSIGN
+        eq type T_STORE64 {
+      OP(I_STORE64, @op);
+    }
+    else if eq type T_STORE32 {
+      OP(I_STORE32, @op);
+    }
+    else if eq type T_STORE16 {
+      OP(I_STORE16, @op);
+    }
+    else if eq type T_STORE8 {
+      OP(I_STORE8, @op);
+    }
+    else {
+      assert(0, "assignment operator not implemented\n");
+    }
+    { let _ = ir_push_ins(@op, ins_count); }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_while_statement(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(eq load64 + ast Ast.count 2, "invalid while statement construction\n");
+  let loop_label : u64 = load64 + c Compile.label_count;
+  store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
+  let cond_size : u64 = 0;
+  let body_size : u64 = 0;
+  let op : Op = 0;
+  OP_init(
+    I_LOOP_LABEL,
+    loop_label,
+    NONE,
+    NONE,
+    @op
+  );
+  { let _ = ir_push_ins(@op, @cond_size); }
+
+  let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+
+  if eq ir_compile_stmts(fs, cond, @cond_size) NoError {
+    let body_start_address : u64 = load64 + c Compile.ins_count;
+    let loop_end_label : u64 = load64 + c Compile.label_count;
+    store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
+    OP_init(
+      I_JZ, // conditional jump if zero
+      loop_end_label,
+      0,
+      0,
+      @op
+    );
+    { let _ = ir_push_ins(@op, @body_size); }
+
+    if eq ir_compile_stmts(fs, body, @body_size) NoError {
+      OP_init(
+        I_JMP,
+        loop_label,
+        NONE,
+        + cond_size body_size,
+        @op
+      );
+      { let _ = ir_push_ins(@op, @body_size); }
+
+      OP_init(
+        I_LOOP_LABEL,
+        loop_end_label,
+        NONE,
+        NONE,
+        @op
+      );
+      { let _ = ir_push_ins(@op, @body_size); }
+      // jz : Op*
+      let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
+      store64 + jz Op.src0 body_size;
+      if neq ins_count NULL {
+        store64 ins_count + load64 ins_count + cond_size body_size;
+      }
+    }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_if_statement(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  assert(or eq load64 + ast Ast.count 2 eq load64 + ast Ast.count 3, "invalid if statement construction\n");
+  let cond_size : u64 = 0;
+  let body_size : u64 = 0;
+  let else_body_size : u64 = 0;
+  let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  let op : Op = 0;
+
+  if eq ir_compile_stmts(fs, cond, @cond_size) NoError {
+    let body_start_address : u64 = load64 + c Compile.ins_count;
+    let end_label : u64 = load64 + c Compile.label_count;
+    store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
+    OP_init(
+      I_JZ,
+      end_label,
+      0,
+      0,
+      @op
+    );
+    { let _ = ir_push_ins(@op, @body_size); }
+    if eq ir_compile_stmts(fs, body, @body_size) NoError {
+      if eq load64 + ast Ast.count 3 { // else body
+        let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
+        let else_label : u64 = load64 + c Compile.label_count;
+        store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
+        let else_start_address : u64 = load64 + c Compile.ins_count;
+
         OP_init(
-          I_PUSH,
-          TypeCString,
-          index,
+          I_JMP,
+          else_label,
+          NONE,
           NONE,
           @op
         );
-        { let _ = ir_push_ins(@op, ins_count); }
+        { let _ = ir_push_ins(@op, @body_size); }
+
+        OP_init(
+          I_LOOP_LABEL,
+          end_label,
+          NONE,
+          NONE,
+          @op
+        );
+        { let _ = ir_push_ins(@op, @else_body_size); }
+        if eq ir_compile_stmts(fs, else_body, @else_body_size) NoError {
+          OP_init(
+            I_LOOP_LABEL,
+            else_label,
+            NONE,
+            NONE,
+            @op
+          );
+          { let _ = ir_push_ins(@op, @else_body_size); }
+          // jz : Op*
+          let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
+          // else_jmp : Op*
+          let else_jmp = cast ptr + + c Compile.ins * sizeof Op else_start_address;
+          store64 + jz Op.src0 else_body_size;
+          store64 + else_jmp Op.src0 else_body_size;
+        }
+      }
+      else {
+        OP_init(
+          I_LOOP_LABEL,
+          end_label,
+          NONE,
+          NONE,
+          @op
+        );
+        { let _ = ir_push_ins(@op, @body_size); }
+        // jz : Op*
+        let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
+        store64 + jz Op.src0 body_size;
       }
     }
-    else if eq token_type T_IDENTIFIER {
-      let id : u64 = load64 + + ast Ast.token Token.v;
-      let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-      { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
+    if neq ins_count NULL {
+      store64 ins_count + load64 ins_count + + cond_size body_size else_body_size;
     }
-    else if or eq token_type T_AT eq token_type T_AT_WORD {
-      let id : u64 = load64 + + ast Ast.token Token.v;
-      let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-      { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
-    }
-    else {
-      assert(0, "value type not implemented\n");
-    }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_sizeof(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let imm : u64 = compile_push_value(+ + ast Ast.token Token.v, sizeof u64);
+  if neq imm UINT64_MAX {
+    let op : Op = 0;
+    OP_init(
+      I_PUSH_IMM,
+      TypeUnsigned64,
+      imm,
+      NONE,
+      @op
+    );
+    { let _ = ir_push_ins(@op, ins_count); }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_field_access(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let type_context_id = load64 + ast Ast.type_context_id;
+  let type_context = type_context_from_id(type_context_id);
+  let symbol_id = load64 + type_context Type_context.symbol_id;
+  if neq symbol_id UINT64_MAX {
+    let symbol : Symbol = 0;
+    memcpy(at symbol, + + c Compile.symbols * sizeof Symbol symbol_id, sizeof Symbol);
+    memcpy(+ at symbol Symbol.type, + type_context Type_context.type, sizeof Type);
+    store64 + at symbol Symbol.local_id - load64 + at symbol Symbol.local_id load64 + type_context Type_context.offset;
+    { let _ = ir_push_symbol(fs, @symbol, symbol_id, ins_count); }
+  }
+  else {
+    compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
+  let ast_type : u64 = load64 + ast Ast.type;
+  debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
+
+  if eq ast_type AstValue {
+    { let _ = ir_compile_value(fs, ast, ins_count); }
   }
   else if or or or
       eq ast_type AstExpression
@@ -565,81 +955,7 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     // NOTE(lucas): value has already been defined in the type-checking phase
   }
   else if eq ast_type AstLetStatement {
-    let id : u64 = load64 + + ast Ast.token Token.v;
-    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-
-    let node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    let count : u64 = ast_count(node);
-    if eq count 1 {
-      memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
-    }
-
-    let type = cast ptr<Type> + symbol Symbol.type;
-
-    if eq type_base(type) TypeCString {
-      // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
-      // TODO(lucas): ir code generator should not be responsible for this
-      type_init(type, TypePtr, TypeCString, sizeof ptr, 1);
-    }
-    // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
-    // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
-    if fs {
-        let type_id : u64 = type_lookup(type);
-        assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
-        let type_size : u64 = compile_type_size(type_id);
-        assert(neq type_size 0, "invalid size of type\n");
-        let size : u64 = load64 + symbol Symbol.size;
-        let num_elements : u64 = / load64 + symbol Symbol.size type_size;
-        let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
-        const BOUNDARY_ALIGNMENT = 8;
-        let frame_size = align(size, BOUNDARY_ALIGNMENT);
-
-        let effective_frame_size = * num_elements_init type_size;
-        // ir code generation for let statements (in a function with 0 arguments)
-        // example:
-        //   let a : u64 = 1, 2, 3;
-        //
-        // FRAME:
-        //   ELEM IDX   | OFFSET     | NOTES
-        //   -          | 8  -> 0    | spill due to boundary alignment
-        //   2          | 16 -> 8    | bottom
-        //   1          | 24 -> 16   |
-        //   0          | 32 -> 24   | top
-        //
-        // element 0 is located at the `top` of the frame
-        //
-        // boundary_size = 16
-        // frame_size = align(3*8, boundary_size) = 32
-
-        let frame_absolute_bottom = load64 + fs Function.locals_offset;
-        let args_size = * sizeof u64 load64 + fs Function.argc;
-        let frame_bottom = + args_size + frame_absolute_bottom - frame_size effective_frame_size;
-
-        let local_index = + frame_bottom type_size;
-        if neq type_base(type) TypeStruct {
-          if eq ir_compile_stmts(fs, ast, ins_count) NoError {
-            let i = 0;
-            let count = num_elements_init;
-            while < i count {
-              let op : Op = 0;
-              OP_init(
-                I_MOVE_LOCAL,
-                type_base(type),
-                local_index,
-                NONE,
-                @op
-              );
-              { let _ = ir_push_ins(@op, ins_count); }
-              store64 @i + 1 i;
-              if < i count {
-                store64 @local_index + local_index type_size;
-              }
-            }
-          }
-        }
-        store64 + symbol Symbol.local_id local_index;
-        store64 + fs Function.locals_offset + frame_absolute_bottom frame_size;
-    }
+    { let _ = ir_compile_let_statement(fs, ast, ins_count); }
   }
   else if eq ast_type AstFuncDefinition {
     assert(or eq load64 + ast Ast.count 2 eq load64 + ast Ast.count 3, "invalid number of nodes in AstFuncDefinition branch\n");
@@ -649,295 +965,22 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     assert(0, "something went very wrong\n");
   }
   else if eq ast_type AstFuncCall {
-    let id : u64 = load64 + + ast Ast.token Token.v;
-    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-
-    // func : Function*
-    let func = cast ptr + + symbol Symbol.value Value.func;
-    let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order
-      let type : Type = 0;
-      memcpy(at type, + symbol Symbol.type, sizeof Type);
-      let rtype : Type = 0;
-      memcpy(at rtype, + func Function.rtype, sizeof Type);
-      let op : Op = 0;
-      if or eq type_base(at type) TypeAny eq type_base(at type) TypeFunc {
-        let sym_type : u64 = load64 + symbol Symbol.sym_type;
-        let rvalue : u64 = NONE;
-        let argc : u64 = load64 + func Function.argc;
-        if neq type_base(at rtype) TypeNone {
-          store64 @rvalue 0;
-        }
-        if eq sym_type SYM_FUNC {
-          OP_init(
-            I_CALL,
-            load64 + func Function.label,
-            argc,
-            rvalue,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-        }
-        else if eq sym_type SYM_LOCAL_VAR {
-          assert(eq load64 + symbol Symbol.konst 0, "something went very wrong\n");
-          OP_init(
-            I_PUSH_LOCAL,
-            type_base(at type),
-            load64 + symbol Symbol.local_id,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-          OP_init(
-            I_ADDR_CALL,
-            NONE,
-            argc,
-            rvalue,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-        }
-        else if eq sym_type SYM_GLOBAL_VAR {
-          OP_init(
-            I_PUSH,
-            type_base(at type),
-            id,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-          OP(I_LOAD64, @op); // NOTE(lucas): dereference the variable and get access to the function pointer
-          { let _ = ir_push_ins(@op, ins_count); }
-          OP_init(
-            I_ADDR_CALL,
-            NONE,
-            argc,
-            rvalue,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-        }
-        else if eq sym_type SYM_FUNC_ARG {
-          let arg : u64 = load64 + + symbol Symbol.token Token.v;
-          OP_init(
-            I_PUSH_LOCAL,
-            type_base(at type),
-            * sizeof u64 + 1 arg,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-          OP_init(
-            I_ADDR_CALL,
-            NONE,
-            argc,
-            rvalue,
-            @op
-          );
-          { let _ = ir_push_ins(@op, ins_count); }
-        }
-        else {
-          assert(0, "function call of this symbol type is not implemented\n");
-        }
-      }
-      else if eq type_base(at type) TypeSyscallFunc {
-        let syscall_map : u64 = (
-          I_SYSCALL0,
-          I_SYSCALL1,
-          I_SYSCALL2,
-          I_SYSCALL3,
-          I_SYSCALL4,
-          I_SYSCALL5,
-          I_SYSCALL6
-        );
-        OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, @op);
-        { let _ = ir_push_ins(@op, ins_count); }
-      }
-      else {
-        compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
-      }
-    }
+    { let _ = ir_compile_func_call(fs, ast, ins_count); }
   }
   else if eq ast_type AstBlockStatement {
     { let _ = ir_compile_stmts(fs, ast, ins_count); }
   }
   else if eq ast_type AstAssignment {
-    if eq ir_compile_binop(fs, ast, ins_count) NoError {
-      let type : u64 = load64 + + ast Ast.token Token.type;
-      let op : Op = 0;
-      if or
-          eq type T_ASSIGN
-          eq type T_STORE64 {
-        OP(I_STORE64, @op);
-      }
-      else if eq type T_STORE32 {
-        OP(I_STORE32, @op);
-      }
-      else if eq type T_STORE16 {
-        OP(I_STORE16, @op);
-      }
-      else if eq type T_STORE8 {
-        OP(I_STORE8, @op);
-      }
-      else {
-        assert(0, "assignment operator not implemented\n");
-      }
-      { let _ = ir_push_ins(@op, ins_count); }
-    }
+    { let _ = ir_compile_assignment(fs, ast, ins_count); }
   }
   else if eq ast_type AstWhileStatement {
-    assert(eq load64 + ast Ast.count 2, "invalid while statement construction\n");
-    let loop_label : u64 = load64 + c Compile.label_count;
-    store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-    let cond_size : u64 = 0;
-    let body_size : u64 = 0;
-    let op : Op = 0;
-    OP_init(
-      I_LOOP_LABEL,
-      loop_label,
-      NONE,
-      NONE,
-      @op
-    );
-    { let _ = ir_push_ins(@op, @cond_size); }
-
-    let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-
-    if eq ir_compile_stmts(fs, cond, @cond_size) NoError {
-      let body_start_address : u64 = load64 + c Compile.ins_count;
-      let loop_end_label : u64 = load64 + c Compile.label_count;
-      store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-      OP_init(
-        I_JZ, // conditional jump if zero
-        loop_end_label,
-        0,
-        0,
-        @op
-      );
-      { let _ = ir_push_ins(@op, @body_size); }
-
-      if eq ir_compile_stmts(fs, body, @body_size) NoError {
-        OP_init(
-          I_JMP,
-          loop_label,
-          NONE,
-          + cond_size body_size,
-          @op
-        );
-        { let _ = ir_push_ins(@op, @body_size); }
-
-        OP_init(
-          I_LOOP_LABEL,
-          loop_end_label,
-          NONE,
-          NONE,
-          @op
-        );
-        { let _ = ir_push_ins(@op, @body_size); }
-        // jz : Op*
-        let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
-        store64 + jz Op.src0 body_size;
-        if neq ins_count NULL {
-          store64 ins_count + load64 ins_count + cond_size body_size;
-        }
-      }
-    }
+    { let _ = ir_compile_while_statement(fs, ast, ins_count); }
   }
   else if eq ast_type AstIfStatement {
-    assert(or eq load64 + ast Ast.count 2 eq load64 + ast Ast.count 3, "invalid if statement construction\n");
-    let cond_size : u64 = 0;
-    let body_size : u64 = 0;
-    let else_body_size : u64 = 0;
-    let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-    let op : Op = 0;
-
-    if eq ir_compile_stmts(fs, cond, @cond_size) NoError {
-      let body_start_address : u64 = load64 + c Compile.ins_count;
-      let end_label : u64 = load64 + c Compile.label_count;
-      store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-      OP_init(
-        I_JZ,
-        end_label,
-        0,
-        0,
-        @op
-      );
-      { let _ = ir_push_ins(@op, @body_size); }
-      if eq ir_compile_stmts(fs, body, @body_size) NoError {
-        if eq load64 + ast Ast.count 3 { // else body
-          let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
-          let else_label : u64 = load64 + c Compile.label_count;
-          store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-          let else_start_address : u64 = load64 + c Compile.ins_count;
-
-          OP_init(
-            I_JMP,
-            else_label,
-            NONE,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, @body_size); }
-
-          OP_init(
-            I_LOOP_LABEL,
-            end_label,
-            NONE,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, @else_body_size); }
-          if eq ir_compile_stmts(fs, else_body, @else_body_size) NoError {
-            OP_init(
-              I_LOOP_LABEL,
-              else_label,
-              NONE,
-              NONE,
-              @op
-            );
-            { let _ = ir_push_ins(@op, @else_body_size); }
-            // jz : Op*
-            let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
-            // else_jmp : Op*
-            let else_jmp = cast ptr + + c Compile.ins * sizeof Op else_start_address;
-            store64 + jz Op.src0 else_body_size;
-            store64 + else_jmp Op.src0 else_body_size;
-          }
-        }
-        else {
-          OP_init(
-            I_LOOP_LABEL,
-            end_label,
-            NONE,
-            NONE,
-            @op
-          );
-          { let _ = ir_push_ins(@op, @body_size); }
-          // jz : Op*
-          let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
-          store64 + jz Op.src0 body_size;
-        }
-      }
-      if neq ins_count NULL {
-        store64 ins_count + load64 ins_count + + cond_size body_size else_body_size;
-      }
-    }
+    { let _ = ir_compile_if_statement(fs, ast, ins_count); }
   }
   else if eq ast_type AstSizeof {
-    let imm : u64 = compile_push_value(+ + ast Ast.token Token.v, sizeof u64);
-    if neq imm UINT64_MAX {
-      let op : Op = 0;
-      OP_init(
-        I_PUSH_IMM,
-        TypeUnsigned64,
-        imm,
-        NONE,
-        @op
-      );
-      { let _ = ir_push_ins(@op, ins_count); }
-    }
+    { let _ = ir_compile_sizeof(fs, ast, ins_count); }
   }
   else if or or or
       eq ast_type AstEnum
@@ -950,19 +993,7 @@ fn ir_compile(fs : ptr, ast : ptr, ins_count : ptr) -> u64 {
     { let _ = ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 1, ins_count); }
   }
   else if eq ast_type AstFieldAccess {
-    let type_context_id = load64 + ast Ast.type_context_id;
-    let type_context = type_context_from_id(type_context_id);
-    let symbol_id = load64 + type_context Type_context.symbol_id;
-    if neq symbol_id UINT64_MAX {
-      let symbol : Symbol = 0;
-      memcpy(at symbol, + + c Compile.symbols * sizeof Symbol symbol_id, sizeof Symbol);
-      memcpy(+ at symbol Symbol.type, + type_context Type_context.type, sizeof Type);
-      store64 + at symbol Symbol.local_id - load64 + at symbol Symbol.local_id load64 + type_context Type_context.offset;
-      { let _ = ir_push_symbol(fs, @symbol, symbol_id, ins_count); }
-    }
-    else {
-      compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
-    }
+    { let _ = ir_compile_field_access(fs, ast, ins_count); }
   }
   else {
     compile_error_at(+ ast Ast.token, "invalid or unhandled AST branch type\n");
