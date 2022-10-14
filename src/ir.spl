@@ -161,8 +161,7 @@ fn ir_push_ins(op : ptr<Op>, ins_count : ptr<u64>) -> u64 {
   NoError;
 }
 
-// fs : Function*, symbol : Symbol*, id : u64, ins_count : u64*
-fn ir_push_symbol(fs : ptr<Function>, symbol : ptr, id : u64, ins_count : ptr<u64>) -> u64 {
+fn ir_push_symbol(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count : ptr<u64>) -> u64 {
   let sym_type : u64 = load64 + symbol Symbol.sym_type;
   let op : Op = 0;
   let type : Type = 0;
@@ -228,8 +227,7 @@ fn ir_push_symbol(fs : ptr<Function>, symbol : ptr, id : u64, ins_count : ptr<u6
   load64 + c Compile.status;
 }
 
-// fs : Function*, symbol : Symbol*, id : u64, ins_count : u64*
-fn ir_push_addr_of(fs : ptr<Function>, symbol : ptr, id : u64, ins_count : ptr<u64>) -> u64 {
+fn ir_push_addr_of(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count : ptr<u64>) -> u64 {
   let sym_type : u64 = load64 + symbol Symbol.sym_type;
   let op : Op = 0;
   let type : Type = 0;
@@ -340,12 +338,12 @@ fn ir_compile_value(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 
   }
   else if eq token_type T_IDENTIFIER {
     let id : u64 = load64 + + ast Ast.token Token.v;
-    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+    let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol id;
     { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
   }
   else if or eq token_type T_AT eq token_type T_AT_WORD {
     let id : u64 = load64 + + ast Ast.token Token.v;
-    let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+    let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol id;
     { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
   }
   else {
@@ -830,7 +828,7 @@ fn ir_compile_field_access(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
     memcpy(at symbol, + + c Compile.symbols * sizeof Symbol symbol_id, sizeof Symbol);
     memcpy(+ at symbol Symbol.type, + type_context Type_context.type, sizeof Type);
     store64 + at symbol Symbol.local_id - load64 + at symbol Symbol.local_id load64 + type_context Type_context.offset;
-    { let _ = ir_push_symbol(fs, @symbol, symbol_id, ins_count); }
+    { let _ = ir_push_symbol(fs, at symbol, symbol_id, ins_count); }
   }
   else {
     compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
