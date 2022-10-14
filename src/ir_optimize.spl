@@ -26,7 +26,7 @@ fn ir_debug_info_print(fd : u64, debug : ptr<Ir_debug>) -> none {
 }
 
 fn ir_reduce(i : u64, debug : ptr<Ir_debug>) -> none {
-  OP(I_NOP, cast ptr fetch_op(i));
+  OP(I_NOP, fetch_op(i));
   store64 + debug Ir_debug.ins_reduced + 1 load64 + debug Ir_debug.ins_reduced;
 }
 
