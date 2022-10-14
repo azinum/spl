@@ -33,13 +33,15 @@ fn assert_not_equal(a : u64, b : u64, message : cstr) -> none {
   }
 }
 
-include "tests/arith.spl"
-include "tests/sizeof.spl"
-include "tests/bitwise.spl"
-include "tests/function.spl"
-include "tests/struct.spl"
-include "tests/array.spl"
-include "tests/const.spl"
+include "tests/core/arith.spl"
+include "tests/core/sizeof.spl"
+include "tests/core/bitwise.spl"
+include "tests/core/function.spl"
+include "tests/core/struct.spl"
+include "tests/core/array.spl"
+include "tests/core/const.spl"
+
+include "tests/lib/common.spl"
 
 fn test_start -> none {
   printf("running tests...\n", NULL);
@@ -50,10 +52,12 @@ fn test_start -> none {
   test_struct();
   test_array();
   test_const();
+
+  test_lib_common();
 }
 
 fn test_finalize -> none {
-  let args : any = (test_success_count, test_count);
+  let args : any = test_success_count, test_count;
   printf("tests complete (success rate: %d/%d)\n", @args);
 }
 

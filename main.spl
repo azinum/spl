@@ -21,4 +21,5 @@ fn main -> none {
   let foo : Foo = 0;
   foo_init(at foo);
   foo_print(at foo);
+  print :foo:a;
 }

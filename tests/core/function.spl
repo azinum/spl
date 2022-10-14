@@ -16,7 +16,7 @@ fn brr(x : u64) -> u64 {
 }
 
 fn test_function -> none {
-  let info = "function.spl:test_function()";
+  let info = "tests/core/function.spl:test_function()";
   assert_equal(foo(3), 10, info);
   assert_equal(bar(3), 9, info);
   assert_equal(baz(3), 6, info);

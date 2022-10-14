@@ -6,7 +6,7 @@ fn high_order_bitmask(word_size : u64) -> u64 {
 }
 
 fn test_bitwise -> none {
-  let info = "bitwise.spl:test_bitwise()";
+  let info = "tests/core/bitwise.spl:test_bitwise()";
   assert_equal(high_order_bitmask(2), 2, info);
   assert_equal(high_order_bitmask(4), 12, info);
   assert_equal(high_order_bitmask(8), 240, info);

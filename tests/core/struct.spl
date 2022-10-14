@@ -1,7 +1,7 @@
 // struct.spl
 
 fn test_struct -> none {
-  let info = "struct.spl:test_struct()";
+  let info = "tests/core/struct.spl:test_struct()";
   struct B (
     a : u64,
     b : u32

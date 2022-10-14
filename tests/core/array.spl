@@ -1,7 +1,7 @@
 // array.spl
 
 fn test_array -> none {
-  let info = "array.spl:test_array()";
+  let info = "tests/core/array.spl:test_array()";
   {
     const a_size = 32;
     let a : u64 : a_size = 0;

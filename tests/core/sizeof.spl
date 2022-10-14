@@ -1,7 +1,7 @@
 // sizeof.spl
 
 fn test_sizeof -> none {
-  let info = "struct.spl:test_struct()";
+  let info = "tests/core/struct.spl:test_struct()";
   let a : u64 = 0;
   let b : u32 = cast u32 0;
   struct T (

@@ -322,7 +322,6 @@ fn type_push_new(type : ptr<Type>) -> u64 {
 
 // same as type_push_new but hash the type as well
 // simply hashes the type struct itself
-// TODO(lucas): hash of info_id as well
 fn type_commit_new(type : ptr<Type>) -> u64 {
   store64 + type Type.hash 0; // reset hash, in case the type was modified
   let hash = sdbm_hash(type, sizeof Type);

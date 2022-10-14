@@ -1,0 +1,63 @@
+// common.spl
+
+fn test_lib_common -> none {
+  let info = "tests/lib/common.spl:test_lib_common()";
+
+  // align()
+  assert_equal(align(02, 32), 32, info);
+  assert_equal(align(16, 32), 32, info);
+  assert_equal(align(33, 32), 64, info);
+  assert_equal(align(32, 32), 32, info);
+
+  // strlen()
+  assert_equal(strlen("hello, world!"), 13, info);
+  assert_equal(strlen("aaaaaaaaaa"), 10, info);
+  { let s = "hello, world!"; assert_equal(strlen(s), 13, info); }
+
+  // strnlen()
+  assert_equal(strnlen("qqqqqqqqqqqqqqqqqqq", 10), 10, info);
+  assert_equal(strnlen("aaa", 10), 3, info);
+
+  // strcmp()
+  assert_equal(strcmp("hello", "hello"), 0, info);
+  assert_not_equal(strcmp("hello there", "hello"), 0, info);
+  assert_not_equal(strcmp("hello", "hello there"), 0, info);
+  assert_not_equal(strcmp("hello", ""), 0, info);
+
+  // strncmp()
+  assert_equal(strncmp("hello", "hello", 3), 0, info);
+  assert_equal(strncmp("hello", "hello", 100), 0, info);
+  assert_equal(strncmp("hello", "hello there", 3), 0, info);
+  assert_not_equal(strncmp("hello", "hello there", 100), 0, info);
+
+  // strncpy()
+  {
+    let src = "hello there";
+    let dest = "HELLO";
+    strncpy(src, dest, strlen(dest));
+    assert_equal(strcmp(src, dest), 0, info);
+  }
+  {
+    let src = "HELLO";
+    let dest = "hello there";
+    strncpy(src, dest, strlen(src));
+    assert_not_equal(strcmp(src, dest), 0, info);
+  }
+
+  // memset()
+  {
+    let m : u8 : 32 = 0;
+    memset(at m, 'a', sizeof m);
+    let i = 0;
+    const count = sizeof m;
+    let fail = 0;
+    while < i count {
+      if neq load8 + at m i 'a' {
+        store64 @fail + 1 fail;
+      }
+      store64 @i + 1 i;
+    }
+    assert_equal(fail, 0, info);
+  }
+  // TODO(lucas): more tests
+}

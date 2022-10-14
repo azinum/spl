@@ -21,8 +21,7 @@ enum u64 (
 
 struct Type (
   base : u64,     // base or container type
-  sub_id : u64,   // sub type id NOTE(lucas): struct info IDs are stored here, instead of in info_id
-  info_id : u64,  // index to additional type info for structs, functions, and others TODO(lucas): implement
+  sub_id : u64,   // sub type id or index to additional type information for structs, functions, and others
   hash : u64,     // hash of the type for quick equality checks
   count : u64,    // count of elements that this type constitutes
   size : u64      // size of each element
@@ -64,7 +63,6 @@ struct Type_context (
 fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64, count : u64) -> none {
   store64 + type Type.base base_type;
   store64 + type Type.sub_id sub_id;
-  store64 + type Type.info_id UINT64_MAX;
   store64 + type Type.hash 0;
   store64 + type Type.count count;
   store64 + type Type.size size;

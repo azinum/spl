@@ -1,7 +1,7 @@
 // const.spl
 
 fn test_const -> none {
-  let info = "const.spl:test_const()";
+  let info = "tests/core/const.spl:test_const()";
   {
     const a = 0;
     assert_equal(a, 0, info);
