@@ -1,0 +1,86 @@
+// colors.spl
+
+const COLOR_CODE_SIZE = 7;
+
+enum u64 (
+  COLOR_NONE,
+
+  COLOR_BLACK,
+  COLOR_RED,
+  COLOR_GREEN,
+  COLOR_YELLOW,
+  COLOR_BLUE,
+  COLOR_PURPLE,
+  COLOR_CYAN,
+  COLOR_WHITE,
+
+  COLOR_BOLD_BLACK,
+  COLOR_BOLD_RED,
+  COLOR_BOLD_GREEN,
+  COLOR_BOLD_YELLOW,
+  COLOR_BOLD_BLUE,
+  COLOR_BOLD_PURPLE,
+  COLOR_BOLD_CYAN,
+  COLOR_BOLD_WHITE,
+
+  MAX_COLOR
+);
+
+struct Colors (
+  color_code : u8[COLOR_CODE_SIZE],
+  color_codes : cstr[MAX_COLOR],
+  fd : u64
+);
+
+let colors : Colors = 0;
+
+fn colors_init(fd : u64) -> none {
+  const code : u8[COLOR_CODE_SIZE] = (
+    27,
+    91,
+    48,
+    59,
+    0,
+    0,
+    109
+  );
+  memcpy(+ at colors Colors.color_code, at code, COLOR_CODE_SIZE);
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_NONE "0;00";
+
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BLACK  "0;30";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_RED    "0;31";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_GREEN  "0;32";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_YELLOW "0;33";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BLUE   "0;34";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_PURPLE "0;35";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_CYAN   "0;36";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_WHITE  "0;37";
+
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_BLACK  "1;30";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_RED    "1;31";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_GREEN  "1;32";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_YELLOW "1;33";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_BLUE   "1;34";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_PURPLE "1;35";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_CYAN   "1;36";
+  store64 + + at colors Colors.color_codes * sizeof cstr COLOR_BOLD_WHITE  "1;37";
+}
+
+fn color_set_fd(fd : u64) -> none {
+  store64 + at colors Colors.fd fd;
+}
+
+fn color_set(color : u64) -> none {
+  print color;
+  if and
+    eq load64 + @options Options.disable_colors 0
+    < color MAX_COLOR {
+      memcpy(+ + at colors Colors.color_code 2, load64 + + at colors Colors.color_codes * sizeof cstr color, 4);
+      write(load64 + at colors Colors.fd, + at colors Colors.color_code, COLOR_CODE_SIZE);
+    }
+  }
+}
+
+fn color_reset -> none {
+  color_set(COLOR_NONE);
+}

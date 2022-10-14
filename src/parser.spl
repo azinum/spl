@@ -711,6 +711,7 @@ fn parse_include -> ptr {
         if neq fd ERROR {
           let file_source = tmp_it;
           let size = read_file_into_buffer_and_null_terminate(fd, file_source);
+          // printf("include file `%s`\n", @filename_path);
           close(fd);
           store64 @tmp_it + tmp_it size;
 

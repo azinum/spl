@@ -7,6 +7,7 @@ struct Options (
   filename        : cstr,
   enable_warnings : u64,
   disable_dce     : u64,
+  disable_colors  : u64,
   verbose         : u64,
   verbose_asm     : u64
 );
@@ -15,6 +16,7 @@ let options : Options = 0;
 
 include "lib/common.spl"
 include "lib/hash.spl"
+include "src/colors.spl"
 include "src/common.spl"
 include "src/config.spl"
 include "src/misc.spl"
@@ -42,6 +44,7 @@ OPTIONS:
    no-debug        - do not write debug information
    enable-warnings - enable basic warnings
    disable-dce     - disable dead code elimination
+   disable-colors  - disable colored text output
    verbose         - enable verbose output
    verbose-asm     - enable verbose assembly code
    version         - print spl version id
@@ -56,12 +59,17 @@ fn spl_options_init -> none {
   store64 + @options Options.filename NULL;
   store64 + @options Options.enable_warnings 0;
   store64 + @options Options.disable_dce 0;
+  store64 + @options Options.disable_colors 0;
   store64 + @options Options.verbose 0;
   store64 + @options Options.verbose_asm 0;
 }
 
 fn spl_start(filename : cstr) -> u64 {
   let result = NoError;
+
+  // color_set(COLOR_BOLD_RED);
+  // printf("HELLO THERE\n", NULL);
+  // color_reset();
 
   let time_start : timespec = 0;
   let time_end : timespec = 0;
@@ -171,6 +179,7 @@ fn spl_main(argc : u64, argv : any) -> none {
   config_init();
   ast_init();
   spl_options_init();
+  colors_init(STDOUT_FILENO);
 
   let arg = argv;
   let i = 0;
@@ -197,6 +206,9 @@ fn spl_main(argc : u64, argv : any) -> none {
       }
       else if eq 0 strcmp(argument, "disable-dce") {
         store64 + @options Options.disable_dce 1;
+      }
+      else if eq 0 strcmp(argument, "disable-colors") {
+        store64 + @options Options.disable_colors 1;
       }
       else if eq 0 strcmp(argument, "verbose") {
         store64 + @options Options.verbose 1;

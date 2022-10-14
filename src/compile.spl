@@ -246,7 +246,7 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeUnsigned16     sizeof cstr "u16";
   store64 + @compile_type_str * TypeUnsigned8      sizeof cstr "u8";
   store64 + @compile_type_str * TypeCString        sizeof cstr "cstr";
-  store64 + @compile_type_str * TypeFunc           sizeof cstr "func";
+  store64 + @compile_type_str * TypeFunc           sizeof cstr "fn";
   store64 + @compile_type_str * TypeSyscallFunc    sizeof cstr "syscallfunc";
   store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
@@ -293,7 +293,7 @@ fn compile_state_init -> u64 {
     let _ = type_commit_new(at type);
   }
   {
-    type_init(at type, TypeStruct, 0, 1, 1); // why is empty struct size 1?
+    type_init(at type, TypeStruct, 0, 1, 1); // why is the size of an empty struct 1?
     let _ = type_commit_new(at type);
   }
 

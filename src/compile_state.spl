@@ -15,7 +15,7 @@ struct Symbol (
 );
 
 const MAX_SYMBOL = 4096;
-const MAX_SYMBOL_PER_BLOCK = 1024;
+const MAX_SYMBOL_PER_BLOCK = 2048;
 const MAX_STATIC_DATA = * 128 1024;
 const MAX_CSTRING = 2048;
 const MAX_SYSCALL_FUNCTION = 7;
