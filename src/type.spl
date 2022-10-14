@@ -75,10 +75,3 @@ fn type_base(type : ptr<Type>) -> u64 {
 fn type_sub_id(type : ptr<Type>) -> u64 {
   load64 + type Type.sub_id;
 }
-
-fn types_are_equal(a : ptr<Type>, b : ptr<Type>) -> u64 {
-  and and
-    eq load64 + a Type.base     load64 + b Type.base
-    eq load64 + a Type.sub_id   load64 + b Type.sub_id
-    eq load64 + a Type.count    load64 + b Type.count;
-}

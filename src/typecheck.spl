@@ -254,6 +254,13 @@ fn type_printline(fd : u64, type : ptr<Type>) -> none {
   dprintf(fd, "\n", NULL);
 }
 
+fn types_are_equal(a : ptr<Type>, b : ptr<Type>) -> u64 {
+  and and
+    eq load64 + a Type.base     load64 + b Type.base
+    eq load64 + a Type.sub_id   load64 + b Type.sub_id
+    eq load64 + a Type.count    load64 + b Type.count;
+}
+
 fn typecheck_print_stack(fd : u64) -> none {
   let i = 0;
   let count = load64 + c Compile.ts_count;

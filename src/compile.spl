@@ -179,7 +179,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.entry_point 0;
   store64 + c Compile.ts_count 0;
   store64 + c Compile.vs_count 0;
-  store64 + c Compile.type_count MAX_PRIMITIVE_TYPE;
+  store64 + c Compile.type_count 0;
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
   store64 + c Compile.struct_id 1;
@@ -251,17 +251,53 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeNone, TypeNone, 0, 0, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeAny, TypeAny, 0, sizeof any, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypePtr, TypePtr, 0, sizeof ptr, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned64, TypeUnsigned64, 0, sizeof u64, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned32, TypeUnsigned32, 0, sizeof u32, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned16, TypeUnsigned16, 0, sizeof u16, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeUnsigned8, TypeUnsigned8, 0, sizeof u8, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeCString, TypeCString, 0, sizeof cstr, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeFunc, TypeFunc, 0, sizeof ptr, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeSyscallFunc, TypeSyscallFunc, 0, sizeof ptr, 1);
-  type_init(cast ptr<Type> + + c Compile.types * sizeof Type TypeStruct, TypeStruct, 0, 1, 1); // why is empty struct size 1?
+  let type : Type = 0;
+  {
+    type_init(at type, TypeNone, 0, 0, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeAny, 0, sizeof any, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypePtr, 0, sizeof ptr, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeUnsigned64, 0, sizeof u64, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeUnsigned32, 0, sizeof u32, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeUnsigned16, 0, sizeof u16, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeUnsigned8, 0, sizeof u8, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeCString, 0, sizeof cstr, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeFunc, 0, sizeof ptr, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeSyscallFunc, 0, sizeof ptr, 1);
+    let _ = type_commit_new(at type);
+  }
+  {
+    type_init(at type, TypeStruct, 0, 1, 1); // why is empty struct size 1?
+    let _ = type_commit_new(at type);
+  }
+
+  assert(eq load64 + c Compile.type_count MAX_PRIMITIVE_TYPE, "invalid number of primitive types\n");
 
   { let _ = compile_create_syscall("syscall0", 0); }
   { let _ = compile_create_syscall("syscall1", 1); }
