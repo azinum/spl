@@ -781,11 +781,14 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
       if and eq load64 + symbol Symbol.konst 1 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
         let type : Type = 0;
         memcpy(at type, + symbol Symbol.type, sizeof Type);
-        let type_id = type_lookup(at type);
-        let size : u64 = compile_type_size(type_id);
-        let count : u64 = / load64 + symbol Symbol.size size;
-        let name = cast ptr + symbol Symbol.name;
-        let size_str = "db";
+
+        let type_id   = type_lookup(at type);
+        let size      = sizeof u64; // compile_type_size(type_id);
+        let type_size = compile_type_size(type_id);
+        let count     = / load64 + symbol Symbol.size type_size;
+        let name      = cast ptr + symbol Symbol.name;
+        let size_str  = "db";
+
         if or eq type_base(at type) TypeUnsigned64 eq type_base(at type) TypePtr {
           store64 @size_str "dq";
         }

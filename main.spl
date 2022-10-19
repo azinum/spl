@@ -4,4 +4,5 @@ include "lib/common.spl"
 // include "lib/hash.spl"
 
 fn main -> none {
+  const a = "hello";
 }
