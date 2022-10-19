@@ -1317,40 +1317,41 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr<Function>, ast : ptr) ->
       }
     }
 
-    if and eq konst 1 eq is_numerical(at type) 0 {
-      typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n", NULL);
-    }
-    else {
-      let i = 0;
-      let done = 0;
-      while and not done < i ts_delta {
-        ts_pop(at type);
-        { let _ = vs_pop(at value); }
-        if or eq type_base(at explicit_type) TypeStruct eq type_base(at explicit_type) TypeAny {
-          // do nothing, all is permitted here
-        }
-        else {
-          if and eq type_base(at type) TypeFunc eq type_base(at prev_type) TypeFunc {
-            if eq check_func_signatures(cast ptr<Function> + at value Value.func, cast ptr<Function> + at prev_value Value.func) 0 {
-              typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
-              store64 @done 1;
-            }
-          }
-          else if and is_numerical(at explicit_type) is_numerical(at type) {
-            // do nothing, this is ok
-          }
-          else if eq types_are_equal(at type, at prev_type) 0 {
+    let i = 0;
+    let done = 0;
+    while and not done < i ts_delta {
+      ts_pop(at type);
+      { let _ = vs_pop(at value); }
+      if or eq type_base(at explicit_type) TypeStruct eq type_base(at explicit_type) TypeAny {
+        // do nothing, all is permitted here
+      }
+      else {
+        if and eq type_base(at type) TypeFunc eq type_base(at prev_type) TypeFunc {
+          if eq check_func_signatures(cast ptr<Function> + at value Value.func, cast ptr<Function> + at prev_value Value.func) 0 {
             typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
             store64 @done 1;
           }
-          memcpy(at prev_type, at type, sizeof Type);
         }
-        memcpy(@prev_value, @value, sizeof Value);
-        if eq konst 1 {
+        else if and is_numerical(at explicit_type) is_numerical(at type) {
+          // do nothing, this is ok
+        }
+        else if eq types_are_equal(at type, at prev_type) 0 {
+          typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", NULL);
+          store64 @done 1;
+        }
+        memcpy(at prev_type, at type, sizeof Type);
+      }
+      memcpy(@prev_value, @value, sizeof Value);
+      if eq konst 1 {
+        if is_numerical(at type) {
           store64 @imm compile_push_value(+ @value Value.num, sizeof u64);
         }
-        store64 @i + 1 i;
+        else {
+          typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n", NULL);
+          store64 @done 1;
+        }
       }
+      store64 @i + 1 i;
     }
 
     // no array specifier was used, therefore num_elements is set to however many elements there was in the rhs

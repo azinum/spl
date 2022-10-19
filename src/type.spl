@@ -20,11 +20,11 @@ enum u64 (
 );
 
 struct Type (
-  base : u64,     // base or container type
-  sub_id : u64,   // sub type id or index to additional type information for structs, functions, and others
-  hash : u64,     // hash of the type for quick equality checks
-  count : u64,    // count of elements that this type constitutes
-  size : u64      // size of each element
+  base    : u64,  // base or container type
+  sub_id  : u64,  // sub type id or index to additional type information for structs, functions, and others
+  hash    : u64,  // hash of the type for quick equality checks
+  count   : u64,  // count of elements that this type constitutes
+  size    : u64   // size of each element
 );
 
 const MAX_COMPILE_TYPE = 1024;
@@ -41,22 +41,22 @@ enum u64 (
 const MAX_NUM_STRUCT_FIELDS = 64;
 
 struct Struct_field (
-  name : u8[MAX_NAME_SIZE],
-  type : Type,
-  offset : u64
+  name    : u8[MAX_NAME_SIZE],
+  type    : Type,
+  offset  : u64
 );
 
 struct Struct_type_info (
-  fields : Struct_field[MAX_NUM_STRUCT_FIELDS],
-  count : u64
+  fields  : Struct_field[MAX_NUM_STRUCT_FIELDS],
+  count   : u64
 );
 
 const MAX_TYPE_CONTEXT = 512;
 const MAX_FIELD_ACCESS_LEVEL = 8;
 
 struct Type_context (
-  type : Type,
-  offset : u64,
+  type      : Type,
+  offset    : u64,
   symbol_id : u64
 );
 
