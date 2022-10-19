@@ -347,7 +347,9 @@ fn compile_state_print(fd : u64) -> none {
     load64 + c Compile.block_count_largest,
     MAX_BLOCK,
     load64 + c Compile.type_count,
-    MAX_COMPILE_TYPE
+    MAX_COMPILE_TYPE,
+    load64 + c Compile.type_context_count,
+    MAX_TYPE_CONTEXT
   ;
   dprintf(fd,
 "ins_count           = %d/%d
@@ -355,6 +357,7 @@ fn compile_state_print(fd : u64) -> none {
  symbol_count        = %d/%d
  cstring_count       = %d/%d
  block_count_largest = %d/%d
- type_count          = %d/%d\n"
+ type_count          = %d/%d
+ type_context_count  = %d/%d\n"
   , @args);
 }

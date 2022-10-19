@@ -7,7 +7,7 @@ all: spl
 SPL_FLAGS=
 
 clean:
-	rm -f *.o ${PROG} ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
+	rm -f *.o ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
 
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl
@@ -19,7 +19,6 @@ run_examples: SPL_FLAGS+=run
 run_examples: ${SPL_EXAMPLES}
 
 test: SPL_FLAGS+=verbose-asm run
-test: ${SPL_TEST}
 
 main: SPL_FLAGS+=verbose-asm run
 main: main.spl
@@ -59,4 +58,4 @@ uninstall:
 	rm -dr ${LIB_DIR}/${PROG}
 
 .SUFFIXES:
-.PHONY: spl main test examples/* bootstrap
+.PHONY: ${SPL_SRC} bootstrap

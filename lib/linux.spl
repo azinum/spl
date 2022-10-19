@@ -360,6 +360,34 @@ const MREMAP_MAYMOVE   = 0x1;
 const MREMAP_FIXED     = 0x2;
 const MREMAP_DONTUNMAP = 0x4;
 
+const SOCK_DGRAM      = 1;
+const SOCK_STREAM     = 2;
+const SOCK_RAW        = 3;
+const SOCK_RDM        = 4;
+const SOCK_SEQPACKET  = 5;
+const SOCK_DCCP	      = 6;
+const SOCK_PACKET     = 10;
+
+const AF_INET = 2;
+
+const INADDR_ANY = 0;
+
+struct sockaddr (
+  sa_family : u16,
+  sa_data : u8[14]
+);
+
+struct in_addr (
+  s_addr : u32
+);
+
+struct sockaddr_in (
+  sin_family : u16,
+  sin_port : u16,
+  sin_addr : in_addr,
+  sin_zero : u8[8]
+);
+
 fn linux_read(fd : u64, buf : any, count : u64) -> u64 syscall3(SYS_read, fd, buf, count);
 fn linux_write(fd : u64, buf : any, count : u64) -> none { let _ = syscall3(SYS_write, fd, buf, count); }
 fn linux_open(path : any, flags : u64, mode : u64) -> u64 syscall3(SYS_open, path, flags, mode);
@@ -392,7 +420,7 @@ fn linux_execve(command : cstr, argv : ptr, envp : ptr) -> none {
   let _ = syscall3(SYS_execve, command, argv, envp);
 }
 
-fn linux_fork() -> u64 {
+fn linux_fork -> u64 {
   syscall0(SYS_fork);
 }
 
@@ -426,4 +454,8 @@ fn linux_exec_command(command_list : ptr) -> none {
       }
     }
   }
+}
+
+fn linux_socket(family : u64, type : u64, protocol : u64) -> u64 {
+  syscall3(SYS_socket, family, type, protocol);
 }

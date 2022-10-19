@@ -222,3 +222,7 @@ fn assert(cond : u64, message : cstr) -> none {
 fn exec_command(command_list : ptr) -> none {
   linux_exec_command(command_list);
 }
+
+fn socket(family : u64, type : u64, protocol : u64) -> u64 {
+  linux_socket(family, type, protocol);
+}

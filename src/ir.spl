@@ -171,7 +171,7 @@ fn ir_push_symbol(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count 
     store64 @size load64 + symbol Symbol.size;
   }
   if eq sym_type SYM_FUNC {
-    let func = cast ptr + + symbol Symbol.value Value.func;
+    let func = cast ptr<Function> + + symbol Symbol.value Value.func;
     OP_init(
       I_PUSH,
       type_base(at type),
@@ -526,7 +526,7 @@ fn ir_compile_func_call(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> 
   let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
 
   // func : Function*
-  let func = cast ptr + + symbol Symbol.value Value.func;
+  let func = cast ptr<Function> + + symbol Symbol.value Value.func;
   let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order
     let type : Type = 0;

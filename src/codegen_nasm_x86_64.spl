@@ -140,7 +140,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
           eq dest TypeFunc
           eq dest TypeUnsigned64 {
         o(fd, "pop rax\n", NULL);
-        o(fd, "mov [rbp-%d], rax\n", @args);
+        o(fd, "mov QWORD [rbp-%d], rax\n", @args);
       }
       else if eq dest TypeUnsigned32 {
         o(fd, "pop rax\n", NULL);
@@ -751,7 +751,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   o(fd, "section .data\n", NULL);
   // constants
   {
-    let i : u64 = 0;
+    let i = 0;
     let cstring_count : u64 = load64 + c Compile.cstring_count;
     while < i cstring_count {
       let buffer = cast ptr + + c Compile.imm load64 + + c Compile.cstrings * sizeof u64 i;
@@ -772,7 +772,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
     }
   }
   {
-    let i : u64 = 0;
+    let i = 0;
     let count : u64 = load64 + c Compile.symbol_count;
     while < i count {
       // symbol : Symbol*
@@ -784,79 +784,35 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         let type_id = type_lookup(at type);
         let size : u64 = compile_type_size(type_id);
         let count : u64 = / load64 + symbol Symbol.size size;
-        // imm + (count * size) - size
         let name = cast ptr + symbol Symbol.name;
-        if eq type_base(at type) TypePtr {
-          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-          o(fd, "v%d: dq", @i);
-          let v : u64 = 0;
-          while < v count {
-            let value : u64 = load64 + + c Compile.imm imm;
-            o(fd, " %d,", @value);
-            store64 @imm - imm size;
-            store64 @v + 1 v;
-          }
-          vo(fd, " ; `%s`", @name);
-          o(fd, "\n", NULL);
-        }
-        else if eq type_base(at type) TypeUnsigned64 {
-          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-          o(fd, "v%d: dq", @i);
-          let v : u64 = 0;
-          while < v count {
-            let value : u64 = load64 + + c Compile.imm imm;
-            o(fd, " %d,", @value);
-            store64 @imm - imm size;
-            store64 @v + 1 v;
-          }
-          vo(fd, " ; `%s`", @name);
-          o(fd, "\n", NULL);
+        let size_str = "db";
+        if or eq type_base(at type) TypeUnsigned64 eq type_base(at type) TypePtr {
+          store64 @size_str "dq";
         }
         else if eq type_base(at type) TypeUnsigned32 {
-          store64 @size sizeof u64;
-          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-          o(fd, "v%d: dd", @i);
-          let v : u64 = 0;
-          while < v count {
-            let value : u64 = load32 + + c Compile.imm imm;
-            o(fd, " %d,", @value);
-            store64 @imm - imm size;
-            store64 @v + 1 v;
-          }
-          vo(fd, " ; `%s`", @name);
-          o(fd, "\n", NULL);
+          store64 @size_str "dd";
         }
         else if eq type_base(at type) TypeUnsigned16 {
-          store64 @size sizeof u64;
-          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-          o(fd, "v%d: dw", @i);
-          let v : u64 = 0;
-          while < v count {
-            let value : u64 = load16 + + c Compile.imm imm;
-            o(fd, " %d,", @value);
-            store64 @imm - imm size;
-            store64 @v + 1 v;
-          }
-          vo(fd, " ; `%s`", @name);
-          o(fd, "\n", NULL);
+          store64 @size_str "dw";
         }
         else if eq type_base(at type) TypeUnsigned8 {
-          store64 @size sizeof u64;
-          let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
-          o(fd, "v%d: db", @i);
-          let v : u64 = 0;
-          while < v count {
-            let value : u64 = load8 + + c Compile.imm imm;
-            o(fd, " %d,", @value);
-            store64 @imm - imm size;
-            store64 @v + 1 v;
-          }
-          vo(fd, " ; `%s`", @name);
-          o(fd, "\n", NULL);
+          store64 @size_str "db";
         }
         else {
-          assert(0, "type not implemented\n");
+          assert(0, "codegen_nasm_x86_64: type not implemented\n");
         }
+        let imm : u64 = - + load64 + symbol Symbol.imm * size count size;
+        let args : any = i, size_str;
+        o(fd, "v%d: %s", @args);
+        let v : u64 = 0;
+        while < v count {
+          let value : u64 = load64 + + c Compile.imm imm;
+          o(fd, " %d,", @value);
+          store64 @imm - imm size;
+          store64 @v + 1 v;
+        }
+        vo(fd, " ; `%s`", @name);
+        o(fd, "\n", NULL);
       }
       store64 @i + 1 i;
     }
@@ -864,7 +820,7 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
   // symbols
   o(fd, "section .bss\n", NULL);
   {
-    let i : u64 = 0;
+    let i = 0;
     let count : u64 = load64 + c Compile.symbol_count;
     while < i count {
       // symbol : Symbol*
@@ -877,16 +833,11 @@ fn compile_linux_nasm_x86_64(fd : u64) -> u64 {
         let name = cast cstr + symbol Symbol.name;
         if eq 0 or eq type_base(at type) TypeNone eq type_base(at type) TypeSyscallFunc {
           {
-            let args : any = (
-              i,
-              size
-            );
+            let args : any = i, size;
             o(fd, "v%d: resb %d", @args);
           }
           {
-            let args : any = (
-              name
-            );
+            let args : any = name;
             // TODO(lucas): print type
             vo(fd, " ; `%s`", @args);
           }
