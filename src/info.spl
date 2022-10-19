@@ -58,10 +58,11 @@ fn symbol_info_print(fd : u64) -> none {
       let args : any = (
         load64 + symbol Symbol.size,
         load64 + symbol Symbol.konst,
+        load64 + + symbol Symbol.value Value.konst,
         load64 + symbol Symbol.ref_count,
         load64 + symbol Symbol.local_id
       );
-      dprintf(fd, " (size = %d, konst = %d, ref_count = %d, local_id = %d)\n", @args);
+      dprintf(fd, " (size = %d, konst = %d, value.konst = %d, ref_count = %d, local_id = %d)\n", @args);
     }
     store64 @i + 1 i;
   }

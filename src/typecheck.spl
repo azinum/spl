@@ -814,7 +814,10 @@ fn typecheck_value(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
         memcpy(+ at contract * sizeof Type 1, at type, sizeof Type);
         let ptr_type : Type = 0;
         if eq type_from_contract(cast ptr<Type> at contract, count, TYPE_CONTRACT_CREATE, at ptr_type) NoError {
-          { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
+          let value : Value = 0;
+          memcpy(at value, + symbol Symbol.value, sizeof Value);
+          store64 + at value Value.konst 0;
+          { let _ = vs_push(at value); }
           ts_push(at ptr_type, cast ptr<Type> NULL);
         }
         else {
@@ -822,11 +825,15 @@ fn typecheck_value(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
         }
       }
       else {
-        { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
+        let value : Value = 0;
+        memcpy(at value, + symbol Symbol.value, sizeof Value);
+        store64 + at value Value.konst 0;
+        { let _ = vs_push(at value); }
         let ptr_type : Type = 0;
         type_init(at ptr_type, TypePtr, 0, sizeof ptr, 1);
         ts_push(at ptr_type, cast ptr<Type> NULL);
       }
+      store64 + ast Ast.konst 0;
     }
     else {
       let message = tmp_it;
@@ -953,6 +960,7 @@ fn typecheck_uop_expr(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 
       eq token_type T_LOAD8 {
       ts_pop(cast ptr<Type> NULL);
       ts_push_primitive(TypeUnsigned64, cast ptr<Type> NULL);
+      store64 + ast Ast.konst 0;
     }
     else if eq token_type T_DEREF_WORD {
       let type : Type = 0;
@@ -965,6 +973,7 @@ fn typecheck_uop_expr(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 
       else {
         typecheck_error_at(+ ast Ast.token, "can not dereference this type\n", NULL);
       }
+      store64 + ast Ast.konst 0;
     }
     else if eq token_type T_LOGICAL_NOT {
       let value : Value = 0;
@@ -1014,7 +1023,9 @@ fn typecheck_func_definition(block : ptr<Block>, fs : ptr<Function>, ast : ptr) 
         memcpy(+ symbol Symbol.type, at type, sizeof Type);
         store64 + + ast Ast.token Token.v symbol_index;
         memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
-        let func = cast ptr<Function> + + symbol Symbol.value Value.func;
+        let value = cast ptr<Value> + symbol Symbol.value;
+        store64 + value Value.konst 0;
+        let func = cast ptr<Function> + value Value.func;
         function_init(func);
         store64 + func Function.ir_address UINT64_MAX;
         store64 + func Function.label symbol_index;
@@ -1243,6 +1254,81 @@ fn typecheck_func_call(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64
   load64 + c Compile.status;
 }
 
+fn typecheck_while_statement(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
+  let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  { let _ = _typecheck(block, fs, cond); }
+  let type : Type = 0;
+  ts_pop(at type); // pop type of condition result
+  { let _ = vs_pop(cast ptr<Value> NULL); } // pop value of condition result
+  if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
+    let local_block = block_push(cast ptr<Block> block);
+    { let _ = _typecheck(local_block, fs, body); }
+    block_pop(); // local_block
+    store64 + ast Ast.konst is_branch_konst_eval(ast);
+  }
+  else {
+    typecheck_error_at(+ cond Ast.token, "invalid type in while statement condition\n", NULL);
+  }
+  load64 + c Compile.status;
+}
+
+fn typecheck_if_statement(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
+  let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  { let _ = _typecheck(block, fs, cond); }
+  let cond_konst = is_branch_konst_eval(cond);
+  store64 + cond Ast.konst cond_konst;
+
+  let type : Type = 0;
+  ts_pop(at type); // pop type of condition result
+  let value : Value = 0;
+  { let _ = vs_pop(at value); } // pop value of condition result
+
+  if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
+    let collapse = 0;
+    if cond_konst {
+      let else_body = NULL;
+      if eq ast_child_count(ast) 3 {
+        store64 @else_body load64 + + ast Ast.node * sizeof ptr 2;
+      }
+      if neq load64 + at value Value.num 0 {
+        // if statement condition is true, remove potential else branch
+        // move body of if statement to the current ast branch
+        if else_body {
+          ast_pop(ast); // remove else body branch
+        }
+        ast_move(ast, body);
+        { let _ = _typecheck(block, fs, ast); } // typecheck if body
+      }
+      else if else_body {
+        // if statement condition is false, move body of potential else to the current ast branch
+        ast_move(ast, else_body);
+        { let _ = _typecheck(block, fs, ast); } // typecheck else body
+      }
+      store64 @collapse 1;
+    }
+
+    if eq collapse 0 {
+      let local_block = block_push(block);
+      { let _ = _typecheck(local_block, fs, body); }
+      block_pop(); // local_block
+
+      if eq load64 + ast Ast.count 3 {
+        let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
+        let else_local_block = block_push(block);
+        { let _ = _typecheck(else_local_block, fs, else_body); }
+        block_pop(); // else_local_block
+      }
+    }
+    store64 + ast Ast.konst is_branch_konst_eval(ast);
+  }
+  else {
+    typecheck_error_at(+ cond Ast.token, "invalid type in if statement condition\n", NULL);
+  }
+  load64 + c Compile.status;
+}
+
 // AST representation:
 // LetStatement
 //   ExprList
@@ -1402,6 +1488,7 @@ fn typecheck_let_statement(block : ptr<Block>, fs : ptr<Function>, ast : ptr) ->
       else {
         store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
       }
+      store64 + at value Value.konst konst;
       memcpy(+ symbol Symbol.type, at type, sizeof Type);
       memcpy(+ symbol Symbol.value, @value, sizeof Value);
       store64 + + symbol Symbol.token Token.v symbol_index;
@@ -1655,45 +1742,10 @@ fn typecheck(block : ptr<Block>, fs : ptr<Function>, ast : ptr) -> u64 {
       let _ = typecheck_func_call(block, fs, ast);
     }
     else if eq ast_type AstWhileStatement {
-      let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ = typecheck(block, fs, cond); }
-      let type : Type = 0;
-      ts_pop(at type); // pop type of condition result
-      { let _ = vs_pop(cast ptr<Value> NULL); } // pop value of condition result
-      if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
-        let local_block = block_push(cast ptr<Block> block);
-        { let _ = typecheck(local_block, fs, body); }
-        block_pop(); // local_block
-        store64 + ast Ast.konst is_branch_konst_eval(ast);
-      }
-      else {
-        typecheck_error_at(+ cond Ast.token, "invalid type in while statement condition\n", NULL);
-      }
+      let _ = typecheck_while_statement(block, fs, ast);
     }
     else if eq ast_type AstIfStatement {
-      let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-      let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-      { let _ = typecheck(block, fs, cond); }
-      let type : Type = 0;
-      ts_pop(at type); // pop type of condition result
-      { let _ = vs_pop(cast ptr<Value> NULL); } // pop value of condition result
-      if or or eq type_base(at type) TypeCString eq type_base(at type) TypePtr is_numerical(at type) {
-        let local_block = block_push(cast ptr<Block> block);
-        { let _ = typecheck(local_block, fs, body); }
-        block_pop(); // local_block
-
-        if eq load64 + ast Ast.count 3 {
-          let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
-          let else_local_block = block_push(cast ptr<Block> block);
-          { let _ = typecheck(else_local_block, fs, else_body); }
-          block_pop(); // else_local_block
-        }
-        store64 + ast Ast.konst is_branch_konst_eval(ast);
-      }
-      else {
-        typecheck_error_at(+ cond Ast.token, "invalid type in if statement condition\n", NULL);
-      }
+      let _ = typecheck_if_statement(block, fs, ast);
     }
     else if eq ast_type AstAssignment {
       let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;

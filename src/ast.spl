@@ -101,12 +101,28 @@ fn ast_push(ast : ptr, node : ptr) -> none {
 }
 
 fn ast_push_node(ast : ptr, type : u64, token : ptr) -> none {
-  if eq ast NULL {
-    assert(0, "invalid pointer (NULL) to ast\n");
-  }
+  assert(neq 0 ast, "null ast node\n");
   let node : ptr = ast_create(type);
   memcpy(+ node Ast.token, token, sizeof Token);
   ast_push(ast, node);
+}
+
+fn ast_child_count(ast : any) -> u64 load64 + ast Ast.count;
+
+fn ast_pop(ast : ptr) -> none {
+  let child_count = cast ptr<u64> + ast Ast.count;
+  if > deref child_count 0 {
+    store64 child_count - deref child_count 1;
+  }
+}
+
+fn ast_clear(ast : ptr) -> none {
+  store64 + ast Ast.count 0;
+}
+
+fn ast_move(dest : ptr, src : ptr) -> none {
+  memcpy(dest, src, sizeof Ast);
+  ast_clear(src);
 }
 
 fn ast_count(ast : any) -> u64 {
@@ -119,8 +135,6 @@ fn ast_count(ast : any) -> u64 {
   }
   count;
 }
-
-fn ast_child_count(ast : any) -> u64 load64 + Ast.count ast;
 
 fn ast_print(ast : any, level : u64, fd : u64) -> none {
   if neq 0 ast {

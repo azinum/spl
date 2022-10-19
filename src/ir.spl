@@ -940,7 +940,7 @@ fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
     }
   }
   else if eq ast_type AstNone {
-    ir_compile_warning_at(+ ast Ast.token, "unused AST branch type\n");
+    // for collapsed branches
   }
   else if eq ast_type AstConstStatement {
     // NOTE(lucas): value has already been defined in the type-checking phase
