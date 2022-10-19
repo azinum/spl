@@ -325,6 +325,14 @@ fn compile_state_init -> u64 {
   }
   {
     let value : Value = 0;
+    store64 + @value Value.num platform;
+    store64 + @value Value.konst 1;
+    let type : Type = 0;
+    type_init(at type, TypeUnsigned64, 0, sizeof u64, 1);
+    let _ = compile_create_value("PLATFORM", at value, at type);
+  }
+  {
+    let value : Value = 0;
     store64 + @value Value.num 0;
     store64 + @value Value.konst 1;
     let type : Type = 0;

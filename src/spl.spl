@@ -14,6 +14,14 @@ struct Options (
 
 let options : Options = 0;
 
+// platforms
+enum u64 (
+  PLATFORM_LINUX,
+  PLATFORM_OSX
+);
+
+const platform = PLATFORM_LINUX;
+
 include "lib/common.spl"
 include "lib/hash.spl"
 include "src/config.spl"
