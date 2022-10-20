@@ -388,44 +388,64 @@ struct sockaddr_in (
   sin_zero : u8[8]
 );
 
-fn linux_read(fd : u64, buf : any, count : u64) -> u64 syscall3(SYS_read, fd, buf, count);
-fn linux_write(fd : u64, buf : any, count : u64) -> none { let _ = syscall3(SYS_write, fd, buf, count); }
-fn linux_open(path : any, flags : u64, mode : u64) -> u64 syscall3(SYS_open, path, flags, mode);
-fn linux_close(fd : u64) -> none { let _ = syscall1(SYS_close, fd); }
-fn linux_exit(error_code : u64) -> none { let _ = syscall1(SYS_exit, error_code); }
-fn linux_time -> u64 syscall1(SYS_time, 0);
-fn linux_fsync(fd : u64) -> none { print syscall1(SYS_fsync, fd); }
+fn read(fd : u64, buf : any, count : u64) -> u64 {
+  syscall3(SYS_read, fd, buf, count);
+}
 
-fn linux_clock_gettime(clock_id : u64, spec : ptr<timespec>) -> u64 {
+fn write(fd : u64, buf : any, count : u64) -> none {
+  let _ = syscall3(SYS_write, fd, buf, count);
+}
+
+fn open(path : any, flags : u64, mode : u64) -> u64 {
+  syscall3(SYS_open, path, flags, mode);
+}
+
+fn close(fd : u64) -> none {
+  let _ = syscall1(SYS_close, fd);
+}
+
+fn exit(error_code : u64) -> none {
+  let _ = syscall1(SYS_exit, error_code);
+}
+
+fn time -> u64 {
+  syscall1(SYS_time, 0);
+}
+
+fn fsync(fd : u64) -> none {
+  let _ = syscall1(SYS_fsync, fd);
+}
+
+fn clock_gettime(clock_id : u64, spec : ptr<timespec>) -> u64 {
   syscall2(SYS_clock_gettime, clock_id, spec);
 }
 
-fn linux_nanosleep(req : ptr<timespec>, remaining : ptr<timespec>) -> none {
+fn nanosleep(req : ptr<timespec>, remaining : ptr<timespec>) -> none {
   let _ = syscall2(SYS_nanosleep, req, remaining);
 }
 
-fn linux_mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
+fn mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
   cast ptr syscall6(SYS_mmap, start, length, prot, flags, fd, offset);
 }
 
-fn linux_mremap(start : ptr, old_size : u64, new_size : u64, flags : u64, new_start : ptr) -> ptr {
+fn mremap(start : ptr, old_size : u64, new_size : u64, flags : u64, new_start : ptr) -> ptr {
   cast ptr syscall5(SYS_mremap, start, old_size, new_size, flags, new_start);
 }
 
-fn linux_munmap(start : ptr, length : u64) -> none {
+fn munmap(start : ptr, length : u64) -> none {
   let _ = syscall2(SYS_munmap, start, length);
 }
 
-fn linux_execve(command : cstr, argv : ptr, envp : ptr) -> none {
+fn execve(command : cstr, argv : ptr, envp : ptr) -> none {
   let _ = syscall3(SYS_execve, command, argv, envp);
 }
 
-fn linux_fork -> u64 {
+fn fork -> u64 {
   syscall0(SYS_fork);
 }
 
 // pid : u64, stat_addr : u64*, options : u64, ru : rusage*
-fn linux_wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
+fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
   syscall4(SYS_wait4, pid, stat_addr, options, ru);
 }
 
@@ -437,16 +457,16 @@ fn WIFEXITED(status : u64) -> u64 {
   eq 0 and status 0x7f;
 }
 
-fn linux_exec_command(command_list : ptr) -> none {
-  let pid : u64 = linux_fork();
+fn exec_command(command_list : ptr) -> none {
+  let pid : u64 = fork();
   if eq pid 0 { // child process
-    linux_execve(cast cstr load64 command_list, command_list, NULL);
+    execve(cast cstr load64 command_list, command_list, NULL);
   }
   else if > pid 0 { // parent
     let done : u64 = 0;
     while eq done 0 {
       let wstatus : u64 = 0;
-      if > linux_wait4(- 0 1, @wstatus, 0, NULL) 0 {
+      if > wait4(- 0 1, @wstatus, 0, NULL) 0 {
         store64 @done 1;
       }
       if WIFEXITED(wstatus) {
@@ -456,6 +476,6 @@ fn linux_exec_command(command_list : ptr) -> none {
   }
 }
 
-fn linux_socket(family : u64, type : u64, protocol : u64) -> u64 {
+fn socket(family : u64, type : u64, protocol : u64) -> u64 {
   syscall3(SYS_socket, family, type, protocol);
 }

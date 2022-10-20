@@ -5,9 +5,9 @@
 // where header contains the size of the mapped memory
 
 fn memory_alloc(size : u64) -> ptr {
-  let prot : u64 = or PROT_READ   PROT_WRITE;
+  let prot : u64 = or PROT_READ PROT_WRITE;
   let flags : u64 = or MAP_PRIVATE MAP_ANONYMOUS;
-  let data = memory_map(NULL, + sizeof u64 size, prot, flags, 0, 0);
+  let data = mmap(NULL, + sizeof u64 size, prot, flags, 0, 0);
   if data {
     store64 data size;
     store64 @data + sizeof u64 data;
@@ -18,7 +18,7 @@ fn memory_alloc(size : u64) -> ptr {
 fn memory_realloc(mem : ptr, new_size : u64) -> ptr {
   let old_size : u64 = load64 - mem sizeof u64;
   let flags : u64 = MREMAP_MAYMOVE;
-  let data : ptr = memory_remap(- mem sizeof u64, + sizeof u64 old_size, + sizeof u64 new_size, flags, NULL);
+  let data : ptr = mremap(- mem sizeof u64, + sizeof u64 old_size, + sizeof u64 new_size, flags, NULL);
   if data {
     store64 data new_size;
     store64 @data + sizeof u64 data;
@@ -29,6 +29,6 @@ fn memory_realloc(mem : ptr, new_size : u64) -> ptr {
 fn memory_free(mem : ptr) -> none {
   if mem {
     let size : u64 = load64 - mem sizeof u64;
-    memory_unmap(- mem sizeof u64, + sizeof u64 size);
+    munmap(- mem sizeof u64, + sizeof u64 size);
   }
 }

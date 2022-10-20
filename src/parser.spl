@@ -818,12 +818,12 @@ fn parse_statements -> ptr {
 fn parse -> ptr {
   let time_start : timespec = 0;
   let time_end : timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   lexer_next();
   let ast : ptr = parse_statements();
 
-  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
 
   let message = cast cstr tmp_it;
   let args : any = (l.filename);

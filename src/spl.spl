@@ -14,16 +14,11 @@ struct Options (
 
 let options : Options = 0;
 
-// platforms
-enum u64 (
-  PLATFORM_LINUX,
-  PLATFORM_OSX
-);
+include "lib/common.spl"
+include "lib/hash.spl"
 
 const platform = PLATFORM_LINUX;
 
-include "lib/common.spl"
-include "lib/hash.spl"
 include "src/config.spl"
 include "src/common.spl"
 include "src/misc.spl"
@@ -79,7 +74,7 @@ fn spl_start(filename : cstr) -> u64 {
 
   let time_start : timespec = 0;
   let time_end : timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   let fd = open(filename, 0, O_RDONLY);
   if neq fd ERROR {
@@ -97,27 +92,22 @@ fn spl_start(filename : cstr) -> u64 {
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
               if eq ir_optimize() NoError {
-                if load64 + @options Options.compile {
-                  let target = TARGET_LINUX_NASM_X86_64;
+                let target = TARGET_LINUX_NASM_X86_64;
 
-                  let output_file_path : u8[MAX_PATH_SIZE] = cast u8 0;
-                  let filename = cast cstr load64 + @options Options.filename;
-                  let diff : u64 = - cast u64 first_dot(filename) filename;
-                  sprintf(@output_file_path, "%s", @filename);
-                  store8 + @output_file_path diff 0; // null terminate
+                let output_file_path : u8[MAX_PATH_SIZE] = cast u8 0;
+                let filename = cast cstr load64 + @options Options.filename;
+                let diff : u64 = - cast u64 first_dot(filename) filename;
+                sprintf(@output_file_path, "%s", @filename);
+                store8 + @output_file_path diff 0; // null terminate
 
-                  if eq compile(target, cast cstr @output_file_path) NoError {
-                    { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
-                    print_time_elapsed("total compilation time was", @time_start, @time_end);
-                    compile_print_final();
+                if eq compile(target, load64 + @options Options.compile, cast cstr @output_file_path) NoError {
+                  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
+                  print_time_elapsed("total compilation time was", @time_start, @time_end);
+                  compile_print_final();
 
-                    if load64 + @options Options.run {
-                      let command : cstr = (
-                        cast cstr @output_file_path,
-                        cast cstr NULL
-                      );
-                      exec_command_echoed(STDOUT_FILENO, @command);
-                    }
+                  if load64 + @options Options.run {
+                    let command : cstr = cast cstr @output_file_path, cast cstr NULL;
+                    exec_command_echoed(STDOUT_FILENO, @command);
                   }
                 }
                 if load64 + @options Options.debug {

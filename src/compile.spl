@@ -75,13 +75,13 @@ fn compile_create_value(name : cstr, value : ptr<Value>, type : ptr<Type>) -> u6
   result;
 }
 
-fn compile(target : u64, output_file_path : cstr) -> u64 {
+fn compile(target : u64, should_compile_target : u64, output_file_path : cstr) -> u64 {
   let result = NoError;
   let fd = ERROR;
 
   let time_start : timespec = 0;
   let time_end : timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, @time_start); }
+  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   if eq target TARGET_LINUX_NASM_X86_64 {
     let path : u8[MAX_PATH_SIZE] = 0;
@@ -91,9 +91,9 @@ fn compile(target : u64, output_file_path : cstr) -> u64 {
     store64 @fd open(cast cstr @path, flags, mode);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
-      { let _ = clock_gettime(CLOCK_MONOTONIC, @time_end); }
+      { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
 
-      if eq result NoError {
+      if and eq should_compile_target 1 eq result NoError {
         let o_path : u8[MAX_PATH_SIZE] = 0;
         let args : any = output_file_path;
         sprintf(@o_path, "%s.o", @args);

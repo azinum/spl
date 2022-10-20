@@ -1,69 +1,20 @@
 // platform.spl
 // basic platform layer
 
-include "lib/linux.spl"
+// platforms
+enum u64 (
+  PLATFORM_LINUX,
+  PLATFORM_OSX
+);
+
+if eq PLATFORM PLATFORM_LINUX {
+  include "lib/linux.spl"
+}
+else if eq PLATFORM PLATFORM_OSX {
+  include "lib/osx.spl"
+}
 
 const MAX_BUFFER_SIZE = 1024;
-
-fn read(fd : u64, buf : any, count : u64) -> u64 {
-  linux_read(fd, buf, count);
-}
-
-fn write(fd : u64, buf : any, count : u64) -> none {
-  linux_write(fd, buf, count);
-}
-
-fn open(path : any, flags : u64, mode : u64) -> u64 {
-  linux_open(path, flags, mode);
-}
-
-fn close(fd : u64) -> none {
-  linux_close(fd);
-}
-
-fn exit(error_code : u64) -> none {
-  linux_exit(error_code);
-}
-
-fn time -> u64 {
-  linux_time();
-}
-
-fn fsync(fd : u64) -> none {
-  linux_fsync(fd);
-}
-
-fn clock_gettime(clock_id : u64, spec : ptr) -> u64 {
-  linux_clock_gettime(clock_id, cast ptr<timespec> spec);
-}
-
-fn nanosleep(req : ptr, remaining : ptr) -> none {
-  linux_nanosleep(cast ptr<timespec> req, cast ptr<timespec> remaining);
-}
-
-fn memory_map(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr {
-  linux_mmap(start, length, prot, flags, fd, offset);
-}
-
-fn memory_remap(mem : ptr, old_size : u64, new_size : u64, flags : u64, start : ptr) -> ptr {
-  linux_mremap(mem, old_size, new_size, flags, start);
-}
-
-fn memory_unmap(start : ptr, length : u64) -> none {
-  linux_munmap(start, length);
-}
-
-fn execve(command : cstr, argv : ptr) -> none {
-  linux_execve(command, argv, NULL);
-}
-
-fn fork() -> u64 {
-  linux_fork();
-}
-
-fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 {
-  linux_wait4(pid, stat_addr, options, ru);
-}
 
 fn puts(fd : u64, str : cstr) -> none {
   write(fd, str, strlen(str));
@@ -217,12 +168,4 @@ fn assert(cond : u64, message : cstr) -> none {
     dprintf(STDERR_FILENO, "[assertion failed]: %s", @message);
     exit(1);
   }
-}
-
-fn exec_command(command_list : ptr) -> none {
-  linux_exec_command(command_list);
-}
-
-fn socket(family : u64, type : u64, protocol : u64) -> u64 {
-  linux_socket(family, type, protocol);
 }
