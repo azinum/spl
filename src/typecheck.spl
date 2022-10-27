@@ -1974,11 +1974,10 @@ fn typecheck_program(ast: ptr) -> u64 {
     typecheck_error("unhandled data on the type stack\n");
   }
 
-  assert(eq load64 + c Compile.block_count 0, "block stack not empty\n");
-
   if eq load64 + c Compile.status NoError {
     print_time_elapsed("type checking took", at time_start, at time_end);
     typecheck_print_unused();
+    assert(eq load64 + c Compile.block_count 0, "block stack not empty\n");
   }
 
   typecheck_print_stack(STDOUT_FILENO);

@@ -3,7 +3,6 @@
 - improve memory allocator
 - differentiate between signed and unsigned comparison operators for where it is necessary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
 - add ability to use escaped and unescaped `raw` strings
-- typed assignment operator
 - struct padding and alignment (end user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
 - improve struct field access
 - do more work on type casting

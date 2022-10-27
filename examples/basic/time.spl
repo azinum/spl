@@ -5,8 +5,8 @@ include "lib/common.spl"
 fn main -> none {
   common_init();
 
-  let start: timespec = 0;
-  let end: timespec = 0;
+  let start: Timespec = 0;
+  let end: Timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, at start); }
 
   let i: u64 = 0;
@@ -17,8 +17,8 @@ fn main -> none {
   { let _ = clock_gettime(CLOCK_MONOTONIC, at end); }
 
   let args: any = (
-    - load64 + @end timespec.tv_sec load64 + @start timespec.tv_sec,
-    / - load64 + @end timespec.tv_nsec load64 + @start timespec.tv_nsec 10000000
+    - load64 + @end Timespec.tv_sec load64 + @start Timespec.tv_sec,
+    / - load64 + @end Timespec.tv_nsec load64 + @start Timespec.tv_nsec 10000000
   );
   printf("time elapsed = %d.%d s\n", @args);
 }

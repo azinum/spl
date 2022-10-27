@@ -1,37 +1,384 @@
 // osx.spl
 
-static_assert 0 "platform osx not implemented yet";
+const STDIN_FILENO = 0;
+const STDOUT_FILENO = 1;
+const STDERR_FILENO = 2;
 
-fn read(fd: u64, buf: any, count: u64) -> u64 { 0; }
+const SYSCALL_CLASS_NONE = 0x0000000;  // invalid
+const SYSCALL_CLASS_MACH = 0x1000000;  // mach
+const SYSCALL_CLASS_UNIX = 0x2000000;  // unix/bsd
+const SYSCALL_CLASS_MDEP = 0x3000000;  // machine-dependent
+const SYSCALL_CLASS_DIAG = 0x4000000;  // diagnostics
 
-fn write(fd: u64, buf: any, count: u64) -> none {}
+const SYSCALL_CLASS = SYSCALL_CLASS_UNIX;
 
-fn open(path: any, flags: u64, mode: u64) -> u64 { 0; }
+const SOCKETS = 1;
+const NFSSERVER = 0;
+const NFSCLIENT = 0;
 
-fn close(fd: u64) -> none {}
+// https://sigsegv.pl/osx-bsd-syscalls/
+// need to add 0x2000000 to the system call numbers on osx
+const SYS_nosys = 0;
+const SYS_exit = 1;
+const SYS_fork = 2;
+const SYS_read = 3;
+const SYS_write = 4;
+const SYS_open = 5;
+const SYS_close = 6;
+const SYS_wait4 = 7;
+// 8 unused
+const SYS_link = 9;
+const SYS_unlink = 10;
+// 11 unused
+const SYS_chdir = 12;
+const SYS_fchdir = 13;
+const SYS_mknod = 14;
+const SYS_chmod = 15;
+const SYS_chown = 16;
+// 17 unused
+const SYS_getfsstat = 18;
+// 19 unused
+const SYS_getpid = 20;
+// 21, 22 unused
+const SYS_setuid = 23;
+const SYS_getuid = 24;
+const SYS_geteuid = 25;
+const SYS_ptrace = 26;
 
-fn exit(error_code: u64) -> none {}
+if SOCKETS {
+  const SYS_recvmsg = 27;
+  const SYS_sendmsg = 28;
+  const SYS_recvfrom = 29;
+  const SYS_accept = 30;
+  const SYS_getpeername = 31;
+  const SYS_getsockname = 32;
+}
+else {
+  const SYS_recvmsg = SYS_nosys;
+  const SYS_sendmsg = SYS_nosys;
+  const SYS_recvfrom = SYS_nosys;
+  const SYS_accept = SYS_nosys;
+  const SYS_getpeername = SYS_nosys;
+  const SYS_getsockname = SYS_nosys;
+}
+
+const SYS_access = 33;
+const SYS_chflags = 34;
+const SYS_fchflags = 35;
+const SYS_sync = 36;
+const SYS_kill = 37;
+// 38 unused
+const SYS_getppid = 39;
+// 40 unused
+const SYS_dup = 41;
+const SYS_pipe = 42;
+const SYS_getegid = 43;
+// 44, 45 unused
+const SYS_sigaction = 46;
+const SYS_getgid = 47;
+const SYS_sigprocmask = 48;
+const SYS_getlogin = 49;
+const SYS_setlogin = 50;
+const SYS_acct = 51;
+const SYS_sigpending = 52;
+const SYS_sigaltstack = 53;
+const SYS_ioctl = 54;
+const SYS_reboot = 55;
+const SYS_revoke = 56;
+const SYS_symlink = 57;
+const SYS_readlink = 58;
+const SYS_execve = 59;
+const SYS_umask = 60;
+const SYS_chroot = 61;
+// 62, 63, 64 unused
+const SYS_msync = 65;
+const SYS_vfork = 66;
+// 67-72 unused
+const SYS_munmap = 73;
+const SYS_mprotect = 74;
+const SYS_madvise = 75;
+// 76, 77 unused
+const SYS_mincore = 78;
+const SYS_getgroups = 79;
+const SYS_setgroups = 80;
+const SYS_getpgrp = 81;
+const SYS_setpgid = 82;
+const SYS_setitimer = 83;
+// 84 unused
+const SYS_swapon = 85;
+const SYS_getitimer = 86;
+// 87, 88 unused
+const SYS_getdtablesize = 89;
+const SYS_dup2 = 90;
+// 91 unused
+const SYS_fcntl = 92;
+const SYS_select = 93;
+// 94 unused
+const SYS_fsync = 95;
+const SYS_setpriority = 96;
+
+if SOCKETS {
+  const SYS_socket = 97;
+  const SYS_connect = 98;
+}
+else {
+  const SYS_socket = SYS_nosys;
+  const SYS_connect = SYS_nosys;
+}
+
+// 99 unused
+const SYS_getpriority = 100;
+// 101-103 unused
+
+if SOCKETS {
+  const SYS_bind = 104;
+  const SYS_setsockopt = 105;
+  const SYS_listen = 106;
+}
+else {
+  const SYS_bind = SYS_nosys;
+  const SYS_setsockopt = SYS_nosys;
+  const SYS_listen = SYS_nosys;
+}
+
+// 107-110 unused
+const SYS_sigsuspend = 111;
+// 112-115 unused
+const SYS_gettimeofday = 116;
+const SYS_getrusage = 117;
+
+if SOCKETS {
+  const SYS_getsockopt = 118;
+}
+else {
+  const SYS_getsockopt = SYS_nosys;
+}
+
+// 119 unused
+const SYS_readv = 120;
+const SYS_writev = 121;
+const SYS_settimeofday = 122;
+const SYS_fchown = 123;
+const SYS_fchmod = 124;
+// 125 unused
+const SYS_setreuid = 126;
+const SYS_setregid = 127;
+const SYS_rename = 128;
+// 129-130 unused
+const SYS_flock = 131;
+const SYS_mkfifo = 132;
+
+if SOCKETS {
+  const SYS_sendto = 133;
+  const SYS_shutdown = 134;
+  const SYS_socketpair = 135;
+}
+else {
+  const SYS_sendto = SYS_nosys;
+  const SYS_shutdown = SYS_nosys;
+  const SYS_socketpair = SYS_nosys;
+}
+
+const SYS_mkdir = 136;
+const SYS_rmdir = 137;
+const SYS_utimes = 138;
+const SYS_futimes = 139;
+const SYS_adjtime = 140;
+// 141 unused
+const SYS_gethostuuid = 142;
+// 143-146 unused
+const SYS_setsid = 147;
+// 147-150 unused
+const SYS_getpgid = 151;
+const SYS_setprivexec = 152;
+const SYS_pread = 153;
+const SYS_pwrite = 154;
+
+if NFSSERVER {
+  const SYS_nfssvc = 155;
+}
+else {
+  const SYS_nfssvc = SYS_nosys;
+}
+
+// 156 unused
+const SYS_statfs = 157;
+const SYS_fstatfs = 158;
+const SYS_unmount = 159;
+// 160 unused
+
+if NFSSERVER {
+  const SYS_getfh = 161;
+}
+else {
+  const SYS_getfh = SYS_nosys;
+}
+
+// 162-164 unused
+const SYS_quotactl = 165;
+// 166 unused
+const SYS_mount = 167;
+// 168 unsued
+const SYS_csops = 169;
+const SYS_csops_audittoken = 170;
+// 171, 172 unused
+const SYS_waitid = 173;
+// 174-176 unused
+const SYS_kdebug_typefilter = 177;
+const SYS_kdebug_trace_string = 178;
+const SYS_kdebug_trace64 = 179;
+const SYS_kdebug_trace = 180;
+const SYS_setgid = 181;
+const SYS_setegid = 182;
+const SYS_seteuid = 183;
+const SYS_sigreturn = 184;
+// 185 unused
+const SYS_thread_selfcounts = 186;
+const SYS_fdatasync = 187;
+const SYS_stat = 188;
+const SYS_fstat = 189;
+const SYS_lstat = 190;
+const SYS_pathconf = 191;
+const SYS_fpathconf = 192;
+// 193 unused
+const SYS_getrlimit = 194;
+const SYS_setrlimit = 195;
+const SYS_getdirentries = 196;
+const SYS_mmap = 197;
+// 198 unused
+const SYS_lseek = 199;
+const SYS_truncate = 200;
+const SYS_ftruncate = 201;
+const SYS_sysctl = 202;
+const SYS_mlock = 203;
+const SYS_munlock = 204;
+const SYS_undelete = 205;
+// 206-215 unused
+const SYS_open_dprotected_np = 216;
+// 217-219 unused
+const SYS_getattrlist = 220;
+const SYS_setattrlist = 221;
+const SYS_getdirentriesattr = 222;
+const SYS_exchangedata = 223;
+// 224 unused
+const SYS_searchfs = 225;
+const SYS_delete = 226;
+const SYS_copyfile = 227;
+const SYS_fgetattrlist = 228;
+const SYS_fsetattrlist = 229;
+const SYS_poll = 230;
+const SYS_watchevent = 231;
+const SYS_waitevent = 232;
+const SYS_modwatch = 233;
+const SYS_getxattr = 234;
+const SYS_fgetxattr = 235;
+const SYS_setxattr = 236;
+const SYS_fsetxattr = 237;
+const SYS_removexattr = 238;
+const SYS_fremovexattr = 239;
+const SYS_listxattr = 240;
+const SYS_flistxattr = 241;
+const SYS_fsctl = 242;
+const SYS_initgroups = 243;
+const SYS_posix_spawn = 244;
+const SYS_ffsctl = 245;
+// 246 unused
+
+if NFSCLIENT {
+  const SYS_nfsclnt = 247;
+}
+else {
+  const SYS_nfsclnt = SYS_nosys;
+}
+
+if NFSSERVER {
+  const SYS_fhopen = 248;
+}
+else {
+  const SYS_fhopen = SYS_nosys;
+}
+
+// 249 unused
+const SYS_minherit = 250;
+
+// TODO(lucas): add more system calls
+
+fn read(fd: u64, buf: any, count: u64) -> u64 {
+  syscall3(or SYSCALL_CLASS SYS_read, fd, buf, count);
+}
+
+fn write(fd: u64, buf: any, count: u64) -> none {
+  let _ = syscall3(or SYSCALL_CLASS SYS_write, fd, buf, count);
+}
+
+fn open(path: any, flags: u64, mode: u64) -> u64 {
+  syscall3(or SYSCALL_CLASS SYS_open, path, flags, mode);
+}
+
+fn close(fd: u64) -> none {
+  let _ = syscall1(or SYSCALL_CLASS SYS_close, fd);
+}
+
+fn exit(error_code: u64) -> none {
+  let _ = syscall1(or SYSCALL_CLASS SYS_exit, error_code);
+}
 
 fn time -> u64 { 0; }
 
-fn fsync(fd: u64) -> none {}
+fn fsync(fd: u64) -> none {
+  let _ = syscall1(or SYSCALL_CLASS SYS_fsync, fd);
+}
 
 fn clock_gettime(clock_id: u64, spec: ptr<Timespec>) -> u64 { 0; }
 
 fn nanosleep(req: ptr, remaining: ptr<Timespec>) -> none {}
 
-fn mmap(start: ptr, length: u64, prot: u64, flags: u64, fd: u64, offset: u64) -> ptr { NULL; }
+fn mmap(start: ptr, length: u64, prot: u64, flags: u64, fd: u64, offset: u64) -> ptr {
+  cast ptr syscall6(or SYSCALL_CLASS SYS_mmap, start, length, prot, flags, fd, offset);
+}
 
 fn mremap(start: ptr, old_size: u64, new_size: u64, flags: u64, new_start: ptr) -> ptr { NULL; }
 
-fn munmap(start: ptr, length: u64) -> none {}
+fn munmap(start: ptr, length: u64) -> none {
+  let _ = syscall2(or SYSCALL_CLASS SYS_munmap, start, length);
+}
 
-fn execve(command: cstr, argv: ptr) -> none {}
+fn execve(command: cstr, argv: ptr, envp: ptr) -> none {
+  let _ = syscall3(or SYSCALL_CLASS SYS_execve, command, argv, envp);
+}
 
-fn fork() -> u64 { 0; }
+fn fork() -> u64 {
+  syscall0(or SYSCALL_CLASS SYS_fork);
+}
 
-fn wait4(pid: u64, stat_addr: ptr, options: u64, ru: ptr) -> u64 { 0; }
+fn wait4(pid: u64, stat_addr: ptr, options: u64, ru: ptr) -> u64 {
+  syscall4(or SYSCALL_CLASS SYS_wait4, pid, stat_addr, options, ru);
+}
 
-fn exec_command(command_list: ptr) -> none {}
+// make sure that this function does what it's supposed to
+fn WIFEXITED(status: u64) -> u64 {
+  eq 0 and status 0x7f;
+}
 
-fn socket(family: u64, type: u64, protocol: u64) -> u64 { 0; }
+fn exec_command(command_list: ptr) -> none {
+  let pid: u64 = fork();
+  if eq pid 0 { // child process
+    execve(cast cstr load64 command_list, command_list, NULL);
+  }
+  else if > pid 0 { // parent
+    let done: u64 = 0;
+    while eq done 0 {
+      let wstatus: u64 = 0;
+      if > wait4(- 0 1, @wstatus, 0, NULL) 0 {
+        store64 @done 1;
+      }
+      if WIFEXITED(wstatus) {
+        store64 @done 1;
+      }
+    }
+  }
+}
+
+fn socket(family: u64, type: u64, protocol: u64) -> u64 {
+  syscall3(or SYSCALL_CLASS SYS_socket, family, type, protocol);
+}

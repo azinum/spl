@@ -45,7 +45,8 @@ struct Ast (
   type: u64,
   token: Token,
   konst: u64,
-  type_context_id: u64
+
+  type_context_id: u64,
 );
 
 let ast_node_memory: Ast[MAX_AST_NODE] = 0;
