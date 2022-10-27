@@ -2,36 +2,36 @@
 
 static_assert 0 "platform osx not implemented yet";
 
-fn read(fd : u64, buf : any, count : u64) -> u64 { 0; }
+fn read(fd: u64, buf: any, count: u64) -> u64 { 0; }
 
-fn write(fd : u64, buf : any, count : u64) -> none {}
+fn write(fd: u64, buf: any, count: u64) -> none {}
 
-fn open(path : any, flags : u64, mode : u64) -> u64 { 0; }
+fn open(path: any, flags: u64, mode: u64) -> u64 { 0; }
 
-fn close(fd : u64) -> none {}
+fn close(fd: u64) -> none {}
 
-fn exit(error_code : u64) -> none {}
+fn exit(error_code: u64) -> none {}
 
 fn time -> u64 { 0; }
 
-fn fsync(fd : u64) -> none {}
+fn fsync(fd: u64) -> none {}
 
-fn clock_gettime(clock_id : u64, spec : ptr) -> u64 { 0; }
+fn clock_gettime(clock_id: u64, spec: ptr<Timespec>) -> u64 { 0; }
 
-fn nanosleep(req : ptr, remaining : ptr) -> none {}
+fn nanosleep(req: ptr, remaining: ptr<Timespec>) -> none {}
 
-fn mmap(start : ptr, length : u64, prot : u64, flags : u64, fd : u64, offset : u64) -> ptr { NULL; }
+fn mmap(start: ptr, length: u64, prot: u64, flags: u64, fd: u64, offset: u64) -> ptr { NULL; }
 
-fn mremap(start : ptr, old_size : u64, new_size : u64, flags : u64, new_start : ptr) -> ptr { NULL; }
+fn mremap(start: ptr, old_size: u64, new_size: u64, flags: u64, new_start: ptr) -> ptr { NULL; }
 
-fn munmap(start : ptr, length : u64) -> none {}
+fn munmap(start: ptr, length: u64) -> none {}
 
-fn execve(command : cstr, argv : ptr) -> none {}
+fn execve(command: cstr, argv: ptr) -> none {}
 
 fn fork() -> u64 { 0; }
 
-fn wait4(pid : u64, stat_addr : ptr, options : u64, ru : ptr) -> u64 { 0; }
+fn wait4(pid: u64, stat_addr: ptr, options: u64, ru: ptr) -> u64 { 0; }
 
-fn exec_command(command_list : ptr) -> none {}
+fn exec_command(command_list: ptr) -> none {}
 
-fn socket(family : u64, type : u64, protocol : u64) -> u64 { 0; }
+fn socket(family: u64, type: u64, protocol: u64) -> u64 { 0; }

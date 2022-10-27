@@ -1,18 +1,18 @@
 // spl.spl
 
 struct Options (
-  compile         : u64,
-  run             : u64,
-  debug           : u64,
-  filename        : cstr,
-  enable_warnings : u64,
-  disable_dce     : u64,
-  disable_colors  : u64,
-  verbose         : u64,
-  verbose_asm     : u64
+  compile:          u64,
+  run:              u64,
+  debug:            u64,
+  filename:         cstr,
+  enable_warnings:  u64,
+  disable_dce:      u64,
+  disable_colors:   u64,
+  verbose:          u64,
+  verbose_asm:      u64
 );
 
-let options : Options = 0;
+let options: Options = 0;
 
 include "lib/common.spl"
 include "lib/hash.spl"
@@ -35,7 +35,7 @@ include "src/codegen_nasm_x86_64.spl"
 include "src/compile.spl"
 include "src/info.spl"
 
-fn usage(prog : cstr) -> none {
+fn usage(prog: cstr) -> none {
   dprintf(STDOUT_FILENO,
 "Usage; %s [OPTIONS]\n
 
@@ -66,14 +66,14 @@ fn spl_options_init -> none {
   store64 + @options Options.verbose_asm 0;
 }
 
-fn spl_start(filename : cstr) -> u64 {
+fn spl_start(filename: cstr) -> u64 {
   let result = NoError;
   if eq load64 + @options Options.disable_colors 0 {
     colors_init(STDOUT_FILENO);
   }
 
-  let time_start : timespec = 0;
-  let time_end : timespec = 0;
+  let time_start: Timespec = 0;
+  let time_end: Timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   let fd = open(filename, 0, O_RDONLY);
@@ -87,45 +87,45 @@ fn spl_start(filename : cstr) -> u64 {
         parse()
       );
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
-        // ast_print(load64 + @p Parser.ast, 0, STDOUT_FILENO);
         if eq compile_state_init() NoError {
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
               if eq ir_optimize() NoError {
                 let target = TARGET_LINUX_NASM_X86_64;
 
-                let output_file_path : u8[MAX_PATH_SIZE] = cast u8 0;
+                let output_file_path: u8[MAX_PATH_SIZE] = cast u8 0;
                 let filename = cast cstr load64 + @options Options.filename;
-                let diff : u64 = - cast u64 first_dot(filename) filename;
+                let diff: u64 = - cast u64 first_dot(filename) filename;
                 sprintf(@output_file_path, "%s", @filename);
                 store8 + @output_file_path diff 0; // null terminate
 
                 if eq compile(target, load64 + @options Options.compile, cast cstr @output_file_path) NoError {
                   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
-                  print_time_elapsed("total compilation time was", @time_start, @time_end);
+                  print_time_elapsed("total compilation time was", at time_start, at time_end);
                   compile_print_final();
 
                   if load64 + @options Options.run {
-                    let command : cstr = cast cstr @output_file_path, cast cstr NULL;
+                    let command: cstr = cast cstr @output_file_path, cast cstr NULL;
                     exec_command_echoed(STDOUT_FILENO, @command);
                   }
                 }
                 if load64 + @options Options.debug {
-                  let path : u8[MAX_PATH_SIZE] = 0;
+                  let path: u8[MAX_PATH_SIZE] = 0;
                   sprintf(@path, "%s.debug", + @options Options.filename);
-                  let mode : u64 = 434; // 0662
-                  let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
-                  let debug_fd : u64 = open(cast cstr @path, flags, mode);
+                  let mode: u64 = 434; // 0662
+                  let flags: u64 = or or O_CREAT O_TRUNC O_WRONLY;
+                  let debug_fd: u64 = open(cast cstr @path, flags, mode);
                   if neq debug_fd ERROR {
-                    ast_print(load64 + @p Parser.ast, 0, debug_fd);
+                    // ast_print(load64 + @p Parser.ast, 0, debug_fd);
                     ir_print(debug_fd);
                     typecheck_print_types(debug_fd);
                     symbol_info_print(debug_fd);
                     compile_state_print(debug_fd);
+                    ir_print_ins_count(debug_fd);
                     close(debug_fd);
                   }
                   else {
-                    let args : any = @path;
+                    let args: any = @path;
                     error("failed to open file `%s`\n", @args);
                   }
                 }
@@ -149,10 +149,10 @@ fn spl_start(filename : cstr) -> u64 {
   result;
 }
 
-fn version_id_print(fd : u64) -> none {
+fn version_id_print(fd: u64) -> none {
   const BUFFER_SIZE = 22;
-  let in_buff : u8[BUFFER_SIZE] = 0;
-  let out_buff : u8[BUFFER_SIZE] = 0;
+  let in_buff: u8[BUFFER_SIZE] = 0;
+  let out_buff: u8[BUFFER_SIZE] = 0;
   memset(@in_buff, 0, sizeof in_buff);
   memset(@out_buff, 0, sizeof out_buff);
 
@@ -166,11 +166,11 @@ fn version_id_print(fd : u64) -> none {
     store64 @out_it + 1 out_it;
   }
 
-  let args : any = @out_buff;
+  let args: any = @out_buff;
   dprintf(fd, "spl version id: %s\n", @args);
 }
 
-fn spl_main(argc : u64, argv : any) -> none {
+fn spl_main(argc: u64, argv: any) -> none {
   common_init();
   config_init();
   ast_init();
@@ -178,7 +178,7 @@ fn spl_main(argc : u64, argv : any) -> none {
 
   let arg = argv;
   let i = 0;
-  let should_exit : u64 = 0;
+  let should_exit: u64 = 0;
   if < argc 2 {
     usage(cast cstr load64 arg);
   }

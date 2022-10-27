@@ -4,13 +4,13 @@
 include "lib/common.spl"
 
 struct Bst (
-  left : ptr,
-  right : ptr,
-  key : u64
+  left: ptr,
+  right: ptr,
+  key: u64
 );
 
 const MAX_BST_NODES = 1024;
-let bst_nodes : Bst[MAX_BST_NODES] = 0;
+let bst_nodes: Bst[MAX_BST_NODES] = 0;
 let bst_node_count = 0;
 
 fn bst_allocate_node -> ptr<Bst> {
@@ -22,7 +22,7 @@ fn bst_allocate_node -> ptr<Bst> {
   result;
 }
 
-fn bst_allocate_and_init_node(key : u64) -> ptr<Bst> {
+fn bst_allocate_and_init_node(key: u64) -> ptr<Bst> {
   let node = bst_allocate_node();
   if node {
     store64 + node Bst.left NULL;
@@ -32,7 +32,7 @@ fn bst_allocate_and_init_node(key : u64) -> ptr<Bst> {
   node;
 }
 
-fn bst_min_value(root : ptr<Bst>) -> ptr<Bst> {
+fn bst_min_value(root: ptr<Bst>) -> ptr<Bst> {
   let current = root;
   let done = 0;
   while eq done 0 {
@@ -51,7 +51,7 @@ fn bst_min_value(root : ptr<Bst>) -> ptr<Bst> {
   current;
 }
 
-fn bst_search(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+fn bst_search(root: ptr<Bst>, key: u64) -> ptr<Bst> {
   let result = cast ptr<Bst> NULL;
   if eq root NULL {
     store64 @result root;
@@ -70,7 +70,7 @@ fn bst_search(root : ptr<Bst>, key : u64) -> ptr<Bst> {
   result;
 }
 
-fn bst_insert(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+fn bst_insert(root: ptr<Bst>, key: u64) -> ptr<Bst> {
   if eq root NULL {
     store64 @root bst_allocate_and_init_node(key);
   }
@@ -86,7 +86,7 @@ fn bst_insert(root : ptr<Bst>, key : u64) -> ptr<Bst> {
   root;
 }
 
-fn bst_delete_node(root : ptr<Bst>, key : u64) -> ptr<Bst> {
+fn bst_delete_node(root: ptr<Bst>, key: u64) -> ptr<Bst> {
   if neq root NULL {
     let node_key = load64 + root Bst.key;
     if < key node_key {
@@ -121,7 +121,7 @@ fn bst_delete_node(root : ptr<Bst>, key : u64) -> ptr<Bst> {
   root;
 }
 
-fn _bst_print(root : ptr<Bst>, level : u64, fd : u64) -> none {
+fn _bst_print(root: ptr<Bst>, level: u64, fd: u64) -> none {
   if root {
     let i = 0;
     while < i level {
@@ -135,11 +135,11 @@ fn _bst_print(root : ptr<Bst>, level : u64, fd : u64) -> none {
   }
 }
 
-fn bst_print(root : ptr<Bst>, fd : u64) -> none {
+fn bst_print(root: ptr<Bst>, fd: u64) -> none {
   _bst_print(root, 0, fd);
 }
 
-fn bst_print_in_order(root : ptr<Bst>, fd : u64) -> none {
+fn bst_print_in_order(root: ptr<Bst>, fd: u64) -> none {
   if root {
     let key = load64 + root Bst.key;
     bst_print_in_order(cast ptr<Bst> load64 + root Bst.left, fd);

@@ -1,8 +1,11 @@
 #/usr/bin/bash
 
-num_todos=$(grep -sn --color=auto "TODO" src/*.spl spl.spl | wc -l)
-echo "${num_todos} todo(s):"
-cols="$(tput cols)"
-printf "%0.s-" $(seq 1 $cols)
+TO_FIND="TODO"
+
+[ $# -gt 0 ] && TO_FIND="$1"
+
+
+num_todos=$(grep -sn --color=auto ${TO_FIND} src/*.spl spl.spl | wc -l)
+echo "found \`${TO_FIND}\` ${num_todos} times:"
 printf "\n"
-grep -sn --color=auto "TODO" src/*.spl spl.spl
+grep -sn --color=auto ${TO_FIND} src/*.spl spl.spl

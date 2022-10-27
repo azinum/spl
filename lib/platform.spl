@@ -7,6 +7,11 @@ enum u64 (
   PLATFORM_OSX
 );
 
+struct Timespec (
+  tv_sec : u64,
+  tv_nsec : u64
+);
+
 if eq PLATFORM PLATFORM_LINUX {
   include "lib/linux.spl"
 }
@@ -16,22 +21,22 @@ else if eq PLATFORM PLATFORM_OSX {
 
 const MAX_BUFFER_SIZE = 1024;
 
-fn puts(fd : u64, str : cstr) -> none {
+fn puts(fd: u64, str: cstr) -> none {
   write(fd, str, strlen(str));
 }
 
-fn put(str : cstr) -> none {
+fn put(str: cstr) -> none {
   write(STDOUT_FILENO, str, strlen(str));
 }
 
-fn putu(fd : u64, n : u64) -> none {
+fn putu(fd: u64, n: u64) -> none {
   const MAX_BUFF_SIZE = 512;
-  let buff : u8[MAX_BUFF_SIZE] = 0;
+  let buff: u8[MAX_BUFF_SIZE] = 0;
   u64_to_str(n, @buff, MAX_BUFF_SIZE);
   puts(fd, cast cstr @buff);
 }
 
-fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
+fn read_file_into_buffer(fd: u64, buf: any) -> u64 {
   let n = 0;
   while neq 0 read(fd, buf, 1) {
     store64 @buf + 1 buf;
@@ -40,27 +45,27 @@ fn read_file_into_buffer(fd : u64, buf : any) -> u64 {
   n;
 }
 
-fn read_file_into_buffer_and_null_terminate(fd : u64, buf : any) -> u64 {
+fn read_file_into_buffer_and_null_terminate(fd: u64, buf: any) -> u64 {
   let n = 0;
   while neq 0 read(fd, buf, 1) {
-    = @buf + 1 buf;
-    = @n   + 1 n;
+    store64 @buf + 1 buf;
+    store64 @n   + 1 n;
   }
   store8 buf 0;
   store64 @n + 1 n;
   n;
 }
 
-fn putc(fd : u64, ch : u8) -> none {
+fn putc(fd: u64, ch: u8) -> none {
   write(fd, @ch, sizeof ch);
 }
 
-fn putsn(fd : u64, str : any, n : u64) -> none {
+fn putsn(fd: u64, str: any, n: u64) -> none {
   write(fd, str, n);
 }
 
 // TODO(lucas): writing n characters of string
-fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
+fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
   let result = 0;
   let it = str; // string iterator
   let end = NULL;
@@ -68,8 +73,8 @@ fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
     store64 @end + + it size 1; // + 1 for null terminator
   }
   let fit = format; // format iterator
-  let arg : ptr = cast ptr args;
-  let done : u64 = 0;
+  let arg: ptr = cast ptr args;
+  let done: u64 = 0;
   while eq done 0 {
     let it_diff = it;
     let ch = cast u64 load8 fit;
@@ -135,35 +140,35 @@ fn snprintf(str : ptr, size : u64, format : cstr, args : any) -> u64 {
   result; // return number of characters written, excluding null terminator
 }
 
-fn _sprintf(str : ptr, format : cstr, args : any) -> u64 {
+fn _sprintf(str: ptr, format: cstr, args: any) -> u64 {
   snprintf(str, UINT64_MAX, format, args);
 }
 
-fn sprintf(str : ptr, format : cstr, args : any) -> none {
+fn sprintf(str: ptr, format: cstr, args: any) -> none {
   { let _ = _sprintf(str, format, args); }
 }
 
-fn sprintf2(str : ptr, format : cstr, args : any) -> u64 {
+fn sprintf2(str: ptr, format: cstr, args: any) -> u64 {
   _sprintf(str, format, args);
 }
 
-fn dprintf(fd : u64, format : cstr, args : any) -> none {
-  let buffer : u8[MAX_BUFFER_SIZE] = 0;
+fn dprintf(fd: u64, format: cstr, args: any) -> none {
+  let buffer: u8[MAX_BUFFER_SIZE] = 0;
   let n = _sprintf(cast ptr @buffer, format, args);
   write(fd, cast ptr @buffer, n);
 }
 
-fn dnprintf(fd : u64, size : u64, format : cstr, args : any) -> none {
-  let buffer : u8[MAX_BUFFER_SIZE] = 0;
+fn dnprintf(fd: u64, size: u64, format: cstr, args: any) -> none {
+  let buffer: u8[MAX_BUFFER_SIZE] = 0;
   let n = snprintf(cast ptr @buffer, size, format, args);
   write(fd, cast ptr @buffer, n);
 }
 
-fn printf(format : cstr, args : any) -> none {
+fn printf(format: cstr, args: any) -> none {
   dprintf(STDOUT_FILENO, format, args);
 }
 
-fn assert(cond : u64, message : cstr) -> none {
+fn assert(cond: u64, message: cstr) -> none {
   if eq 0 cond {
     dprintf(STDERR_FILENO, "[assertion failed]: %s", @message);
     exit(1);

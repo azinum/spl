@@ -4,4 +4,8 @@
 // include "lib/hash.spl"
 
 fn main -> none {
+  let a : u8 = 3;
+  let b : u8 = 4;
+  = at a b;
+  print load8 at a;
 }

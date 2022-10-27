@@ -74,31 +74,31 @@ enum u64 (
   MAX_TOKEN_TYPE
 );
 
-let token_type_str : cstr[MAX_TOKEN_TYPE] = cast cstr[MAX_TOKEN_TYPE] "";
+let token_type_str = cast cstr[MAX_TOKEN_TYPE] "";
 
 struct Token (
-  buffer   : ptr,
-  length   : u64,
-  type     : u64,
-  v        : u64,
-  filename : ptr,
-  source   : ptr,
-  line     : u64,
-  column   : u64
+  buffer:   ptr,
+  length:   u64,
+  type:     u64,
+  v:        u64,
+  filename: ptr,
+  source:   ptr,
+  line:     u64,
+  column:   u64
 );
 
-let token : Token = 0;
+let token: Token = 0;
 
 // struct Lexer {
-let l.filename : cstr = "";
-let l.source : cstr = "";
-let l.index : ptr = cast ptr 0;
-let l.line : u64 = 0;
-let l.column : u64 = 0;
-let l.status : u64 = 0;
+let l.filename: cstr = "";
+let l.source:   cstr = "";
+let l.index:    ptr = cast ptr 0;
+let l.line:     u64 = 0;
+let l.column:   u64 = 0;
+let l.status:   u64 = 0;
 // };
 
-fn token_init(token : any, buffer : any, length : u64, type : u64, filename : any, source : any) -> none {
+fn token_init(token: any, buffer: any, length: u64, type: u64, filename: any, source: any) -> none {
   store64 + token Token.buffer   buffer;
   store64 + token Token.length   length;
   store64 + token Token.type     type;
@@ -109,7 +109,7 @@ fn token_init(token : any, buffer : any, length : u64, type : u64, filename : an
   store64 + token Token.column   1;
 }
 
-fn token_init_empty(token : ptr<Token>) -> none {
+fn token_init_empty(token: ptr<Token>) -> none {
   store64 + token Token.buffer   "";
   store64 + token Token.length   0;
   store64 + token Token.type     T_NONE;
@@ -120,7 +120,7 @@ fn token_init_empty(token : ptr<Token>) -> none {
   store64 + token Token.column   0;
 }
 
-fn copy_token_into_memory(mem : any) -> none {
+fn copy_token_into_memory(mem: any) -> none {
   store64 + mem Token.buffer   + @token Token.buffer;
   store64 + mem Token.length   + @token Token.length;
   store64 + mem Token.type     + @token Token.type;
@@ -131,18 +131,18 @@ fn copy_token_into_memory(mem : any) -> none {
   store64 + mem Token.column   + @token Token.column;
 }
 
-fn token_print(token : ptr) -> none {
+fn token_print(token: ptr) -> none {
   let tmp = tmp_it;
   let p = tmp_push_cstr;
 
   let buffer = cast cstr   load64 + token Token.buffer;
-  let length : u64 =       load64 + token Token.length;
-  let type : u64 =         load64 + token Token.type;
-  let value : u64 =        load64 + token Token.v;
+  let length: u64 =       load64 + token Token.length;
+  let type: u64 =         load64 + token Token.type;
+  let value: u64 =        load64 + token Token.v;
   let filename = cast cstr load64 + token Token.filename;
   let source = cast cstr   load64 + token Token.source;
-  let line : u64 =         load64 + token Token.line;
-  let column : u64 =       load64 + token Token.column;
+  let line: u64 =         load64 + token Token.line;
+  let column: u64 =       load64 + token Token.column;
 
   if eq cast u64 filename 0 store64 @filename "none";
 
@@ -165,7 +165,7 @@ fn token_print(token : ptr) -> none {
 
 fn lexer_token_type -> u64 load64 + @token Token.type;
 
-fn compare(a : cstr, b : cstr, length : u64) -> u64 {
+fn compare(a: cstr, b: cstr, length: u64) -> u64 {
   let result = 1;
   let done = 0;
   let i = 0;
@@ -197,7 +197,7 @@ fn lexer_read_symbol -> none {
   store64 + @token Token.length - l.index load64 + @token Token.buffer;
 
   let buffer = cast cstr load64 + @token Token.buffer;
-  let length : u64 = load64 + @token Token.length;
+  let length: u64 = load64 + @token Token.length;
 
   if eq 1 compare(buffer, "print", length) {
     store64 + @token Token.type T_PRINT;
@@ -333,9 +333,9 @@ fn lexer_read_number -> none {
   store64 + @token Token.type T_NUMBER;
 }
 
-fn lexer_error(message : cstr) -> none {
+fn lexer_error(message: cstr) -> none {
   if eq l.status NoError {
-    let args : any = (
+    let args: any = (
       load64 + @token Token.filename,
       load64 + @token Token.line,
       load64 + @token Token.column,
@@ -522,7 +522,7 @@ fn lexer_next -> none {
     }
     else if eq ch 0 {
       store64 + @token Token.type T_EOF;
-      // let args : any = l.line, l.filename;
+      // let args: any = l.line, l.filename;
       // printf("EOF at line: %d in file `%s`\n", @args);
       store64 @done 1;
     }
@@ -571,7 +571,7 @@ fn lexer_next -> none {
   store64 + @token Token.line l.line;
 }
 
-fn lexer_init(filename : any, source : any) -> none {
+fn lexer_init(filename: any, source: any) -> none {
   // initialize lexer state
   store64 @l.filename filename;
   store64 @l.source source;

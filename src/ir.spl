@@ -57,9 +57,10 @@ enum u64 (
   MAX_IR_CODE
 );
 
-let ir_code_str : cstr[MAX_IR_CODE] = cast cstr[MAX_IR_CODE] "";
+let ir_code_str = cast cstr[MAX_IR_CODE] "";
+let ir_code_count: u64[MAX_IR_CODE] = 0;
 
-fn ir_func_signature(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 NoError;
+fn ir_func_signature(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 NoError;
 let _ir_compile = ir_func_signature;
 
 enum u64 (
@@ -67,7 +68,7 @@ enum u64 (
   MAX_COMPILE_TARGET
 );
 
-fn OP(i : u64, op : ptr<Op>) -> none {
+fn OP(i: u64, op: ptr<Op>) -> none {
   store64 + op Op.i    i;
   store64 + op Op.dest NONE;
   store64 + op Op.src0 NONE;
@@ -75,7 +76,7 @@ fn OP(i : u64, op : ptr<Op>) -> none {
   debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
-fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr<Op>) -> none {
+fn OP_init(i: u64, dest: u64, src0: u64, src1: u64, op: ptr<Op>) -> none {
   store64 + op Op.i    i;
   store64 + op Op.dest dest;
   store64 + op Op.src0 src0;
@@ -83,20 +84,20 @@ fn OP_init(i : u64, dest : u64, src0 : u64, src1 : u64, op : ptr<Op>) -> none {
   debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
-fn fetch_op(i : u64) -> ptr<Op> {
+fn fetch_op(i: u64) -> ptr<Op> {
   cast ptr<Op> + + c Compile.ins * sizeof Op i;
 }
 
-fn ir_compile_warning(message : cstr) -> none {
+fn ir_compile_warning(message: cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
     dprintf(STDERR_FILENO, "[ir-compile-warning]: %s", @message);
   }
   store64 + c Compile.warning_count + 1 load64 + c Compile.warning_count;
 }
 
-fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
+fn ir_compile_warning_at(token: ptr, message: cstr) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
-    let args : any = (
+    let args: any = (
       load64 + token Token.filename,
       load64 + token Token.line,
       load64 + token Token.column,
@@ -108,25 +109,25 @@ fn ir_compile_warning_at(token : ptr, message : cstr) -> none {
   store64 + c Compile.warning_count + 1 load64 + c Compile.warning_count;
 }
 
-fn ir_print(fd : u64) -> none {
+fn ir_print(fd: u64) -> none {
   puts(fd, "ir_print:\n");
-  let i : u64 = 0;
-  let count : u64 = load64 + c Compile.ins_count;
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.ins_count;
   while < i count {
-    // op : Op*
+    // op: Op*
     let op = cast ptr + + c Compile.ins * sizeof Op i;
     let message = cast cstr tmp_it;
 
-    let num_digits : u64 = digit_count(i);
-    const num_zeros : u64 = 4;
-    let j : u64 = 0;
+    let num_digits: u64 = digit_count(i);
+    const num_zeros: u64 = 4;
+    let j: u64 = 0;
     while < j - num_zeros num_digits {
       tmp_push_cstr("0");
       store64 @j + 1 j;
     }
-    let dest : u64 = load64 + op Op.dest;
-    let src0 : u64 = load64 + op Op.src0;
-    let src1 : u64 = load64 + op Op.src1;
+    let dest: u64 = load64 + op Op.dest;
+    let src0: u64 = load64 + op Op.src0;
+    let src1: u64 = load64 + op Op.src1;
     tmp_push_u64(i);
     tmp_push_cstr(": ");
     tmp_push_cstr("<");
@@ -147,13 +148,28 @@ fn ir_print(fd : u64) -> none {
   }
 }
 
-fn ir_push_ins(op : ptr<Op>, ins_count : ptr<u64>) -> u64 {
+fn ir_print_ins_count(fd: u64) -> none {
+  dprintf(fd, "ir_print_ins_count:\n", NULL);
+  let i = 0;
+  while < i MAX_IR_CODE {
+    let ir_str = cast cstr load64 + at ir_code_str * sizeof cstr i;
+    let ir_ins_count = load64 + at ir_code_count * sizeof u64 i;
+    let args: any = (ir_str, ir_ins_count);
+    dprintf(fd, "%s: %d\n", @args);
+    store64 at i + 1 i;
+  }
+}
+
+fn ir_push_ins(op: ptr<Op>, ins_count: ptr<u64>) -> u64 {
   if < load64 + c Compile.ins_count MAX_INS {
     if ins_count {
       store64 ins_count + 1 deref ins_count;
     }
     memcpy(+ + c Compile.ins * sizeof Op load64 + c Compile.ins_count, op, sizeof Op);
     store64 + c Compile.ins_count + 1 load64 + c Compile.ins_count;
+
+    let ir_ins_count = cast ptr<u64> + at ir_code_count * sizeof u64 load64 + op Op.i;
+    store64 ir_ins_count + deref ir_ins_count 1;
   }
   else {
     assert(0, "reached instruction capacity\n");
@@ -161,12 +177,12 @@ fn ir_push_ins(op : ptr<Op>, ins_count : ptr<u64>) -> u64 {
   NoError;
 }
 
-fn ir_push_symbol(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count : ptr<u64>) -> u64 {
-  let sym_type : u64 = load64 + symbol Symbol.sym_type;
-  let op : Op = 0;
-  let type : Type = 0;
+fn ir_push_symbol(fs: ptr<Function>, symbol: ptr<Symbol>, id: u64, ins_count: ptr<u64>) -> u64 {
+  let sym_type: u64 = load64 + symbol Symbol.sym_type;
+  let op: Op = 0;
+  let type: Type = 0;
   memcpy(at type, + symbol Symbol.type, sizeof Type);
-  let size : u64 = NONE;
+  let size: u64 = NONE;
   if eq type_base(at type) TypeStruct {
     store64 @size load64 + symbol Symbol.size;
   }
@@ -210,7 +226,7 @@ fn ir_push_symbol(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count 
     );
   }
   else if eq sym_type SYM_FUNC_ARG {
-    let arg_id : u64 = load64 + + symbol Symbol.token Token.v;
+    let arg_id: u64 = load64 + + symbol Symbol.token Token.v;
     assert(neq arg_id UINT64_MAX, "invalid argument id\n");
     OP_init(
       I_PUSH_LOCAL,
@@ -227,10 +243,10 @@ fn ir_push_symbol(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count 
   load64 + c Compile.status;
 }
 
-fn ir_push_addr_of(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count : ptr<u64>) -> u64 {
-  let sym_type : u64 = load64 + symbol Symbol.sym_type;
-  let op : Op = 0;
-  let type : Type = 0;
+fn ir_push_addr_of(fs: ptr<Function>, symbol: ptr<Symbol>, id: u64, ins_count: ptr<u64>) -> u64 {
+  let sym_type: u64 = load64 + symbol Symbol.sym_type;
+  let op: Op = 0;
+  let type: Type = 0;
   memcpy(at type, + symbol Symbol.type, sizeof Type);
   if eq sym_type SYM_FUNC {
     OP_init(
@@ -288,10 +304,10 @@ fn ir_push_addr_of(fs : ptr<Function>, symbol : ptr<Symbol>, id : u64, ins_count
   load64 + c Compile.status;
 }
 
-fn ir_compile_stmts(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let i : u64 = 0;
-  let count : u64 = load64 + ast Ast.count;
-  let done : u64 = 0;
+fn ir_compile_stmts(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let i: u64 = 0;
+  let count: u64 = load64 + ast Ast.count;
+  let done: u64 = 0;
   while and eq done 0 < i count {
     if neq _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr i, ins_count) NoError {
       store64 @done 1;
@@ -301,13 +317,13 @@ fn ir_compile_stmts(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 
   load64 + c Compile.status;
 }
 
-fn ir_compile_value(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let token : ptr = + ast Ast.token;
-  let token_type : u64 = load64 + token Token.type;
+fn ir_compile_value(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let token: ptr = + ast Ast.token;
+  let token_type: u64 = load64 + token Token.type;
   if eq token_type T_NUMBER {
-    let imm : u64 = compile_push_value(+ token Token.v, sizeof u64);
+    let imm: u64 = compile_push_value(+ token Token.v, sizeof u64);
     if neq imm UINT64_MAX {
-      let op : Op = 0;
+      let op: Op = 0;
       OP_init(
         I_PUSH_IMM,
         TypeUnsigned64,
@@ -322,10 +338,10 @@ fn ir_compile_value(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 
     }
   }
   else if eq token_type T_CSTRING {
-    let index : u64 = UINT64_MAX;
-    let address : u64 = compile_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
+    let index: u64 = UINT64_MAX;
+    let address: u64 = compile_push_cstring(cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length, @index);
     if neq address UINT64_MAX {
-      let op : Op = 0;
+      let op: Op = 0;
       OP_init(
         I_PUSH,
         TypeCString,
@@ -337,12 +353,12 @@ fn ir_compile_value(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 
     }
   }
   else if eq token_type T_IDENTIFIER {
-    let id : u64 = load64 + + ast Ast.token Token.v;
+    let id: u64 = load64 + + ast Ast.token Token.v;
     let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol id;
     { let _ = ir_push_symbol(fs, symbol, id, ins_count); }
   }
   else if or eq token_type T_AT eq token_type T_AT_WORD {
-    let id : u64 = load64 + + ast Ast.token Token.v;
+    let id: u64 = load64 + + ast Ast.token Token.v;
     let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol id;
     { let _ = ir_push_addr_of(fs, symbol, id, ins_count); }
   }
@@ -352,11 +368,11 @@ fn ir_compile_value(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 
   load64 + c Compile.status;
 }
 
-fn ir_compile_func_call_args(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let count : u64 = load64 + ast Ast.count;
+fn ir_compile_func_call_args(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let count: u64 = load64 + ast Ast.count;
   if > count 0 {
-    let i : u64 = - count 1;
-    let done : u64 = 0;
+    let i: u64 = - count 1;
+    let done: u64 = 0;
     while eq done 0 {
       if neq _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr i, ins_count) NoError {
         store64 @done 1;
@@ -370,24 +386,24 @@ fn ir_compile_func_call_args(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>
   load64 + c Compile.status;
 }
 
-fn ir_compile_binop(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_binop(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   assert(eq load64 + ast Ast.count 2, "expected 2 branches in binary operator expression\n");
   { let _ = _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0, ins_count); }
   { let _ = _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 1, ins_count); }
   load64 + c Compile.status;
 }
 
-fn ir_compile_uop(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_uop(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   assert(eq load64 + ast Ast.count 1, "expected 1 branch in unary operator expression\n");
   _ir_compile(fs, cast ptr load64 + + ast Ast.node * sizeof ptr 0, ins_count);
 }
 
-fn ir_compile_let_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let id : u64 = load64 + + ast Ast.token Token.v;
+fn ir_compile_let_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let id: u64 = load64 + + ast Ast.token Token.v;
   let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
 
   let node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let count : u64 = ast_count(node);
+  let count: u64 = ast_count(node);
   if eq count 1 {
     memcpy(+ symbol Symbol.token, + node Ast.token, sizeof Token);
   }
@@ -402,20 +418,20 @@ fn ir_compile_let_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>)
   // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
   // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
   if fs {
-      let type_id : u64 = type_lookup(type);
+      let type_id: u64 = type_lookup(type);
       assert(neq type_id UINT64_MAX, "invalid type\n"); // should not fail, but let's keep this here for now
-      let type_size : u64 = compile_type_size(type_id);
+      let type_size: u64 = compile_type_size(type_id);
       assert(neq type_size 0, "invalid size of type\n");
-      let size : u64 = load64 + symbol Symbol.size;
-      let num_elements : u64 = / load64 + symbol Symbol.size type_size;
-      let num_elements_init : u64 = load64 + symbol Symbol.num_elements_init;
+      let size: u64 = load64 + symbol Symbol.size;
+      let num_elements: u64 = / load64 + symbol Symbol.size type_size;
+      let num_elements_init: u64 = load64 + symbol Symbol.num_elements_init;
       const BOUNDARY_ALIGNMENT = 8;
       let frame_size = align(size, BOUNDARY_ALIGNMENT);
 
       let effective_frame_size = * num_elements_init type_size;
       // ir code generation for let statements (in a function with 0 arguments)
       // example:
-      //   let a : u64 = 1, 2, 3;
+      //   let a: u64 = 1, 2, 3;
       //
       // FRAME:
       //   ELEM IDX   | OFFSET     | NOTES
@@ -439,7 +455,7 @@ fn ir_compile_let_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>)
           let i = 0;
           let count = num_elements_init;
           while < i count {
-            let op : Op = 0;
+            let op: Op = 0;
             OP_init(
               I_MOVE_LOCAL,
               type_base(type),
@@ -461,18 +477,18 @@ fn ir_compile_let_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>)
   load64 + c Compile.status;
 }
 
-fn ir_compile_func(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-  let id : u64 = load64 + + ast Ast.token Token.v;
+  let id: u64 = load64 + + ast Ast.token Token.v;
   assert(neq id UINT64_MAX, "bad function id\n");
 
   let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
-  let ref_count : u64 = load64 + symbol Symbol.ref_count;
+  let ref_count: u64 = load64 + symbol Symbol.ref_count;
 
   if not and eq ref_count 0 eq load64 + @options Options.disable_dce 0 {
     let func = cast ptr<Function> + + symbol Symbol.value Value.func;
 
-    let op : Op = 0;
+    let op: Op = 0;
     OP_init(
       I_LABEL,
       id,
@@ -483,7 +499,7 @@ fn ir_compile_func(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
     { let _ = ir_push_ins(at op, ins_count); }
     store64 + func Function.ir_address load64 + c Compile.ins_count;
 
-    let begin_func_address : u64 = load64 + c Compile.ins_count; // we don't know how many local variables there are in this function until the function body is compiled, therefore we store the index to the I_BEGIN_FUNC instruction so that we can change it later when we do.
+    let begin_func_address: u64 = load64 + c Compile.ins_count; // we don't know how many local variables there are in this function until the function body is compiled, therefore we store the index to the I_BEGIN_FUNC instruction so that we can change it later when we do.
     OP_init(
       I_BEGIN_FUNC,
       NONE,
@@ -493,18 +509,18 @@ fn ir_compile_func(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
     );
     { let _ = ir_push_ins(at op, ins_count); }
 
-    let func_size : u64 = 0;
+    let func_size: u64 = 0;
     { let _ = ir_compile_stmts(func, body, at func_size); }
 
-    // begin_func : Op*
-    let begin_func : ptr = + + c Compile.ins * sizeof Op begin_func_address;
-    let frame_size : u64 = + load64 + func Function.locals_offset * sizeof u64 load64 + func Function.argc;
+    // begin_func: Op*
+    let begin_func: ptr = + + c Compile.ins * sizeof Op begin_func_address;
+    let frame_size: u64 = + load64 + func Function.locals_offset * sizeof u64 load64 + func Function.argc;
     const FRAME_ALIGNMENT = 8;
     store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
     assert(eq 0 % frame_size FRAME_ALIGNMENT, "invalid stack frame alignment\n");
     store64 + begin_func Op.src1 frame_size;
-    let ret_op : u64 = I_RET;
-    let rtype : Type = 0;
+    let ret_op: u64 = I_RET;
+    let rtype: Type = 0;
     memcpy(at rtype, + func Function.rtype, sizeof Type);
     if eq type_base(at rtype) TypeNone {
       store64 @ret_op I_NORET;
@@ -521,23 +537,23 @@ fn ir_compile_func(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
   load64 + c Compile.status;
 }
 
-fn ir_compile_func_call(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let id : u64 = load64 + + ast Ast.token Token.v;
+fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let id: u64 = load64 + + ast Ast.token Token.v;
   let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
 
-  // func : Function*
+  // func: Function*
   let func = cast ptr<Function> + + symbol Symbol.value Value.func;
   let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order
-    let type : Type = 0;
+    let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
-    let rtype : Type = 0;
+    let rtype: Type = 0;
     memcpy(at rtype, + func Function.rtype, sizeof Type);
-    let op : Op = 0;
+    let op: Op = 0;
     if or eq type_base(at type) TypeAny eq type_base(at type) TypeFunc {
-      let sym_type : u64 = load64 + symbol Symbol.sym_type;
-      let rvalue : u64 = NONE;
-      let argc : u64 = load64 + func Function.argc;
+      let sym_type: u64 = load64 + symbol Symbol.sym_type;
+      let rvalue: u64 = NONE;
+      let argc: u64 = load64 + func Function.argc;
       if neq type_base(at rtype) TypeNone {
         store64 @rvalue 0;
       }
@@ -591,7 +607,7 @@ fn ir_compile_func_call(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> 
         { let _ = ir_push_ins(at op, ins_count); }
       }
       else if eq sym_type SYM_FUNC_ARG {
-        let arg : u64 = load64 + + symbol Symbol.token Token.v;
+        let arg: u64 = load64 + + symbol Symbol.token Token.v;
         OP_init(
           I_PUSH_LOCAL,
           type_base(at type),
@@ -614,7 +630,7 @@ fn ir_compile_func_call(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> 
       }
     }
     else if eq type_base(at type) TypeSyscallFunc {
-      let syscall_map : u64 = (
+      let syscall_map: u64 = (
         I_SYSCALL0,
         I_SYSCALL1,
         I_SYSCALL2,
@@ -633,13 +649,41 @@ fn ir_compile_func_call(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> 
   load64 + c Compile.status;
 }
 
-fn ir_compile_assignment(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_assignment(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   if eq ir_compile_binop(fs, ast, ins_count) NoError {
-    let type : u64 = load64 + + ast Ast.token Token.type;
-    let op : Op = 0;
-    if or
-        eq type T_ASSIGN
-        eq type T_STORE64 {
+    let type_context_id = load64 + ast Ast.type_context_id;
+    assert(neq type_context_id UINT64_MAX, "ir_compile_assignment: bad context id\n");
+    let type_context = type_context_from_id(type_context_id);
+    let type = cast ptr<Type> + type_context Type_context.type;
+    let size = load64 + type Type.size;
+    let store_ins = I_STORE64;
+    if eq size 8 {
+      store64 at store_ins I_STORE64;
+    }
+    else if eq size 4 {
+      store64 at store_ins I_STORE32;
+    }
+    else if eq size 2 {
+      store64 at store_ins I_STORE16;
+    }
+    else if eq size 1 {
+      store64 at store_ins I_STORE8;
+    }
+    else {
+      assert(0, "ir_compile_assignment: bad assignment size\n");
+    }
+    let op: Op = 0;
+    OP(store_ins, at op);
+    { let _ = ir_push_ins(at op, ins_count); }
+  }
+  load64 + c Compile.status;
+}
+
+fn ir_compile_store(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  if eq ir_compile_binop(fs, ast, ins_count) NoError {
+    let type: u64 = load64 + + ast Ast.token Token.type;
+    let op: Op = 0;
+    if eq type T_STORE64 {
       OP(I_STORE64, at op);
     }
     else if eq type T_STORE32 {
@@ -652,20 +696,20 @@ fn ir_compile_assignment(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) ->
       OP(I_STORE8, at op);
     }
     else {
-      assert(0, "assignment operator not implemented\n");
+      assert(0, "store operator not implemented\n");
     }
     { let _ = ir_push_ins(at op, ins_count); }
   }
   load64 + c Compile.status;
 }
 
-fn ir_compile_while_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_while_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   assert(eq load64 + ast Ast.count 2, "invalid while statement construction\n");
-  let loop_label : u64 = load64 + c Compile.label_count;
+  let loop_label: u64 = load64 + c Compile.label_count;
   store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-  let cond_size : u64 = 0;
-  let body_size : u64 = 0;
-  let op : Op = 0;
+  let cond_size: u64 = 0;
+  let body_size: u64 = 0;
+  let op: Op = 0;
   OP_init(
     I_LOOP_LABEL,
     loop_label,
@@ -679,8 +723,8 @@ fn ir_compile_while_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
 
   if eq ir_compile_stmts(fs, cond, at cond_size) NoError {
-    let body_start_address : u64 = load64 + c Compile.ins_count;
-    let loop_end_label : u64 = load64 + c Compile.label_count;
+    let body_start_address: u64 = load64 + c Compile.ins_count;
+    let loop_end_label: u64 = load64 + c Compile.label_count;
     store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
     OP_init(
       I_JZ, // conditional jump if zero
@@ -709,7 +753,7 @@ fn ir_compile_while_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64
         at op
       );
       { let _ = ir_push_ins(at op, at body_size); }
-      // jz : Op*
+      // jz: Op*
       let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
       store64 + jz Op.src0 body_size;
       if ins_count {
@@ -720,18 +764,18 @@ fn ir_compile_while_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64
   load64 + c Compile.status;
 }
 
-fn ir_compile_if_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_if_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   assert(or eq load64 + ast Ast.count 2 eq load64 + ast Ast.count 3, "invalid if statement construction\n");
-  let cond_size : u64 = 0;
-  let body_size : u64 = 0;
-  let else_body_size : u64 = 0;
+  let cond_size: u64 = 0;
+  let body_size: u64 = 0;
+  let else_body_size: u64 = 0;
   let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-  let op : Op = 0;
+  let op: Op = 0;
 
   if eq ir_compile_stmts(fs, cond, at cond_size) NoError {
-    let body_start_address : u64 = load64 + c Compile.ins_count;
-    let end_label : u64 = load64 + c Compile.label_count;
+    let body_start_address: u64 = load64 + c Compile.ins_count;
+    let end_label: u64 = load64 + c Compile.label_count;
     store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
     OP_init(
       I_JZ,
@@ -744,9 +788,9 @@ fn ir_compile_if_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
     if eq ir_compile_stmts(fs, body, at body_size) NoError {
       if eq load64 + ast Ast.count 3 { // else body
         let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
-        let else_label : u64 = load64 + c Compile.label_count;
+        let else_label: u64 = load64 + c Compile.label_count;
         store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
-        let else_start_address : u64 = load64 + c Compile.ins_count;
+        let else_start_address: u64 = load64 + c Compile.ins_count;
 
         OP_init(
           I_JMP,
@@ -774,9 +818,9 @@ fn ir_compile_if_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
             at op
           );
           { let _ = ir_push_ins(at op, at else_body_size); }
-          // jz : Op*
+          // jz: Op*
           let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
-          // else_jmp : Op*
+          // else_jmp: Op*
           let else_jmp = cast ptr + + c Compile.ins * sizeof Op else_start_address;
           store64 + jz Op.src0 else_body_size;
           store64 + else_jmp Op.src0 else_body_size;
@@ -791,7 +835,7 @@ fn ir_compile_if_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
           at op
         );
         { let _ = ir_push_ins(at op, at body_size); }
-        // jz : Op*
+        // jz: Op*
         let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
         store64 + jz Op.src0 body_size;
       }
@@ -803,10 +847,10 @@ fn ir_compile_if_statement(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
   load64 + c Compile.status;
 }
 
-fn ir_compile_sizeof(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let imm : u64 = compile_push_value(+ + ast Ast.token Token.v, sizeof u64);
+fn ir_compile_sizeof(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let imm: u64 = compile_push_value(+ + ast Ast.token Token.v, sizeof u64);
   if neq imm UINT64_MAX {
-    let op : Op = 0;
+    let op: Op = 0;
     OP_init(
       I_PUSH_IMM,
       TypeUnsigned64,
@@ -819,12 +863,12 @@ fn ir_compile_sizeof(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64
   load64 + c Compile.status;
 }
 
-fn ir_compile_field_access(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
+fn ir_compile_field_access(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let type_context_id = load64 + ast Ast.type_context_id;
   let type_context = type_context_from_id(type_context_id);
   let symbol_id = load64 + type_context Type_context.symbol_id;
   if neq symbol_id UINT64_MAX {
-    let symbol : Symbol = 0;
+    let symbol: Symbol = 0;
     memcpy(at symbol, + + c Compile.symbols * sizeof Symbol symbol_id, sizeof Symbol);
     memcpy(+ at symbol Symbol.type, + type_context Type_context.type, sizeof Type);
     store64 + at symbol Symbol.local_id - load64 + at symbol Symbol.local_id load64 + type_context Type_context.offset;
@@ -836,8 +880,8 @@ fn ir_compile_field_access(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) 
   load64 + c Compile.status;
 }
 
-fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
-  let ast_type : u64 = load64 + ast Ast.type;
+fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+  let ast_type: u64 = load64 + ast Ast.type;
   debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
 
   if eq ast_type AstValue {
@@ -851,9 +895,9 @@ fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
     { let _ = ir_compile_stmts(fs, ast, ins_count); }
   }
   else if eq ast_type AstBinopExpression {
-    let op : Op = 0;
+    let op: Op = 0;
     if eq ir_compile_binop(fs, ast, ins_count) NoError {
-      let type : u64 = load64 + + ast Ast.token Token.type;
+      let type: u64 = load64 + + ast Ast.token Token.type;
       if eq type T_ADD {
         OP(I_ADD, at op);
       }
@@ -904,8 +948,8 @@ fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
   }
   else if eq ast_type AstUopExpression {
     if eq ir_compile_uop(fs, ast, ins_count) NoError {
-      let type : u64 = load64 + + ast Ast.token Token.type;
-      let op : Op = 0;
+      let type: u64 = load64 + + ast Ast.token Token.type;
+      let op: Op = 0;
       if eq type T_PRINT {
         OP(I_PRINT, at op);
       }
@@ -964,6 +1008,9 @@ fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
   else if eq ast_type AstAssignment {
     { let _ = ir_compile_assignment(fs, ast, ins_count); }
   }
+  else if eq ast_type AstStore {
+    { let _ = ir_compile_store(fs, ast, ins_count); }
+  }
   else if eq ast_type AstWhileStatement {
     { let _ = ir_compile_while_statement(fs, ast, ins_count); }
   }
@@ -992,9 +1039,9 @@ fn ir_compile(fs : ptr<Function>, ast : ptr, ins_count : ptr<u64>) -> u64 {
   load64 + c Compile.status;
 }
 
-fn ir_start_compile(ast : ptr) -> u64 {
-  let time_start : timespec = 0;
-  let time_end : timespec = 0;
+fn ir_start_compile(ast: ptr) -> u64 {
+  let time_start: Timespec = 0;
+  let time_end: Timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   if neq load64 + c Compile.entry_point 1 {
@@ -1007,7 +1054,7 @@ fn ir_start_compile(ast : ptr) -> u64 {
 
   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
 
-  print_time_elapsed("ir code generation took", @time_start, @time_end);
+  print_time_elapsed("ir code generation took", at time_start, at time_end);
 
   load64 + c Compile.status;
 }

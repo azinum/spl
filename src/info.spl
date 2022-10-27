@@ -1,18 +1,18 @@
 // info.spl
 
 // TODO(lucas): cleanup
-fn symbol_info_print(fd : u64) -> none {
+fn symbol_info_print(fd: u64) -> none {
   dprintf(fd, "print_symbol_info:\n", NULL);
   let message = cast cstr tmp_it;
-  let count : u64 = load64 + c Compile.symbol_count;
-  let i : u64 = 0;
+  let count: u64 = load64 + c Compile.symbol_count;
+  let i: u64 = 0;
   while < i count {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
-    let type : Type = 0;
+    let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
-    let num_i_digits : u64 = digit_count(i);
-    let j : u64 = 0;
+    let num_i_digits: u64 = digit_count(i);
+    let j: u64 = 0;
 
     if neq type_base(at type) TypeSyscallFunc {
       while < j - 3 num_i_digits {
@@ -25,15 +25,15 @@ fn symbol_info_print(fd : u64) -> none {
         dprintf(fd, "%s(", @name);
 
         // iterate args
-        let arg_index : u64 = 0;
-        let arg_count : u64 = load64 + func Function.argc;
+        let arg_index: u64 = 0;
+        let arg_count: u64 = load64 + func Function.argc;
         while < arg_index arg_count {
           // Symbol* arg = &c->symbols[func->args[arg_index]];
           let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
-          let arg_type : Type = 0;
+          let arg_type: Type = 0;
           memcpy(at arg_type, + arg Symbol.type, sizeof Type);
           let arg_type_id = type_lookup(at arg_type);
-          let type_size : u64 = compile_type_size(arg_type_id);
+          let type_size: u64 = compile_type_size(arg_type_id);
           if eq type_size 0 {
             store64 @type_size 1;
           }
@@ -44,18 +44,18 @@ fn symbol_info_print(fd : u64) -> none {
           }
           store64 @arg_index + 1 arg_index;
         }
-        let rtype : Type = 0;
+        let rtype: Type = 0;
         memcpy(at rtype, + func Function.rtype, sizeof Type);
 
         dprintf(fd, ") -> ", NULL);
         type_print(fd, at rtype);
       }
       else {
-        let args : any = name;
+        let args: any = name;
         dprintf(fd, "%s : ", @args);
         type_print(fd, at type);
       }
-      let args : any = (
+      let args: any = (
         load64 + symbol Symbol.size,
         load64 + symbol Symbol.konst,
         load64 + + symbol Symbol.value Value.konst,

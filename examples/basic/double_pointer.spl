@@ -5,6 +5,6 @@ fn main -> none {
   let b = at a;
   store64 b 12;
   let dptr = at b;
-  let c : u64 = deref deref dptr;
+  let c: u64 = deref deref dptr;
   print c;
 }

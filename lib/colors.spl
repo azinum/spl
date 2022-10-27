@@ -27,16 +27,16 @@ enum u64 (
 );
 
 struct Colors (
-  color_code : u8[COLOR_CODE_SIZE],
-  color_codes : cstr[MAX_COLOR],
-  fd : u64,
-  enabled : u64
+  color_code:  u8[COLOR_CODE_SIZE],
+  color_codes: cstr[MAX_COLOR],
+  fd:          u64,
+  enabled:     u64
 );
 
-let colors : Colors = 0;
+let colors: Colors = 0;
 
-fn colors_init(fd : u64) -> none {
-  const code : u8[COLOR_CODE_SIZE] = (
+fn colors_init(fd: u64) -> none {
+  const code: u8[COLOR_CODE_SIZE] = (
     27,
     91,
     48,
@@ -70,7 +70,7 @@ fn colors_init(fd : u64) -> none {
   store64 + at colors Colors.enabled 1;
 }
 
-fn color_set(color : u64) -> none {
+fn color_set(color: u64) -> none {
   if load64 + at colors Colors.enabled {
     if < color MAX_COLOR {
       memcpy(+ + at colors Colors.color_code 2, load64 + + at colors Colors.color_codes * sizeof cstr color, 4);
@@ -97,6 +97,6 @@ fn colors_enable -> none {
   store64 + at colors Colors.enabled 1;
 }
 
-fn color_set_fd(fd : u64) -> none {
+fn color_set_fd(fd: u64) -> none {
   store64 + at colors Colors.fd fd;
 }

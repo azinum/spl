@@ -2,13 +2,13 @@
 
 fn test_sizeof -> none {
   let info = "tests/core/struct.spl:test_struct()";
-  let a : u64 = 0;
-  let b : u32 = cast u32 0;
+  let a: u64 = 0;
+  let b: u32 = cast u32 0;
   struct T (
-    a : u64,
-    b : u64
+    a: u64,
+    b: u64
   );
-  let t : T = 0;
+  let t: T = 0;
   let c = NULL;
   assert_equal(sizeof a, sizeof u64, info);
   assert_equal(sizeof a, 8, info);

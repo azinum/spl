@@ -1,9 +1,9 @@
 // compile.spl
 
-fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
+fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
   let result = NoError;
   let block = cast ptr<Block> + c Compile.global;
-  let token : Token = 0;
+  let token: Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
   store64 + @token Token.type T_IDENTIFIER;
@@ -12,7 +12,7 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
-  let symbol : ptr = NULL;
+  let symbol: ptr = NULL;
   let symbol_index = UINT64_MAX;
   if eq compile_declare_value(block, cast ptr<Function> NULL, @token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
@@ -34,11 +34,10 @@ fn compile_create_syscall(name : cstr, argc : u64) -> u64 {
   result;
 }
 
-// name : cstr, value : Value*, type : Type
-fn compile_create_value(name : cstr, value : ptr<Value>, type : ptr<Type>) -> u64 {
+fn compile_create_value(name: cstr, value: ptr<Value>, type: ptr<Type>) -> u64 {
   let result = NoError;
   let block = cast ptr<Block> + c Compile.global;
-  let token : Token = 0;
+  let token: Token = 0;
   store64 + @token Token.buffer name;
   store64 + @token Token.length strnlen(name, MAX_NAME_SIZE);
   store64 + @token Token.type T_IDENTIFIER;
@@ -47,9 +46,9 @@ fn compile_create_value(name : cstr, value : ptr<Value>, type : ptr<Type>) -> u6
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
-  let imm : u64 = compile_push_value(+ value Value.num, sizeof u64);
+  let imm: u64 = compile_push_value(+ value Value.num, sizeof u64);
   if neq imm UINT64_MAX {
-    let symbol : ptr = NULL;
+    let symbol: ptr = NULL;
     let symbol_index = UINT64_MAX;
     if eq compile_declare_value(block, cast ptr<Function> NULL, @token, @symbol, @symbol_index) NoError {
       let type_id = type_lookup(type);
@@ -75,30 +74,30 @@ fn compile_create_value(name : cstr, value : ptr<Value>, type : ptr<Type>) -> u6
   result;
 }
 
-fn compile(target : u64, should_compile_target : u64, output_file_path : cstr) -> u64 {
+fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u64 {
   let result = NoError;
   let fd = ERROR;
 
-  let time_start : timespec = 0;
-  let time_end : timespec = 0;
+  let time_start: Timespec = 0;
+  let time_end: Timespec = 0;
   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
 
   if eq target TARGET_LINUX_NASM_X86_64 {
-    let path : u8[MAX_PATH_SIZE] = 0;
+    let path: u8[MAX_PATH_SIZE] = 0;
     sprintf(@path, "%s.spl.asm", @output_file_path);
-    let mode : u64 = 434; // 0662
-    let flags : u64 = or or O_CREAT O_TRUNC O_WRONLY;
+    let mode: u64 = 434; // 0662
+    let flags: u64 = or or O_CREAT O_TRUNC O_WRONLY;
     store64 @fd open(cast cstr @path, flags, mode);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
       { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
 
       if and eq should_compile_target 1 eq result NoError {
-        let o_path : u8[MAX_PATH_SIZE] = 0;
-        let args : any = output_file_path;
+        let o_path: u8[MAX_PATH_SIZE] = 0;
+        let args: any = output_file_path;
         sprintf(@o_path, "%s.o", @args);
         {
-          let command : cstr = (
+          let command: cstr = (
             "/usr/bin/nasm",
             "-g",
             "-F dwarf",
@@ -111,7 +110,7 @@ fn compile(target : u64, should_compile_target : u64, output_file_path : cstr) -
           exec_command_echoed(STDOUT_FILENO, @command);
         }
         {
-          let command : cstr = (
+          let command: cstr = (
             "/usr/bin/ld",
             "-arch",
             "x86_64",
@@ -131,14 +130,14 @@ fn compile(target : u64, should_compile_target : u64, output_file_path : cstr) -
   close(fd);
 
   if eq load64 + c Compile.status NoError {
-    print_time_elapsed("code generation took", @time_start, @time_end);
+    print_time_elapsed("code generation took", at time_start, at time_end);
   }
 
   result;
 }
 
-fn compile_print_final_info(fd : u64) -> none {
-  let args : any = (
+fn compile_print_final_info(fd: u64) -> none {
+  let args: any = (
     load64 + c Compile.warning_count,
     load64 + c Compile.error_count,
     load64 + @p Parser.line_count,
@@ -238,6 +237,8 @@ fn compile_state_init -> u64 {
   store64 + @ir_code_str * I_SYSCALL5           sizeof cstr "I_SYSCALL5";
   store64 + @ir_code_str * I_SYSCALL6           sizeof cstr "I_SYSCALL6";
 
+  memset(at ir_code_count, 0, sizeof ir_code_count);
+
   store64 + @compile_type_str * TypeNone           sizeof cstr "none";
   store64 + @compile_type_str * TypeAny            sizeof cstr "any";
   store64 + @compile_type_str * TypePtr            sizeof cstr "ptr";
@@ -251,7 +252,7 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeStruct         sizeof cstr "struct";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
-  let type : Type = 0;
+  let type: Type = 0;
   {
     type_init(at type, TypeNone, 0, 0, 1);
     let _ = type_commit_new(at type);
@@ -309,33 +310,33 @@ fn compile_state_init -> u64 {
 
   {
     const count = 2;
-    let contract : Type[count] = 0;
+    let contract: Type[count] = 0;
     type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
     type_init(cast ptr<Type> + at contract * sizeof Type 1, TypeCString, 0, sizeof cstr, 1);
-    let result : Type = 0;
+    let result: Type = 0;
     let _ = type_from_contract(cast ptr<Type> at contract, count, TYPE_CONTRACT_CREATE, at result);
   }
   {
-    let value : Value = 0;
+    let value: Value = 0;
     store64 + @value Value.num load64 + @p Parser.source_hash;
     store64 + @value Value.konst 1;
-    let type : Type = 0;
+    let type: Type = 0;
     type_init(at type, TypeUnsigned64, 0, sizeof u64, 1);
     let _ = compile_create_value("VERSION_ID", at value, at type);
   }
   {
-    let value : Value = 0;
+    let value: Value = 0;
     store64 + @value Value.num platform;
     store64 + @value Value.konst 1;
-    let type : Type = 0;
+    let type: Type = 0;
     type_init(at type, TypeUnsigned64, 0, sizeof u64, 1);
     let _ = compile_create_value("PLATFORM", at value, at type);
   }
   {
-    let value : Value = 0;
+    let value: Value = 0;
     store64 + @value Value.num 0;
     store64 + @value Value.konst 1;
-    let type : Type = 0;
+    let type: Type = 0;
     type_init(at type, TypePtr, 0, sizeof ptr, 1);
     let _ = compile_create_value("NULL", at value, at type);
   }

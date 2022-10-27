@@ -20,11 +20,11 @@ enum u64 (
 );
 
 struct Type (
-  base    : u64,  // base or container type
-  sub_id  : u64,  // sub type id or index to additional type information for structs, functions, and others
-  hash    : u64,  // hash of the type for quick equality checks
-  count   : u64,  // count of elements that this type constitutes
-  size    : u64   // size of each element
+  base:   u64,  // base or container type
+  sub_id: u64,  // sub type id or index to additional type information for structs, functions, and others
+  hash:   u64,  // hash of the type for quick equality checks
+  count:  u64,  // count of elements that this type constitutes
+  size:   u64   // size of each element
 );
 
 const MAX_COMPILE_TYPE = 1024;
@@ -41,26 +41,26 @@ enum u64 (
 const MAX_NUM_STRUCT_FIELDS = 64;
 
 struct Struct_field (
-  name    : u8[MAX_NAME_SIZE],
-  type    : Type,
-  offset  : u64
+  name:   u8[MAX_NAME_SIZE],
+  type:   Type,
+  offset: u64
 );
 
 struct Struct_type_info (
-  fields  : Struct_field[MAX_NUM_STRUCT_FIELDS],
-  count   : u64
+  fields: Struct_field[MAX_NUM_STRUCT_FIELDS],
+  count:  u64
 );
 
 const MAX_TYPE_CONTEXT = 512;
 const MAX_FIELD_ACCESS_LEVEL = 8;
 
 struct Type_context (
-  type      : Type,
-  offset    : u64,
-  symbol_id : u64
+  type:       Type,
+  offset:     u64,
+  symbol_id:  u64
 );
 
-fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64, count : u64) -> none {
+fn type_init(type: ptr<Type>, base_type: u64, sub_id: u64, size: u64, count: u64) -> none {
   store64 + type Type.base base_type;
   store64 + type Type.sub_id sub_id;
   store64 + type Type.hash 0;
@@ -68,10 +68,10 @@ fn type_init(type : ptr<Type>, base_type : u64, sub_id : u64, size : u64, count 
   store64 + type Type.size size;
 }
 
-fn type_base(type : ptr<Type>) -> u64 {
+fn type_base(type: ptr<Type>) -> u64 {
   load64 + type Type.base;
 }
 
-fn type_sub_id(type : ptr<Type>) -> u64 {
+fn type_sub_id(type: ptr<Type>) -> u64 {
   load64 + type Type.sub_id;
 }

@@ -1,11 +1,11 @@
 // hash.spl
 
-fn djb2_hash(data : any, size : u64) -> u64 {
+fn djb2_hash(data: any, size: u64) -> u64 {
   let result = 5381;
   if cast ptr data {
     let i = 0;
     while < i size {
-      let byte : u64 = load8 data;
+      let byte: u64 = load8 data;
       store64 @result + byte + result lshift result 5;
       store64 @data + 1 data;
       store64 @i + 1 i;
@@ -14,12 +14,12 @@ fn djb2_hash(data : any, size : u64) -> u64 {
   result;
 }
 
-fn djb2_hash_cstr(str : cstr) -> u64 {
+fn djb2_hash_cstr(str: cstr) -> u64 {
   let result = 5381;
   if str {
     let done = 0;
     while eq done 0 {
-      let byte : u64 = load8 str;
+      let byte: u64 = load8 str;
       if eq byte 0 {
         store64 @done 1;
       }
@@ -32,12 +32,12 @@ fn djb2_hash_cstr(str : cstr) -> u64 {
   result;
 }
 
-fn sdbm_hash(data : any, size : u64) -> u64 {
+fn sdbm_hash(data: any, size: u64) -> u64 {
   let result = 0;
   if cast ptr data {
     let i = 0;
     while < i size {
-      let byte : u64 = load8 data;
+      let byte: u64 = load8 data;
       store64 @result - + + lshift result 6 lshift result 16 byte result;
       store64 @data + 1 data;
       store64 @i + 1 i;

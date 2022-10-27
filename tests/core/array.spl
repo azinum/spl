@@ -4,39 +4,39 @@ fn test_array -> none {
   let info = "tests/core/array.spl:test_array()";
   {
     const a_size = 32;
-    let a : u64[a_size] = 0;
+    let a: u64[a_size] = 0;
     assert_equal(sizeof a, * sizeof u64 a_size, info);
   }
   {
     const a_size = 32;
-    let a : u32[a_size] = cast u32 0;
+    let a: u32[a_size] = cast u32 0;
     assert_equal(sizeof a, * sizeof u32 a_size, info);
   }
   {
     const a_size = 32;
-    let a : u16[a_size] = cast u16 0;
+    let a: u16[a_size] = cast u16 0;
     assert_equal(sizeof a, * sizeof u16 a_size, info);
   }
   {
     const a_size = 32;
-    let a : u8[a_size] = cast u8 0;
+    let a: u8[a_size] = cast u8 0;
     assert_equal(sizeof a, * sizeof u8 a_size, info);
   }
   {
     struct T (
-      a : u64,
-      b : u32
+      a: u64,
+      b: u32
     );
     const a_size = 32;
-    let a : T[a_size] = 0;
+    let a: T[a_size] = 0;
     assert_equal(sizeof a, * sizeof T a_size, info);
   }
   {
-    let a : u64[4] = 0;
+    let a: u64[4] = 0;
     assert_equal(sizeof a, 32, info);
   }
   {
-    let a : u64 = 1, 2, 3, 4;
+    let a: u64 = 1, 2, 3, 4;
     assert_equal(sizeof a, 32, info);
   }
 }

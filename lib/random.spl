@@ -24,7 +24,7 @@ fn random_xorshift -> u64 {
   current_random_seed;
 }
 
-fn random_init(mode : u64, seed : u64) -> none {
+fn random_init(mode: u64, seed: u64) -> none {
   store64 @current_random_seed seed;
   if eq mode RANDOM_LC {
     store64 @random random_lc;
@@ -34,6 +34,6 @@ fn random_init(mode : u64, seed : u64) -> none {
   }
 }
 
-fn random_range(from : u64, to : u64) -> u64 {
+fn random_range(from: u64, to: u64) -> u64 {
   + from % random() (+ - to from 1);
 }

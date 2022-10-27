@@ -3,21 +3,21 @@
 const MAX_FUNC_ARGC = 6; // TODO(lucas): temporary, pass additional arguments via stack
 
 struct Function (
-  ir_address            : u64,
-  label                 : u64,
-  argc                  : u64,
-  locals_offset         : u64,
-  rtype                 : Type,
-  args                  : u64[MAX_FUNC_ARGC]
+  ir_address:    u64,
+  label:         u64,
+  argc:          u64,
+  locals_offset: u64,
+  rtype:         Type,
+  args:          u64[MAX_FUNC_ARGC]
 );
 
 struct Value (
-  func  : Function,
-  num   : u64,
-  konst : u64
+  func:   Function,
+  num:    u64,
+  konst:  u64
 );
 
-fn function_init(func : ptr<Function>) -> none {
+fn function_init(func: ptr<Function>) -> none {
   store64 + func Function.ir_address 0;
   store64 + func Function.label 0;
   store64 + func Function.argc 0;
