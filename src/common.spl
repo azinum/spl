@@ -1,17 +1,17 @@
 // common.spl
 
-fn HERE dprintf(STDOUT_FILENO, "HERE\n", NULL);
+fn HERE dprintf(STDOUT_FILENO, "HERE\n", null);
 
 fn err(message: cstr) -> none {
   color_set(COLOR_ERROR);
-  dprintf(STDERR_FILENO, "[error]: ", NULL);
+  dprintf(STDERR_FILENO, "[error]: ", null);
   color_reset();
   dprintf(STDERR_FILENO, "%s", @message);
 }
 
 fn error(message: cstr, args: any) -> none {
   color_set(COLOR_ERROR);
-  dprintf(STDERR_FILENO, "[error]: ", NULL);
+  dprintf(STDERR_FILENO, "[error]: ", null);
   color_reset();
   dprintf(STDERR_FILENO, message, args);
 }
@@ -19,9 +19,9 @@ fn error(message: cstr, args: any) -> none {
 fn print_info(message: cstr) -> none {
   if load64 + @options Options.verbose {
     color_set(COLOR_INFO);
-    dprintf(STDOUT_FILENO, "[info]: ", NULL);
+    dprintf(STDOUT_FILENO, "[info]: ", null);
     color_reset();
-    dprintf(STDOUT_FILENO, message, NULL);
+    dprintf(STDOUT_FILENO, message, null);
   }
 }
 
@@ -30,10 +30,10 @@ fn exec_command_echoed(fd: u64, command_list: ptr) -> none {
     let it = command_list;
     let done: u64 = 0;
     color_set(COLOR_INFO);
-    dprintf(fd, "[cmd]: ", NULL);
+    dprintf(fd, "[cmd]: ", null);
     color_reset();
     while eq done 0 {
-      if eq load64 it NULL {
+      if eq load64 it null {
         store64 @done 1;
       }
       else {
@@ -41,7 +41,7 @@ fn exec_command_echoed(fd: u64, command_list: ptr) -> none {
         store64 @it + sizeof cstr it;
       }
     }
-    dprintf(fd, "\n", NULL);
+    dprintf(fd, "\n", null);
   }
   exec_command(command_list);
 }

@@ -81,7 +81,7 @@ fn putsn(fd: u64, str: any, n: u64) -> none {
 fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
   let result = 0;
   let it = str; // string iterator
-  let end = NULL;
+  let end = null;
   if neq size UINT64_MAX {
     store64 @end + + it size 1; // + 1 for null terminator
   }
@@ -141,7 +141,7 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
     }
     store64 @fit + 1 fit;
     store64 @it_diff - cast u64 it it_diff;
-    if and neq cast u64 end NULL eq cast u64 it_diff 0 {
+    if and neq cast u64 end null eq cast u64 it_diff 0 {
       let _ = write_u8(it, cast u8 0);
       store64 @done 1;
     }

@@ -58,7 +58,7 @@ fn spl_options_init -> none {
   store64 + @options Options.compile 1;
   store64 + @options Options.run 0;
   store64 + @options Options.debug 1;
-  store64 + @options Options.filename NULL;
+  store64 + @options Options.filename null;
   store64 + @options Options.enable_warnings 0;
   store64 + @options Options.disable_dce 0;
   store64 + @options Options.disable_colors 0;
@@ -105,7 +105,7 @@ fn spl_start(filename: cstr) -> u64 {
                   compile_print_final();
 
                   if load64 + @options Options.run {
-                    let command: cstr = cast cstr @output_file_path, cast cstr NULL;
+                    let command: cstr = cast cstr @output_file_path, cast cstr null;
                     exec_command_echoed(STDOUT_FILENO, @command);
                   }
                 }
@@ -137,7 +137,7 @@ fn spl_start(filename: cstr) -> u64 {
         }
       }
       parser_free();
-      ast_free(NULL);
+      ast_free(null);
     }
     close(fd);
   }
@@ -185,7 +185,7 @@ fn spl_main(argc: u64, argv: any) -> none {
   else {
     // TODO(lucas): implement a proper argument parser
     store64 @arg + sizeof ptr arg;
-    while neq load64 arg NULL {
+    while neq load64 arg null {
       let argument = cast cstr load64 arg;
       if eq 0 strcmp(argument, "run") {
         store64 + @options Options.run 1;
@@ -222,7 +222,7 @@ fn spl_main(argc: u64, argv: any) -> none {
       else {
         store64 + @options Options.filename argument;
       }
-      if neq load64 arg NULL {
+      if neq load64 arg null {
         store64 @arg + sizeof ptr arg;
       }
     }

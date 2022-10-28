@@ -9,7 +9,7 @@ fn test_sizeof -> none {
     b: u64
   );
   let t: T = 0;
-  let c = NULL;
+  let c = null;
   assert_equal(sizeof a, sizeof u64, info);
   assert_equal(sizeof a, 8, info);
   assert_equal(sizeof b, sizeof u32, info);

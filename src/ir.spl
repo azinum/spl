@@ -149,7 +149,7 @@ fn ir_print(fd: u64) -> none {
 }
 
 fn ir_print_ins_count(fd: u64) -> none {
-  dprintf(fd, "ir_print_ins_count:\n", NULL);
+  dprintf(fd, "ir_print_ins_count:\n", null);
   let i = 0;
   while < i MAX_IR_CODE {
     let ir_str = cast cstr load64 + at ir_code_str * sizeof cstr i;
@@ -1050,7 +1050,7 @@ fn ir_start_compile(ast: ptr) -> u64 {
 
   store64 @_ir_compile ir_compile;
 
-  { let _ = ir_compile(cast ptr<Function> NULL, cast ptr load64 + + ast Ast.node * sizeof ptr 0, cast ptr<u64> NULL); }
+  { let _ = ir_compile(cast ptr<Function> null, cast ptr load64 + + ast Ast.node * sizeof ptr 0, cast ptr<u64> null); }
 
   { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
 

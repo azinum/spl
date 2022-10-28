@@ -50,8 +50,8 @@ struct Ast (
 );
 
 let ast_node_memory: Ast[MAX_AST_NODE] = 0;
-let ast_node = NULL;
-let ast_node_end = NULL;
+let ast_node = null;
+let ast_node_end = null;
 
 fn ast_create(type: u64) -> ptr {
   let node: ptr = ast_node;
@@ -69,7 +69,7 @@ fn ast_create(type: u64) -> ptr {
   }
   else {
     assert(0, "ast node capacity reached\n");
-    store64 @node NULL;
+    store64 @node null;
   }
   node;
 }

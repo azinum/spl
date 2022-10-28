@@ -337,7 +337,7 @@ fn mmap(start: ptr, length: u64, prot: u64, flags: u64, fd: u64, offset: u64) ->
   cast ptr syscall6(or SYSCALL_CLASS SYS_mmap, start, length, prot, flags, fd, offset);
 }
 
-fn mremap(start: ptr, old_size: u64, new_size: u64, flags: u64, new_start: ptr) -> ptr { NULL; }
+fn mremap(start: ptr, old_size: u64, new_size: u64, flags: u64, new_start: ptr) -> ptr { null; }
 
 fn munmap(start: ptr, length: u64) -> none {
   let _ = syscall2(or SYSCALL_CLASS SYS_munmap, start, length);
@@ -363,13 +363,13 @@ fn WIFEXITED(status: u64) -> u64 {
 fn exec_command(command_list: ptr) -> none {
   let pid: u64 = fork();
   if eq pid 0 { // child process
-    execve(cast cstr load64 command_list, command_list, NULL);
+    execve(cast cstr load64 command_list, command_list, null);
   }
   else if > pid 0 { // parent
     let done: u64 = 0;
     while eq done 0 {
       let wstatus: u64 = 0;
-      if > wait4(- 0 1, @wstatus, 0, NULL) 0 {
+      if > wait4(- 0 1, @wstatus, 0, null) 0 {
         store64 @done 1;
       }
       if WIFEXITED(wstatus) {

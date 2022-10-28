@@ -21,7 +21,7 @@ syntax region String start=/\v"/ skip=/\v\\./ end=/\v"/
 syntax region String start=/\v'/ skip=/\v\\./ end=/\v'/
 
 " Values
-syntax keyword Numbers NULL
+syntax keyword Numbers null
 
 " Numbers
 syntax match Numbers "\<\d\+\>"

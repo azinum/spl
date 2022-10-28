@@ -31,10 +31,10 @@ fn main -> none {
         let color: u64 = random_range(0, max_value);
         let args: any = color, color, color;
         dprintf(fd, " %d %d %d ", @args);
-        if not % x 4 dprintf(fd, "\n", NULL);
+        if not % x 4 dprintf(fd, "\n", null);
         store64 @x + 1 x;
       }
-      dprintf(fd, "\n", NULL);
+      dprintf(fd, "\n", null);
       store64 @y + 1 y;
     }
     close(fd);

@@ -342,7 +342,7 @@ fn lexer_error(message: cstr) -> none {
       message
     );
     color_set(COLOR_ERROR);
-    dprintf(STDERR_FILENO, "[lex-error]: ", NULL);
+    dprintf(STDERR_FILENO, "[lex-error]: ", null);
     color_set(COLOR_EXTRA);
     dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
     color_reset();

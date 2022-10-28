@@ -18,10 +18,10 @@ fn vo_write_debug_info(fd: u64, op: ptr<Op>) -> none {
     let args: any = @buffer;
     dprintf(fd, "%s\n", @args);
   }
-  dprintf(fd, "%%ifdef DEBUG_INFO\n", NULL);
+  dprintf(fd, "%%ifdef DEBUG_INFO\n", null);
   printline(fd, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, 1);
 
-  dprintf(fd, "%%endif\n", NULL);
+  dprintf(fd, "%%endif\n", null);
 }
 
 fn vo_write_debug_info_empty(fd: u64, op: ptr<Op>) -> none {}
@@ -46,8 +46,8 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
   );
   let entry = "_start";
 
-  o(fd, "bits 64\n", NULL);
-  o(fd, "section .text\n", NULL);
+  o(fd, "bits 64\n", null);
+  o(fd, "section .text\n", null);
   o(fd, "global %s\n", @entry);
   o(fd,
 "print:
@@ -83,7 +83,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  syscall
  add rsp, 40
  ret
-", NULL);
+", null);
 
   let i: u64 = 0;
   let count: u64 = load64 + c Compile.ins_count;
@@ -92,14 +92,14 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
     let op = cast ptr<Op> + + c Compile.ins * sizeof Op i;
     let ins: u64 = load64 + op Op.i;
     if eq ins I_NOP {
-      o(fd, "nop\n", NULL);
+      o(fd, "nop\n", null);
     }
     else if eq ins I_POP {
-      vo(fd, "; I_POP\n", NULL);
-      o(fd, "pop rax\n", NULL);
+      vo(fd, "; I_POP\n", null);
+      o(fd, "pop rax\n", null);
     }
     else if eq ins I_MOVE {
-      vo(fd, "; I_MOVE\n", NULL);
+      vo(fd, "; I_MOVE\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       let args: any = load64 + op Op.src0, load64 + op Op.src1;
@@ -109,19 +109,19 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
           eq dest TypeCString
           eq dest TypeFunc
           eq dest TypeUnsigned64 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov [v%d+%d], rax\n", @args);
       }
       else if eq dest TypeUnsigned32 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov [v%d+%d], eax\n", @args);
       }
       else if eq dest TypeUnsigned16 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov [v%d+%d], ax\n", @args);
       }
       else if eq dest TypeUnsigned8 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov [v%d+%d], al\n", @args);
       }
       else {
@@ -129,7 +129,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_MOVE_LOCAL {
-      vo(fd, "; I_MOVE_LOCAL\n", NULL);
+      vo(fd, "; I_MOVE_LOCAL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       let args: any = (load64 + op Op.src0);
@@ -139,19 +139,19 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
           eq dest TypeCString
           eq dest TypeFunc
           eq dest TypeUnsigned64 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov QWORD [rbp-%d], rax\n", @args);
       }
       else if eq dest TypeUnsigned32 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov DWORD [rbp-%d], eax\n", @args);
       }
       else if eq dest TypeUnsigned16 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov WORD [rbp-%d], ax\n", @args);
       }
       else if eq dest TypeUnsigned8 {
-        o(fd, "pop rax\n", NULL);
+        o(fd, "pop rax\n", null);
         o(fd, "mov BYTE [rbp-%d], al\n", @args);
       }
       else {
@@ -159,81 +159,81 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_STORE64 {
-      vo(fd, "; I_STORE64\n", NULL);
+      vo(fd, "; I_STORE64\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rbx\n", NULL);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "mov [rax], rbx\n", NULL);
+      o(fd, "pop rbx\n", null);
+      o(fd, "pop rax\n", null);
+      o(fd, "mov [rax], rbx\n", null);
     }
     else if eq ins I_STORE32 {
-      vo(fd, "; I_STORE32\n", NULL);
+      vo(fd, "; I_STORE32\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rbx\n", NULL);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "mov [rax], ebx\n", NULL);
+      o(fd, "pop rbx\n", null);
+      o(fd, "pop rax\n", null);
+      o(fd, "mov [rax], ebx\n", null);
     }
     else if eq ins I_STORE16 {
-      vo(fd, "; I_STORE16\n", NULL);
+      vo(fd, "; I_STORE16\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rbx\n", NULL);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "mov [rax], bx\n", NULL);
+      o(fd, "pop rbx\n", null);
+      o(fd, "pop rax\n", null);
+      o(fd, "mov [rax], bx\n", null);
     }
     else if eq ins I_STORE8 {
-      vo(fd, "; I_STORE8\n", NULL);
+      vo(fd, "; I_STORE8\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rbx\n", NULL);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "mov [rax], bl\n", NULL);
+      o(fd, "pop rbx\n", null);
+      o(fd, "pop rax\n", null);
+      o(fd, "mov [rax], bl\n", null);
     }
     else if eq ins I_LOAD64 {
-      vo(fd, "; I_LOAD64\n", NULL);
+      vo(fd, "; I_LOAD64\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "xor rbx, rbx\n", NULL);
-      o(fd, "mov rbx, [rax]\n", NULL);
-      o(fd, "push rbx\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "xor rbx, rbx\n", null);
+      o(fd, "mov rbx, [rax]\n", null);
+      o(fd, "push rbx\n", null);
     }
     else if eq ins I_LOAD32 {
-      vo(fd, "; I_LOAD32\n", NULL);
+      vo(fd, "; I_LOAD32\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "xor rbx, rbx\n", NULL);
-      o(fd, "mov ebx, [rax]\n", NULL);
-      o(fd, "push rbx\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "xor rbx, rbx\n", null);
+      o(fd, "mov ebx, [rax]\n", null);
+      o(fd, "push rbx\n", null);
     }
     else if eq ins I_LOAD16 {
-      vo(fd, "; I_LOAD16\n", NULL);
+      vo(fd, "; I_LOAD16\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "xor rbx, rbx\n", NULL);
-      o(fd, "mov bx, [rax]\n", NULL);
-      o(fd, "push rbx\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "xor rbx, rbx\n", null);
+      o(fd, "mov bx, [rax]\n", null);
+      o(fd, "push rbx\n", null);
     }
     else if eq ins I_LOAD8 {
-      vo(fd, "; I_LOAD8\n", NULL);
+      vo(fd, "; I_LOAD8\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rax\n", NULL);
-      o(fd, "xor rbx, rbx\n", NULL);
-      o(fd, "mov bl, [rax]\n", NULL);
-      o(fd, "push rbx\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "xor rbx, rbx\n", null);
+      o(fd, "mov bl, [rax]\n", null);
+      o(fd, "push rbx\n", null);
     }
     else if eq ins I_PUSH_ADDR_OF {
-      vo(fd, "; I_PUSH_ADDR_OF\n", NULL);
+      vo(fd, "; I_PUSH_ADDR_OF\n", null);
       vo_debug(fd, op);
       let args: any = load64 + op Op.src0;
       o(fd, "mov rax, v%d\n", @args);
-      o(fd, "push rax\n", NULL);
+      o(fd, "push rax\n", null);
     }
     else if eq ins I_PUSH_LOCAL_ADDR_OF {
-      vo(fd, "; I_PUSH_LOCAL_ADDR_OF\n", NULL);
+      vo(fd, "; I_PUSH_LOCAL_ADDR_OF\n", null);
       vo_debug(fd, op);
       let args: any = load64 + op Op.src0;
       o(fd, "lea rax, [rbp-%d]\n", @args);
-      o(fd, "push rax\n", NULL);
+      o(fd, "push rax\n", null);
     }
     else if eq ins I_PUSH {
-      vo(fd, "; I_PUSH\n", NULL);
+      vo(fd, "; I_PUSH\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       let args: any = load64 + op Op.src0;
@@ -242,51 +242,51 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
           eq dest TypePtr
           eq dest TypeUnsigned64 {
         o(fd, "mov rax, [v%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeUnsigned32 {
-        o(fd, "xor rax, rax\n", NULL);
+        o(fd, "xor rax, rax\n", null);
         o(fd, "mov eax, [v%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeUnsigned16 {
-        o(fd, "xor rax, rax\n", NULL);
+        o(fd, "xor rax, rax\n", null);
         o(fd, "mov ax, [v%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeUnsigned8 {
-        o(fd, "xor rax, rax\n", NULL);
+        o(fd, "xor rax, rax\n", null);
         o(fd, "mov al, [v%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeCString {
         o(fd, "mov rax, str%d\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeFunc {
         o(fd, "mov rax, v%d\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeStruct {
         let size: u64 = load64 + op Op.src1;
         if eq size 8 {
           o(fd, "mov rax, [v%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else if eq size 4 {
-          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "xor rax, rax\n", null);
           o(fd, "mov eax, [v%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else if eq size 2 {
-          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "xor rax, rax\n", null);
           o(fd, "mov ax, [v%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else if eq size 1 {
-          o(fd, "xor rax, rax\n", NULL);
+          o(fd, "xor rax, rax\n", null);
           o(fd, "mov al, [v%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else {
           assert(0, "I_PUSH: bad struct size\n");
@@ -297,7 +297,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_PUSH_LOCAL {
-      vo(fd, "; I_PUSH_LOCAL\n", NULL);
+      vo(fd, "; I_PUSH_LOCAL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       let args: any = load64 + op Op.src0;
@@ -311,15 +311,15 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
       else if eq dest TypeUnsigned32 {
         o(fd, "mov eax, [rbp-%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeUnsigned16 {
         o(fd, "mov ax, [rbp-%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeUnsigned8 {
         o(fd, "mov al, [rbp-%d]\n", @args);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else if eq dest TypeStruct {
         let size: u64 = load64 + op Op.src1;
@@ -328,15 +328,15 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         }
         else if eq size 4 {
           o(fd, "mov eax, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else if eq size 2 {
           o(fd, "mov ax, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else if eq size 1 {
           o(fd, "mov al, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", NULL);
+          o(fd, "push rax\n", null);
         }
         else {
           assert(0, "I_PUSH_LOCAL: bad struct size\n");
@@ -347,50 +347,50 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_PUSH_IMM {
-      vo(fd, "; I_PUSH_IMM\n", NULL);
+      vo(fd, "; I_PUSH_IMM\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       if eq dest TypeUnsigned64 {
         let value: u64 = load64 + + c Compile.imm load64 + op Op.src0;
         o(fd, "mov rax, %d\n", @value);
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
       else {
         assert(0, "I_PUSH_IMM: type not implemented\n");
       }
     }
     else if eq ins I_ADD {
-      vo(fd, "; I_ADD\n", NULL);
+      vo(fd, "; I_ADD\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  add rbx, rax
  push rbx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SUB {
-      vo(fd, "; I_SUB\n", NULL);
+      vo(fd, "; I_SUB\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  sub rbx, rax
  push rbx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_MUL {
-      vo(fd, "; I_MUL\n", NULL);
+      vo(fd, "; I_MUL\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  mul rbx
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_DIV {
-      vo(fd, "; I_DIV\n", NULL);
+      vo(fd, "; I_DIV\n", null);
       vo_debug(fd, op);
       o(fd,
 "xor rdx, rdx
@@ -398,30 +398,30 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop rax
  div r8
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_LSHIFT {
-      vo(fd, "; I_LSHIFT\n", NULL);
+      vo(fd, "; I_LSHIFT\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rcx
  pop rax
  shl rax, cl
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_RSHIFT {
-      vo(fd, "; I_RSHIFT\n", NULL);
+      vo(fd, "; I_RSHIFT\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rcx
  pop rax
  shr rax, cl
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_DIVMOD {
-      vo(fd, "; I_DIVMOD\n", NULL);
+      vo(fd, "; I_DIVMOD\n", null);
       vo_debug(fd, op);
       o(fd,
 "xor rdx, rdx
@@ -429,10 +429,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop rax
  div rbx
  push rdx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_LT {
-      vo(fd, "; I_LT\n", NULL);
+      vo(fd, "; I_LT\n", null);
       vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
@@ -442,10 +442,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  cmp rbx, rax
  cmovl rcx, rdx
  push rcx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_GT {
-      vo(fd, "; I_GT\n", NULL);
+      vo(fd, "; I_GT\n", null);
       vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
@@ -455,20 +455,20 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  cmp rbx, rax
  cmovg rcx, rdx
  push rcx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_AND {
-      vo(fd, "; I_AND\n", NULL);
+      vo(fd, "; I_AND\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  and rbx, rax
  push rbx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_LOGICAL_NOT {
-      vo(fd, "; I_LOGICAL_NOT\n", NULL);
+      vo(fd, "; I_LOGICAL_NOT\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
@@ -476,39 +476,39 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  sete al
  movzx rax, al
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_NOT {
-      vo(fd, "; I_NOT\n", NULL);
+      vo(fd, "; I_NOT\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  not rax
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_OR {
-      vo(fd, "; I_OR\n", NULL);
+      vo(fd, "; I_OR\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  or rbx, rax
  push rbx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_XOR {
-      vo(fd, "; I_OR\n", NULL);
+      vo(fd, "; I_OR\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  pop rbx
  xor rbx, rax
  push rbx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_EQ {
-      vo(fd, "; I_EQ\n", NULL);
+      vo(fd, "; I_EQ\n", null);
       vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
@@ -518,10 +518,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  cmp rbx, rax
  cmove rcx, rdx
  push rcx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_NEQ {
-      vo(fd, "; I_NEQ\n", NULL);
+      vo(fd, "; I_NEQ\n", null);
       vo_debug(fd, op);
       o(fd,
 "mov rcx, 0
@@ -531,37 +531,37 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  cmp rbx, rax
  cmovne rcx, rdx
  push rcx\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_RET {
-      vo(fd, "; I_RET\n", NULL);
+      vo(fd, "; I_RET\n", null);
       vo_debug(fd, op);
       let frame_size: u64 = load64 + op Op.src0;
-      o(fd, "pop rax\n", NULL);
-      o(fd, "pop rbp\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "pop rbp\n", null);
       if frame_size {
         o(fd, "add rsp, %d\n", @frame_size);
       }
-      o(fd, "ret\n", NULL);
+      o(fd, "ret\n", null);
     }
     else if eq ins I_NORET {
-      vo(fd, "; I_NORET\n", NULL);
+      vo(fd, "; I_NORET\n", null);
       vo_debug(fd, op);
       let frame_size: u64 = load64 + op Op.src0;
-      o(fd, "pop rbp\n", NULL);
+      o(fd, "pop rbp\n", null);
       if frame_size {
         o(fd, "add rsp, %d\n", @frame_size);
       }
-      o(fd, "ret\n", NULL);
+      o(fd, "ret\n", null);
     }
     else if eq ins I_PRINT {
-      vo(fd, "; I_PRINT\n", NULL);
+      vo(fd, "; I_PRINT\n", null);
       vo_debug(fd, op);
-      o(fd, "pop rdi\n", NULL);
-      o(fd, "call print\n", NULL);
+      o(fd, "pop rdi\n", null);
+      o(fd, "call print\n", null);
     }
     else if eq ins I_LABEL {
-      vo(fd, "; I_LABEL\n", NULL);
+      vo(fd, "; I_LABEL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       // symbol : Symbol*
@@ -576,7 +576,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_CALL {
-      vo(fd, "; I_CALL\n", NULL);
+      vo(fd, "; I_CALL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       assert(neq dest UINT64_MAX, "I_CALL: invalid argument argument\n");
@@ -587,50 +587,50 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
-      o(fd, "push rbp\n", NULL);
+      o(fd, "push rbp\n", null);
       o(fd, "call v%d\n", @dest);
-      o(fd, "pop rbp\n", NULL);
+      o(fd, "pop rbp\n", null);
       if neq load64 + op Op.src1 NONE {
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
     }
     else if eq ins I_ADDR_CALL {
-      vo(fd, "; I_ADDR_CALL\n", NULL);
+      vo(fd, "; I_ADDR_CALL\n", null);
       vo_debug(fd, op);
       let i: u64 = 0;
       let argc: u64 = load64 + op Op.src0;
-      o(fd, "pop rax\n", NULL);
+      o(fd, "pop rax\n", null);
       while < i argc {
         let reg_name = cast cstr load64 + @func_call_regs_x86_64 * sizeof cstr i;
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
-      o(fd, "push rbp\n", NULL);
-      o(fd, "call rax\n", NULL);
-      o(fd, "pop rbp\n", NULL);
+      o(fd, "push rbp\n", null);
+      o(fd, "call rax\n", null);
+      o(fd, "pop rbp\n", null);
       if neq load64 + op Op.src1 NONE {
-        o(fd, "push rax\n", NULL);
+        o(fd, "push rax\n", null);
       }
     }
     else if eq ins I_JMP {
-      vo(fd, "; I_JMP\n", NULL);
+      vo(fd, "; I_JMP\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       o(fd, "jmp L%d\n", @dest);
     }
     else if eq ins I_JZ {
-      vo(fd, "; I_JZ\n", NULL);
+      vo(fd, "; I_JZ\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
-      o(fd, "pop rax\n", NULL);
-      o(fd, "test rax, rax\n", NULL);
+      o(fd, "pop rax\n", null);
+      o(fd, "test rax, rax\n", null);
       o(fd, "jz L%d\n", @dest);
     }
     else if eq ins I_BEGIN_FUNC {
-      vo(fd, "; I_BEGIN_FUNC\n", NULL);
+      vo(fd, "; I_BEGIN_FUNC\n", null);
       vo_debug(fd, op);
-      o(fd, "push rbp\n", NULL);
-      o(fd, "mov rbp, rsp\n", NULL);
+      o(fd, "push rbp\n", null);
+      o(fd, "mov rbp, rsp\n", null);
       let argc: u64 = load64 + op Op.src0;
       let frame_size: u64 = load64 + op Op.src1;
       let i: u64 = 0;
@@ -646,41 +646,41 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       }
     }
     else if eq ins I_LOOP_LABEL {
-      vo(fd, "; I_LOOP_LABEL\n", NULL);
+      vo(fd, "; I_LOOP_LABEL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
       o(fd, "L%d:\n", @dest);
     }
     else if eq ins I_SYSCALL0 {
-      vo(fd, "; I_SYSCALL0\n", NULL);
+      vo(fd, "; I_SYSCALL0\n", null);
       vo_debug(fd, op);
       o(fd,
 "pop rax
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL1 {
-      vo(fd, "; I_SYSCALL1\n", NULL);
+      vo(fd, "; I_SYSCALL1\n", null);
       o(fd,
 "pop rax
  pop rdi
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL2 {
-      vo(fd, "; I_SYSCALL2\n", NULL);
+      vo(fd, "; I_SYSCALL2\n", null);
       o(fd,
 "pop rax
  pop rdi
  pop rsi
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL3 {
-      vo(fd, "; I_SYSCALL3\n", NULL);
+      vo(fd, "; I_SYSCALL3\n", null);
       o(fd,
 "pop rax
  pop rdi
@@ -688,10 +688,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop rdx
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL4 {
-      vo(fd, "; I_SYSCALL4\n", NULL);
+      vo(fd, "; I_SYSCALL4\n", null);
       o(fd,
 "pop rax
  pop rdi
@@ -700,10 +700,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop r10
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL5 {
-      vo(fd, "; I_SYSCALL5\n", NULL);
+      vo(fd, "; I_SYSCALL5\n", null);
       o(fd,
 "pop rax
  pop rdi
@@ -713,10 +713,10 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop r8
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else if eq ins I_SYSCALL6 {
-      vo(fd, "; I_SYSCALL6\n", NULL);
+      vo(fd, "; I_SYSCALL6\n", null);
       o(fd,
 "pop rax
  pop rdi
@@ -727,7 +727,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  pop r9
  syscall
  push rax\n"
-      , NULL);
+      , null);
     }
     else {
       assert(0, "instruction not implemented\n");
@@ -746,9 +746,9 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
  mov rdi, 0 ; return code
  syscall
  ret\n"
-  , NULL);
+  , null);
 
-  o(fd, "section .data\n", NULL);
+  o(fd, "section .data\n", null);
   // constants
   {
     let i = 0;
@@ -767,7 +767,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         }
         store64 @str_index + 1 str_index;
       }
-      o(fd, "0\n", NULL);
+      o(fd, "0\n", null);
       store64 @i + 1 i;
     }
   }
@@ -815,13 +815,13 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
           store64 @v + 1 v;
         }
         vo(fd, " ; `%s`", @name);
-        o(fd, "\n", NULL);
+        o(fd, "\n", null);
       }
       store64 @i + 1 i;
     }
   }
   // symbols
-  o(fd, "section .bss\n", NULL);
+  o(fd, "section .bss\n", null);
   {
     let i = 0;
     let count: u64 = load64 + c Compile.symbol_count;
@@ -844,7 +844,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
             // TODO(lucas): print type
             vo(fd, " ; `%s`", @args);
           }
-          o(fd, "\n", NULL);
+          o(fd, "\n", null);
         }
       }
       store64 @i + 1 i;

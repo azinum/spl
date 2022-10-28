@@ -265,10 +265,10 @@ fn to_lower(ch: u64) -> u64 {
 const DIGIT_SEPARATOR: u64 = '_';
 
 fn str_to_u64(str: cstr, length: u64) -> u64 {
-  let result  : u64 = 0;
-  let base    : u64 = 10;
-  let i       : u64 = 0;
-  let done    : u64 = 0;
+  let result:   u64 = 0;
+  let base:     u64 = 10;
+  let i:        u64 = 0;
+  let done:     u64 = 0;
   let hex_done: u64 = 0;
   let bin_done: u64 = 0;
 
@@ -352,9 +352,9 @@ fn write_u8(mem: ptr, n: u8) -> u64 {
 
 // bounded write functions
 fn bwrite_str(mem: ptr, end: ptr, str: cstr, length: u64) -> u64 {
-  let result = 0;
+  let result: u64 = 0;
   if > length 0 {
-    if eq end NULL {
+    if eq end null {
       store64 @result write_cstr(mem, str);
     }
     else {
@@ -375,7 +375,7 @@ fn bwrite_str(mem: ptr, end: ptr, str: cstr, length: u64) -> u64 {
 }
 
 fn bwrite_cstr(mem: ptr, end: ptr, str: cstr) -> u64 {
-  let result = 0;
+  let result: u64 = 0;
   if str {
     store64 @result bwrite_str(mem, end, str, strlen(str));
   }
@@ -385,7 +385,7 @@ fn bwrite_cstr(mem: ptr, end: ptr, str: cstr) -> u64 {
 fn bwrite_u64(mem: ptr, end: ptr, n: u64) -> u64 {
   let result: u64 = 0;
   let count: u64 = digit_count(n);
-  if eq end NULL {
+  if eq end null {
     u64_to_str(n, mem, count);
     store64 @result count;
   }
@@ -408,7 +408,7 @@ fn bwrite_u64(mem: ptr, end: ptr, n: u64) -> u64 {
 fn bwrite_u8(mem: ptr, end: ptr, n: u8) -> u64 {
   let result: u64 = 0;
   const length: u64 = sizeof n;
-  if eq end NULL {
+  if eq end null {
     memcpy(mem, @n, length);
     store64 @result length;
   }

@@ -44,7 +44,7 @@ include "tests/core/const.spl"
 include "tests/lib/common.spl"
 
 fn test_start -> none {
-  printf("running tests...\n", NULL);
+  printf("running tests...\n", null);
   test_arith();
   test_sizeof();
   test_bitwise();

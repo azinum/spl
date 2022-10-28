@@ -442,13 +442,13 @@ fn WIFEXITED(status: u64) -> u64 {
 fn exec_command(command_list: ptr) -> none {
   let pid: u64 = fork();
   if eq pid 0 { // child process
-    execve(cast cstr load64 command_list, command_list, NULL);
+    execve(cast cstr load64 command_list, command_list, null);
   }
   else if > pid 0 { // parent
     let done: u64 = 0;
     while eq done 0 {
       let wstatus: u64 = 0;
-      if > wait4(- 0 1, @wstatus, 0, NULL) 0 {
+      if > wait4(- 0 1, @wstatus, 0, null) 0 {
         store64 @done 1;
       }
       if WIFEXITED(wstatus) {

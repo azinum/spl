@@ -2,7 +2,7 @@
 
 // TODO(lucas): cleanup
 fn symbol_info_print(fd: u64) -> none {
-  dprintf(fd, "print_symbol_info:\n", NULL);
+  dprintf(fd, "print_symbol_info:\n", null);
   let message = cast cstr tmp_it;
   let count: u64 = load64 + c Compile.symbol_count;
   let i: u64 = 0;
@@ -16,7 +16,7 @@ fn symbol_info_print(fd: u64) -> none {
 
     if neq type_base(at type) TypeSyscallFunc {
       while < j - 3 num_i_digits {
-        dprintf(fd, "0", NULL);
+        dprintf(fd, "0", null);
         store64 @j + 1 j;
       }
       dprintf(fd, "%d: ", @i);
@@ -40,14 +40,14 @@ fn symbol_info_print(fd: u64) -> none {
           type_print(fd, at arg_type);
 
           if neq arg_index - arg_count 1 {
-            dprintf(fd, ", ", NULL);
+            dprintf(fd, ", ", null);
           }
           store64 @arg_index + 1 arg_index;
         }
         let rtype: Type = 0;
         memcpy(at rtype, + func Function.rtype, sizeof Type);
 
-        dprintf(fd, ") -> ", NULL);
+        dprintf(fd, ") -> ", null);
         type_print(fd, at rtype);
       }
       else {

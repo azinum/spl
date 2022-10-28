@@ -3,7 +3,4 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-include "lib/osx.spl"
-
-fn main -> none {
-}
+fn main 1;

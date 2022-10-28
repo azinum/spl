@@ -96,14 +96,14 @@ struct Compile (
 );
 
 // c: ptr<Compile>
-let c: ptr = NULL;
+let c: ptr = null;
 
 let compile_type_str = cast cstr[MAX_COMPILE_TYPE] "";
 
 fn compile_error(message: cstr) -> none {
   if eq load64 + c Compile.status NoError {
     color_set(COLOR_ERROR);
-    dprintf(STDERR_FILENO, "[compile-error]: ", NULL);
+    dprintf(STDERR_FILENO, "[compile-error]: ", null);
     color_reset();
     dprintf(STDERR_FILENO, "%s", @message);
     store64 + c Compile.status Error;
@@ -120,7 +120,7 @@ fn compile_error_at(token: ptr, message: cstr) -> none {
       load64 + token Token.column
     );
     color_set(COLOR_ERROR);
-    dprintf(STDERR_FILENO, "[compile-error]: ", NULL);
+    dprintf(STDERR_FILENO, "[compile-error]: ", null);
     color_set(COLOR_EXTRA);
     dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
     color_reset();
@@ -157,7 +157,7 @@ fn symbol_init(symbol: ptr) -> none {
 // block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block: ptr<Block>, fs: ptr<Function>, name: ptr, symbol: ptr, symbol_index: ptr, levels_descend: ptr) -> u64 {
   let result = Error;
-  if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block NULL {
+  if and < load64 + name Buffer.length MAX_NAME_SIZE neq cast u64 block null {
     let copy: u8[MAX_NAME_SIZE] = 0;
     memset(@copy, 0, MAX_NAME_SIZE);
     strncpy(cast cstr @copy, cast cstr load64 + name Buffer.data, load64 + name Buffer.length);
@@ -169,10 +169,10 @@ fn compile_lookup_value(block: ptr<Block>, fs: ptr<Function>, name: ptr, symbol:
       let index: u64 = load64 + + block Block.symbols * sizeof u64 i;
       let sym = + + c Compile.symbols * sizeof Symbol index;
       if eq 0 strncmp(cast cstr + sym Symbol.name, cast cstr @copy, MAX_NAME_SIZE) {
-        if neq symbol NULL {
+        if neq symbol null {
           store64 symbol sym;
         }
-        if neq symbol_index NULL {
+        if neq symbol_index null {
           store64 symbol_index index;
         }
         store64 @result NoError;
@@ -182,7 +182,7 @@ fn compile_lookup_value(block: ptr<Block>, fs: ptr<Function>, name: ptr, symbol:
       store64 @i + 1 i;
     }
     if eq found 0 {
-      if neq levels_descend NULL {
+      if neq levels_descend null {
         store64 levels_descend + 1 load64 levels_descend;
       }
       store64 @result compile_lookup_value(cast ptr<Block> load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
@@ -203,7 +203,7 @@ fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
         store64 + @token_buffer Buffer.length load64 + token Token.length;
 
         // we are only allowed to create a new symbol if none was found in the current block
-        let lookup_result = compile_lookup_value(block, fs, @token_buffer, symbol, NULL, @levels);
+        let lookup_result = compile_lookup_value(block, fs, @token_buffer, symbol, null, @levels);
         if and eq lookup_result NoError eq levels 0 {
           let message = cast cstr tmp_it;
           tmp_push_cstr("symbol `");
@@ -215,7 +215,7 @@ fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
         }
         else {
           let index = load64 + c Compile.symbol_count;
-          if neq symbol_index NULL {
+          if neq symbol_index null {
             store64 symbol_index index;
           }
           let block_index_address = * load64 + block Block.symbol_count sizeof u64;
@@ -257,7 +257,7 @@ fn warning_at(token: ptr, message: cstr, args: any) -> none {
       load64 + token Token.column
     );
     color_set(COLOR_WARN);
-    dprintf(STDERR_FILENO, "[warning]: ", NULL);
+    dprintf(STDERR_FILENO, "[warning]: ", null);
     color_set(COLOR_EXTRA);
     dprintf(STDERR_FILENO, "%s:%d:%d: ", @info_args);
     color_reset();
@@ -305,7 +305,7 @@ fn block_init(block: ptr<Block>, parent: ptr<Block>) -> none {
 }
 
 fn block_push(parent: ptr<Block>) -> ptr<Block> {
-  let block = cast ptr<Block> NULL;
+  let block = cast ptr<Block> null;
   let block_count = cast ptr<u64> + c Compile.block_count;
   let block_count_largest = cast ptr<u64> + c Compile.block_count_largest;
 
@@ -334,7 +334,7 @@ fn block_pop -> none {
 }
 
 fn compile_state_print(fd: u64) -> none {
-  dprintf(fd, "compile_state_print:\n", NULL);
+  dprintf(fd, "compile_state_print:\n", null);
   let args: any =
     load64 + c Compile.ins_count,
     MAX_INS,

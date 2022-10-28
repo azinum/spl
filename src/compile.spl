@@ -12,9 +12,9 @@ fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
-  let symbol: ptr = NULL;
+  let symbol: ptr = null;
   let symbol_index = UINT64_MAX;
-  if eq compile_declare_value(block, cast ptr<Function> NULL, @token, @symbol, @symbol_index) NoError {
+  if eq compile_declare_value(block, cast ptr<Function> null, @token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
     store64 + symbol Symbol.sym_type SYM_FUNC;
     type_init(cast ptr<Type> + symbol Symbol.type, TypeSyscallFunc, 0, sizeof ptr, 1);
@@ -48,9 +48,9 @@ fn compile_create_value(name: cstr, value: ptr<Value>, type: ptr<Type>) -> u64 {
 
   let imm: u64 = compile_push_value(+ value Value.num, sizeof u64);
   if neq imm UINT64_MAX {
-    let symbol: ptr = NULL;
+    let symbol: ptr = null;
     let symbol_index = UINT64_MAX;
-    if eq compile_declare_value(block, cast ptr<Function> NULL, @token, @symbol, @symbol_index) NoError {
+    if eq compile_declare_value(block, cast ptr<Function> null, @token, @symbol, @symbol_index) NoError {
       let type_id = type_lookup(type);
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size compile_type_size(type_id);
@@ -105,7 +105,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
             cast cstr @path,
             "-o",
             cast cstr @o_path,
-            cast cstr NULL
+            cast cstr null
           );
           exec_command_echoed(STDOUT_FILENO, @command);
         }
@@ -117,7 +117,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
             cast cstr @o_path,
             "-o",
             output_file_path,
-            cast cstr NULL
+            cast cstr null
           );
           exec_command_echoed(STDOUT_FILENO, @command);
         }
@@ -152,12 +152,12 @@ fn compile_print_final_info(fd: u64) -> none {
 
 fn compile_print_final -> none {
   if eq load64 + c Compile.status Error {
-    printf("compilation failed:\n", NULL);
+    printf("compilation failed:\n", null);
     compile_print_final_info(STDERR_FILENO);
   }
   if load64 + @options Options.verbose {
     if eq load64 + c Compile.status NoError {
-      printf("compilation succeeded:\n", NULL);
+      printf("compilation succeeded:\n", null);
       compile_print_final_info(STDOUT_FILENO);
     }
   }
@@ -170,7 +170,7 @@ fn compile_state_init -> u64 {
   store64 + c Compile.imm_index 0;
   store64 + c Compile.symbol_count 0;
   store64 + c Compile.cstring_count 0;
-  block_init(cast ptr<Block> + c Compile.global, cast ptr<Block> NULL);
+  block_init(cast ptr<Block> + c Compile.global, cast ptr<Block> null);
   store64 + c Compile.block_count 0;
   store64 + c Compile.block_count_largest 0;
   store64 + c Compile.label_count 0;
@@ -338,7 +338,7 @@ fn compile_state_init -> u64 {
     store64 + @value Value.konst 1;
     let type: Type = 0;
     type_init(at type, TypePtr, 0, sizeof ptr, 1);
-    let _ = compile_create_value("NULL", at value, at type);
+    let _ = compile_create_value("null", at value, at type);
   }
   NoError;
 }
