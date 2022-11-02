@@ -418,8 +418,8 @@ fn munmap(start: ptr, length: u64) -> none {
   let _ = syscall2(SYS_munmap, start, length);
 }
 
-fn execve(command: cstr, argv: ptr, envp: ptr) -> none {
-  let _ = syscall3(SYS_execve, command, argv, envp);
+fn execve(command: cstr, argv: ptr, envp: ptr) -> u64 {
+  syscall3(SYS_execve, command, argv, envp);
 }
 
 fn fork -> u64 {
@@ -439,10 +439,10 @@ fn WIFEXITED(status: u64) -> u64 {
   eq 0 and status 0x7f;
 }
 
-fn exec_command(command_list: ptr) -> none {
+fn exec_command(command_list: ptr, envp: ptr) -> none {
   let pid: u64 = fork();
   if eq pid 0 { // child process
-    execve(cast cstr load64 command_list, command_list, null);
+    let result = execve(cast cstr load64 command_list, command_list, envp);
   }
   else if > pid 0 { // parent
     let done: u64 = 0;

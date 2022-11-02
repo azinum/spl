@@ -106,8 +106,12 @@ fn spl_start(filename: cstr) -> u64 {
 
                   if load64 + @options Options.run {
                     let command: cstr = cast cstr @output_file_path, cast cstr null;
-                    exec_command_echoed(STDOUT_FILENO, @command);
+                    exec_command_echoed(STDOUT_FILENO, @command, null);
                   }
+                  // let command: cstr = "gcc", cast cstr null;
+                  // let env: cstr = "PATH=/usr/bin", cast cstr null;
+                  // exec_command_echoed(STDOUT_FILENO, @command, @env);
+                  // put("OK\n");
                 }
                 if load64 + @options Options.debug {
                   let path: u8[MAX_PATH_SIZE] = 0;

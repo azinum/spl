@@ -25,7 +25,7 @@ fn print_info(message: cstr) -> none {
   }
 }
 
-fn exec_command_echoed(fd: u64, command_list: ptr) -> none {
+fn exec_command_echoed(fd: u64, command_list: ptr, envp: ptr) -> none {
   if load64 + @options Options.verbose {
     let it = command_list;
     let done: u64 = 0;
@@ -43,7 +43,7 @@ fn exec_command_echoed(fd: u64, command_list: ptr) -> none {
     }
     dprintf(fd, "\n", null);
   }
-  exec_command(command_list);
+  exec_command(command_list, envp);
 }
 
 fn print_time_elapsed(message: cstr, time_start: ptr<Timespec>, time_end: ptr<Timespec>) -> none {

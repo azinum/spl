@@ -23,3 +23,4 @@
 	- const a = 1, 2, 3, 4;
 	- const b = a; // yields bad results
 - implement tests that fail and show correct errors
+- support printing of arbitrarily long strings in printf functions

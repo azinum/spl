@@ -736,10 +736,17 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
 
   o(fd, "\n%s:\n", @entry);
   o(fd,
-"mov rdi, [rsp]
+"mov rdi, [rsp] ; argc
+ mov rcx, rsp
  mov rax, rsp
  add rax, 8
- mov rsi, rax
+ mov rsi, rax ; argv
+ ; store offset to envp
+ mov rax, [rcx]
+ add rax, 2
+ shl rax, 3
+ mov rdx, rcx
+ add rdx, rax ; envp
  call main
  mov rax, 60 ; exit syscall
  mov rdi, 0 ; return code

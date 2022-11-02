@@ -107,7 +107,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
             cast cstr @o_path,
             cast cstr null
           );
-          exec_command_echoed(STDOUT_FILENO, @command);
+          exec_command_echoed(STDOUT_FILENO, @command, null);
         }
         {
           let command: cstr = (
@@ -119,7 +119,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
             output_file_path,
             cast cstr null
           );
-          exec_command_echoed(STDOUT_FILENO, @command);
+          exec_command_echoed(STDOUT_FILENO, @command, null);
         }
       }
     }
