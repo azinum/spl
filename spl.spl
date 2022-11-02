@@ -6,6 +6,6 @@
 
 include "src/spl.spl"
 
-fn main(argc : u64, argv : any) -> none {
-  spl_main(argc, argv);
+fn main(argc: u64, argv: any, envp: ptr) -> none {
+  spl_main(argc, argv, envp);
 }

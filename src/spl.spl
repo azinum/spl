@@ -18,6 +18,7 @@ include "lib/common.spl"
 include "lib/hash.spl"
 
 const platform = PLATFORM_LINUX;
+let envp = null;
 
 include "src/config.spl"
 include "src/common.spl"
@@ -106,12 +107,8 @@ fn spl_start(filename: cstr) -> u64 {
 
                   if load64 + @options Options.run {
                     let command: cstr = cast cstr @output_file_path, cast cstr null;
-                    exec_command_echoed(STDOUT_FILENO, @command, null);
+                    exec_command_echoed(STDOUT_FILENO, @command, envp);
                   }
-                  // let command: cstr = "gcc", cast cstr null;
-                  // let env: cstr = "PATH=/usr/bin", cast cstr null;
-                  // exec_command_echoed(STDOUT_FILENO, @command, @env);
-                  // put("OK\n");
                 }
                 if load64 + @options Options.debug {
                   let path: u8[MAX_PATH_SIZE] = 0;
@@ -175,11 +172,13 @@ fn version_id_print(fd: u64) -> none {
   dprintf(fd, "spl version id: %s\n", @args);
 }
 
-fn spl_main(argc: u64, argv: any) -> none {
+fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
   common_init();
   config_init();
   ast_init();
   spl_options_init();
+
+  store64 @envp envptr;
 
   let arg = argv;
   let i = 0;

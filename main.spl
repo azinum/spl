@@ -4,5 +4,4 @@ include "lib/common.spl"
 // include "lib/hash.spl"
 
 fn main(argc: u64, argv: ptr, envp: ptr) -> none {
-  printf("%s\n", envp);
 }

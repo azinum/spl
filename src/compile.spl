@@ -99,28 +99,24 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
         {
           let command: cstr = (
             "/usr/bin/nasm",
-            "-g",
-            "-F dwarf",
             "-f elf64",
             cast cstr @path,
             "-o",
             cast cstr @o_path,
             cast cstr null
           );
-          exec_command_echoed(STDOUT_FILENO, @command, null);
+          exec_command_echoed(STDOUT_FILENO, @command, envp);
         }
-        {
-          let command: cstr = (
-            "/usr/bin/ld",
-            "-arch",
-            "x86_64",
-            cast cstr @o_path,
-            "-o",
-            output_file_path,
-            cast cstr null
-          );
-          exec_command_echoed(STDOUT_FILENO, @command, null);
-        }
+        let command: cstr = (
+          "/usr/bin/gcc",
+          cast cstr @o_path,
+          "-o",
+          output_file_path,
+          "-nostdlib",
+          "-no-pie",
+          cast cstr null
+        );
+        exec_command_echoed(STDOUT_FILENO, @command, envp);
       }
     }
   }
