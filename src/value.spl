@@ -1,7 +1,5 @@
 // value.spl
 
-const MAX_FUNC_ARGC = 6; // TODO(lucas): temporary, pass additional arguments via stack
-
 struct Function (
   ir_address:    u64,
   label:         u64,

@@ -83,14 +83,17 @@ struct Compile (
   type_contract_stack: Type[MAX_TYPE_CONTRACT_STACK], // stack of types to construct a single type contract
   type_contract_count: u64, // better naming needed here...
 
-  warning_count:       u64,
-  error_count:         u64,
-
   struct_type_info:    Struct_type_info[MAX_COMPILE_TYPE],
   struct_id:           u64,
 
+  func_signatures:     Func_signature[MAX_COMPILE_TYPE],
+  func_sig_count:      u64,
+
   type_contexts:       Type_context[MAX_TYPE_CONTEXT],
   type_context_count:  u64,
+
+  warning_count:       u64,
+  error_count:         u64,
 
   info:                Debug_info
 );

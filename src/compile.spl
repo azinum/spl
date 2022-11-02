@@ -179,10 +179,11 @@ fn compile_state_init -> u64 {
   store64 + c Compile.ts_count 0;
   store64 + c Compile.vs_count 0;
   store64 + c Compile.type_count 0;
+  store64 + c Compile.struct_id 1;
+  store64 + c Compile.func_sig_count 0;
+  store64 + c Compile.type_context_count 0;
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
-  store64 + c Compile.struct_id 1;
-  store64 + c Compile.type_context_count 0;
 
   debug_info_init(cast ptr<Debug_info> + c Compile.info);
 

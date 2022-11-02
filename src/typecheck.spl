@@ -10,8 +10,7 @@ enum u64 (
 
 enum u64 (
   TYPE_CONSTRAINT_VALID, // valid constraint, we're good to continue
-  TYPE_CONSTRAINT_INVALID,  // not a valid constraint, stop
-  TYPE_CONSTRAINT_UNDECIDABLE // unwrapping of type is needed, thus we can not decide if the constraint is valid or not at this moment
+  TYPE_CONSTRAINT_INVALID // not a valid constraint, stop
 );
 
 fn typecheck_function(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 0;
@@ -261,6 +260,42 @@ fn type_printline(fd: u64, type: ptr<Type>) -> none {
   dprintf(fd, "\n", null);
 }
 
+fn typecheck_print_types(fd: u64) -> none {
+  dprintf(fd, "typecheck_print_types:\n", null);
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.type_count;
+  while < i count {
+    let type = cast ptr<Type> + + c Compile.types * sizeof Type i;
+    dprintf(fd, "%d: ", @i);
+    type_printline(fd, type);
+    store64 @i + 1 i;
+  }
+}
+
+fn func_signatures_print(fd: u64) -> none {
+  dprintf(fd, "func_signatures_print:\n", null);
+  let i = 0;
+  let count = load64 + c Compile.func_sig_count;
+  while < i count {
+    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature i;
+    dprintf(fd, "%d: fn(", @i);
+    let arg_index: u64 = 0;
+    let argc: u64 = load64 + func Func_signature.argc;
+    while < arg_index argc {
+      let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
+      type_print(fd, arg_type);
+      store64 @arg_index + 1 arg_index;
+      if < arg_index argc {
+        dprintf(fd, ", ", null);
+      }
+    }
+    dprintf(fd, ") -> ", null);
+    type_print(fd, cast ptr<Type> + func Func_signature.rtype);
+    dprintf(fd, "\n", null);
+    store64 at i + 1 i;
+  }
+}
+
 fn types_are_equal(a: ptr<Type>, b: ptr<Type>) -> u64 {
   and and
     eq load64 + a Type.base     load64 + b Type.base
@@ -350,7 +385,7 @@ fn type_check_constraints(container: ptr<Type>, type: ptr<Type>) -> u64 {
     store64 @result TYPE_CONSTRAINT_VALID;
   }
   else if and eq type_base(container) MAX_PRIMITIVE_TYPE > type_base(container) MAX_PRIMITIVE_TYPE {
-    store64 @result TYPE_CONSTRAINT_UNDECIDABLE;
+    store64 @result TYPE_CONSTRAINT_VALID;
   }
   result;
 }
@@ -418,7 +453,7 @@ fn type_from_contract(contract: ptr<Type>, count: u64, mode: u64, result_out: pt
         type_init(at type, type_base(at primary_type), sub_type_id, load64 + at primary_type Type.size, primary_type_count);
 
         let constraint: u64 = type_check_constraints(at primary_type, at sub_type);
-        if or eq constraint TYPE_CONSTRAINT_VALID eq constraint TYPE_CONSTRAINT_UNDECIDABLE {
+        if eq constraint TYPE_CONSTRAINT_VALID {
           let lookup: u64 = type_lookup(at type);
           if eq lookup UINT64_MAX {
             // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
@@ -455,21 +490,6 @@ fn type_from_contract(contract: ptr<Type>, count: u64, mode: u64, result_out: pt
   result;
 }
 
-fn typecheck_print_types(fd: u64) -> none {
-  dprintf(fd, "typecheck_print_types:\n", null);
-  let i: u64 = 0;
-  let count: u64 = load64 + c Compile.type_count;
-  while < i count {
-    let type: Type = 0;
-    memcpy(at type, + + c Compile.types * sizeof Type i, sizeof Type);
-
-    dprintf(fd, "%d: ", @i);
-    type_printline(fd, at type);
-
-    store64 @i + 1 i;
-  }
-}
-
 fn type_contract_stack_reset -> none {
   store64 + c Compile.type_contract_count 0;
 }
@@ -485,6 +505,42 @@ fn type_contract_stack_push(type: ptr<Type>) -> u64 {
     store64 @result Error;
   }
   result;
+}
+
+fn func_signature_init(func: ptr<Func_signature>) -> none {
+  store64 + func Func_signature.argc 0;
+  type_from_id(TypeNone, cast ptr<Type> + func Func_signature.rtype);
+}
+
+fn func_signature_push(func: ptr<Func_signature>) -> u64 {
+  let count = cast ptr<u64> + c Compile.func_sig_count;
+  let id: u64 = UINT64_MAX;
+  if < deref count MAX_COMPILE_TYPE {
+    memcpy(+ + c Compile.func_signatures * sizeof Func_signature deref count, func, sizeof Func_signature);
+    store64 @id deref count;
+    store64 count + 1 deref count;
+  }
+  else {
+    store64 @id UINT64_MAX;
+  }
+  id;
+}
+
+fn func_signature_add_arg(func: ptr<Func_signature>, arg: ptr<Type>) -> u64 {
+  let result = NoError;
+  let argc = cast ptr<u64> + func Func_signature.argc;
+  if < deref argc MAX_FUNC_ARGC {
+    memcpy(+ + func Func_signature.args * sizeof Type deref argc, arg, sizeof Type);
+    store64 argc + 1 deref argc;
+  }
+  else {
+    store64 @result Error;
+  }
+  result;
+}
+
+fn func_signature_set_rtype(func: ptr<Func_signature>, rtype: ptr<Type>) -> none {
+  memcpy(+ func Func_signature.rtype, rtype, sizeof Type);
 }
 
 fn is_numerical(type: ptr<Type>) -> u64 {
@@ -1003,6 +1059,9 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
       store64 @rtype_node load64 + + ast Ast.node * sizeof ptr 2;
     }
 
+    let func_sig: Func_signature = 0;
+    func_signature_init(at func_sig);
+
     let explicit_rtype: Type = 0;
     type_init(at explicit_rtype, TypeNone, 0, 0, 1);
 
@@ -1080,6 +1139,7 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
                 memcpy(+ arg_symbol Symbol.type, at arg_type, sizeof Type);
                 memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
                 store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead
+                { let _ = func_signature_add_arg(at func_sig, at arg_type); }
               }
             }
             else {
@@ -1119,11 +1179,17 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
               // TODO(lucas): more detailed error message
               compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
             }
+            // explicit return type
+            func_signature_set_rtype(at func_sig, at explicit_rtype);
           }
           // type inference for the return type
           else {
             memcpy(+ func Function.rtype, at rtype, sizeof Type);
+            // inferred return type
+            func_signature_set_rtype(at func_sig, at rtype);
           }
+
+          { let _ = func_signature_push(at func_sig); }
 
           if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
             store64 + symbol Symbol.ref_count + load64 + symbol Symbol.ref_count 1;

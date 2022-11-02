@@ -1,8 +1,9 @@
 // type.spl
 
+const MAX_FUNC_ARGC = 6; // TODO(lucas): temporary, pass additional arguments via stack
 const MAX_NAME_SIZE = 64;
 
-// primitive types maps directly to the list of types
+// primitive types that maps directly to the list of types
 enum u64 (
   TypeNone,
   TypeAny,
@@ -49,6 +50,12 @@ struct Struct_field (
 struct Struct_type_info (
   fields: Struct_field[MAX_NUM_STRUCT_FIELDS],
   count:  u64
+);
+
+struct Func_signature (
+  argc: u64,
+  args: Type[MAX_FUNC_ARGC],
+  rtype: Type
 );
 
 const MAX_TYPE_CONTEXT = 512;

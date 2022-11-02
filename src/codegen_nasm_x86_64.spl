@@ -564,7 +564,6 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       vo(fd, "; I_LABEL\n", null);
       vo_debug(fd, op);
       let dest: u64 = load64 + op Op.dest;
-      // symbol : Symbol*
       let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol dest;
       let name = cast cstr + symbol Symbol.name;
       if eq strcmp(name, "main") 0 {
