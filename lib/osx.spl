@@ -301,7 +301,26 @@ else {
 // 249 unused
 const SYS_minherit = 250;
 
-// TODO(lucas): add more system calls
+// TODO(lucas): add more system call codes
+
+// https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.8.sdk/System/Library/Frameworks/Kernel.framework/Versions/A/Headers/sys/fcntl.h
+const O_RDONLY  = 0x0000;
+const O_WRONLY  = 0x0001;
+const O_RDWR    = 0x0002;
+const O_CREAT   = 0x0200;
+const O_TRUNC   = 0x0400;
+
+// https://github.com/nneonneo/osx-10.9-opensource/blob/master/xnu-2422.1.72/bsd/sys/mman.h
+const PROT_NONE   = 0x00;
+const PROT_READ   = 0x01;
+const PROT_WRITE  = 0x02;
+const PROT_EXEC   = 0x04;
+
+const MAP_SHARED    = 0x0001;
+const MAP_PRIVATE   = 0x0002;
+const MAP_FIXED     = 0x0010;
+const MAP_ANONYMOUS = 0x1000;
+const MAP_ANON      = MAP_ANONYMOUS;
 
 fn read(fd: u64, buf: any, count: u64) -> u64 {
   syscall3(or SYSCALL_CLASS SYS_read, fd, buf, count);

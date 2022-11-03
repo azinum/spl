@@ -325,10 +325,10 @@ const O_CREAT = 64;
 const O_TRUNC = 512;
 
 // https://code.woboq.org/userspace/glibc/sysdeps/unix/sysv/linux/bits/mman-linux.h.html
+const PROT_NONE      = 0x0;
 const PROT_READ      = 0x1;
 const PROT_WRITE     = 0x2;
 const PROT_EXEC      = 0x4;
-const PROT_NONE      = 0x0;
 const PROT_GROWSDOWN = 0x01000000;
 const PROT_GROWSUP   = 0x02000000;
 
