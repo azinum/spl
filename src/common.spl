@@ -46,12 +46,16 @@ fn exec_command_echoed(fd: u64, command_list: ptr, envp: ptr) -> none {
   exec_command(command_list, envp);
 }
 
+fn get_time(spec: ptr<Timespec>) -> none {
+  let _ = clock_gettime(CLOCK_MONOTONIC, spec);
+}
+
 fn print_time_elapsed(message: cstr, time_start: ptr<Timespec>, time_end: ptr<Timespec>) -> none {
   let nanoseconds = - load64 + time_end Timespec.tv_nsec load64 + time_start Timespec.tv_nsec;
   let seconds =     - load64 + time_end Timespec.tv_sec  load64 + time_start Timespec.tv_sec;
-
+  let ms = + * 1000 seconds / nanoseconds 1000000;
   let info = tmp_it;
-  let args: any = message, seconds, nanoseconds;
-  sprintf(cast ptr info, "%s %d seconds and %d nanoseconds\n", @args);
+  let args: any = message, ms;
+  sprintf(cast ptr info, "%s %d ms\n", @args);
   print_info(cast cstr info);
 }

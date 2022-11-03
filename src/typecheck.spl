@@ -2027,10 +2027,10 @@ fn typecheck_program(ast: ptr) -> u64 {
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
+  get_time(at time_start);
 
   let _ = typecheck(cast ptr<Block> + c Compile.global, cast ptr<Function> null, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
-  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
+  get_time(at time_end);
 
   if neq load64 + c Compile.vs_count 0 {
     typecheck_error("unhandled data on the value stack\n");

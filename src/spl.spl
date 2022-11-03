@@ -75,7 +75,7 @@ fn spl_start(filename: cstr) -> u64 {
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
+  get_time(at time_start);
 
   let fd = open(filename, 0, O_RDONLY);
   if neq fd ERROR {
@@ -83,10 +83,17 @@ fn spl_start(filename: cstr) -> u64 {
     let size = read_file_into_buffer_and_null_terminate(fd, source);
     store64 @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
-      ast_push(
-        cast ptr load64 + @p Parser.ast,
-        parse()
-      );
+      {
+        let time_start: Timespec = 0;
+        let time_end: Timespec = 0;
+        get_time(at time_start);
+        ast_push(
+          cast ptr load64 + @p Parser.ast,
+          parse()
+        );
+        get_time(at time_end);
+        print_time_elapsed("parsing took", at time_start, at time_end);
+      }
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
         if eq compile_state_init() NoError {
           if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
@@ -101,7 +108,7 @@ fn spl_start(filename: cstr) -> u64 {
                 store8 + @output_file_path diff 0; // null terminate
 
                 if eq compile(target, load64 + @options Options.compile, cast cstr @output_file_path) NoError {
-                  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
+                  get_time(at time_end);
                   print_time_elapsed("total compilation time was", at time_start, at time_end);
                   compile_print_final();
 

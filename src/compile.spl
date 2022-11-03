@@ -80,7 +80,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
-  { let _ = clock_gettime(CLOCK_MONOTONIC, at time_start); }
+  get_time(at time_start);
 
   if eq target TARGET_LINUX_NASM_X86_64 {
     let path: u8[MAX_PATH_SIZE] = 0;
@@ -90,7 +90,7 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
     store64 @fd open(cast cstr @path, flags, mode);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
-      { let _ = clock_gettime(CLOCK_MONOTONIC, at time_end); }
+      get_time(at time_end);
 
       if and eq should_compile_target 1 eq result NoError {
         let o_path: u8[MAX_PATH_SIZE] = 0;
