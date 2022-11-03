@@ -12,12 +12,33 @@ fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
   store64 + @token Token.line 0;
   store64 + @token Token.column 0;
 
+  let any_type: Type = 0;
+  type_from_id(TypeAny, at any_type);
+  let u64_type: Type = 0;
+  type_from_id(TypeUnsigned64, at u64_type);
+
+  let func_sig: Func_signature = 0;
+  func_signature_init(at func_sig);
+  func_signature_set_rtype(at func_sig, at u64_type);
+
+  { let _ = func_signature_add_arg(at func_sig, at u64_type, 1); }
+  let i = 0;
+  while < i argc {
+    { let _ = func_signature_add_arg(at func_sig, at any_type, 1); }
+    store64 @i + 1 i;
+  }
+
+  let func_sig_id = func_signature_push(at func_sig);
+  let type: Type = 0;
+  type_init(at type, TypeSyscallFunc, func_sig_id, sizeof ptr, 1);
+  { let _ = type_commit_new(at type); }
+
   let symbol: ptr = null;
   let symbol_index = UINT64_MAX;
   if eq compile_declare_value(block, cast ptr<Function> null, @token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
     store64 + symbol Symbol.sym_type SYM_FUNC;
-    type_init(cast ptr<Type> + symbol Symbol.type, TypeSyscallFunc, 0, sizeof ptr, 1);
+    memcpy(+ symbol Symbol.type, at type, sizeof Type);
     store64 + + symbol Symbol.token Token.v symbol_index;
     store64 + symbol Symbol.ref_count 1;
     let func = + + symbol Symbol.value Value.func;

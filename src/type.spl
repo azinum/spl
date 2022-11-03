@@ -54,7 +54,7 @@ struct Struct_type_info (
 
 struct Func_signature (
   argc: u64,
-  args: Type[MAX_FUNC_ARGC],
+  args: Type[+ 1 MAX_FUNC_ARGC],
   rtype: Type
 );
 

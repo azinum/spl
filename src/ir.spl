@@ -187,11 +187,10 @@ fn ir_push_symbol(fs: ptr<Function>, symbol: ptr<Symbol>, id: u64, ins_count: pt
     store64 @size load64 + symbol Symbol.size;
   }
   if eq sym_type SYM_FUNC {
-    let func = cast ptr<Function> + + symbol Symbol.value Value.func;
     OP_init(
       I_PUSH,
       type_base(at type),
-      load64 + func Function.label,
+      id,
       size,
       at op
     );
@@ -487,6 +486,9 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
 
   if not and eq ref_count 0 eq load64 + @options Options.disable_dce 0 {
     let func = cast ptr<Function> + + symbol Symbol.value Value.func;
+    let type = cast ptr<Type> + symbol Symbol.type;
+    let func_sig = func_signature_from_id(type_sub_id(type));
+    let argc = load64 + func_sig Func_signature.argc;
 
     let op: Op = 0;
     OP_init(
@@ -503,7 +505,7 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
     OP_init(
       I_BEGIN_FUNC,
       NONE,
-      load64 + func Function.argc,
+      argc,
       0,
       at op
     );
@@ -514,15 +516,14 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
 
     // begin_func: Op*
     let begin_func: ptr = + + c Compile.ins * sizeof Op begin_func_address;
-    let frame_size: u64 = + load64 + func Function.locals_offset * sizeof u64 load64 + func Function.argc;
+    let frame_size: u64 = + load64 + func Function.locals_offset * sizeof u64 argc;
     const FRAME_ALIGNMENT = 8;
     store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
     assert(eq 0 % frame_size FRAME_ALIGNMENT, "invalid stack frame alignment\n");
     store64 + begin_func Op.src1 frame_size;
     let ret_op: u64 = I_RET;
-    let rtype: Type = 0;
-    memcpy(at rtype, + func Function.rtype, sizeof Type);
-    if eq type_base(at rtype) TypeNone {
+    let rtype = cast ptr<Type> + func_sig Func_signature.rtype;
+    if eq type_base(rtype) TypeNone {
       store64 @ret_op I_NORET;
     }
     OP_init(
@@ -547,20 +548,26 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
   if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order
     let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
+
+    let func_sig = func_signature_from_id(type_sub_id(at type));
+
     let rtype: Type = 0;
-    memcpy(at rtype, + func Function.rtype, sizeof Type);
+    memcpy(at rtype, + func_sig Func_signature.rtype, sizeof Type);
+
     let op: Op = 0;
     if or eq type_base(at type) TypeAny eq type_base(at type) TypeFunc {
+
       let sym_type: u64 = load64 + symbol Symbol.sym_type;
       let rvalue: u64 = NONE;
-      let argc: u64 = load64 + func Function.argc;
+      let argc: u64 = load64 + func_sig Func_signature.argc;
+
       if neq type_base(at rtype) TypeNone {
         store64 @rvalue 0;
       }
       if eq sym_type SYM_FUNC {
         OP_init(
           I_CALL,
-          load64 + func Function.label,
+          id,
           argc,
           rvalue,
           at op
@@ -607,11 +614,10 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
         { let _ = ir_push_ins(at op, ins_count); }
       }
       else if eq sym_type SYM_FUNC_ARG {
-        let arg: u64 = load64 + + symbol Symbol.token Token.v;
         OP_init(
           I_PUSH_LOCAL,
           type_base(at type),
-          * sizeof u64 + 1 arg,
+          load64 + symbol Symbol.local_id,
           NONE,
           at op
         );

@@ -213,6 +213,35 @@ fn type_is_container(type: ptr<Type>) -> u64 {
   eq type_base(type) TypePtr;
 }
 
+fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
+  dprintf(fd, "fn(", null);
+  let arg_index: u64 = 0;
+  let argc: u64 = load64 + func Func_signature.argc;
+  while < arg_index argc {
+    let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
+    _type_print(fd, arg_type);
+    store64 @arg_index + 1 arg_index;
+    if < arg_index argc {
+      dprintf(fd, ", ", null);
+    }
+  }
+  dprintf(fd, ") -> ", null);
+  _type_print(fd, cast ptr<Type> + func Func_signature.rtype);
+}
+
+fn func_signatures_print(fd: u64) -> none {
+  dprintf(fd, "func_signatures_print:\n", null);
+  let i = 0;
+  let count = load64 + c Compile.func_sig_count;
+  while < i count {
+    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature i;
+    dprintf(fd, "%d: ", @i);
+    func_signature_print(fd, func);
+    dprintf(fd, "\n", null);
+    store64 at i + 1 i;
+  }
+}
+
 fn type_print(fd: u64, type: ptr<Type>) -> none {
   // check if this is a container type
   if type_is_container(type) {
@@ -236,11 +265,8 @@ fn type_print(fd: u64, type: ptr<Type>) -> none {
     struct_type_info_print(fd, type_info, 1);
   }
   else if eq type_base(type) TypeFunc {
-    let args: any = (
-      load64 + @compile_type_str * sizeof cstr type_base(type),
-      type_sub_id(type)
-    );
-    dprintf(fd, "%s<%d>", @args);
+    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
+    func_signature_print(fd, func);
   }
   // primitive type
   else {
@@ -269,30 +295,6 @@ fn typecheck_print_types(fd: u64) -> none {
     dprintf(fd, "%d: ", @i);
     type_printline(fd, type);
     store64 @i + 1 i;
-  }
-}
-
-fn func_signatures_print(fd: u64) -> none {
-  dprintf(fd, "func_signatures_print:\n", null);
-  let i = 0;
-  let count = load64 + c Compile.func_sig_count;
-  while < i count {
-    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature i;
-    dprintf(fd, "%d: fn(", @i);
-    let arg_index: u64 = 0;
-    let argc: u64 = load64 + func Func_signature.argc;
-    while < arg_index argc {
-      let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
-      type_print(fd, arg_type);
-      store64 @arg_index + 1 arg_index;
-      if < arg_index argc {
-        dprintf(fd, ", ", null);
-      }
-    }
-    dprintf(fd, ") -> ", null);
-    type_print(fd, cast ptr<Type> + func Func_signature.rtype);
-    dprintf(fd, "\n", null);
-    store64 at i + 1 i;
   }
 }
 
@@ -520,16 +522,13 @@ fn func_signature_push(func: ptr<Func_signature>) -> u64 {
     store64 @id deref count;
     store64 count + 1 deref count;
   }
-  else {
-    store64 @id UINT64_MAX;
-  }
   id;
 }
 
-fn func_signature_add_arg(func: ptr<Func_signature>, arg: ptr<Type>) -> u64 {
+fn func_signature_add_arg(func: ptr<Func_signature>, arg: ptr<Type>, is_syscall_func: u64) -> u64 {
   let result = NoError;
   let argc = cast ptr<u64> + func Func_signature.argc;
-  if < deref argc MAX_FUNC_ARGC {
+  if or is_syscall_func < deref argc MAX_FUNC_ARGC { // hack: ignore bounds check if this is a syscall function
     memcpy(+ + func Func_signature.args * sizeof Type deref argc, arg, sizeof Type);
     store64 argc + 1 deref argc;
   }
@@ -541,6 +540,36 @@ fn func_signature_add_arg(func: ptr<Func_signature>, arg: ptr<Type>) -> u64 {
 
 fn func_signature_set_rtype(func: ptr<Func_signature>, rtype: ptr<Type>) -> none {
   memcpy(+ func Func_signature.rtype, rtype, sizeof Type);
+}
+
+fn func_signature_from_id(id: u64) -> ptr<Func_signature> {
+  let result = cast ptr<Func_signature> null;
+  if < id load64 + c Compile.func_sig_count {
+    store64 @result + + c Compile.func_signatures * sizeof Func_signature id;
+  }
+  result;
+}
+
+fn func_signatures_compare(a: ptr<Func_signature>, b: ptr<Func_signature>) -> u64 {
+  let result = 1;
+  if eq load64 + a Func_signature.argc load64 + b Func_signature.argc {
+    let i = 0;
+    let argc = load64 + a Func_signature.argc;
+    let done = 0;
+    while and eq done 0 < i argc {
+      let arg_a = cast ptr<Type> + + a Func_signature.args * sizeof Type i;
+      let arg_b = cast ptr<Type> + + b Func_signature.args * sizeof Type i;
+      if eq types_are_equal(arg_a, arg_b) 0 {
+        store64 @result 0;
+        store64 @done 1;
+      }
+      store64 @i + 1 i;
+    }
+  }
+  else {
+    store64 @result 0;
+  }
+  result;
 }
 
 fn is_numerical(type: ptr<Type>) -> u64 {
@@ -746,35 +775,6 @@ fn type_contract_from_type_node(block: ptr<Block>, fs: ptr<Function>, ast: ptr, 
       }
     }
     type_contract_stack_reset();
-  }
-  result;
-}
-
-fn check_func_signatures(a: ptr<Function>, b: ptr<Function>) -> u64 {
-  let result: u64 = 1;
-  if and
-    eq load64 + a Function.argc load64 + b Function.argc
-    types_are_equal(cast ptr<Type> + a Function.rtype, cast ptr<Type> + b Function.rtype) {
-
-    let i: u64 = 0;
-    let argc: u64 = load64 + a Function.argc;
-    let done: u64 = 0;
-    while and eq done 0 < i argc {
-      let arg_a: u64 = load64 + + a Function.argc * sizeof u64 i;
-      let arg_b: u64 = load64 + + b Function.argc * sizeof u64 i;
-      let type_a: Type = 0;
-      memcpy(at type_a, + + + c Compile.symbols * sizeof Symbol arg_a Symbol.type, sizeof Type);
-      let type_b: Type = 0;
-      memcpy(at type_b, + + + c Compile.symbols * sizeof Symbol arg_b Symbol.type, sizeof Type);
-      if eq types_are_equal(at type_a, at type_b) 0 {
-        store64 @result 0;
-        store64 @done 1;
-      }
-      store64 @i + 1 i;
-    }
-  }
-  else {
-    store64 @result 0;
   }
   result;
 }
@@ -1062,6 +1062,9 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
     let func_sig: Func_signature = 0;
     func_signature_init(at func_sig);
 
+    let func_type: Type = 0;
+    type_init(at func_type, TypeFunc, 0, sizeof ptr, 1);
+
     let explicit_rtype: Type = 0;
     type_init(at explicit_rtype, TypeNone, 0, 0, 1);
 
@@ -1071,15 +1074,12 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
       let symbol_index: u64 = UINT64_MAX;
       if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
         let local_block = block_push(cast ptr<Block> block);
-        let type: Type = 0;
-        type_init(at type, TypeFunc, symbol_index, sizeof ptr, 1);
         let type_size: u64 = compile_type_size(TypeFunc);
 
         store64 + symbol Symbol.imm UINT64_MAX;
         store64 + symbol Symbol.size type_size;
         store64 + symbol Symbol.konst 0;
         store64 + symbol Symbol.sym_type SYM_FUNC;
-        memcpy(+ symbol Symbol.type, at type, sizeof Type);
         store64 + + ast Ast.token Token.v symbol_index;
         memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
         let value = cast ptr<Value> + symbol Symbol.value;
@@ -1092,11 +1092,11 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
         store64 + func Function.locals_offset 0;
         type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size, 1);
 
-        let new_type_id: u64 = type_commit_new(at type); // TODO(lucas): handle error
-
         if neq rtype_node null {
           if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, at explicit_rtype, 1) NoError {
+            // explicit return type
             memcpy(+ func Function.rtype, at explicit_rtype, sizeof Type);
+            func_signature_set_rtype(at func_sig, at explicit_rtype);
           }
           else {
             typecheck_error_at(+ rtype_node Ast.token, "unknown or invalid return type in function definition\n", null);
@@ -1135,11 +1135,12 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
                 store64 + arg_symbol Symbol.imm UINT64_MAX;
                 store64 + arg_symbol Symbol.size size;
                 store64 + arg_symbol Symbol.konst 0;
+                store64 + arg_symbol Symbol.local_id + sizeof u64 * sizeof u64 i;
                 store64 + arg_symbol Symbol.sym_type SYM_FUNC_ARG;
                 memcpy(+ arg_symbol Symbol.type, at arg_type, sizeof Type);
                 memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
-                store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead
-                { let _ = func_signature_add_arg(at func_sig, at arg_type); }
+                store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead. TODO(lucas): remove this as it is not used anymore (not for function arguments anyway)
+                { let _ = func_signature_add_arg(at func_sig, at arg_type, 0); }
               }
             }
             else {
@@ -1153,10 +1154,19 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
           store64 @i + 1 i;
         }
 
-        let ts_count: u64 = load64 + c Compile.ts_count;
-        let func_body_block = block_push(local_block);
+        let func_sig_id = func_signature_push(at func_sig);
+        let func_sig_type = func_signature_from_id(func_sig_id);
 
+        store64 + at func_type Type.sub_id func_sig_id;
+
+        let new_type_id: u64 = type_commit_new(at func_type); // TODO(lucas): handle error
+        memcpy(+ symbol Symbol.type, at func_type, sizeof Type);
+
+        let ts_count: u64 = load64 + c Compile.ts_count;
+
+        let func_body_block = block_push(local_block);
         { let _ = typecheck_node_list(func_body_block, fs, body); }
+
         let konst_body: u64 = is_branch_konst_eval(body);
         store64 + body Ast.konst konst_body;
         store64 + ast Ast.konst konst_body;
@@ -1179,17 +1189,13 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
               // TODO(lucas): more detailed error message
               compile_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n");
             }
-            // explicit return type
-            func_signature_set_rtype(at func_sig, at explicit_rtype);
           }
           // type inference for the return type
           else {
             memcpy(+ func Function.rtype, at rtype, sizeof Type);
             // inferred return type
-            func_signature_set_rtype(at func_sig, at rtype);
+            func_signature_set_rtype(func_sig_type, at rtype);
           }
-
-          { let _ = func_signature_push(at func_sig); }
 
           if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
             store64 + symbol Symbol.ref_count + load64 + symbol Symbol.ref_count 1;
@@ -1228,7 +1234,10 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
     if or eq type_base(at type) TypeFunc eq type_base(at type) TypeSyscallFunc {
-      let argc: u64 = load64 + func Function.argc;
+
+      let func_sig = func_signature_from_id(type_sub_id(at type));
+
+      let argc: u64 = load64 + func_sig Func_signature.argc;
       if eq argc load64 + arg_list Ast.count {
         store64 + + symbol Symbol.token Token.v symbol_index; // TODO(lucas): store this in the symbol value field, or someplace else
         let done: u64 = 0;
@@ -1250,9 +1259,18 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
               let arg_symbol_index: u64 = load64 + + func Function.args * sizeof u64 i;
               let arg = cast ptr + + c Compile.symbols * sizeof Symbol arg_symbol_index;
               let arg_type: Type = 0;
-              memcpy(at arg_type, + arg Symbol.type, sizeof Type);
+              memcpy(at arg_type, + + func_sig Func_signature.args * sizeof Type i, sizeof Type);
 
-              if and
+              if eq type_base(at arg_type) TypeFunc {
+                let func_sig_a = func_signature_from_id(type_sub_id(at arg_type));
+                let func_sig_b = func_signature_from_id(type_sub_id(at arg_in_type));
+                if eq func_signatures_compare(func_sig_a, func_sig_b) 0 {
+                  // TODO(lucas): error message type strings
+                  typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", null);
+                  store64 @done 1;
+                }
+              }
+              else if and
                   neq types_are_equal(at arg_type, at arg_in_type) 1
                   neq type_base(at arg_type) TypeAny {
                 {
@@ -1279,7 +1297,7 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
         }
 
         let rtype: Type = 0;
-        memcpy(at rtype, + func Function.rtype, sizeof Type);
+        memcpy(at rtype, + func_sig Func_signature.rtype, sizeof Type);
         if neq type_base(at rtype) TypeNone {
           store64 + + symbol Symbol.value Value.konst 0;  // NOTE(lucas): temporary (why?)
           store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
@@ -1292,7 +1310,7 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
         tmp_push_cstr("function `");
         tmp_push_cstr(cast cstr + symbol Symbol.name);
         tmp_push_cstr("` takes ");
-        tmp_push_u64(load64 + func Function.argc);
+        tmp_push_u64(load64 + func_sig Func_signature.argc);
         tmp_push_cstr(" argument(s), but ");
         tmp_push_u64(load64 + arg_list Ast.count);
         tmp_push_cstr(" was given\n");
@@ -1479,7 +1497,9 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
       }
       else {
         if and eq type_base(at type) TypeFunc eq type_base(at prev_type) TypeFunc {
-          if eq check_func_signatures(cast ptr<Function> + at value Value.func, cast ptr<Function> + at prev_value Value.func) 0 {
+          let func_sig_a = func_signature_from_id(type_sub_id(at type));
+          let func_sig_b = func_signature_from_id(type_sub_id(at prev_type));
+          if eq func_signatures_compare(func_sig_a, func_sig_b) 0 {
             typecheck_error_at(+ ast Ast.token, "incompatible type in expression list\n", null);
             store64 @done 1;
           }

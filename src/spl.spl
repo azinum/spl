@@ -125,8 +125,8 @@ fn spl_start(filename: cstr) -> u64 {
                   let debug_fd: u64 = open(cast cstr @path, flags, mode);
                   if neq debug_fd ERROR {
                     // ast_print(load64 + @p Parser.ast, 0, debug_fd);
-                    // ir_print(debug_fd);
-                    func_signatures_print(debug_fd);
+                    ir_print(debug_fd);
+                    // func_signatures_print(debug_fd);
                     typecheck_print_types(debug_fd);
                     symbol_info_print(debug_fd);
                     compile_state_print(debug_fd);
