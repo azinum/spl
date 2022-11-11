@@ -200,8 +200,6 @@ fn compile_state_init -> u64 {
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
 
-  debug_info_init(cast ptr<Debug_info> + c Compile.info);
-
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
   store64 + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";

@@ -72,7 +72,6 @@ fn OP(i: u64, op: ptr<Op>) -> none {
   store64 + op Op.dest NONE;
   store64 + op Op.src0 NONE;
   store64 + op Op.src1 NONE;
-  debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
 fn OP_init(i: u64, dest: u64, src0: u64, src1: u64, op: ptr<Op>) -> none {
@@ -80,7 +79,6 @@ fn OP_init(i: u64, dest: u64, src0: u64, src1: u64, op: ptr<Op>) -> none {
   store64 + op Op.dest dest;
   store64 + op Op.src0 src0;
   store64 + op Op.src1 src1;
-  debug_info_copy(cast ptr<Debug_info> + op Op.info, cast ptr<Debug_info> + c Compile.info);
 }
 
 fn fetch_op(i: u64) -> ptr<Op> {
@@ -888,7 +886,6 @@ fn ir_compile_field_access(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
 
 fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let ast_type: u64 = load64 + ast Ast.type;
-  debug_info_update(cast ptr<Debug_info> + c Compile.info, cast ptr<Token> + ast Ast.token);
 
   if eq ast_type AstValue {
     { let _ = ir_compile_value(fs, ast, ins_count); }
