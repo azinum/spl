@@ -18,7 +18,7 @@ let parse_entry = parser_function;
 let expression  = parser_function;
 let statements  = parser_function;
 
-fn parser_error(message: cstr) -> none {
+fn parser_error(message: cstr, message_args: any) -> none {
   if eq load64 + @p Parser.status NoError {
     let args: any = (
       load64 + @token Token.filename,
@@ -30,7 +30,7 @@ fn parser_error(message: cstr) -> none {
     color_set(COLOR_EXTRA);
     dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
     color_reset();
-    dprintf(STDERR_FILENO, "%s", @message);
+    dprintf(STDERR_FILENO, message, message_args);
     printline(STDERR_FILENO, l.source, cast cstr load64 + @token Token.buffer, load64 + @token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + @p Parser.status Error;
   }
@@ -39,7 +39,8 @@ fn parser_error(message: cstr) -> none {
 fn expect_semicolon -> none {
   let type = load64 + @token Token.type;
   if neq type T_SEMICOLON {
-    parser_error("expected `;` semicolon, but got `?`\n");
+    let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+    parser_error("expected `;` semicolon, but got `%*s`\n", @args);
   }
   else {
     lexer_next(); // skip `;`
@@ -91,7 +92,8 @@ fn parse_field_access_expr -> ptr {
         lexer_next(); // skip identifier
       }
       else {
-        parser_error("expected identifier after `:` in field access expression, but got `?`\n");
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected identifier after `:` in field access expression, but got `%*s`\n", @args);
         store64 @done 1
       }
     }
@@ -135,7 +137,8 @@ fn parse_type -> ptr {
       store64 @sub_type parse_type();
       store64 @token_type load64 + @token Token.type;
       if neq token_type T_GT {
-        parser_error("expected closing `>` after sub type, but got `?`\n");
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `>` after sub type, but got `%*s`\n", @args);
       }
       lexer_next(); // skip `>`
     }
@@ -148,7 +151,8 @@ fn parse_type -> ptr {
       ast_push(type_expr, array_specifier_node);
       store64 @token_type load64 + @token Token.type;
       if neq token_type T_RIGHT_BRACKET {
-        parser_error("expected closing `]` in array specifier, but got `?`\n");
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `]` in array specifier, but got `%*s`\n", @args);
       }
       lexer_next(); // skip `]`
     }
@@ -182,7 +186,8 @@ fn parse_expr -> ptr {
       ast_push(expr, parse_expr_list());
       store64 @type lexer_token_type();
       if neq type T_RIGHT_P {
-        parser_error("expected closing `)` parenthesis in function call, but got `?`\n");
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `)` parenthesis in function call, but got `%*s`\n", @args);
       }
       else {
         lexer_next(); // skip `)`
@@ -227,7 +232,8 @@ fn parse_expr -> ptr {
       lexer_next(); // skip identifier
     }
     else {
-      parser_error("expected identifier after `@`, but got `?`\n");
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected identifier after `@` operator, but got `%*s`\n", @args);
     }
   }
   else if or or or or or or or or
@@ -264,7 +270,8 @@ fn parse_expr -> ptr {
       eq type T_IDENTIFIER;
 
     if eq ok 0 {
-      parser_error("expected type in sizeof operator, but got `?`\n");
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected type in sizeof operator, but got `%*s`\n", @args);
     }
     else {
       store64 @expr ast_create(AstSizeof);
@@ -277,14 +284,14 @@ fn parse_expr -> ptr {
     store64 @expr parse_expr();
     let type = load64 + @token Token.type;
     if neq type T_RIGHT_P {
-      parser_error("missing closing `)` parenthesis in expression\n");
+      parser_error("missing closing `)` parenthesis in expression\n", null);
     }
     else {
       lexer_next(); // skip `)`
     }
   }
   else if eq type T_RIGHT_P {
-    parser_error("unexpected closing `)` parenthesis in expression\n");
+    parser_error("unexpected closing `)` parenthesis in expression\n", null);
   }
   else if eq type T_CAST {
     store64 @expr ast_create(AstCastExpression);
@@ -299,7 +306,8 @@ fn parse_expr -> ptr {
     store64 @expr parse_field_access_expr();
   }
   else if neq type T_EOF {
-    parser_error("unexpected token `?` in expression\n");
+    let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+    parser_error("unexpected token `%*s` in expression\n", @args);
     store64 + @p Parser.status Error;
   }
   expr;
@@ -318,7 +326,8 @@ fn parse_ident_list -> ptr {
       lexer_next(); // skip identifier
     }
     else {
-      parser_error("expected identifier in identifier list, but got `?`\n");
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected identifier in identifier list, but got `%*s`\n", @args);
       store64 @done 1;
     }
 
@@ -347,7 +356,8 @@ fn parse_param_list -> ptr {
         lexer_next(); // skip argument identifier
         store64 @type lexer_token_type();
         if neq type T_COLON {
-          parser_error("expected `:` colon after argument identifier, but got `?`\n");
+          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected `:` colon after argument identifier, but got `%*s`\n", @args);
           store64 @done 1;
         }
         else {
@@ -356,7 +366,8 @@ fn parse_param_list -> ptr {
           memcpy(+ arg Ast.token, @ident, sizeof Token);
           let arg_type = parse_type();
           if eq arg_type null {
-            parser_error("expected type after `:`, but got `?`\n");
+            let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+            parser_error("expected type after `:`, but got `%*s`\n", @args);
             store64 @done 1;
           }
           else {
@@ -385,7 +396,8 @@ fn parse_struct -> ptr {
   lexer_next(); // skip `struct`
   let type = lexer_token_type();
   if neq type T_IDENTIFIER {
-    parser_error("expected identifier after `struct` token, but got `?`\n");
+    let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+    parser_error("expected identifier after `struct` token, but got `%*s`\n", @args);
   }
   else {
     memcpy(+ struct_expr Ast.token, @token, sizeof Token);
@@ -396,18 +408,18 @@ fn parse_struct -> ptr {
       let fields: ptr = parse_param_list();
       ast_push(struct_expr, fields);
       if eq load64 + fields Ast.count 0 {
-        parser_error("missing struct fields\n");
+        parser_error("missing struct fields\n", null);
       }
       else {
         store64 @type lexer_token_type();
         if neq type T_RIGHT_P {
-          parser_error("expected closing `)` parenthesis after struct field list, but got `?`\n");
+          parser_error("expected closing `)` parenthesis after struct field list, but got `?`\n", null);
         }
         lexer_next(); // skip `)`
       }
     }
     else {
-      parser_error("expected open `(` parenthesis to begin struct field list, but got `?`\n");
+      parser_error("expected open `(` parenthesis to begin struct field list, but got `?`\n", null);
     }
     expect_semicolon();
   }
@@ -424,7 +436,7 @@ fn parse_statement -> ptr {
     memcpy(@t, @token, sizeof Token);
     store64 @type load64 + @token Token.type;
     if neq type T_IDENTIFIER {
-      parser_error("expected identifier in let/const statement, but got `?`\n");
+      parser_error("expected identifier in let/const statement, but got `?`\n", null);
     }
     else {
       lexer_next(); // skip identifier
@@ -441,12 +453,12 @@ fn parse_statement -> ptr {
         lexer_next(); // skip `:`
         store64 @explicit_type parse_type();
         if eq explicit_type null {
-          parser_error("expected type after `:`, but got `?`\n");
+          parser_error("expected type after `:`, but got `?`\n", null);
         }
         else {
           store64 @type load64 + + explicit_type Ast.token Token.type;
           if eq type T_NONE {
-            parser_error("explicit type cannot be `none`\n");
+            parser_error("explicit type cannot be `none`\n", null);
           }
         }
       }
@@ -461,7 +473,7 @@ fn parse_statement -> ptr {
           ast_push(stmt, parse_expr_list());
           store64 @type load64 + @token Token.type;
           if neq type T_RIGHT_P {
-            parser_error("expected closing `)` parenthesis in expression list, but got `?`\n");
+            parser_error("expected closing `)` parenthesis in expression list, but got `?`\n", null);
           }
           lexer_next(); // skip `)`
         }
@@ -470,7 +482,7 @@ fn parse_statement -> ptr {
         }
       }
       else {
-        parser_error("expected `=` in let/const statement, but got `?`\n");
+        parser_error("expected `=` in let/const statement, but got `?`\n", null);
       }
       ast_push(stmt, explicit_type);
       expect_semicolon();
@@ -484,7 +496,7 @@ fn parse_statement -> ptr {
       ast_push(stmt, sub_stmts);
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in block, but got `?`\n");
+        parser_error("expected closing `}` curly bracket in block, but got `?`\n", null);
       }
       else {
         lexer_next(); // skip `}`
@@ -523,7 +535,7 @@ fn parse_statement -> ptr {
       ast_push(stmt, statements());
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in while statement body, but got `?`\n");
+        parser_error("expected closing `}` curly bracket in while statement body, but got `?`\n", null);
       }
       else {
         lexer_next(); // skip `}`
@@ -547,7 +559,7 @@ fn parse_statement -> ptr {
       ast_push(stmt, statements());
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in if statement body, but got `?`\n");
+        parser_error("expected closing `}` curly bracket in if statement body, but got `?`\n", null);
       }
       else {
         lexer_next(); // skip `}`
@@ -568,7 +580,7 @@ fn parse_statement -> ptr {
         ast_push(stmt, statements()); // parse else body
         store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_CURLY {
-          parser_error("expected closing `}` curly bracket in else body, but got `?`\n");
+          parser_error("expected closing `}` curly bracket in else body, but got `?`\n", null);
         }
         else {
           lexer_next(); // skip `}`
@@ -586,7 +598,7 @@ fn parse_statement -> ptr {
     lexer_next(); // skip `enum`
     let type_branch: ptr = parse_type();
     if eq type_branch null {
-      parser_error("expected type in enum expression, but got `?`\n");
+      parser_error("expected type in enum expression, but got `?`\n", null);
     }
     else {
       ast_push(stmt, type_branch);
@@ -596,7 +608,7 @@ fn parse_statement -> ptr {
         ast_push(stmt, parse_ident_list());
         store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_P {
-          parser_error("expected closing `)` parenthesis in enum expression, but got `?`\n");
+          parser_error("expected closing `)` parenthesis in enum expression, but got `?`\n", null);
         }
         lexer_next(); // skip `)`
       }
@@ -616,7 +628,7 @@ fn parse_statement -> ptr {
     ast_push(stmt, parse_expr());
     store64 @type load64 + @token Token.type;
     if neq type T_CSTRING {
-      parser_error("expected string in static assert statement, but got `?`\n");
+      parser_error("expected string in static assert statement, but got `?`\n", null);
     }
     else {
       let node = ast_create(AstValue);
@@ -640,7 +652,7 @@ fn parse_func_def -> ptr {
   lexer_next(); // skip `fn`
   store64 @type lexer_token_type();
   if neq type T_IDENTIFIER {
-    parser_error("expected identifier after `fn`, but got `?`\n");
+    parser_error("expected identifier after `fn`, but got `?`\n", null);
   }
   else {
     store64 @func ast_create(AstFuncDefinition);
@@ -654,7 +666,7 @@ fn parse_func_def -> ptr {
       ast_push(func, parse_param_list());
       store64 @type lexer_token_type();
       if neq type T_RIGHT_P {
-        parser_error("expected closing `)` parenthesis in function parameter list, but got `?`\n");
+        parser_error("expected closing `)` parenthesis in function parameter list, but got `?`\n", null);
       }
       lexer_next();
     }
@@ -668,7 +680,7 @@ fn parse_func_def -> ptr {
       lexer_next(); // skip `->`
       store64 @rtype parse_type();
       if eq rtype null {
-        parser_error("expected type after `->`, but got `?`\n");
+        parser_error("expected type after `->`, but got `?`\n", null);
       }
     }
     // parse function body
@@ -678,7 +690,7 @@ fn parse_func_def -> ptr {
       ast_push(func, statements());
       store64 @type lexer_token_type();
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in function body, but got `?`\n");
+        parser_error("expected closing `}` curly bracket in function body, but got `?`\n", null);
       }
       lexer_next(); // skip `}`
     }
@@ -761,7 +773,7 @@ fn parse_include -> ptr {
           tmp_push_cstr("failed to include source file `");
           tmp_push_str(path, path_length);
           tmp_push_cstr("`\n");
-          parser_error(message);
+          parser_error(message, null);
           store64 @tmp_it message;
         }
       }
@@ -771,7 +783,7 @@ fn parse_include -> ptr {
     }
   }
   else {
-    parser_error("expected string after `include` keyword\n");
+    parser_error("expected string after `include` keyword\n", null);
   }
   include_body;
 }

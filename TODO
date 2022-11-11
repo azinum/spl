@@ -26,3 +26,4 @@
 - support printing of arbitrarily long strings in printf functions
 - convert the list of function signatures to a set, so that there will be no duplicates in the list of function signatures
 	- this makes for simpler comparisons of types because then simply calling types_are_equal will be sufficient
+- error printing of expected keywords in parser

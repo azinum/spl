@@ -355,7 +355,7 @@ fn bwrite_str(mem: ptr, end: ptr, str: cstr, length: u64) -> u64 {
   let result: u64 = 0;
   if > length 0 {
     if eq end null {
-      store64 @result write_cstr(mem, str);
+      store64 @result write_str(mem, cast ptr str, length);
     }
     else {
       if < mem end {

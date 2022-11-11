@@ -1,14 +1,6 @@
 // main.spl
 
-// include "lib/common.spl"
-// include "lib/hash.spl"
-
-fn f(x: u64) -> u64 * x x;
-fn g(x: u64) -> u64 + x x;
-
-fn invoke(func: f) -> none {
-  print func(3);
-}
+include "lib/common.spl"
 
 fn main -> none {
 }

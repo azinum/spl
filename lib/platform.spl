@@ -77,7 +77,6 @@ fn putsn(fd: u64, str: any, n: u64) -> none {
   write(fd, str, n);
 }
 
-// TODO(lucas): writing n characters of string
 fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
   let result = 0;
   let it = str; // string iterator
@@ -132,6 +131,19 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
         store64 @it + it bwrite_u64(it, end, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;
       }
+      else if eq ch '*' {
+        let length: u64 = load64 arg;
+        store64 @arg + sizeof ptr arg;
+        store64 @fit + 1 fit;
+        store8 @ch load8 fit;
+        if eq ch 's' {
+          store64 @it + it bwrite_str(it, end, cast cstr load64 arg, length);
+        }
+        else {
+          // ignore
+        }
+        store64 @arg + sizeof ptr arg;
+      }
       else {
         store64 @it + it bwrite_u8(it, end, cast u8 ch);
       }
@@ -154,7 +166,7 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
 }
 
 fn _sprintf(str: ptr, format: cstr, args: any) -> u64 {
-  snprintf(str, UINT64_MAX, format, args);
+  snprintf(str, cast u64 UINT32_MAX, format, args);
 }
 
 fn sprintf(str: ptr, format: cstr, args: any) -> none {

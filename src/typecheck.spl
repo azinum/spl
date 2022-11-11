@@ -208,11 +208,6 @@ fn struct_type_info_printline(fd: u64, info: ptr<Struct_type_info>, flat: u64) -
   dprintf(fd, "\n", null);
 }
 
-// for now `ptr` is the only type that is a container i.e. a type that can contain other types
-fn type_is_container(type: ptr<Type>) -> u64 {
-  eq type_base(type) TypePtr;
-}
-
 fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
   dprintf(fd, "(", null);
   let arg_index: u64 = 0;
@@ -240,6 +235,11 @@ fn func_signatures_print(fd: u64) -> none {
     dprintf(fd, "\n", null);
     store64 at i + 1 i;
   }
+}
+
+// for now `ptr` is the only type that is a container i.e. a type that can contain other types
+fn type_is_container(type: ptr<Type>) -> u64 {
+  eq type_base(type) TypePtr;
 }
 
 fn type_print(fd: u64, type: ptr<Type>) -> none {
@@ -1113,7 +1113,6 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
           let arg_symbol: ptr = null;
           let arg_symbol_index: u64 = UINT64_MAX;
           if eq compile_declare_value(local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
-            store64 + + func Function.args * sizeof u64 i arg_symbol_index;
             let arg_type: Type = 0;
 
             let arg_type_node: ptr = cast ptr load64 + + arg_node Ast.node * sizeof ptr 0;
@@ -1252,13 +1251,10 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
               // which is why this is here instead of outside the loop
             }
             else {
-              // Symbol* arg = &c->symbols[func->args[i]];
-              let arg_symbol_index: u64 = load64 + + func Function.args * sizeof u64 i;
-              let arg = cast ptr + + c Compile.symbols * sizeof Symbol arg_symbol_index;
               let arg_type: Type = 0;
               memcpy(at arg_type, + + func_sig Func_signature.args * sizeof Type i, sizeof Type);
 
-              if eq type_base(at arg_type) TypeFunc {
+              if and eq type_base(at arg_type) TypeFunc eq type_base(at arg_in_type) TypeFunc {
                 let func_sig_a = func_signature_from_id(type_sub_id(at arg_type));
                 let func_sig_b = func_signature_from_id(type_sub_id(at arg_in_type));
                 if eq func_signatures_compare(func_sig_a, func_sig_b) 0 {
@@ -1270,15 +1266,8 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
               else if and
                   neq types_are_equal(at arg_type, at arg_in_type) 1
                   neq type_base(at arg_type) TypeAny {
-                {
-                  // TODO(lucas): error message type strings
-                  typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", null);
-                }
-                store64 + c Compile.status NoError; // to print additional error message
-                {
-                  let args: any = + symbol Symbol.name;
-                  typecheck_error_at(+ arg Symbol.token, "from function `%s`\n", @args);
-                }
+                // TODO(lucas): error message type strings
+                typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", null);
                 store64 @done 1;
               }
             }

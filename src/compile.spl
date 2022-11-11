@@ -90,7 +90,6 @@ fn compile_create_value(name: cstr, value: ptr<Value>, type: ptr<Type>) -> u64 {
     compile_error("out of immediate data memory\n");
     store64 @result Error;
   }
-
   result;
 }
 

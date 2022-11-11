@@ -5,7 +5,6 @@ struct Function (
   label:         u64,
   argc:          u64,
   locals_offset: u64,
-  args:          u64[MAX_FUNC_ARGC]
 );
 
 struct Value (
