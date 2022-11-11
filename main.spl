@@ -3,30 +3,12 @@
 // include "lib/common.spl"
 // include "lib/hash.spl"
 
-fn stub(x: u64) -> u64 0;
 fn f(x: u64) -> u64 * x x;
 fn g(x: u64) -> u64 + x x;
-
-fn h(n: u64) {
-  let result = stub;
-  if eq n 0 {
-    store64 @result f;
-  }
-  else {
-    store64 @result g;
-  }
-  result;
-}
 
 fn invoke(func: f) -> none {
   print func(3);
 }
 
 fn main -> none {
-  invoke(f);
-  invoke(g);
-  let a = h(0);
-  let b = h(1);
-  print a(12);
-  print b(12);
 }

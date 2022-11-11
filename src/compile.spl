@@ -46,7 +46,6 @@ fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
     store64 + func Function.label UINT64_MAX;
     store64 + func Function.argc + 1 argc;
     store64 + func Function.locals_offset 0;
-    type_init(cast ptr<Type> + func Function.rtype, TypeUnsigned64, 0, sizeof u64, 1);
   }
   else {
     compile_error("symbol already exists\n");
@@ -206,7 +205,6 @@ fn compile_state_init -> u64 {
 
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
-  store64 + @ir_code_str * I_MOVE               sizeof cstr "I_MOVE";
   store64 + @ir_code_str * I_MOVE_LOCAL         sizeof cstr "I_MOVE_LOCAL";
   store64 + @ir_code_str * I_STORE64            sizeof cstr "I_STORE64";
   store64 + @ir_code_str * I_STORE32            sizeof cstr "I_STORE32";

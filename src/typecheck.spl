@@ -214,7 +214,7 @@ fn type_is_container(type: ptr<Type>) -> u64 {
 }
 
 fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
-  dprintf(fd, "fn(", null);
+  dprintf(fd, "(", null);
   let arg_index: u64 = 0;
   let argc: u64 = load64 + func Func_signature.argc;
   while < arg_index argc {
@@ -1090,12 +1090,10 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
         store64 + func Function.label symbol_index;
         store64 + func Function.argc argc;
         store64 + func Function.locals_offset 0;
-        type_init(cast ptr<Type> + func Function.rtype, TypeNone, 0, type_size, 1);
 
         if neq rtype_node null {
           if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, at explicit_rtype, 1) NoError {
             // explicit return type
-            memcpy(+ func Function.rtype, at explicit_rtype, sizeof Type);
             func_signature_set_rtype(at func_sig, at explicit_rtype);
           }
           else {
@@ -1192,7 +1190,6 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
           }
           // type inference for the return type
           else {
-            memcpy(+ func Function.rtype, at rtype, sizeof Type);
             // inferred return type
             func_signature_set_rtype(func_sig_type, at rtype);
           }
@@ -1983,7 +1980,7 @@ fn typecheck(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
       ts_pop(at expr_type);
       let cast_type: Type = 0;
       { let _ = type_contract_from_type_node(block, fs, type_expr, TYPE_CONTRACT_CREATE, at cast_type, 0); }
-      if and neq type_base(at cast_type) TypeNone neq type_base(at cast_type) TypeFunc {
+      if neq type_base(at cast_type) TypeNone {
         ts_push(at cast_type, cast ptr<Type> null);
       }
       else {

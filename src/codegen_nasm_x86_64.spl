@@ -98,64 +98,29 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       vo(fd, "; I_POP\n", null);
       o(fd, "pop rax\n", null);
     }
-    else if eq ins I_MOVE {
-      vo(fd, "; I_MOVE\n", null);
-      vo_debug(fd, op);
-      let dest: u64 = load64 + op Op.dest;
-      let args: any = load64 + op Op.src0, load64 + op Op.src1;
-      if or or or or
-          eq dest TypeAny
-          eq dest TypePtr
-          eq dest TypeCString
-          eq dest TypeFunc
-          eq dest TypeUnsigned64 {
-        o(fd, "pop rax\n", null);
-        o(fd, "mov [v%d+%d], rax\n", @args);
-      }
-      else if eq dest TypeUnsigned32 {
-        o(fd, "pop rax\n", null);
-        o(fd, "mov [v%d+%d], eax\n", @args);
-      }
-      else if eq dest TypeUnsigned16 {
-        o(fd, "pop rax\n", null);
-        o(fd, "mov [v%d+%d], ax\n", @args);
-      }
-      else if eq dest TypeUnsigned8 {
-        o(fd, "pop rax\n", null);
-        o(fd, "mov [v%d+%d], al\n", @args);
-      }
-      else {
-        assert(0, "I_MOVE: type not implemented yet\n");
-      }
-    }
     else if eq ins I_MOVE_LOCAL {
       vo(fd, "; I_MOVE_LOCAL\n", null);
       vo_debug(fd, op);
-      let dest: u64 = load64 + op Op.dest;
-      let args: any = (load64 + op Op.src0);
-      if or or or or
-          eq dest TypeAny
-          eq dest TypePtr
-          eq dest TypeCString
-          eq dest TypeFunc
-          eq dest TypeUnsigned64 {
+      let size: u64 = load64 + op Op.dest;
+      let local_id: u64 = load64 + op Op.src0;
+      if eq size 1 {
         o(fd, "pop rax\n", null);
-        o(fd, "mov QWORD [rbp-%d], rax\n", @args);
+        o(fd, "mov BYTE [rbp-%d], al\n", @local_id);
       }
-      else if eq dest TypeUnsigned32 {
+      else if eq size 2 {
         o(fd, "pop rax\n", null);
-        o(fd, "mov DWORD [rbp-%d], eax\n", @args);
+        o(fd, "mov WORD [rbp-%d], ax\n", @local_id);
       }
-      else if eq dest TypeUnsigned16 {
+      else if eq size 4 {
         o(fd, "pop rax\n", null);
-        o(fd, "mov WORD [rbp-%d], ax\n", @args);
+        o(fd, "mov DWORD [rbp-%d], eax\n", @local_id);
       }
-      else if eq dest TypeUnsigned8 {
+      else if eq size 8 {
         o(fd, "pop rax\n", null);
-        o(fd, "mov BYTE [rbp-%d], al\n", @args);
+        o(fd, "mov QWORD [rbp-%d], rax\n", @local_id);
       }
       else {
-        assert(0, "I_MOVE_LOCAL: type not implemented yet\n");
+        assert(0, "I_MOVE_LOCAL: move of this size not implemented yet\n");
       }
     }
     else if eq ins I_STORE64 {

@@ -1,6 +1,5 @@
 // info.spl
 
-// TODO(lucas): cleanup
 fn symbol_info_print(fd: u64) -> none {
   dprintf(fd, "print_symbol_info:\n", null);
   let message = cast cstr tmp_it;
@@ -21,34 +20,9 @@ fn symbol_info_print(fd: u64) -> none {
       }
       dprintf(fd, "%d: ", @i);
       if eq type_base(at type) TypeFunc {
-        let func = cast ptr + + symbol Symbol.value Value.func;
-        dprintf(fd, "%s(", @name);
-
-        // iterate args
-        let arg_index: u64 = 0;
-        let arg_count: u64 = load64 + func Function.argc;
-        while < arg_index arg_count {
-          // Symbol* arg = &c->symbols[func->args[arg_index]];
-          let arg = cast ptr + + c Compile.symbols * sizeof Symbol load64 + + func Function.args * sizeof u64 arg_index;
-          let arg_type: Type = 0;
-          memcpy(at arg_type, + arg Symbol.type, sizeof Type);
-          let arg_type_id = type_lookup(at arg_type);
-          let type_size: u64 = compile_type_size(arg_type_id);
-          if eq type_size 0 {
-            store64 @type_size 1;
-          }
-          type_print(fd, at arg_type);
-
-          if neq arg_index - arg_count 1 {
-            dprintf(fd, ", ", null);
-          }
-          store64 @arg_index + 1 arg_index;
-        }
-        let rtype: Type = 0;
-        memcpy(at rtype, + func Function.rtype, sizeof Type);
-
-        dprintf(fd, ") -> ", null);
-        type_print(fd, at rtype);
+        let func_sig = func_signature_from_id(type_sub_id(at type));
+        dprintf(fd, "%s", @name);
+        func_signature_print(fd, func_sig);
       }
       else {
         let args: any = name;

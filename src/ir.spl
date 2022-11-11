@@ -4,8 +4,7 @@
 enum u64 (
   I_NOP,
   I_POP,
-  I_MOVE, // <id, offset, x>
-  I_MOVE_LOCAL, // <local_id, x, x>
+  I_MOVE_LOCAL, // <size, local_id, x>
   I_STORE64,
   I_STORE32,
   I_STORE16,
@@ -457,7 +456,7 @@ fn ir_compile_let_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) ->
             let op: Op = 0;
             OP_init(
               I_MOVE_LOCAL,
-              type_base(type),
+              type_size,
               local_index,
               NONE,
               at op
@@ -636,7 +635,7 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
       }
     }
     else if eq type_base(at type) TypeSyscallFunc {
-      let syscall_map: u64 = (
+      const syscall_map: u64 = (
         I_SYSCALL0,
         I_SYSCALL1,
         I_SYSCALL2,
@@ -645,7 +644,8 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
         I_SYSCALL5,
         I_SYSCALL6
       );
-      OP(load64 + @syscall_map * sizeof u64 - load64 + func Function.argc 1, at op);
+      let func_sig = func_signature_from_id(type_sub_id(at type));
+      OP(load64 + @syscall_map * sizeof u64 - load64 + func_sig Func_signature.argc 1, at op);
       { let _ = ir_push_ins(at op, ins_count); }
     }
     else {
