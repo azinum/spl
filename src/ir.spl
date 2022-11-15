@@ -900,47 +900,47 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   else if eq ast_type AstBinopExpression {
     let op: Op = 0;
     if eq ir_compile_binop(fs, ast, ins_count) NoError {
-      let type: u64 = load64 + + ast Ast.token Token.type;
-      if eq type T_ADD {
+      let token_type: u64 = load64 + + ast Ast.token Token.type;
+      if eq token_type T_ADD {
         OP(I_ADD, at op);
       }
-      else if eq type T_SUB {
+      else if eq token_type T_SUB {
         OP(I_SUB, at op);
       }
-      else if eq type T_MUL {
+      else if eq token_type T_MUL {
         OP(I_MUL, at op);
       }
-      else if eq type T_DIV {
+      else if eq token_type T_DIV {
         OP(I_DIV, at op);
       }
-      else if eq type T_DIVMOD {
+      else if eq token_type T_DIVMOD {
         OP(I_DIVMOD, at op);
       }
-      else if eq type T_LSHIFT {
+      else if eq token_type T_LSHIFT {
         OP(I_LSHIFT, at op);
       }
-      else if eq type T_RSHIFT {
+      else if eq token_type T_RSHIFT {
         OP(I_RSHIFT, at op);
       }
-      else if eq type T_LT {
+      else if eq token_type T_LT {
         OP(I_LT, at op);
       }
-      else if eq type T_GT {
+      else if eq token_type T_GT {
         OP(I_GT, at op);
       }
-      else if eq type T_AND {
+      else if eq token_type T_AND {
         OP(I_AND, at op);
       }
-      else if eq type T_OR {
+      else if eq token_type T_OR {
         OP(I_OR, at op);
       }
-      else if eq type T_XOR {
+      else if eq token_type T_XOR {
         OP(I_XOR, at op);
       }
-      else if eq type T_EQ {
+      else if eq token_type T_EQ {
         OP(I_EQ, at op);
       }
-      else if eq type T_NEQ {
+      else if eq token_type T_NEQ {
         OP(I_NEQ, at op);
       }
       else {

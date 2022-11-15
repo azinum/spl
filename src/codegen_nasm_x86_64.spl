@@ -718,9 +718,12 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         let v: u64 = 0;
         while < v count {
           let value: u64 = load64 + + c Compile.imm imm;
-          o(fd, " %d,", @value);
+          o(fd, " %d", @value);
           store64 @imm - imm size;
           store64 @v + 1 v;
+          if < v count {
+            o(fd, ",", null);
+          }
         }
         vo(fd, " ; `%s`", @name);
         o(fd, "\n", null);

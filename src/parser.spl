@@ -413,13 +413,15 @@ fn parse_struct -> ptr {
       else {
         store64 @type lexer_token_type();
         if neq type T_RIGHT_P {
-          parser_error("expected closing `)` parenthesis after struct field list, but got `?`\n", null);
+          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected closing `)` parenthesis after struct field list, but got `%*s`\n", @args);
         }
         lexer_next(); // skip `)`
       }
     }
     else {
-      parser_error("expected open `(` parenthesis to begin struct field list, but got `?`\n", null);
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected open `(` parenthesis to begin struct field list, but got `%*s`\n", @args);
     }
     expect_semicolon();
   }
@@ -436,7 +438,8 @@ fn parse_statement -> ptr {
     memcpy(@t, @token, sizeof Token);
     store64 @type load64 + @token Token.type;
     if neq type T_IDENTIFIER {
-      parser_error("expected identifier in let/const statement, but got `?`\n", null);
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected identifier in let/const statement, but got `%*s`\n", @args);
     }
     else {
       lexer_next(); // skip identifier
@@ -453,7 +456,8 @@ fn parse_statement -> ptr {
         lexer_next(); // skip `:`
         store64 @explicit_type parse_type();
         if eq explicit_type null {
-          parser_error("expected type after `:`, but got `?`\n", null);
+          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected type after `:`, but got `%*s`\n", @args);
         }
         else {
           store64 @type load64 + + explicit_type Ast.token Token.type;
@@ -473,7 +477,8 @@ fn parse_statement -> ptr {
           ast_push(stmt, parse_expr_list());
           store64 @type load64 + @token Token.type;
           if neq type T_RIGHT_P {
-            parser_error("expected closing `)` parenthesis in expression list, but got `?`\n", null);
+            let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+            parser_error("expected closing `)` parenthesis in expression list, but got `%*s`\n", @args);
           }
           lexer_next(); // skip `)`
         }
@@ -482,7 +487,8 @@ fn parse_statement -> ptr {
         }
       }
       else {
-        parser_error("expected `=` in let/const statement, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected `=` in let/const statement, but got `%*s`\n", @args);
       }
       ast_push(stmt, explicit_type);
       expect_semicolon();
@@ -496,7 +502,8 @@ fn parse_statement -> ptr {
       ast_push(stmt, sub_stmts);
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in block, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `}` curly bracket in block, but got `%*s`\n", @args);
       }
       else {
         lexer_next(); // skip `}`
@@ -535,7 +542,8 @@ fn parse_statement -> ptr {
       ast_push(stmt, statements());
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in while statement body, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `}` curly bracket in while statement body, but got `%*s`\n", @args);
       }
       else {
         lexer_next(); // skip `}`
@@ -559,7 +567,8 @@ fn parse_statement -> ptr {
       ast_push(stmt, statements());
       store64 @type load64 + @token Token.type;
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in if statement body, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `}` curly bracket in if statement body, but got `%*s`\n", @args);
       }
       else {
         lexer_next(); // skip `}`
@@ -580,7 +589,8 @@ fn parse_statement -> ptr {
         ast_push(stmt, statements()); // parse else body
         store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_CURLY {
-          parser_error("expected closing `}` curly bracket in else body, but got `?`\n", null);
+          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected closing `}` curly bracket in else body, but got `%*s`\n", @args);
         }
         else {
           lexer_next(); // skip `}`
@@ -598,7 +608,8 @@ fn parse_statement -> ptr {
     lexer_next(); // skip `enum`
     let type_branch: ptr = parse_type();
     if eq type_branch null {
-      parser_error("expected type in enum expression, but got `?`\n", null);
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected type in enum expression, but got `%*s`\n", @args);
     }
     else {
       ast_push(stmt, type_branch);
@@ -608,7 +619,8 @@ fn parse_statement -> ptr {
         ast_push(stmt, parse_ident_list());
         store64 @type load64 + @token Token.type;
         if neq type T_RIGHT_P {
-          parser_error("expected closing `)` parenthesis in enum expression, but got `?`\n", null);
+          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected closing `)` parenthesis in enum expression, but got `%*s`\n", @args);
         }
         lexer_next(); // skip `)`
       }
@@ -628,7 +640,8 @@ fn parse_statement -> ptr {
     ast_push(stmt, parse_expr());
     store64 @type load64 + @token Token.type;
     if neq type T_CSTRING {
-      parser_error("expected string in static assert statement, but got `?`\n", null);
+      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected string in static assert statement, but got `%*s`\n", @args);
     }
     else {
       let node = ast_create(AstValue);
@@ -652,7 +665,8 @@ fn parse_func_def -> ptr {
   lexer_next(); // skip `fn`
   store64 @type lexer_token_type();
   if neq type T_IDENTIFIER {
-    parser_error("expected identifier after `fn`, but got `?`\n", null);
+    let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+    parser_error("expected identifier after `fn`, but got `%*s`\n", @args);
   }
   else {
     store64 @func ast_create(AstFuncDefinition);
@@ -666,7 +680,8 @@ fn parse_func_def -> ptr {
       ast_push(func, parse_param_list());
       store64 @type lexer_token_type();
       if neq type T_RIGHT_P {
-        parser_error("expected closing `)` parenthesis in function parameter list, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `)` parenthesis in function parameter list, but got `%*s`\n", @args);
       }
       lexer_next();
     }
@@ -680,7 +695,8 @@ fn parse_func_def -> ptr {
       lexer_next(); // skip `->`
       store64 @rtype parse_type();
       if eq rtype null {
-        parser_error("expected type after `->`, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected type after `->`, but got `%*s`\n", @args);
       }
     }
     // parse function body
@@ -690,7 +706,8 @@ fn parse_func_def -> ptr {
       ast_push(func, statements());
       store64 @type lexer_token_type();
       if neq type T_RIGHT_CURLY {
-        parser_error("expected closing `}` curly bracket in function body, but got `?`\n", null);
+        let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
+        parser_error("expected closing `}` curly bracket in function body, but got `%*s`\n", @args);
       }
       lexer_next(); // skip `}`
     }
@@ -768,13 +785,9 @@ fn parse_include -> ptr {
           memcpy(@token, @token_copy, sizeof Token);
         }
         else {
-          let message = "";
-          store64 @message tmp_it;
-          tmp_push_cstr("failed to include source file `");
-          tmp_push_str(path, path_length);
-          tmp_push_cstr("`\n");
-          parser_error(message, null);
-          store64 @tmp_it message;
+          // FIXME: this error points at the wrong location
+          let args: any = path_length, path;
+          parser_error("failed to include source file `%*s`\n", @args);
         }
       }
       else {
