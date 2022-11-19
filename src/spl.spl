@@ -21,7 +21,6 @@ const platform = PLATFORM_LINUX;
 let envp = null;
 
 include "src/config.spl"
-include "src/common.spl"
 include "src/misc.spl"
 include "src/lexer.spl"
 include "src/type.spl"

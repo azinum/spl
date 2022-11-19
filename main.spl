@@ -1,7 +1,9 @@
 // main.spl
 
 // include "lib/common.spl"
-include "a.spl"
+
+fn add(a: u64, b: u64) -> u64 + a b;
 
 fn main -> none {
+  print add(1, 2);
 }

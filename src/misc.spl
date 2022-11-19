@@ -74,3 +74,63 @@ fn printline(fd: u64, source: cstr, index: cstr, token_length: u64, print_arrow:
   }
   dprintf(fd, "\n", null);
 }
+
+fn HERE dprintf(STDOUT_FILENO, "HERE\n", null);
+
+fn err(message: cstr) -> none {
+  color_set(COLOR_ERROR);
+  dprintf(STDERR_FILENO, "[error]: ", null);
+  color_reset();
+  dprintf(STDERR_FILENO, "%s", @message);
+}
+
+fn error(message: cstr, args: any) -> none {
+  color_set(COLOR_ERROR);
+  dprintf(STDERR_FILENO, "[error]: ", null);
+  color_reset();
+  dprintf(STDERR_FILENO, message, args);
+}
+
+fn print_info(message: cstr) -> none {
+  if load64 + @options Options.verbose {
+    color_set(COLOR_INFO);
+    dprintf(STDOUT_FILENO, "[info]: ", null);
+    color_reset();
+    dprintf(STDOUT_FILENO, message, null);
+  }
+}
+
+fn exec_command_echoed(fd: u64, command_list: ptr, envp: ptr) -> none {
+  if load64 + @options Options.verbose {
+    let it = command_list;
+    let done: u64 = 0;
+    color_set(COLOR_INFO);
+    dprintf(fd, "[cmd]: ", null);
+    color_reset();
+    while eq done 0 {
+      if eq load64 it null {
+        store64 @done 1;
+      }
+      else {
+        dprintf(fd, "%s ", it);
+        store64 @it + sizeof cstr it;
+      }
+    }
+    dprintf(fd, "\n", null);
+  }
+  exec_command(command_list, envp);
+}
+
+fn get_time(spec: ptr<Timespec>) -> none {
+  let _ = clock_gettime(CLOCK_MONOTONIC, spec);
+}
+
+fn print_time_elapsed(message: cstr, time_start: ptr<Timespec>, time_end: ptr<Timespec>) -> none {
+  let nanoseconds = - load64 + time_end Timespec.tv_nsec load64 + time_start Timespec.tv_nsec;
+  let seconds =     - load64 + time_end Timespec.tv_sec  load64 + time_start Timespec.tv_sec;
+  let ms = + * 1000 seconds / nanoseconds 1000000;
+  let info = tmp_it;
+  let args: any = message, ms;
+  sprintf(cast ptr info, "%s %d ms\n", @args);
+  print_info(cast cstr info);
+}
