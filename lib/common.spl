@@ -482,4 +482,3 @@ fn first_dot(str: cstr) -> cstr {
 
 include "lib/platform.spl"
 include "lib/memory.spl"
-include "lib/colors.spl"

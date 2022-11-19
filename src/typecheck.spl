@@ -1285,7 +1285,6 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
         let rtype: Type = 0;
         memcpy(at rtype, + func_sig Func_signature.rtype, sizeof Type);
         if neq type_base(at rtype) TypeNone {
-          store64 + + symbol Symbol.value Value.konst 0;  // NOTE(lucas): temporary (why?)
           store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
           { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
           ts_push(at rtype, cast ptr<Type> null);
@@ -1293,16 +1292,9 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
       }
       else {
         let message = cast cstr tmp_it;
-        tmp_push_cstr("function `");
-        tmp_push_cstr(cast cstr + symbol Symbol.name);
-        tmp_push_cstr("` takes ");
-        tmp_push_u64(load64 + func_sig Func_signature.argc);
-        tmp_push_cstr(" argument(s), but ");
-        tmp_push_u64(load64 + arg_list Ast.count);
-        tmp_push_cstr(" was given\n");
-        tmp_push_byte(cast u8 0);
+        let args: any = + symbol Symbol.name, load64 + func_sig Func_signature.argc, load64 + arg_list Ast.count;
+        sprintf(cast ptr message, "function `%s` takes %d argument(s), but %d was given\n", @args);
         compile_error_at(+ ast Ast.token, message);
-        store64 @tmp_it message;
       }
     }
     else {
@@ -1421,8 +1413,9 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
 
   // typecheck the rhs of the statement
   { let _ = typecheck_node_list(block, fs, rhs); }
-  store64 + rhs Ast.konst is_branch_konst_eval(rhs);
-  store64 + ast Ast.konst is_branch_konst_eval(rhs);
+  let rhs_konst_branch = is_branch_konst_eval(rhs);
+  store64 + rhs Ast.konst rhs_konst_branch;
+  store64 + ast Ast.konst rhs_konst_branch;
 
   // make sure that rhs actually produced any values
   let ts_delta = - load64 + c Compile.ts_count ts_count;
@@ -1506,6 +1499,10 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
         }
         else {
           typecheck_error_at(+ ast Ast.token, "only numeric values are allowed in constants\n", null);
+          store64 @done 1;
+        }
+        if not rhs_konst_branch {
+          typecheck_error_at(+ ast Ast.token, "can not assign a non-constant expression to a constant value\n", null);
           store64 @done 1;
         }
       }

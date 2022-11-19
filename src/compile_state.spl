@@ -231,7 +231,6 @@ fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
   result;
 }
 
-// TODO(lucas): put somewhere else
 fn warning_at(token: ptr, message: cstr, args: any) -> none {
   if eq load64 + @options Options.enable_warnings 1 {
     let info_args: any = (
