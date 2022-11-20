@@ -112,7 +112,9 @@ fn struct_field_init(field: ptr<Struct_field>, name: ptr<u8[MAX_NAME_SIZE]>, len
   result;
 }
 
-fn struct_type_info_init(info: ptr<Struct_type_info>) -> none {
+fn struct_type_info_init(info: ptr<Struct_type_info>, name: ptr<u8[MAX_NAME_SIZE]>, name_length: u64) -> none {
+  memset(+ info Struct_type_info.name, 0, MAX_NAME_SIZE);
+  strncpy(cast cstr + info Struct_type_info.name, cast cstr name, name_length);
   store64 + info Struct_type_info.count 0;
 }
 
@@ -256,13 +258,9 @@ fn type_print(fd: u64, type: ptr<Type>) -> none {
   }
   else if eq type_base(type) TypeStruct {
     let id = type_sub_id(type);
-    let args: any = (
-      load64 + @compile_type_str * sizeof cstr type_base(type),
-      id
-    );
-    dprintf(fd, "%s<%d>", @args);
     let type_info = struct_fetch_type_info(id);
-    struct_type_info_print(fd, type_info, 1);
+    let args: any = + type_info Struct_type_info.name;
+    dprintf(fd, "struct %s", @args);
   }
   else if eq type_base(type) TypeFunc {
     let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
@@ -1580,8 +1578,9 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     cast ptr load64 + + ast Ast.token Token.buffer,
     load64 + + ast Ast.token Token.length
   );
+
   let type_info: Struct_type_info = 0;
-  struct_type_info_init(at type_info);
+  struct_type_info_init(at type_info, cast ptr<u8[MAX_NAME_SIZE]> load64 + at struct_name Buffer.data, load64 + at struct_name Buffer.length);
   let struct_type_field: Struct_field = 0;
 
   while and eq fail 0 < i count {

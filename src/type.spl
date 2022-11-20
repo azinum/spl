@@ -48,6 +48,7 @@ struct Struct_field (
 );
 
 struct Struct_type_info (
+  name:   u8[MAX_NAME_SIZE],
   fields: Struct_field[MAX_NUM_STRUCT_FIELDS],
   count:  u64
 );
