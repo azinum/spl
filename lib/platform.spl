@@ -82,7 +82,7 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
   let it = str; // string iterator
   let end = null;
   if neq size UINT64_MAX {
-    store64 @end + + it size 1; // + 1 for null terminator
+    store64 @end + + it size 0; // + 1 for null terminator NOTE(lucas): changed this (to + 0) because it wrote one more character than specified in the asprintf and asnprintf functions.
   }
   let fit = format; // format iterator
   let arg: ptr = cast ptr args;
@@ -191,6 +191,29 @@ fn dnprintf(fd: u64, size: u64, format: cstr, args: any) -> none {
 
 fn printf(format: cstr, args: any) -> none {
   dprintf(STDOUT_FILENO, format, args);
+}
+
+// appending sprintf
+fn asprintf(buffer: ptr<ptr>, format: cstr, args: any) -> none {
+  let n = snprintf(cast ptr deref buffer, UINT64_MAX, format, args);
+  store64 buffer + n deref buffer;
+}
+
+// bounded and appending sprintf
+fn asnprintf(buffer: ptr<ptr>, size: ptr<u64>, format: cstr, args: any) -> none {
+  if > deref size 0 {
+    let n = snprintf(deref buffer, deref size, format, args);
+    store64 buffer + n deref buffer;
+    if eq n 0 {
+      store64 size 0;
+    }
+    if < n deref size {
+      store64 size - deref size n;
+    }
+    else {
+      store64 size 0;
+    }
+  }
 }
 
 fn assert(cond: u64, message: cstr) -> none {

@@ -1,8 +1,17 @@
 // main.spl
 
-// include "lib/common.spl"
-
-fn add(a: u64, b: u64) -> u64 + a b;
+include "lib/common.spl"
 
 fn main -> none {
+  let buffer_size = 12;
+  let buffer: u8[buffer_size] = 0;
+  let buffer_ptr = cast ptr at buffer;
+
+  asnprintf(at buffer_ptr, at buffer_size, "aaa", null);
+  asnprintf(at buffer_ptr, at buffer_size, "bbb", null);
+  asnprintf(at buffer_ptr, at buffer_size, "BBBBB", null);
+  asnprintf(at buffer_ptr, at buffer_size, "ccc", null);
+  asnprintf(at buffer_ptr, at buffer_size, "qqq", null);
+  let args: any = at buffer;
+  printf("%s\n", @args);
 }
