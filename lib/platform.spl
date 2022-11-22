@@ -179,7 +179,7 @@ fn sprintf2(str: ptr, format: cstr, args: any) -> u64 {
 
 fn dprintf(fd: u64, format: cstr, args: any) -> none {
   let buffer: u8[MAX_BUFFER_SIZE] = 0;
-  let n = _sprintf(cast ptr @buffer, format, args);
+  let n = snprintf(cast ptr @buffer, sizeof buffer, format, args);
   write(fd, cast ptr @buffer, n);
 }
 

@@ -59,5 +59,32 @@ fn test_lib_common -> none {
     }
     assert_equal(fail, 0, info);
   }
+
+  // digit_count()
+  assert_equal(digit_count(7), 1, info);
+  assert_equal(digit_count(77), 2, info);
+  assert_equal(digit_count(777), 3, info);
+  assert_equal(digit_count(7777), 4, info);
+  assert_equal(digit_count(77777), 5, info);
+  assert_equal(digit_count(777777), 6, info);
+  assert_equal(digit_count(7777777), 7, info);
+  assert_equal(digit_count(77777777), 8, info);
+  assert_equal(digit_count(777777777), 9, info);
+  assert_equal(digit_count(7777777777), 10, info);
+  assert_equal(digit_count(81209347389), 11, info);
+
+  // cstr_to_u64
+  assert_equal(cstr_to_u64("7"), 7, info);
+  assert_equal(cstr_to_u64("77"), 77, info);
+  assert_equal(cstr_to_u64("777"), 777, info);
+  assert_equal(cstr_to_u64("7777"), 7777, info);
+  assert_equal(cstr_to_u64("77777"), 77777, info);
+  assert_equal(cstr_to_u64("777777"), 777777, info);
+  assert_equal(cstr_to_u64("7777777"), 7777777, info);
+  assert_equal(cstr_to_u64("77777777"), 77777777, info);
+  assert_equal(cstr_to_u64("777777777"), 777777777, info);
+  assert_equal(cstr_to_u64("7777777777"), 7777777777, info);
+  assert_equal(cstr_to_u64("81209347389"), 81209347389, info);
+
   // TODO(lucas): more tests
 }

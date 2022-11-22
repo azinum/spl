@@ -137,28 +137,24 @@ fn ast_count(ast: any) -> u64 {
 
 fn ast_print(ast: any, level: u64, fd: u64) -> none {
   if neq 0 ast {
-    let tmp = tmp_it;
-    let p = tmp_push_cstr;
     {
       let i = 0;
       while < i level {
-        p("    ");
+        dprintf(fd, "   ", null);
         store64 @i + 1 i;
       }
     }
     let type: u64 = load64 + ast Ast.type;
     let token: ptr = cast ptr + ast Ast.token;
-    p("<");
-    p(cast cstr load64 + @ast_type_str * type sizeof cstr);
-    p(", ");
-    p(cast cstr load64 + @token_type_str * load64 + token Token.type sizeof cstr);
-    p(", ");
-    tmp_push_u64(load64 + ast Ast.konst);
-    p(">: `");
-    tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
-    p("`\n");
-    putsn(fd, tmp, - tmp_it tmp);
-    store64 @tmp_it tmp;
+    let const_str = "NonConst", "Const";
+    let args: any = (
+      load64 + @ast_type_str * type sizeof cstr,
+      load64 + @token_type_str * load64 + token Token.type sizeof cstr,
+      load64 + @const_str * sizeof cstr load64 + ast Ast.konst,
+      load64 + token Token.length,
+      load64 + token Token.buffer
+    );
+    dprintf(fd, "<%s, %s, %s>, `%*s`\n", @args);
     {
       let i = 0;
       let count = load64 + ast Ast.count;
