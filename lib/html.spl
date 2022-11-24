@@ -27,8 +27,20 @@ fn html_single_tag(fd: u64, tag: cstr) -> none {
   dprintf(fd, "<%s>\n", @tag);
 }
 
+fn html_single_tag_with_attr(fd: u64, tag: cstr, attr_format: cstr, args: any) -> none {
+  dprintf(fd, "<%s ", @tag);
+  dprintf(fd, attr_format, args);
+  dprintf(fd, ">\n", null);
+}
+
 fn html_single_end_tag(fd: u64, tag: cstr) -> none {
   dprintf(fd, "</%s>\n", @tag);
+}
+
+fn html_tag_with_attr(fd: u64, tag: cstr, attr_format: cstr, attr_args: any, content_format: cstr, content_args: any) -> none {
+  html_single_tag_with_attr(fd, tag, attr_format, attr_args);
+  dprintf(fd, content_format, content_args);
+  html_single_end_tag(fd, tag);
 }
 
 fn html_end_html(fd: u64) -> none {

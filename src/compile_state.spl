@@ -3,7 +3,7 @@
 struct Symbol (
   name:              u8[MAX_NAME_SIZE],
   imm:               u64,
-  size:              u64,
+  size:              u64, // TODO(lucas): remove this field because it is redundant, size is contained within the type
   num_elements_init: u64,
   konst:             u64,
   local_id:          u64,

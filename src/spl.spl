@@ -58,7 +58,7 @@ fn write_debug_information(path: cstr) -> none {
 fn write_debug_information_html(path: cstr) -> none {
   let fd = open_file_writable(path);
   if neq fd ERROR {
-    let style =
+    let header_content =
 "<style>
    table {
      width: 100%;
@@ -66,19 +66,51 @@ fn write_debug_information_html(path: cstr) -> none {
    table, th, td {
      border: 1px solid black;
    }
- </style>";
+   ul {
+     list-style-type: none;
+   }
+   .caret {
+     cursor: pointer;
+     user-select: none;
+   }
+   .caret::before {
+     content: '\25B6';
+     color: black;
+     display: inline-block;
+     margin-right: 1em;
+   }
+   .caret-down::before {
+     transform: rotate(90deg);
+   }
+   .nested {
+     display: none;
+   }
+   .active {
+     display: block;
+   }
+ </style>
+ <script>
+    window.onload = () => {
+      var toggler = document.getElementsByClassName('caret');
+      for (let i = 0; i < toggler.length; ++i) {
+        toggler[i].addEventListener('click', function() {
+          this.parentElement.querySelector('.nested').classList.toggle('active');
+          this.classList.toggle('caret-down');
+        });
+      }
+    }
+ </script>";
 
-    html_begin_html(fd, "Title", "%s\n", @style);
+    html_begin_html(fd, "Title", "%s\n", @header_content);
     html_tag(fd, "h1", "%s", @path);
-    html_single_tag(fd, "br");
+    ast_print_html(load64 + @p Parser.ast, fd);
     ir_print_html(fd);
     symbol_info_print_html(fd);
     html_end_html(fd);
     close(fd);
   }
   else {
-    let args: any = path;
-    error("failed to open file `%s`\n", @args);
+    error("failed to open file `%s`\n", @path);
   }
 }
 

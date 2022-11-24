@@ -20,7 +20,7 @@ run_examples: ${SPL_EXAMPLES}
 
 test: SPL_FLAGS+=verbose-asm run
 
-main: SPL_FLAGS+=verbose-asm run
+main: SPL_FLAGS+=verbose-asm run debug
 main: main.spl
 
 run:
