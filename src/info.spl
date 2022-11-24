@@ -42,3 +42,42 @@ fn symbol_info_print(fd: u64) -> none {
   }
   store64 @tmp_it message;
 }
+
+fn symbol_info_print_html(fd: u64) -> none {
+  html_tag(fd, "h1", "Symbol information", null);
+  html_single_tag(fd, "table");
+    html_single_tag(fd, "tr");
+      html_tag(fd, "th", "Index", null);
+      html_tag(fd, "th", "Name", null);
+      html_tag(fd, "th", "Type", null);
+      html_tag(fd, "th", "Size", null);
+      html_tag(fd, "th", "Const", null);
+      html_tag(fd, "th", "Reference count", null);
+    html_single_end_tag(fd, "tr");
+
+  let count: u64 = load64 + c Compile.symbol_count;
+  let i: u64 = 0;
+  while < i count {
+    let symbol = + + c Compile.symbols * sizeof Symbol i;
+    let name = cast cstr + symbol Symbol.name;
+    let type: Type = 0;
+    memcpy(at type, + symbol Symbol.type, sizeof Type);
+    let size = * load64 + at type Type.size load64 + at type Type.count;
+    let konst = load64 + symbol Symbol.konst;
+    let ref_count = load64 + symbol Symbol.ref_count;
+    if neq type_base(at type) TypeSyscallFunc {
+      html_single_tag(fd, "tr");
+        html_tag(fd, "td", "%d", @i);
+        html_tag(fd, "td", "%s", @name);
+        html_single_tag(fd, "td");
+        type_print(fd, at type);
+        html_single_end_tag(fd, "td");
+        html_tag(fd, "td", "%d", @size);
+        html_tag(fd, "td", "%d", @konst);
+        html_tag(fd, "td", "%d", @ref_count);
+      html_single_end_tag(fd, "tr");
+    }
+    store64 at i + 1 i;
+  }
+  html_single_end_tag(fd, "table");
+}

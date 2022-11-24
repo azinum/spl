@@ -1,0 +1,39 @@
+// html.spl
+
+fn html_begin_html(fd: u64, title: cstr, content_format: cstr, args: any) -> none {
+  let start =
+"<!DOCTYPE html>
+ <html>
+ <head>
+ <meta charset='utf-8'>
+ <meta name='viewport' content='width=device-width,initial-scale=1.0'>
+ <title>%s</title>
+";
+  let end =
+"</head>
+ <body>";
+  dprintf(fd, start, @title);
+  dprintf(fd, content_format, args);
+  dprintf(fd, "%s\n", @end);
+}
+
+fn html_tag(fd: u64, tag: cstr, content_format: cstr, args: any) -> none {
+  dprintf(fd, "<%s>", @tag);
+  dprintf(fd, content_format, args);
+  dprintf(fd, "</%s>\n", @tag);
+}
+
+fn html_single_tag(fd: u64, tag: cstr) -> none {
+  dprintf(fd, "<%s>\n", @tag);
+}
+
+fn html_single_end_tag(fd: u64, tag: cstr) -> none {
+  dprintf(fd, "</%s>\n", @tag);
+}
+
+fn html_end_html(fd: u64) -> none {
+  let content =
+"</body>
+ </html>";
+  dprintf(fd, "%s\n", @content);
+}

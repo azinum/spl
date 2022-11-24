@@ -17,6 +17,7 @@ let options: Options = 0;
 include "lib/common.spl"
 include "lib/hash.spl"
 include "lib/colors.spl"
+include "lib/html.spl"
 
 const platform = PLATFORM_LINUX;
 let envp = null;
@@ -36,6 +37,51 @@ include "src/codegen_nasm_x86_64.spl"
 include "src/compile.spl"
 include "src/info.spl"
 
+fn write_debug_information(path: cstr) -> none {
+  let fd = open_file_writable(path);
+  if neq fd ERROR {
+    // ast_print(load64 + @p Parser.ast, 0, fd);
+    ir_print(fd);
+    // func_signatures_print(fd);
+    typecheck_print_types(fd);
+    symbol_info_print(fd);
+    compile_state_print(fd);
+    ir_print_ins_count(fd);
+    close(fd);
+  }
+  else {
+    let args: any = path;
+    error("failed to open file `%s`\n", @args);
+  }
+}
+
+fn write_debug_information_html(path: cstr) -> none {
+  let fd = open_file_writable(path);
+  if neq fd ERROR {
+    let style =
+"<style>
+   table {
+     width: 100%;
+   }
+   table, th, td {
+     border: 1px solid black;
+   }
+ </style>";
+
+    html_begin_html(fd, "Title", "%s\n", @style);
+    html_tag(fd, "h1", "%s", @path);
+    html_single_tag(fd, "br");
+    ir_print_html(fd);
+    symbol_info_print_html(fd);
+    html_end_html(fd);
+    close(fd);
+  }
+  else {
+    let args: any = path;
+    error("failed to open file `%s`\n", @args);
+  }
+}
+
 fn usage(prog: cstr) -> none {
   dprintf(STDOUT_FILENO,
 "Usage; %s [OPTIONS]\n
@@ -44,7 +90,7 @@ OPTIONS:
    <filename>      - path to file
    run             - run program directly
    no-com          - do not compile target executable
-   no-debug        - do not write debug information
+   debug        - write debug information
    enable-warnings - enable basic warnings
    disable-dce     - disable dead code elimination
    disable-colors  - disable colored text output
@@ -58,7 +104,7 @@ OPTIONS:
 fn spl_options_init -> none {
   store64 + @options Options.compile 1;
   store64 + @options Options.run 0;
-  store64 + @options Options.debug 1;
+  store64 + @options Options.debug 0;
   store64 + @options Options.filename null;
   store64 + @options Options.enable_warnings 0;
   store64 + @options Options.disable_dce 0;
@@ -101,9 +147,9 @@ fn spl_start(filename: cstr) -> u64 {
               if eq ir_optimize() NoError {
                 let target = TARGET_LINUX_NASM_X86_64;
 
-                let output_file_path: u8[MAX_PATH_SIZE] = cast u8 0;
+                let output_file_path: u8[MAX_PATH_SIZE] = 0;
                 let filename = cast cstr load64 + @options Options.filename;
-                let diff: u64 = - cast u64 first_dot(filename) filename;
+                let diff = - cast u64 first_dot(filename) filename;
                 sprintf(@output_file_path, "%s", @filename);
                 store8 + @output_file_path diff 0; // null terminate
 
@@ -120,23 +166,10 @@ fn spl_start(filename: cstr) -> u64 {
                 if load64 + @options Options.debug {
                   let path: u8[MAX_PATH_SIZE] = 0;
                   sprintf(@path, "%s.debug", + @options Options.filename);
-                  let mode: u64 = 434; // 0662
-                  let flags: u64 = or or O_CREAT O_TRUNC O_WRONLY;
-                  let debug_fd: u64 = open(cast cstr @path, flags, mode);
-                  if neq debug_fd ERROR {
-                    ast_print(load64 + @p Parser.ast, 0, debug_fd);
-                    // ir_print(debug_fd);
-                    // func_signatures_print(debug_fd);
-                    typecheck_print_types(debug_fd);
-                    symbol_info_print(debug_fd);
-                    compile_state_print(debug_fd);
-                    ir_print_ins_count(debug_fd);
-                    close(debug_fd);
-                  }
-                  else {
-                    let args: any = @path;
-                    error("failed to open file `%s`\n", @args);
-                  }
+                  write_debug_information(cast cstr @path);
+
+                  sprintf(@path, "%s.html", + @options Options.filename);
+                  write_debug_information_html(cast cstr @path);
                 }
               }
             }
@@ -204,8 +237,8 @@ fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
       else if eq 0 strcmp(argument, "no-com") {
         store64 + @options Options.compile 0;
       }
-      else if eq 0 strcmp(argument, "no-debug") {
-        store64 + @options Options.debug 0;
+      else if eq 0 strcmp(argument, "debug") {
+        store64 + @options Options.debug 1;
       }
       else if eq 0 strcmp(argument, "enable-warnings") {
         store64 + @options Options.enable_warnings 1;

@@ -7,7 +7,7 @@ all: spl
 SPL_FLAGS=
 
 clean:
-	rm -f *.o ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.ir, ${SPL_SRC}}
+	rm -f *.o ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.html, ${SPL_SRC}}
 
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl

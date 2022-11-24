@@ -31,3 +31,4 @@
 - properly typecheck `any` type inside of container types
 - fix bug where a const array is not properly initialized
 	- const a: u8[512] = 0; // tries to read constant/immediate data that is not written
+- better support for multi-line strings

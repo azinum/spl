@@ -6,6 +6,7 @@ docker/
 *.o
 *.spl.asm
 *.spl.debug
+*.spl.html
 *.exe
 *.spl.c
 

@@ -145,6 +145,36 @@ fn ir_print(fd: u64) -> none {
   }
 }
 
+fn ir_print_html(fd: u64) -> none {
+  html_tag(fd, "h1", "IR", null);
+  html_single_tag(fd, "table");
+    html_single_tag(fd, "tr");
+      html_tag(fd, "th", "Index", null);
+      html_tag(fd, "th", "Instruction", null);
+      html_tag(fd, "th", "Dest", null);
+      html_tag(fd, "th", "Src0", null);
+      html_tag(fd, "th", "Src1", null);
+    html_single_end_tag(fd, "tr");
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.ins_count;
+  while < i count {
+    let op = fetch_op(i);
+    let ins_name = cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i;
+    let dest: u64 = load64 + op Op.dest;
+    let src0: u64 = load64 + op Op.src0;
+    let src1: u64 = load64 + op Op.src1;
+    html_single_tag(fd, "tr");
+      html_tag(fd, "td", "%d", @i);
+      html_tag(fd, "td", "%s", @ins_name);
+      if neq dest NONE html_tag(fd, "td", "%d", @dest); else html_tag(fd, "td", "-1", null);
+      if neq src0 NONE html_tag(fd, "td", "%d", @src0); else html_tag(fd, "td", "-1", null);
+      if neq src1 NONE html_tag(fd, "td", "%d", @src1); else html_tag(fd, "td", "-1", null);
+    html_single_end_tag(fd, "tr");
+    store64 at i + 1 i;
+  }
+  html_single_end_tag(fd, "table");
+}
+
 fn ir_print_ins_count(fd: u64) -> none {
   dprintf(fd, "ir_print_ins_count:\n", null);
   let i = 0;
@@ -298,7 +328,7 @@ fn ir_push_addr_of(fs: ptr<Function>, symbol: ptr<Symbol>, id: u64, ins_count: p
   load64 + c Compile.status;
 }
 
-fn ir_compile_stmts(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
+fn ir_compile_nodes(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let i: u64 = 0;
   let count: u64 = load64 + ast Ast.count;
   let done: u64 = 0;
@@ -445,7 +475,7 @@ fn ir_compile_let_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) ->
 
       let local_index = + frame_bottom type_size;
       if neq type_base(type) TypeStruct {
-        if eq ir_compile_stmts(fs, ast, ins_count) NoError {
+        if eq ir_compile_nodes(fs, ast, ins_count) NoError {
           let i = 0;
           let count = num_elements_init;
           while < i count {
@@ -507,7 +537,7 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
     { let _ = ir_push_ins(at op, ins_count); }
 
     let func_size: u64 = 0;
-    { let _ = ir_compile_stmts(func, body, at func_size); }
+    { let _ = ir_compile_nodes(func, body, at func_size); }
 
     // begin_func: Op*
     let begin_func: ptr = + + c Compile.ins * sizeof Op begin_func_address;
@@ -724,7 +754,7 @@ fn ir_compile_while_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) 
   let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
 
-  if eq ir_compile_stmts(fs, cond, at cond_size) NoError {
+  if eq ir_compile_nodes(fs, cond, at cond_size) NoError {
     let body_start_address: u64 = load64 + c Compile.ins_count;
     let loop_end_label: u64 = load64 + c Compile.label_count;
     store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
@@ -737,7 +767,7 @@ fn ir_compile_while_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) 
     );
     { let _ = ir_push_ins(at op, at body_size); }
 
-    if eq ir_compile_stmts(fs, body, at body_size) NoError {
+    if eq ir_compile_nodes(fs, body, at body_size) NoError {
       OP_init(
         I_JMP,
         loop_label,
@@ -775,7 +805,7 @@ fn ir_compile_if_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
   let op: Op = 0;
 
-  if eq ir_compile_stmts(fs, cond, at cond_size) NoError {
+  if eq ir_compile_nodes(fs, cond, at cond_size) NoError {
     let body_start_address: u64 = load64 + c Compile.ins_count;
     let end_label: u64 = load64 + c Compile.label_count;
     store64 + c Compile.label_count + 1 load64 + c Compile.label_count;
@@ -787,7 +817,7 @@ fn ir_compile_if_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
       at op
     );
     { let _ = ir_push_ins(at op, at body_size); }
-    if eq ir_compile_stmts(fs, body, at body_size) NoError {
+    if eq ir_compile_nodes(fs, body, at body_size) NoError {
       if eq load64 + ast Ast.count 3 { // else body
         let else_body = cast ptr load64 + + ast Ast.node * sizeof ptr 2;
         let else_label: u64 = load64 + c Compile.label_count;
@@ -811,7 +841,7 @@ fn ir_compile_if_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
           at op
         );
         { let _ = ir_push_ins(at op, at else_body_size); }
-        if eq ir_compile_stmts(fs, else_body, at else_body_size) NoError {
+        if eq ir_compile_nodes(fs, else_body, at else_body_size) NoError {
           OP_init(
             I_LOOP_LABEL,
             else_label,
@@ -878,6 +908,7 @@ fn ir_compile_field_access(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
   }
   else {
     compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
+    assert(0, "ir_compile_field_access()\n");
   }
   load64 + c Compile.status;
 }
@@ -893,7 +924,7 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
       eq ast_type AstExprList
       eq ast_type AstStatement
       eq ast_type AstStatementList {
-    { let _ = ir_compile_stmts(fs, ast, ins_count); }
+    { let _ = ir_compile_nodes(fs, ast, ins_count); }
   }
   else if eq ast_type AstBinopExpression {
     let op: Op = 0;
@@ -1004,7 +1035,7 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
     { let _ = ir_compile_func_call(fs, ast, ins_count); }
   }
   else if eq ast_type AstBlockStatement {
-    { let _ = ir_compile_stmts(fs, ast, ins_count); }
+    { let _ = ir_compile_nodes(fs, ast, ins_count); }
   }
   else if eq ast_type AstAssignment {
     { let _ = ir_compile_assignment(fs, ast, ins_count); }
@@ -1035,7 +1066,7 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
     { let _ = ir_compile_field_access(fs, ast, ins_count); }
   }
   else {
-    compile_error_at(+ ast Ast.token, "invalid or unhandled AST branch type\n");
+    assert(0, "invalid or unhandled AST branch type\n");
   }
   load64 + c Compile.status;
 }
