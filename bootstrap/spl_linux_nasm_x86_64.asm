@@ -12822,7 +12822,7 @@ mov rax, [v1013]
 push rax
 mov rax, [v936]
 push rax
-mov rax, 5
+mov rax, 0
 push rax
 mov rax, str174
 push rax
@@ -13581,7 +13581,7 @@ ret
 v1224:
 push rbp
 mov rbp, rsp
-sub rsp, 88
+sub rsp, 80
 mov [rbp-8], rdi
 mov [rbp-16], rsi
 push QWORD [rbp-8]
@@ -13676,33 +13676,6 @@ pop rcx
 push rbp
 call v840
 pop rbp
-mov rax, v1002
-push rax
-push QWORD [rbp-24]
-mov rax, [v1005]
-push rax
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
-mov rax, 8
-push rax
-pop rax
-pop rbx
-mul rbx
-push rax
-pop rax
-pop rbx
-add rbx, rax
-push rbx
-pop rax
-xor rbx, rbx
-mov rbx, [rax]
-push rbx
 push QWORD [rbp-24]
 mov rax, [v1004]
 push rax
@@ -13729,9 +13702,7 @@ pop rax
 mov QWORD [rbp-72], rax
 pop rax
 mov QWORD [rbp-80], rax
-pop rax
-mov QWORD [rbp-88], rax
-lea rax, [rbp-88]
+lea rax, [rbp-80]
 push rax
 mov rax, str187
 push rax
@@ -13743,7 +13714,7 @@ push rbp
 call v733
 pop rbp
 pop rbp
-add rsp, 88
+add rsp, 80
 ret
 v1232:
 push rbp
@@ -60025,7 +59996,7 @@ str170: db 84, 95, 85, 78, 83, 73, 71, 78, 69, 68, 51, 50, 0
 str171: db 84, 95, 85, 78, 83, 73, 71, 78, 69, 68, 49, 54, 0
 str172: db 84, 95, 85, 78, 83, 73, 71, 78, 69, 68, 56, 0
 str173: db 84, 95, 67, 83, 84, 82, 0
-str174: db 84, 95, 69, 79, 70, 0
+str174: db 0
 str175: db 97, 115, 116, 32, 110, 111, 100, 101, 32, 99, 97, 112, 97, 99, 105, 116, 121, 32, 114, 101, 97, 99, 104, 101, 100, 10, 0
 str176: db 110, 117, 108, 108, 32, 97, 115, 116, 32, 110, 111, 100, 101, 10, 0
 str177: db 105, 110, 116, 101, 114, 110, 97, 108, 32, 110, 111, 100, 101, 32, 99, 97, 112, 97, 99, 105, 116, 121, 32, 114, 101, 97, 99, 104, 101, 100, 10, 0
@@ -60038,7 +60009,7 @@ str183: db 38, 122, 119, 106, 59, 0
 str184: db 38, 97, 115, 116, 59, 0
 str185: db 37, 115, 37, 115, 58, 0
 str186: db 98, 0
-str187: db 37, 115, 44, 32, 37, 42, 115, 0
+str187: db 37, 42, 115, 0
 str188: db 108, 105, 0
 str189: db 99, 108, 97, 115, 115, 61, 39, 99, 97, 114, 101, 116, 39, 0
 str190: db 115, 112, 97, 110, 0
@@ -60698,7 +60669,7 @@ str843: db 118, 101, 114, 98, 111, 115, 101, 45, 97, 115, 109, 0
 str844: db 118, 101, 114, 115, 105, 111, 110, 0
 str845: db 104, 101, 108, 112, 0
 str846: db 110, 111, 32, 105, 110, 112, 117, 116, 32, 102, 105, 108, 101, 32, 119, 97, 115, 32, 115, 112, 101, 99, 105, 102, 105, 101, 100, 10, 0
-v7: dq 8095324917347271211
+v7: dq 7951640872872794547
 v8: dq 0
 v9: dq 0
 v10: dq 0
@@ -61671,7 +61642,7 @@ v1227: resb 8
 v1228: resb 8
 v1229: resb 16
 v1230: resb 16
-v1231: resb 24
+v1231: resb 16
 v1235: resb 8
 v1236: resb 8
 v1237: resb 8

@@ -65,7 +65,7 @@ fn ast_create(type: u64) -> ptr {
     store64 + node Ast.konst 0;
     store64 + node Ast.type_context_id UINT64_MAX;
 
-    token_init(+ Ast.token node, "T_EOF", 5, T_EOF, l.filename, l.source);
+    token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
   }
   else {
     assert(0, "ast node capacity reached\n");
@@ -181,10 +181,9 @@ fn ast_print_node_content_html(ast: any, fd: u64) -> none {
   }
   {
     let args: any =
-      load64 + @token_type_str * load64 + token Token.type sizeof cstr,
       load64 + token Token.length,
       load64 + token Token.buffer;
-    dprintf(fd, "%s, %*s", @args);
+    dprintf(fd, "%*s", @args);
   }
 }
 
