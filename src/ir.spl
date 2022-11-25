@@ -916,6 +916,9 @@ fn ir_compile_field_access(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
 fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let ast_type: u64 = load64 + ast Ast.type;
 
+  if eq ast_type AstNone {
+    // for collapsed branches
+  }
   if eq ast_type AstValue {
     { let _ = ir_compile_value(fs, ast, ins_count); }
   }
@@ -1014,9 +1017,6 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
       }
       { let _ = ir_push_ins(at op, ins_count); }
     }
-  }
-  else if eq ast_type AstNone {
-    // for collapsed branches
   }
   else if eq ast_type AstConstStatement {
     // NOTE(lucas): value has already been defined in the type-checking phase

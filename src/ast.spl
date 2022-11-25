@@ -54,19 +54,21 @@ let ast_node_memory: Ast[MAX_AST_NODE] = 0;
 let ast_node = null;
 let ast_node_end = null;
 
+fn ast_init_node(node: any, type: u64) -> none {
+  store64 + node Ast.node 0;
+  store64 + node Ast.count 0;
+  store64 + node Ast.type type;
+  store64 + node Ast.konst 0;
+  store64 + node Ast.type_context_id UINT64_MAX;
+  token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
+}
+
 fn ast_create(type: u64) -> ptr {
   let node: ptr = ast_node;
 
   if < node ast_node_end {
     store64 @ast_node + sizeof Ast ast_node;
-
-    store64 + node Ast.node 0;
-    store64 + node Ast.count 0;
-    store64 + node Ast.type type;
-    store64 + node Ast.konst 0;
-    store64 + node Ast.type_context_id UINT64_MAX;
-
-    token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
+    ast_init_node(node, type);
   }
   else {
     assert(0, "ast node capacity reached\n");

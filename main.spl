@@ -1,26 +1,6 @@
 // main.spl
 
-include "lib/common.spl"
-
-union Register (
-  qword: u64,
-  dword: u32,
-  word:  u16,
-  byte:  u8,
-);
-
-struct T (
-  a: u64,
-  r: Register
-);
-
-fn mov(dest: ptr<Register>, src: ptr<Register>) -> none {
-  memcpy(dest, src, sizeof Register);
-}
+// include "lib/common.spl"
 
 fn main -> none {
-  let a: Register = 0;
-  let b: Register = 0;
-  memset(at b, 0, sizeof b);
-  mov(at a, at b);
 }
