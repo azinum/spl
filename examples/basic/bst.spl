@@ -121,6 +121,16 @@ fn bst_delete_node(root: ptr<Bst>, key: u64) -> ptr<Bst> {
   root;
 }
 
+fn bst_invert(root: ptr<Bst>) -> none {
+  if root {
+    let temp = load64 + root Bst.left;
+    store64 + root Bst.left load64 + root Bst.right;
+    store64 + root Bst.right temp;
+    bst_invert(cast ptr<Bst> load64 + root Bst.left);
+    bst_invert(cast ptr<Bst> load64 + root Bst.right);
+  }
+}
+
 fn _bst_print(root: ptr<Bst>, level: u64, fd: u64) -> none {
   if root {
     let i = 0;
@@ -159,6 +169,6 @@ fn main -> none {
   { let _ = bst_insert(root, 8); }
   { let _ = bst_delete_node(root, 5); }
   { let _ = bst_delete_node(root, 3); }
-  // bst_print(root, STDOUT_FILENO);
+  bst_invert(root);
   bst_print_in_order(root, STDOUT_FILENO);
 }

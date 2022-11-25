@@ -29,9 +29,10 @@ OPTIONS:
   <filename>      - path to file
   run             - run program directly
   no-com          - do not compile target executable
-  no-debug        - do not write debug information
+  debug-output    - write debug information
   enable-warnings - enable basic warnings
   disable-dce     - disable dead code elimination
+  disable-colors  - disable colored text output
   verbose         - enable verbose output
   verbose-asm     - enable verbose assembly code
   version         - print spl version id
