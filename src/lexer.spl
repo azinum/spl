@@ -60,6 +60,7 @@ enum u64 (
   T_ALIAS,
   T_CAST,
   T_STRUCT,
+  T_UNION,
 
   // built-in types
   T_NONE,
@@ -288,6 +289,9 @@ fn lexer_read_symbol -> none {
   }
   else if eq 1 compare(buffer, "struct", length) {
     store64 + @token Token.type T_STRUCT;
+  }
+  else if eq 1 compare(buffer, "union", length) {
+    store64 + @token Token.type T_UNION;
   }
   else if eq 1 compare(buffer, "none", length) {
     store64 + @token Token.type T_NONE;
@@ -646,6 +650,7 @@ fn lexer_init(filename: any, source: any) -> none {
   store64 + @token_type_str * T_ALIAS         sizeof cstr "T_ALIAS";
   store64 + @token_type_str * T_CAST          sizeof cstr "T_CAST";
   store64 + @token_type_str * T_STRUCT        sizeof cstr "T_STRUCT";
+  store64 + @token_type_str * T_UNION         sizeof cstr "T_UNION";
 
   // built-in types
   store64 + @token_type_str * T_NONE          sizeof cstr "T_NONE";

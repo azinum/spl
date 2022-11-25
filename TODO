@@ -1,6 +1,7 @@
 - array indexing
 - improve struct field access
 - struct field access with array indexing
+- function inlining
 - optimize ir code generator so that it does not emit redundant instructions e.g. from constant expressions
 - dependency trace (i.e. trace which things depend on which other things)
 - improve memory allocator
@@ -9,7 +10,6 @@
 - struct padding and alignment (end user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
 - do more work on type casting
 - signed integers
-- function inlining
 - compile time evaluation of `trival` functions
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
@@ -23,8 +23,9 @@
 - user access to file, line, column information in code
 - array assignments in let/const statements:
 	- const a = 1, 2, 3, 4;
-	- const b = a; // yields bad results
+	- const b = a; // yields bad results, now b has the size of a, but only contains the first element of a
 - implement tests that fail and show correct errors
+	- add printing of ir code, assembly and other output to be tested and validated
 - support printing of arbitrarily long strings in printf functions
 - convert the list of function signatures to a set, so that there will be no duplicates in the list of function signatures
 	- this makes for simpler comparisons of types because then simply calling types_are_equal will be sufficient
@@ -32,3 +33,5 @@
 - fix bug where a const array is not properly initialized
 	- const a: u8[512] = 0; // tries to read constant/immediate data that is not written
 - better support for multi-line strings
+- write type info to buffer instead only to file
+- abstract out types in code generator because they are reduntant

@@ -474,7 +474,7 @@ fn ir_compile_let_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) ->
       let frame_bottom = + args_size + frame_absolute_bottom - frame_size effective_frame_size;
 
       let local_index = + frame_bottom type_size;
-      if neq type_base(type) TypeStruct {
+      if and neq type_base(type) TypeStruct neq type_base(type) TypeUnion {
         if eq ir_compile_nodes(fs, ast, ins_count) NoError {
           let i = 0;
           let count = num_elements_init;
@@ -1052,9 +1052,10 @@ fn ir_compile(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   else if eq ast_type AstSizeof {
     { let _ = ir_compile_sizeof(fs, ast, ins_count); }
   }
-  else if or or or
+  else if or or or or
       eq ast_type AstEnum
       eq ast_type AstStruct
+      eq ast_type AstUnion
       eq ast_type AstType
       eq ast_type AstStaticAssert {
     // NOTE(lucas): this is handled in the type checking phase

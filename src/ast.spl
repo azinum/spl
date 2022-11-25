@@ -24,6 +24,7 @@ enum u64 (
   AstSizeof,
   AstEnum,
   AstStruct,
+  AstUnion,
   AstCastExpression,
   AstStaticAssert,
   AstArg,
@@ -244,6 +245,7 @@ fn ast_init -> none {
   store64 + @ast_type_str * AstSizeof          sizeof cstr "Sizeof";
   store64 + @ast_type_str * AstEnum            sizeof cstr "Enum";
   store64 + @ast_type_str * AstStruct          sizeof cstr "Struct";
+  store64 + @ast_type_str * AstUnion           sizeof cstr "Union";
   store64 + @ast_type_str * AstCastExpression  sizeof cstr "CastExpression";
   store64 + @ast_type_str * AstStaticAssert    sizeof cstr "StaticAssert";
   store64 + @ast_type_str * AstArg             sizeof cstr "Arg";

@@ -2,6 +2,7 @@
 
 // TODO(lucas): temporary, allow passing and pushing structs of any size
 const MAX_STRUCT_SIZE = sizeof u64;
+const MAX_PUSH_SIZE = sizeof u64;
 
 enum u64 (
   TYPE_CONTRACT_LOOKUP,
@@ -261,6 +262,12 @@ fn type_print(fd: u64, type: ptr<Type>) -> none {
     let type_info = struct_fetch_type_info(id);
     let args: any = + type_info Struct_type_info.name;
     dprintf(fd, "struct %s", @args);
+  }
+  else if eq type_base(type) TypeUnion {
+    let id = type_sub_id(type);
+    let type_info = struct_fetch_type_info(id);
+    let args: any = + type_info Struct_type_info.name;
+    dprintf(fd, "union %s", @args);
   }
   else if eq type_base(type) TypeFunc {
     let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
@@ -829,12 +836,12 @@ fn typecheck_value(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
       store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
       store64 + + ast Ast.token Token.v symbol_index;
       store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
-      let size: u64 = load64 + symbol Symbol.size;
       let type: Type = 0;
       memcpy(at type, + symbol Symbol.type, sizeof Type);
-      if and > size MAX_STRUCT_SIZE eq type_base(at type) TypeStruct {
-        let args: any = MAX_STRUCT_SIZE;
-        typecheck_error_at(+ ast Ast.token, "can not push a struct with size greater than %d\n", @args);
+      let size = load64 + at type Type.size;
+      if > size MAX_PUSH_SIZE {
+        let args: any = MAX_PUSH_SIZE;
+        typecheck_error_at(+ ast Ast.token, "can not push an item with size greater than %d\n", @args);
       }
       else {
         { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
@@ -1118,13 +1125,11 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
               let arg_type_id: u64 = type_lookup(at arg_type);
               assert(neq arg_type_id UINT64_MAX, "invalid type\n");
               let size: u64 = compile_type_size(arg_type_id);
-              if eq type_base(at arg_type) TypeStruct {
-                store64 @size compile_type_size(arg_type_id);
-                if > size MAX_STRUCT_SIZE {
-                  let args: any = MAX_STRUCT_SIZE;
-                  typecheck_error_at(@arg_type_token, "can not have a parameter of type struct with a greater size than %d\n", @args);
-                  store64 @fail 1;
-                }
+              store64 @size compile_type_size(arg_type_id);
+              if > size MAX_PUSH_SIZE {
+                let args: any = MAX_PUSH_SIZE;
+                typecheck_error_at(@arg_type_token, "can not have a parameter of type struct with a greater size than %d\n", @args);
+                store64 @fail 1;
               }
               if eq fail 0 {
                 store64 + arg_symbol Symbol.imm UINT64_MAX;
@@ -1469,7 +1474,7 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
     while and not done < i ts_delta {
       ts_pop(at type);
       { let _ = vs_pop(at value); }
-      if or eq type_base(at explicit_type) TypeStruct eq type_base(at explicit_type) TypeAny {
+      if or or eq type_base(at explicit_type) TypeStruct eq type_base(at explicit_type) TypeUnion eq type_base(at explicit_type) TypeAny {
         // do nothing, all is permitted here
       }
       else {
@@ -1565,7 +1570,7 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
   result;
 }
 
-fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union: u64) -> u64 {
   let fields = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let field_offset: u64 = 0;
   let i: u64 = 0;
@@ -1582,6 +1587,7 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let type_info: Struct_type_info = 0;
   struct_type_info_init(at type_info, cast ptr<u8[MAX_NAME_SIZE]> load64 + at struct_name Buffer.data, load64 + at struct_name Buffer.length);
   let struct_type_field: Struct_field = 0;
+  let largest_field_offset = 0; // for unions
 
   while and eq fail 0 < i count {
     let field = cast ptr load64 + + fields Ast.node * sizeof ptr i;
@@ -1638,6 +1644,12 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
 
       // update field offset
       store64 @field_offset + field_offset field_size;
+      if is_union {
+        if < largest_field_offset field_offset {
+          store64 @largest_field_offset field_offset;
+        }
+        store64 @field_offset 0;
+      }
     }
     else {
       compile_error_at(+ field Ast.token, "symbol already exists\n");
@@ -1651,6 +1663,10 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let value: Value = 0;
   memset(@value, 0, sizeof Value);
 
+  if is_union {
+    store64 @field_offset largest_field_offset;
+  }
+
   if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
     store64 + symbol Symbol.imm UINT64_MAX;
     store64 + symbol Symbol.size field_offset;
@@ -1662,9 +1678,13 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
       store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
     }
     let type: Type = 0;
+    let primitive_type = TypeStruct;
+    if is_union {
+      store64 @primitive_type TypeUnion;
+    }
     type_init(
       at type,
-      TypeStruct,
+      primitive_type,
       load64 + c Compile.struct_id,
       field_offset, // size
       1
@@ -1955,7 +1975,10 @@ fn typecheck(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
       }
     }
     else if eq ast_type AstStruct {
-      let _ = typecheck_struct(block, fs, ast);
+      let _ = typecheck_struct(block, fs, ast, 0);
+    }
+    else if eq ast_type AstUnion {
+      let _ = typecheck_struct(block, fs, ast, 1);
     }
     else if eq ast_type AstCastExpression {
       let type_expr = cast ptr load64 + + ast Ast.node * sizeof ptr 0;

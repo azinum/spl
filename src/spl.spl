@@ -122,7 +122,7 @@ OPTIONS:
    <filename>      - path to file
    run             - run program directly
    no-com          - do not compile target executable
-   debug        - write debug information
+   debug-output    - write debug information
    enable-warnings - enable basic warnings
    disable-dce     - disable dead code elimination
    disable-colors  - disable colored text output
@@ -269,7 +269,7 @@ fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
       else if eq 0 strcmp(argument, "no-com") {
         store64 + @options Options.compile 0;
       }
-      else if eq 0 strcmp(argument, "debug") {
+      else if eq 0 strcmp(argument, "debug-output") {
         store64 + @options Options.debug 1;
       }
       else if eq 0 strcmp(argument, "enable-warnings") {

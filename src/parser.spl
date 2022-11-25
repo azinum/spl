@@ -392,12 +392,20 @@ fn parse_param_list -> ptr {
 }
 
 fn parse_struct -> ptr {
-  let struct_expr: ptr = ast_create(AstStruct);
-  lexer_next(); // skip `struct`
+  let ast_type = AstStruct;
+  let token_type = lexer_token_type();
+  let ast_type_str = "struct";
+  if eq token_type T_UNION {
+    store64 @ast_type AstUnion;
+    store64 @ast_type_str "union";
+  }
+
+  let struct_expr: ptr = ast_create(ast_type);
+  lexer_next(); // skip struct/union
   let type = lexer_token_type();
   if neq type T_IDENTIFIER {
-    let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
-    parser_error("expected identifier after `struct` token, but got `%*s`\n", @args);
+    let args: any = ast_type_str, load64 + @token Token.length, load64 + @token Token.buffer;
+    parser_error("expected identifier after `%s` token, but got `%*s`\n", @args);
   }
   else {
     memcpy(+ struct_expr Ast.token, @token, sizeof Token);
@@ -408,20 +416,20 @@ fn parse_struct -> ptr {
       let fields: ptr = parse_param_list();
       ast_push(struct_expr, fields);
       if eq load64 + fields Ast.count 0 {
-        parser_error("missing struct fields\n", null);
+        parser_error("missing %s fields\n", @ast_type_str);
       }
       else {
         store64 @type lexer_token_type();
         if neq type T_RIGHT_P {
-          let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
-          parser_error("expected closing `)` parenthesis after struct field list, but got `%*s`\n", @args);
+          let args: any = ast_type_str, load64 + @token Token.length, load64 + @token Token.buffer;
+          parser_error("expected closing `)` parenthesis after %s field list, but got `%*s`\n", @args);
         }
         lexer_next(); // skip `)`
       }
     }
     else {
-      let args: any = load64 + @token Token.length, load64 + @token Token.buffer;
-      parser_error("expected open `(` parenthesis to begin struct field list, but got `%*s`\n", @args);
+      let args: any = ast_type_str, load64 + @token Token.length, load64 + @token Token.buffer;
+      parser_error("expected open `(` parenthesis to begin %s field list, but got `%*s`\n", @args);
     }
     expect_semicolon();
   }
@@ -631,6 +639,9 @@ fn parse_statement -> ptr {
     }
   }
   else if eq type T_STRUCT {
+    store64 @stmt parse_struct();
+  }
+  else if eq type T_UNION {
     store64 @stmt parse_struct();
   }
   else if eq type T_STATIC_ASSERT {

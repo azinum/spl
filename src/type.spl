@@ -16,6 +16,7 @@ enum u64 (
   TypeFunc,
   TypeSyscallFunc,
   TypeStruct,
+  TypeUnion,
 
   MAX_PRIMITIVE_TYPE
 );
@@ -23,7 +24,7 @@ enum u64 (
 struct Type (
   base:   u64,  // base or container type
   sub_id: u64,  // sub type id or index to additional type information for structs, functions, and others
-  hash:   u64,  // hash of the type for quick equality checks
+  hash:   u64,  // hash of the type for quick equality checks (unused)
   count:  u64,  // count of elements that this type constitutes
   size:   u64   // size of each element
 );
@@ -55,7 +56,7 @@ struct Struct_type_info (
 
 struct Func_signature (
   argc: u64,
-  args: Type[+ 1 MAX_FUNC_ARGC],
+  args: Type[+ 1 MAX_FUNC_ARGC], // + 1 for syscall functions
   rtype: Type
 );
 
