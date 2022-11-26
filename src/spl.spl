@@ -42,8 +42,8 @@ fn write_debug_information(path: cstr) -> none {
   if neq fd ERROR {
     // ast_print(load64 + @p Parser.ast, 0, fd);
     ir_print(fd);
-    // func_signatures_print(fd);
-    typecheck_print_types(fd);
+    func_signatures_print(fd);
+    // typecheck_print_types(fd);
     symbol_info_print(fd);
     compile_state_print(fd);
     ir_print_ins_count(fd);

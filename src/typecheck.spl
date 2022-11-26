@@ -19,6 +19,8 @@ let _typecheck = typecheck_function;
 fn type_print_func_sig(fd: u64, type: ptr<Type>) -> none {}
 let _type_print = type_print_func_sig;
 let _type_printline = type_print_func_sig;
+fn type_write_to_buffer_func_sig(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {}
+let _type_write_to_buffer = type_write_to_buffer_func_sig;
 
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
@@ -211,20 +213,30 @@ fn struct_type_info_printline(fd: u64, info: ptr<Struct_type_info>, flat: u64) -
   dprintf(fd, "\n", null);
 }
 
-fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
-  dprintf(fd, "(", null);
+fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Func_signature>) -> none {
+  asnprintf(buffer, size, "(", null);
   let arg_index: u64 = 0;
   let argc: u64 = load64 + func Func_signature.argc;
   while < arg_index argc {
     let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
-    _type_print(fd, arg_type);
+    _type_write_to_buffer(buffer, size, arg_type);
     store64 @arg_index + 1 arg_index;
     if < arg_index argc {
-      dprintf(fd, ", ", null);
+      asnprintf(buffer, size, ", ", null);
     }
   }
-  dprintf(fd, ") -> ", null);
-  _type_print(fd, cast ptr<Type> + func Func_signature.rtype);
+  asnprintf(buffer, size, ") -> ", null);
+  _type_write_to_buffer(buffer, size, cast ptr<Type> + func Func_signature.rtype);
+}
+
+fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
+  let buffer_size = 256;
+  let buffer: u8[buffer_size] = 0;
+  let bp = at buffer;
+
+  func_signature_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, func);
+  let args: any = at buffer;
+  dprintf(fd, "%s", @args);
 }
 
 fn func_signatures_print(fd: u64) -> none {
@@ -245,45 +257,50 @@ fn type_is_container(type: ptr<Type>) -> u64 {
   eq type_base(type) TypePtr;
 }
 
-fn type_print(fd: u64, type: ptr<Type>) -> none {
+fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {
   // check if this is a container type
   if type_is_container(type) {
-    let args: any = (
-      load64 + @compile_type_str * sizeof cstr type_base(type)
-    );
-    dprintf(fd, "%s<", @args);
+    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
+    asnprintf(buffer, size, "%s<", @args);
     let next_type: Type = 0;
     memcpy(at next_type, + + c Compile.types * sizeof Type type_sub_id(type), sizeof Type);
-    type_print(fd, at next_type);
-    dprintf(fd, ">", null);
+    type_write_to_buffer(buffer, size, at next_type);
+    asnprintf(buffer, size, ">", null);
   }
   else if eq type_base(type) TypeStruct {
     let id = type_sub_id(type);
     let type_info = struct_fetch_type_info(id);
     let args: any = + type_info Struct_type_info.name;
-    dprintf(fd, "struct %s", @args);
+    asnprintf(buffer, size, "struct %s", @args);
   }
   else if eq type_base(type) TypeUnion {
     let id = type_sub_id(type);
     let type_info = struct_fetch_type_info(id);
     let args: any = + type_info Struct_type_info.name;
-    dprintf(fd, "union %s", @args);
+    asnprintf(buffer, size, "union %s", @args);
   }
   else if eq type_base(type) TypeFunc {
     let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
-    func_signature_print(fd, func);
+    func_signature_write_to_buffer(buffer, size, func);
   }
   // primitive type
   else {
-    let args: any = (
-      load64 + @compile_type_str * sizeof cstr type_base(type)
-    );
-    dprintf(fd, "%s", @args);
+    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
+    asnprintf(buffer, size, "%s", @args);
   }
   let count = load64 + type Type.count;
   if > count 1 {
-    dprintf(fd, "[%d]", @count);
+    asnprintf(buffer, size, "[%d]", @count);
   }
+}
+
+fn type_print(fd: u64, type: ptr<Type>) -> none {
+  let buffer_size = 256;
+  let buffer: u8[buffer_size] = 0;
+  let bp = at buffer;
+  type_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, type);
+  let args: any = at buffer;
+  dprintf(fd, "%s", @args);
 }
 
 fn type_printline(fd: u64, type: ptr<Type>) -> none {
@@ -2101,6 +2118,7 @@ fn typecheck_program(ast: ptr) -> u64 {
   store64 @_typecheck typecheck;
   store64 @_type_print type_print;
   store64 @_type_printline type_printline;
+  store64 @_type_write_to_buffer type_write_to_buffer;
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
