@@ -229,51 +229,28 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
     }
     else if eq ins I_PUSH_LOCAL {
       vo(fd, "; I_PUSH_LOCAL\n", null);
-      let dest: u64 = load64 + op Op.dest;
-      let args: any = load64 + op Op.src0;
-      if or or or or
-          eq dest TypeAny
-          eq dest TypePtr
-          eq dest TypeCString
-          eq dest TypeFunc
-          eq dest TypeUnsigned64 {
-        o(fd, "push QWORD [rbp-%d]\n", @args);
+      let size: u64 = load64 + op Op.dest;
+      let local_offset: any = load64 + op Op.src0;
+      if eq size 0 {
+        assert(0, "I_PUSH_LOCAL: invalid push size\n");
       }
-      else if eq dest TypeUnsigned32 {
-        o(fd, "mov eax, [rbp-%d]\n", @args);
+      else if < size 2 { // <= 1
+        o(fd, "mov al, [rbp-%d]\n", @local_offset);
         o(fd, "push rax\n", null);
       }
-      else if eq dest TypeUnsigned16 {
-        o(fd, "mov ax, [rbp-%d]\n", @args);
+      else if < size 3 { // <= 2
+        o(fd, "mov ax, [rbp-%d]\n", @local_offset);
         o(fd, "push rax\n", null);
       }
-      else if eq dest TypeUnsigned8 {
-        o(fd, "mov al, [rbp-%d]\n", @args);
+      else if < size 5 { // <= 4
+        o(fd, "mov eax, [rbp-%d]\n", @local_offset);
         o(fd, "push rax\n", null);
       }
-      else if eq dest TypeStruct {
-        let size: u64 = load64 + op Op.src1;
-        if eq size 8 {
-          o(fd, "push QWORD [rbp-%d]\n", @args);
-        }
-        else if eq size 4 {
-          o(fd, "mov eax, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else if eq size 2 {
-          o(fd, "mov ax, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else if eq size 1 {
-          o(fd, "mov al, [rbp-%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else {
-          assert(0, "I_PUSH_LOCAL: bad struct size\n");
-        }
+      else if < size 9 { // <= 8
+        o(fd, "push QWORD [rbp-%d]\n", @local_offset);
       }
       else {
-        assert(0, "I_PUSH_LOCAL: type not implemented\n");
+        assert(0, "I_PUSH_LOCAL: invalid push size (too big)\n");
       }
     }
     else if eq ins I_PUSH_IMM {
