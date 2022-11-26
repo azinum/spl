@@ -538,13 +538,12 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
 
     let func_size: u64 = 0;
     { let _ = ir_compile_nodes(func, body, at func_size); }
+    store64 + func Function.ir_body_size func_size;
 
-    // begin_func: Op*
-    let begin_func: ptr = + + c Compile.ins * sizeof Op begin_func_address;
+    let begin_func = cast ptr<Op> + + c Compile.ins * sizeof Op begin_func_address;
     let frame_size: u64 = + load64 + func Function.locals_offset * sizeof u64 argc;
     const FRAME_ALIGNMENT = 8;
     store64 @frame_size align(frame_size, FRAME_ALIGNMENT);
-    assert(eq 0 % frame_size FRAME_ALIGNMENT, "invalid stack frame alignment\n");
     store64 + begin_func Op.src1 frame_size;
     let ret_op: u64 = I_RET;
     let rtype = cast ptr<Type> + func_sig Func_signature.rtype;
@@ -567,7 +566,6 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
   let id: u64 = load64 + + ast Ast.token Token.v;
   let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
 
-  // func: Function*
   let func = cast ptr<Function> + + symbol Symbol.value Value.func;
   let args = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   if eq ir_compile_func_call_args(fs, args, ins_count) NoError { // compile function arguments in reverse order

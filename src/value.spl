@@ -2,6 +2,7 @@
 
 struct Function (
   ir_address:    u64,
+  ir_body_size:  u64,
   label:         u64,
   argc:          u64,
   locals_offset: u64,
@@ -15,6 +16,7 @@ struct Value (
 
 fn function_init(func: ptr<Function>) -> none {
   store64 + func Function.ir_address 0;
+  store64 + func Function.ir_body_size 0;
   store64 + func Function.label 0;
   store64 + func Function.argc 0;
   store64 + func Function.locals_offset 0;
