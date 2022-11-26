@@ -36,8 +36,12 @@ enum u64 (
   SYM_FUNC_ARG,
   SYM_FUNC,
   SYM_LOCAL_VAR,
-  SYM_GLOBAL_VAR
+  SYM_GLOBAL_VAR,
+
+  MAX_SYM_TYPE
 );
+
+let sym_type_str = cast cstr[MAX_SYM_TYPE] "";
 
 // TODO(lucas): dynamic allocation
 const MAX_NUM_STRUCT_FIELDS = 64;

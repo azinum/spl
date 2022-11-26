@@ -266,6 +266,11 @@ fn compile_state_init -> u64 {
   store64 + @compile_type_str * TypeUnion          sizeof cstr "union";
   store64 + @compile_type_str * MAX_PRIMITIVE_TYPE sizeof cstr "";
 
+  store64 + @sym_type_str * SYM_FUNC_ARG    sizeof cstr "FUNC_ARG";
+  store64 + @sym_type_str * SYM_FUNC        sizeof cstr "FUNC";
+  store64 + @sym_type_str * SYM_LOCAL_VAR   sizeof cstr "LOCAL_VAR";
+  store64 + @sym_type_str * SYM_GLOBAL_VAR  sizeof cstr "GLOBAL_VAR";
+
   let type: Type = 0;
   {
     type_init(at type, TypeNone, 0, 0, 1);

@@ -49,6 +49,7 @@ fn symbol_info_print_html(fd: u64) -> none {
     html_single_tag(fd, "tr");
       html_tag(fd, "th", "Index", null);
       html_tag(fd, "th", "Name", null);
+      html_tag(fd, "th", "Symbol type", null);
       html_tag(fd, "th", "Type", null);
       html_tag(fd, "th", "Size", null);
       html_tag(fd, "th", "Const", null);
@@ -60,6 +61,8 @@ fn symbol_info_print_html(fd: u64) -> none {
   while < i count {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
+    let sym_type = load64 + symbol Symbol.sym_type;
+    let sym_type_name = cast cstr load64 + @sym_type_str * sizeof cstr sym_type;
     let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
     let size = * load64 + at type Type.size load64 + at type Type.count;
@@ -69,6 +72,7 @@ fn symbol_info_print_html(fd: u64) -> none {
       html_single_tag(fd, "tr");
         html_tag(fd, "td", "%d", @i);
         html_tag(fd, "td", "%s", @name);
+        html_tag(fd, "td", "%s", @sym_type_name);
         html_single_tag(fd, "td");
         let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
         let type_str: u8[buffer_size] = 0;
