@@ -450,19 +450,19 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
       vo(fd, "; I_RET\n", null);
       let frame_size: u64 = load64 + op Op.src0;
       o(fd, "pop rax\n", null);
-      o(fd, "pop rbp\n", null);
       if frame_size {
         o(fd, "add rsp, %d\n", @frame_size);
       }
+      o(fd, "pop rbp\n", null);
       o(fd, "ret\n", null);
     }
     else if eq ins I_NORET {
       vo(fd, "; I_NORET\n", null);
       let frame_size: u64 = load64 + op Op.src0;
-      o(fd, "pop rbp\n", null);
       if frame_size {
         o(fd, "add rsp, %d\n", @frame_size);
       }
+      o(fd, "pop rbp\n", null);
       o(fd, "ret\n", null);
     }
     else if eq ins I_PRINT {
@@ -494,9 +494,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
-      o(fd, "push rbp\n", null);
       o(fd, "call v%d\n", @dest);
-      o(fd, "pop rbp\n", null);
       if neq load64 + op Op.src1 NONE {
         o(fd, "push rax\n", null);
       }
@@ -511,9 +509,7 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
         o(fd, "pop %s\n", @reg_name);
         store64 @i + 1 i;
       }
-      o(fd, "push rbp\n", null);
       o(fd, "call rax\n", null);
-      o(fd, "pop rbp\n", null);
       if neq load64 + op Op.src1 NONE {
         o(fd, "push rax\n", null);
       }
