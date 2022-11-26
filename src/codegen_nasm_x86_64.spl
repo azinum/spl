@@ -278,14 +278,15 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
     }
     else if eq ins I_PUSH_IMM {
       vo(fd, "; I_PUSH_IMM\n", null);
-      let dest: u64 = load64 + op Op.dest;
-      if eq dest TypeUnsigned64 {
-        let value: u64 = load64 + + c Compile.imm load64 + op Op.src0;
+      let size: u64 = load64 + op Op.dest;
+      let imm: u64 = load64 + op Op.src0;
+      if eq size 8 {
+        let value: u64 = load64 + + c Compile.imm imm;
         o(fd, "mov rax, %d\n", @value);
         o(fd, "push rax\n", null);
       }
       else {
-        assert(0, "I_PUSH_IMM: type not implemented\n");
+        assert(0, "I_PUSH_IMM: size not implemented\n");
       }
     }
     else if eq ins I_ADD {

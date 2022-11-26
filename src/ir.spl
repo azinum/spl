@@ -17,7 +17,7 @@ enum u64 (
   I_PUSH_LOCAL_ADDR_OF, // <x, local_id, x>
   I_PUSH, // <type, id, size>
   I_PUSH_LOCAL, // <type, local_id, size>
-  I_PUSH_IMM, // <type, imm, x>
+  I_PUSH_IMM, // <size, imm, x>
   I_ADD,
   I_SUB,
   I_MUL,
@@ -350,7 +350,7 @@ fn ir_compile_value(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
       let op: Op = 0;
       OP_init(
         I_PUSH_IMM,
-        TypeUnsigned64,
+        sizeof u64,
         imm,
         NONE,
         at op
@@ -885,7 +885,7 @@ fn ir_compile_sizeof(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
     let op: Op = 0;
     OP_init(
       I_PUSH_IMM,
-      TypeUnsigned64,
+      sizeof u64,
       imm,
       NONE,
       at op
