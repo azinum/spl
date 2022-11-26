@@ -3,6 +3,7 @@
 // TODO(lucas): temporary, allow passing and pushing structs of any size
 const MAX_STRUCT_SIZE = sizeof u64;
 const MAX_PUSH_SIZE = sizeof u64;
+const DEFAULT_TYPE_BUFFER_SIZE = 256;
 
 enum u64 (
   TYPE_CONTRACT_LOOKUP,
@@ -230,7 +231,7 @@ fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Fu
 }
 
 fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
-  let buffer_size = 256;
+  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
   let buffer: u8[buffer_size] = 0;
   let bp = at buffer;
 
@@ -295,12 +296,16 @@ fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> no
 }
 
 fn type_print(fd: u64, type: ptr<Type>) -> none {
-  let buffer_size = 256;
+  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
   let buffer: u8[buffer_size] = 0;
   let bp = at buffer;
   type_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, type);
   let args: any = at buffer;
   dprintf(fd, "%s", @args);
+}
+
+fn type_to_buffer(buffer: ptr, size: u64, type: ptr<Type>) -> none {
+  type_write_to_buffer(at buffer, at size, type);
 }
 
 fn type_printline(fd: u64, type: ptr<Type>) -> none {
@@ -1474,16 +1479,26 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
                 let func_sig_a = func_signature_from_id(type_sub_id(at arg_type));
                 let func_sig_b = func_signature_from_id(type_sub_id(at arg_in_type));
                 if eq func_signatures_compare(func_sig_a, func_sig_b) 0 {
-                  // TODO(lucas): error message type strings
-                  typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", null);
+                  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+                  let in_type_str: u8[buffer_size] = 0;
+                  let type_str: u8[buffer_size] = 0;
+                  type_to_buffer(@type_str, buffer_size, at arg_type);
+                  type_to_buffer(@in_type_str, buffer_size, at arg_in_type);
+                  let args: any = at in_type_str, at type_str;
+                  typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `%s`, but `%s` was expected\n", @args);
                   store64 @done 1;
                 }
               }
               else if and
                   neq types_are_equal(at arg_type, at arg_in_type) 1
                   neq type_base(at arg_type) TypeAny {
-                // TODO(lucas): error message type strings
-                typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `?`, but `?` was expected\n", null);
+                let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+                let in_type_str: u8[buffer_size] = 0;
+                let type_str: u8[buffer_size] = 0;
+                type_to_buffer(@type_str, buffer_size, at arg_type);
+                type_to_buffer(@in_type_str, buffer_size, at arg_in_type);
+                let args: any = at in_type_str, at type_str;
+                typecheck_error_at(+ node Ast.token, "type mismatch in function call, got `%s`, but `%s` was expected\n", @args);
                 store64 @done 1;
               }
             }
@@ -1516,16 +1531,17 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     else {
       let type: Type = 0;
       memcpy(at type, + symbol Symbol.type, sizeof Type);
-      // TODO(lucas): error message type strings
-      typecheck_error_at(+ ast Ast.token, "function calls of type `?` is not permitted\n", null);
+      let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+      let type_str: u8[buffer_size] = 0;
+      type_to_buffer(@type_str, buffer_size, at type);
+      let args: any = at type_str;
+      typecheck_error_at(+ ast Ast.token, "function calls of type `%s` is not permitted\n", @args);
     }
   }
   else {
     let message = tmp_it;
-    tmp_push_cstr("symbol `");
-    tmp_push_str(cast cstr load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length);
-    tmp_push_cstr("` not defined\n");
-    tmp_push_byte(cast u8 0);
+    let args: any = load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length;
+    sprintf(cast ptr message, "symbol `%*s` not defined\n", @args);
     compile_error_at(+ ast Ast.token, cast cstr message);
     store64 @tmp_it message;
   }
@@ -1903,8 +1919,13 @@ fn typecheck_cast_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     ts_push(at cast_type, cast ptr<Type> null);
   }
   else {
-    // TODO(lucas): error message type strings
-    typecheck_error_at(+ type_expr Ast.token, "cannot cast from type `?` to `?`\n", null);
+    let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+    let from_str: u8[buffer_size] = 0;
+    let to_str: u8[buffer_size] = 0;
+    type_to_buffer(@from_str, buffer_size, at expr_type);
+    type_to_buffer(@to_str, buffer_size, at cast_type);
+    let args: any = at from_str, at to_str;
+    typecheck_error_at(+ type_expr Ast.token, "cannot cast from type `%s` to `%s`\n", @args);
   }
   load64 + c Compile.status;
 }
@@ -2002,8 +2023,8 @@ fn typecheck_field_access(block: ptr<Block>, fs: ptr<Function>, ast: ptr, type_c
           }
         }
         else {
-          let args: any = at field_name;
-          typecheck_error_at(+ node Ast.token, "struct `?` has no field named `%s`\n", @args);
+          let args: any = + struct_type_info Struct_type_info.name, at field_name;
+          typecheck_error_at(+ node Ast.token, "struct `%s` has no field named `%s`\n", @args);
         }
         store64 @i + 1 i;
       }
