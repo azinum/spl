@@ -123,6 +123,10 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
         store64 @it + it bwrite_cstr(it, end, cast cstr load64 arg);
         store64 @arg + sizeof ptr arg;
       }
+      else if eq ch 'c' {
+        store64 @it + it bwrite_u8(it, end, cast u8 load8 arg);
+        store64 @arg + sizeof ptr arg;
+      }
       else if eq ch 'd' {
         store64 @it + it bwrite_u64(it, end, cast u64 load64 arg);
         store64 @arg + sizeof ptr arg;

@@ -70,7 +70,10 @@ fn symbol_info_print_html(fd: u64) -> none {
         html_tag(fd, "td", "%d", @i);
         html_tag(fd, "td", "%s", @name);
         html_single_tag(fd, "td");
-        type_print(fd, at type);
+        let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+        let type_str: u8[buffer_size] = 0;
+        type_to_buffer(@type_str, buffer_size, at type);
+        html_plain_text(fd, cast cstr at type_str);
         html_single_end_tag(fd, "td");
         html_tag(fd, "td", "%d", @size);
         html_tag(fd, "td", "%d", @konst);

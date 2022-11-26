@@ -43,6 +43,30 @@ fn html_tag_with_attr(fd: u64, tag: cstr, attr_format: cstr, attr_args: any, con
   html_single_end_tag(fd, tag);
 }
 
+fn html_plain_text(fd: u64, content: cstr) -> none {
+  let done = 0;
+  let it = content;
+  while eq done 0 {
+    let ch = load8 it;
+    if eq ch 0 {
+      store64 @done 1;
+    }
+    else if eq ch '<' {
+      dprintf(fd, "&lt;", null);
+    }
+    else if eq ch '>' {
+      dprintf(fd, "&gt;", null);
+    }
+    else if eq ch '&' {
+      dprintf(fd, "&amp;", null);
+    }
+    else {
+      dprintf(fd, "%c", @ch);
+    }
+    store64 @it + 1 it;
+  }
+}
+
 fn html_end_html(fd: u64) -> none {
   let content =
 "</body>
