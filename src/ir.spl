@@ -435,7 +435,11 @@ fn ir_compile_let_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) ->
   if eq type_base(type) TypeCString {
     // NOTE(lucas): we change type from cstr -> ptr<cstr> because symbol is pointing to a string
     // TODO(lucas): ir code generator should not be responsible for this
-    type_init(type, TypePtr, TypeCString, sizeof ptr, 1);
+    const count = 2;
+    let contract: Type[count] = 0;
+    type_init(cast ptr<Type> + at contract * sizeof Type 0, TypePtr, 0, sizeof ptr, 1);
+    memcpy(cast ptr<Type> + at contract * sizeof Type 1, type, sizeof Type);
+    let _ = type_from_contract(cast ptr<Type> at contract, count, TYPE_CONTRACT_CREATE, type); // TODO(lucas): handle error
   }
   // NOTE(lucas): completely ignore the rhs of the let statement if it is in the global scope
   // TODO(lucas): figure out how to deal with globals when it comes to their value assignment(s)
@@ -504,7 +508,7 @@ fn ir_compile_func(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64 {
   let id: u64 = load64 + + ast Ast.token Token.v;
   assert(neq id UINT64_MAX, "bad function id\n");
 
-  let symbol = cast ptr + + c Compile.symbols * sizeof Symbol id;
+  let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol id;
   let ref_count: u64 = load64 + symbol Symbol.ref_count;
 
   if not and eq ref_count 0 eq load64 + @options Options.disable_dce 0 {

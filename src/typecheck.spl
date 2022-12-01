@@ -1024,11 +1024,21 @@ fn typecheck_binop_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     }
     let value: Value = 0;
     store64 + @value Value.num num;
-    let konst: u64 = is_branch_konst_eval(ast);
+    let konst = is_branch_konst_eval(ast);
     store64 + ast Ast.konst konst;
     store64 + @value Value.konst konst;
     { let _ = vs_push(at value); }
     ts_push(at a, cast ptr<Type> null);
+
+    // if the expression is constant it can be collapsed into a single node
+    if konst {
+      ast_clear(ast);
+      ast_init_node(ast, AstValue);
+      let token = cast ptr<Token> + ast Ast.token;
+      store64 + token Token.type T_NUMBER;
+      store64 + token Token.v load64 + at value Value.num;
+      store64 + ast Ast.konst konst;
+    }
   }
   else {
     typecheck_error("type mismatch in binary operator expression\n");

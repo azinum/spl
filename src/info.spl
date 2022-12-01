@@ -10,6 +10,7 @@ fn symbol_info_print(fd: u64) -> none {
     let name = cast cstr + symbol Symbol.name;
     let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
+    let type_size = * load64 + at type Type.size load64 + at type Type.count;
     let num_i_digits: u64 = digit_count(i);
     let j: u64 = 0;
 
@@ -30,7 +31,7 @@ fn symbol_info_print(fd: u64) -> none {
         type_print(fd, at type);
       }
       let args: any = (
-        load64 + symbol Symbol.size,
+        type_size,
         load64 + symbol Symbol.konst,
         load64 + + symbol Symbol.value Value.konst,
         load64 + symbol Symbol.ref_count,

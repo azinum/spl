@@ -43,6 +43,7 @@ fn html_tag_with_attr(fd: u64, tag: cstr, attr_format: cstr, attr_args: any, con
   html_single_end_tag(fd, tag);
 }
 
+// sanitise input so that it can be rendered as plain text
 fn html_plain_text(fd: u64, content: cstr) -> none {
   let done = 0;
   let it = content;

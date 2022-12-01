@@ -2,7 +2,6 @@
 - improve struct field access
 - struct field access with array indexing
 - function inlining
-- optimize ir code generator so that it does not emit redundant instructions e.g. from constant expressions
 - dependency trace (i.e. trace which things depend on which other things)
 - improve memory allocator
 - differentiate between signed and unsigned comparison operators for where it is necessary (e.g. cmovl vs. cmovb for signed and unsigned values respectively)
@@ -15,8 +14,7 @@
 - fix parsing bug where single `}` are not detected
 - basic introspection
 - library linking
-- improve error printing of invalid type constructions
-	- improve error printing in general
+- improve error printing
 - self referencing in structs (i.e. struct T (t : ptr<T>))
     refer to a struct in a struct of the same type ---^
 	- however, it should not be permitted to store a struct in a struct of the same type directly
