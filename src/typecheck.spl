@@ -23,6 +23,8 @@ let _type_printline = type_print_func_sig;
 fn type_write_to_buffer_func_sig(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {}
 let _type_write_to_buffer = type_write_to_buffer_func_sig;
 
+let typecheck_funcs = cast typecheck_function[MAX_AST_TYPE] 0;
+
 fn typecheck_print_unused -> none {
   if not load64 + @options Options.disable_dce {
     let i = MAX_SYSCALL_FUNCTION;
@@ -832,6 +834,10 @@ fn typecheck_node_list(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   load64 + c Compile.status;
 }
 
+fn typecheck_none(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  load64 + c Compile.status;
+}
+
 fn typecheck_value(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let token_type = load64 + + ast Ast.token Token.type;
   if eq token_type T_NUMBER {
@@ -942,6 +948,14 @@ fn typecheck_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
 
 fn typecheck_list_of_nodes(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let _ = typecheck_node_list(block, fs, ast);
+  store64 + ast Ast.konst is_branch_konst_eval(ast);
+  load64 + c Compile.status;
+}
+
+fn typecheck_block_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let local_block = block_push(block);
+  { let _ = typecheck_node_list(local_block, fs, ast); }
+  block_pop(); // local_block
   store64 + ast Ast.konst is_branch_konst_eval(ast);
   load64 + c Compile.status;
 }
@@ -1275,14 +1289,6 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
   result;
 }
 
-fn typecheck_block_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  let local_block = block_push(block);
-  { let _ = typecheck_node_list(local_block, fs, ast); }
-  block_pop(); // local_block
-  store64 + ast Ast.konst is_branch_konst_eval(ast);
-  load64 + c Compile.status;
-}
-
 fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   if eq cast u64 block + c Compile.global {
     let params = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
@@ -1558,6 +1564,60 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   load64 + c Compile.status;
 }
 
+fn typecheck_assignment(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let second = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  { let _ = _typecheck(block, fs, first); }
+  let a: Type = 0;
+  ts_pop(at a);
+  { let _ = _typecheck(block, fs, second); }
+  let b: Type = 0;
+  ts_pop(at b);
+  if or eq type_base(at a) TypePtr eq type_base(at a) TypeAny {
+    let deref_a: Type = 0;
+    type_deflate(at a, at deref_a);
+    if types_are_equal(at deref_a, at b) {
+      { let _ = vs_pop(cast ptr<Value> null); }
+      { let _ = vs_pop(cast ptr<Value> null); }
+      // just to get things up and running i'm sticking with the `type context` way of passing on types to the ir
+      // might just slap on type as well as value directly onto the ast later on
+      let type_context: Type_context = 0;
+      type_context_init(at type_context);
+      memcpy(+ at type_context Type_context.type, at deref_a, sizeof Type);
+      store64 + at type_context Type_context.symbol_id UINT64_MAX;
+      let id = type_context_push(at type_context);
+      assert(neq id UINT64_MAX, "failed to push type context\n"); // TODO(lucas): handle error
+      store64 + ast Ast.type_context_id id;
+    }
+    else {
+      typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", null);
+    }
+  }
+  else {
+    typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", null);
+  }
+  load64 + c Compile.status;
+}
+
+fn typecheck_store_operation(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
+  let second = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  { let _ = _typecheck(block, fs, first); }
+  let a: Type = 0;
+  ts_pop(at a);
+  { let _ = _typecheck(block, fs, second); }
+  if or eq type_base(at a) TypePtr eq type_base(at a) TypeAny {
+    ts_pop(cast ptr<Type> null);
+    { let _ = vs_pop(cast ptr<Value> null); }
+    { let _ = vs_pop(cast ptr<Value> null); }
+  }
+  else {
+    typecheck_error_at(+ first Ast.token, "type mismatch in store statement\n", null);
+  }
+  load64 + c Compile.status;
+}
+
+
 fn typecheck_while_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
@@ -1635,59 +1695,6 @@ fn typecheck_if_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64
   }
   else {
     typecheck_error_at(+ cond Ast.token, "invalid type in if statement condition\n", null);
-  }
-  load64 + c Compile.status;
-}
-
-fn typecheck_assignment(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let second = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-  { let _ = _typecheck(block, fs, first); }
-  let a: Type = 0;
-  ts_pop(at a);
-  { let _ = _typecheck(block, fs, second); }
-  let b: Type = 0;
-  ts_pop(at b);
-  if or eq type_base(at a) TypePtr eq type_base(at a) TypeAny {
-    let deref_a: Type = 0;
-    type_deflate(at a, at deref_a);
-    if types_are_equal(at deref_a, at b) {
-      { let _ = vs_pop(cast ptr<Value> null); }
-      { let _ = vs_pop(cast ptr<Value> null); }
-      // just to get things up and running i'm sticking with the `type context` way of passing on types to the ir
-      // might just slap on type as well as value directly onto the ast later on
-      let type_context: Type_context = 0;
-      type_context_init(at type_context);
-      memcpy(+ at type_context Type_context.type, at deref_a, sizeof Type);
-      store64 + at type_context Type_context.symbol_id UINT64_MAX;
-      let id = type_context_push(at type_context);
-      assert(neq id UINT64_MAX, "failed to push type context\n"); // TODO(lucas): handle error
-      store64 + ast Ast.type_context_id id;
-    }
-    else {
-      typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", null);
-    }
-  }
-  else {
-    typecheck_error_at(+ first Ast.token, "type mismatch in assignment statement\n", null);
-  }
-  load64 + c Compile.status;
-}
-
-fn typecheck_store_operation(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  let first = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let second = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-  { let _ = _typecheck(block, fs, first); }
-  let a: Type = 0;
-  ts_pop(at a);
-  { let _ = _typecheck(block, fs, second); }
-  if or eq type_base(at a) TypePtr eq type_base(at a) TypeAny {
-    ts_pop(cast ptr<Type> null);
-    { let _ = vs_pop(cast ptr<Value> null); }
-    { let _ = vs_pop(cast ptr<Value> null); }
-  }
-  else {
-    typecheck_error_at(+ first Ast.token, "type mismatch in store statement\n", null);
   }
   load64 + c Compile.status;
 }
@@ -1786,7 +1793,7 @@ fn typecheck_enum(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   load64 + c Compile.status;
 }
 
-fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union: u64) -> u64 {
+fn typecheck_structure(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union: u64) -> u64 {
   let fields = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let field_offset: u64 = 0;
   let i: u64 = 0;
@@ -1917,6 +1924,14 @@ fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union: u6
   load64 + c Compile.status;
 }
 
+fn typecheck_struct(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  typecheck_structure(block, fs, ast, 0);
+}
+
+fn typecheck_union(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  typecheck_structure(block, fs, ast, 1);
+}
+
 fn typecheck_cast_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let type_expr = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
   let expr = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
@@ -2001,7 +2016,7 @@ fn typecheck_static_assert(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
 //    I_LOADx        | load y based on its type
 //                   | we're done
 //
-fn typecheck_field_access(block: ptr<Block>, fs: ptr<Function>, ast: ptr, type_context: ptr<Type_context>) -> u64 {
+fn typecheck_field_access_collect(block: ptr<Block>, fs: ptr<Function>, ast: ptr, type_context: ptr<Type_context>) -> u64 {
   let symbol = null;
   let symbol_id = UINT64_MAX;
   let buffer: Buffer = 0;
@@ -2054,93 +2069,41 @@ fn typecheck_field_access(block: ptr<Block>, fs: ptr<Function>, ast: ptr, type_c
   load64 + c Compile.status;
 }
 
+fn typecheck_field_access(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let type_context: Type_context = 0;
+  type_context_init(at type_context);
+  if eq typecheck_field_access_collect(block, fs, ast, at type_context) NoError {
+    let id = type_context_push(at type_context);
+    if neq id UINT64_MAX {
+      store64 + ast Ast.type_context_id id;
+      ts_push(cast ptr<Type> + at type_context Type_context.type, cast ptr<Type> null);
+      let value: Value = 0;
+      memset(at value, 0, sizeof Value);
+      { let _ = vs_push(at value); }
+    }
+    else {
+      assert(0, "failed to push type context\n"); // TODO(lucas): handle error
+    }
+  }
+  load64 + c Compile.status;
+}
+
+fn typecheck_undefined(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let message = cast cstr tmp_it;
+  let ast_type = load64 + ast Ast.type;
+  sprintf(cast ptr message, "undefined AST node with id `%d`\n", @ast_type);
+  assert(0, message);
+  load64 + c Compile.status;
+}
+
 fn typecheck(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   if eq load64 + c Compile.status NoError {
     let ast_type = load64 + ast Ast.type;
-    if eq ast_type AstNone {
-      // do nothing
-    }
-    else if eq ast_type AstValue {
-      let _ = typecheck_value(block, fs, ast);
-    }
-    else if eq ast_type AstExpression {
-      let _ = typecheck_expr(block, fs, ast);
-    }
-    else if or or eq ast_type AstExprList eq ast_type AstStatement eq ast_type AstStatementList {
-      let _ = typecheck_list_of_nodes(block, fs, ast);
-    }
-    else if eq ast_type AstBinopExpression {
-      let _ = typecheck_binop_expr(block, fs, ast);
-    }
-    else if eq ast_type AstUopExpression {
-      let _ = typecheck_uop_expr(block, fs, ast);
-    }
-    else if or eq ast_type AstLetStatement eq ast_type AstConstStatement {
-      let _ = typecheck_let_statement(block, fs, ast);
-    }
-    else if eq ast_type AstBlockStatement {
-      let _ = typecheck_block_statement(block, fs, ast);
-    }
-    else if eq ast_type AstFuncDefinition {
-      let _ = typecheck_func_definition(block, fs, ast);
-    }
-    else if eq ast_type AstFuncCall {
-      let _ = typecheck_func_call(block, fs, ast);
-    }
-    else if eq ast_type AstWhileStatement {
-      let _ = typecheck_while_statement(block, fs, ast);
-    }
-    else if eq ast_type AstIfStatement {
-      let _ = typecheck_if_statement(block, fs, ast);
-    }
-    else if eq ast_type AstAssignment {
-      let _ = typecheck_assignment(block, fs, ast);
-    }
-    else if eq ast_type AstStore {
-      let _ = typecheck_store_operation(block, fs, ast);
-    }
-    else if eq ast_type AstSizeof {
-      let _ = typecheck_sizeof(block, fs, ast);
-    }
-    else if eq ast_type AstEnum {
-      let _ = typecheck_enum(block, fs, ast);
-    }
-    else if eq ast_type AstStruct {
-      let _ = typecheck_struct(block, fs, ast, 0);
-    }
-    else if eq ast_type AstUnion {
-      let _ = typecheck_struct(block, fs, ast, 1);
-    }
-    else if eq ast_type AstCastExpression {
-      let _ = typecheck_cast_expr(block, fs, ast);
-    }
-    else if eq ast_type AstStaticAssert {
-      let _ = typecheck_static_assert(block, fs, ast);
-    }
-    else if eq ast_type AstFieldAccess {
-      let type_context: Type_context = 0;
-      type_context_init(at type_context);
-      if eq typecheck_field_access(block, fs, ast, at type_context) NoError {
-        let id = type_context_push(at type_context);
-        if neq id UINT64_MAX {
-          store64 + ast Ast.type_context_id id;
-          ts_push(cast ptr<Type> + at type_context Type_context.type, cast ptr<Type> null);
-          let value: Value = 0;
-          memset(at value, 0, sizeof Value);
-          { let _ = vs_push(at value); }
-        }
-        else {
-          assert(0, "failed to push type context\n"); // TODO(lucas): handle error
-        }
-      }
-    }
-    else {
-      let message = cast cstr tmp_it;
-      sprintf(cast ptr message, "unreachable AST node with id `%d`\n", @ast_type);
-      assert(0, message);
+    if < ast_type MAX_AST_TYPE {
+      let func = cast typecheck_function load64 + at typecheck_funcs * sizeof ptr ast_type;
+      let _ = func(block, fs, ast);
     }
   }
-
   load64 + c Compile.status;
 }
 
@@ -2150,6 +2113,35 @@ fn typecheck_program(ast: ptr) -> u64 {
   store64 @_type_print type_print;
   store64 @_type_printline type_printline;
   store64 @_type_write_to_buffer type_write_to_buffer;
+
+  store64 + @typecheck_funcs * sizeof ptr AstNone             typecheck_none;
+  store64 + @typecheck_funcs * sizeof ptr AstRoot             typecheck_undefined;
+  store64 + @typecheck_funcs * sizeof ptr AstValue            typecheck_value;
+  store64 + @typecheck_funcs * sizeof ptr AstExpression       typecheck_expr;
+  store64 + @typecheck_funcs * sizeof ptr AstExprList         typecheck_list_of_nodes;
+  store64 + @typecheck_funcs * sizeof ptr AstStatement        typecheck_list_of_nodes;
+  store64 + @typecheck_funcs * sizeof ptr AstStatementList    typecheck_list_of_nodes;
+  store64 + @typecheck_funcs * sizeof ptr AstBlockStatement   typecheck_block_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstBinopExpression  typecheck_binop_expr;
+  store64 + @typecheck_funcs * sizeof ptr AstUopExpression    typecheck_uop_expr;
+  store64 + @typecheck_funcs * sizeof ptr AstConstStatement   typecheck_let_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstLetStatement     typecheck_let_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstFuncDefinition   typecheck_func_definition;
+  store64 + @typecheck_funcs * sizeof ptr AstFuncCall         typecheck_func_call;
+  store64 + @typecheck_funcs * sizeof ptr AstParamList        typecheck_undefined;
+  store64 + @typecheck_funcs * sizeof ptr AstAssignment       typecheck_assignment;
+  store64 + @typecheck_funcs * sizeof ptr AstStore            typecheck_store_operation;
+  store64 + @typecheck_funcs * sizeof ptr AstWhileStatement   typecheck_while_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstIfStatement      typecheck_if_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstType             typecheck_undefined;
+  store64 + @typecheck_funcs * sizeof ptr AstSizeof           typecheck_sizeof;
+  store64 + @typecheck_funcs * sizeof ptr AstEnum             typecheck_enum;
+  store64 + @typecheck_funcs * sizeof ptr AstStruct           typecheck_struct;
+  store64 + @typecheck_funcs * sizeof ptr AstUnion            typecheck_union;
+  store64 + @typecheck_funcs * sizeof ptr AstCastExpression   typecheck_cast_expr;
+  store64 + @typecheck_funcs * sizeof ptr AstStaticAssert     typecheck_static_assert;
+  store64 + @typecheck_funcs * sizeof ptr AstArg              typecheck_undefined;
+  store64 + @typecheck_funcs * sizeof ptr AstFieldAccess      typecheck_field_access;
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;

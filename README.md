@@ -46,7 +46,7 @@ Hello, World:
 include "lib/common.spl"
 
 fn main -> none {
-  printf("Hello, World\n", NULL);
+  printf("Hello, World\n", null);
 }
 ```
 
@@ -54,8 +54,8 @@ Program that counts from 0 to 9:
 ```rust
 
 fn main -> none {
-  let i : u64 = 0;
-  let count : u64 = 10;
+  let i = 0;
+  let count = 10;
   while < i count {
     print i;
     store64 @i + 1 i;
