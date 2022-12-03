@@ -166,65 +166,39 @@ fn compile_linux_nasm_x86_64(fd: u64) -> u64 {
     }
     else if eq ins I_PUSH {
       vo(fd, "; I_PUSH\n", null);
-      let dest: u64 = load64 + op Op.dest;
-      let args: any = load64 + op Op.src0;
-      if or or
-          eq dest TypeAny
-          eq dest TypePtr
-          eq dest TypeUnsigned64 {
-        o(fd, "mov rax, [v%d]\n", @args);
+      let type: u64 = load64 + op Op.dest;
+      let id: u64 = load64 + op Op.src0;
+      let size: u64 = load64 + op Op.src1;
+      if eq type TypeCString {
+        o(fd, "mov rax, str%d\n", @id);
         o(fd, "push rax\n", null);
       }
-      else if eq dest TypeUnsigned32 {
-        o(fd, "xor rax, rax\n", null);
-        o(fd, "mov eax, [v%d]\n", @args);
+      else if eq type TypeFunc {
+        o(fd, "mov rax, v%d\n", @id);
         o(fd, "push rax\n", null);
-      }
-      else if eq dest TypeUnsigned16 {
-        o(fd, "xor rax, rax\n", null);
-        o(fd, "mov ax, [v%d]\n", @args);
-        o(fd, "push rax\n", null);
-      }
-      else if eq dest TypeUnsigned8 {
-        o(fd, "xor rax, rax\n", null);
-        o(fd, "mov al, [v%d]\n", @args);
-        o(fd, "push rax\n", null);
-      }
-      else if eq dest TypeCString {
-        o(fd, "mov rax, str%d\n", @args);
-        o(fd, "push rax\n", null);
-      }
-      else if eq dest TypeFunc {
-        o(fd, "mov rax, v%d\n", @args);
-        o(fd, "push rax\n", null);
-      }
-      else if eq dest TypeStruct {
-        let size: u64 = load64 + op Op.src1;
-        if eq size 8 {
-          o(fd, "mov rax, [v%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else if eq size 4 {
-          o(fd, "xor rax, rax\n", null);
-          o(fd, "mov eax, [v%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else if eq size 2 {
-          o(fd, "xor rax, rax\n", null);
-          o(fd, "mov ax, [v%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else if eq size 1 {
-          o(fd, "xor rax, rax\n", null);
-          o(fd, "mov al, [v%d]\n", @args);
-          o(fd, "push rax\n", null);
-        }
-        else {
-          assert(0, "I_PUSH: bad struct size\n");
-        }
       }
       else {
-        assert(0, "I_PUSH: type not implemented\n");
+        if or eq size NONE eq size 0 {
+          assert(0, "I_PUSH: invalid push size\n");
+        }
+        else if < size 2 { // <= 1
+          o(fd, "mov al, [v%d]\n", @id);
+          o(fd, "push rax\n", null);
+        }
+        else if < size 3 { // <= 2
+          o(fd, "mov ax, [v%d]\n", @id);
+          o(fd, "push rax\n", null);
+        }
+        else if < size 5 { // <= 4
+          o(fd, "mov eax, [v%d]\n", @id);
+          o(fd, "push rax\n", null);
+        }
+        else if < size 9 { // <= 8
+          o(fd, "push QWORD [v%d]\n", @id);
+        }
+        else {
+          assert(0, "I_PUSH: invalid push size (too big)\n");
+        }
       }
     }
     else if eq ins I_PUSH_LOCAL {

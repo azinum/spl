@@ -623,7 +623,7 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
           I_PUSH,
           type_base(at type),
           id,
-          NONE,
+          load64 + at type Type.size,
           at op
         );
         { let _ = ir_push_ins(at op, ins_count); }
