@@ -82,7 +82,7 @@ fn snprintf(str: ptr, size: u64, format: cstr, args: any) -> u64 {
   let it = str; // string iterator
   let end = null;
   if neq size UINT64_MAX {
-    store64 @end + + it size 0; // + 1 for null terminator NOTE(lucas): changed this (to + 0) because it wrote one more character than specified in the asprintf and asnprintf functions.
+    store64 @end + + it size 1;
   }
   let fit = format; // format iterator
   let arg: ptr = cast ptr args;

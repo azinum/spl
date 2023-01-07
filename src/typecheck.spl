@@ -94,7 +94,7 @@ fn type_context_push(context: ptr<Type_context>) -> u64 {
     store64 id + 1 deref id;
   }
   else {
-    assert(0, "type context capacity reached\n");
+    assert(0, "type_context_push: type context capacity reached\n");
   }
   result;
 }
@@ -376,9 +376,8 @@ fn type_lookup(type: ptr<Type>) -> u64 {
   let i: u64 = 0;
   let type_count: u64 = load64 + c Compile.type_count;
   while and eq done 0 < i type_count {
-    let t: Type = 0;
-    memcpy(at t, + + c Compile.types * sizeof Type i, sizeof Type);
-    if types_are_equal(type, at t) {
+    let t = cast ptr<Type> + + c Compile.types * sizeof Type i;
+    if types_are_equal(type, t) {
       store64 @result i;
       store64 @done 1;
     }
@@ -422,15 +421,10 @@ fn type_check_constraints(container: ptr<Type>, type: ptr<Type>) -> u64 {
 }
 
 fn type_deflate(type: ptr<Type>, type_out: ptr<Type>) -> none {
-  if type_out {
-    type_init(type_out, TypeNone, 0, 0, 1);
-  }
   let id = type_sub_id(type);
   if neq id 0 {
-    if type_is_container(type) {
-      if type_out {
-        type_from_id(id, type_out);
-      }
+    if type_is_container(type) { // this check should not be necessary
+      type_from_id(id, type_out);
     }
   }
 }

@@ -52,7 +52,9 @@ fn symbol_info_print_html(fd: u64) -> none {
       html_tag(fd, "th", "Name", null);
       html_tag(fd, "th", "Symbol type", null);
       html_tag(fd, "th", "Type", null);
+      html_tag(fd, "th", "Total size", null);
       html_tag(fd, "th", "Size", null);
+      html_tag(fd, "th", "Count", null);
       html_tag(fd, "th", "Const", null);
       html_tag(fd, "th", "Reference count", null);
     html_single_end_tag(fd, "tr");
@@ -66,7 +68,9 @@ fn symbol_info_print_html(fd: u64) -> none {
     let sym_type_name = cast cstr load64 + @sym_type_str * sizeof cstr sym_type;
     let type: Type = 0;
     memcpy(at type, + symbol Symbol.type, sizeof Type);
-    let size = * load64 + at type Type.size load64 + at type Type.count;
+    let type_count = load64 + at type Type.count;
+    let type_size = load64 + at type Type.size;
+    let total_size = * type_size type_count;
     let konst = load64 + symbol Symbol.konst;
     let ref_count = load64 + symbol Symbol.ref_count;
     if neq type_base(at type) TypeSyscallFunc {
@@ -80,7 +84,9 @@ fn symbol_info_print_html(fd: u64) -> none {
         type_to_buffer(@type_str, buffer_size, at type);
         html_plain_text(fd, cast cstr at type_str);
         html_single_end_tag(fd, "td");
-        html_tag(fd, "td", "%d", @size);
+        html_tag(fd, "td", "%d", @total_size);
+        html_tag(fd, "td", "%d", @type_size);
+        html_tag(fd, "td", "%d", @type_count);
         html_tag(fd, "td", "%d", @konst);
         html_tag(fd, "td", "%d", @ref_count);
       html_single_end_tag(fd, "tr");

@@ -689,17 +689,20 @@ fn ir_compile_assignment(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u6
     let type = cast ptr<Type> + type_context Type_context.type;
     let size = load64 + type Type.size;
     let store_ins = I_STORE64;
-    if eq size 8 {
-      store64 at store_ins I_STORE64;
+    if eq size 0 {
+      assert(0, "ir_compile_assignment: bad assignment size\n");
     }
-    else if eq size 4 {
-      store64 at store_ins I_STORE32;
+    else if < size 2 { // <= 1
+      store64 at store_ins I_STORE8;
     }
-    else if eq size 2 {
+    else if < size 3 { // <= 2
       store64 at store_ins I_STORE16;
     }
-    else if eq size 1 {
-      store64 at store_ins I_STORE8;
+    else if < size 5 { // <= 4
+      store64 at store_ins I_STORE32;
+    }
+    else if < size 9 { // <= 8
+      store64 at store_ins I_STORE64;
     }
     else {
       assert(0, "ir_compile_assignment: bad assignment size\n");
