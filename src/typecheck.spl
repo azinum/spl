@@ -25,26 +25,6 @@ let _type_write_to_buffer = type_write_to_buffer_func_sig;
 
 let typecheck_funcs = cast typecheck_function[MAX_AST_TYPE] 0;
 
-fn typecheck_print_unused -> none {
-  if not load64 + @options Options.disable_dce {
-    let i = MAX_SYSCALL_FUNCTION;
-    let count = load64 + c Compile.symbol_count;
-    while < i count {
-      let symbol: Symbol = 0;
-      memcpy(@symbol, + + c Compile.symbols * sizeof Symbol i, sizeof Symbol);
-      let ref_count = load64 + @symbol Symbol.ref_count;
-      let sym_type = load64 + @symbol Symbol.sym_type;
-      if and eq ref_count 0 eq sym_type SYM_FUNC {
-        let args: any = (
-          + @symbol Symbol.name
-        );
-        warning_at(+ @symbol Symbol.token, "`%s` defined but not used\n", @args);
-      }
-      store64 @i + 1 i;
-    }
-  }
-}
-
 fn typecheck_error(message: cstr) -> none {
   if eq load64 + c Compile.status NoError {
     color_set(COLOR_ERROR);
@@ -1453,6 +1433,7 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let symbol_index: u64 = UINT64_MAX;
   let token_buffer: Buffer = 0;
   buffer_init(at token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
+
   if eq compile_lookup_value(block, fs, @token_buffer, at symbol, @symbol_index, null) NoError {
     store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
     store64 + + ast Ast.token Token.v symbol_index;
@@ -1550,7 +1531,7 @@ fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   }
   else {
     let message = tmp_it;
-    let args: any = load64 + @token_buffer Buffer.data, load64 + @token_buffer Buffer.length;
+    let args: any = load64 + @token_buffer Buffer.length, load64 + @token_buffer Buffer.data;
     sprintf(cast ptr message, "symbol `%*s` not defined\n", @args);
     compile_error_at(+ ast Ast.token, cast cstr message);
     store64 @tmp_it message;
@@ -2154,7 +2135,6 @@ fn typecheck_program(ast: ptr) -> u64 {
 
   if eq load64 + c Compile.status NoError {
     print_time_elapsed("type checking took", at time_start, at time_end);
-    typecheck_print_unused();
     assert(eq load64 + c Compile.block_count 0, "block stack not empty\n");
   }
 

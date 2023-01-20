@@ -9,7 +9,7 @@
 - struct padding and alignment (end user should be able to opt-out of struct padding/alignment, as well as being able to specify padding and alignment sizes)
 - do more work on type casting
 - signed integers
-- compile time evaluation of `trival` functions
+- compile time evaluation of const functions
 - fix parsing bug where `;` is not detected after binary operation
 - fix parsing bug where single `}` are not detected
 - basic introspection

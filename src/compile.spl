@@ -1,5 +1,25 @@
 // compile.spl
 
+fn compile_print_unused -> none {
+  if not load64 + @options Options.disable_dce {
+    let i = MAX_SYSCALL_FUNCTION;
+    let count = load64 + c Compile.symbol_count;
+    while < i count {
+      let symbol: Symbol = 0;
+      memcpy(@symbol, + + c Compile.symbols * sizeof Symbol i, sizeof Symbol);
+      let ref_count = load64 + @symbol Symbol.ref_count;
+      let sym_type = load64 + @symbol Symbol.sym_type;
+      if and eq ref_count 0 eq sym_type SYM_FUNC {
+        let args: any = (
+          + @symbol Symbol.name
+        );
+        warning_at(+ @symbol Symbol.token, "`%s` defined but not used\n", @args);
+      }
+      store64 @i + 1 i;
+    }
+  }
+}
+
 fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
   let result = NoError;
   let block = cast ptr<Block> + c Compile.global;
@@ -146,6 +166,8 @@ fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u
 
   if eq load64 + c Compile.status NoError {
     print_time_elapsed("code generation took", at time_start, at time_end);
+    compile_print_unused();
+    // hello();
   }
 
   result;

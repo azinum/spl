@@ -526,8 +526,6 @@ fn lexer_next -> none {
     }
     else if eq ch 0 {
       store64 + @token Token.type T_EOF;
-      // let args: any = l.line, l.filename;
-      // printf("EOF at line: %d in file `%s`\n", @args);
       store64 @done 1;
     }
     else if eq ch 39 { // `\'`

@@ -2,8 +2,6 @@
 
 // include "lib/common.spl"
 
-fn add(a: u64, b: u64) -> u64 + a b;
-
 // fn print_bits(fd: u64, byte: u64) -> none {
 //   let mask = 0b1000_0000;
 //   let i = 0;

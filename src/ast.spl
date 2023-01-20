@@ -1,5 +1,6 @@
 // ast.spl
 
+// TODO(lucas): reduce the amount of ast nodes because some of these share the same use cases
 enum u64 (
   AstNone,
   AstRoot,
