@@ -1,47 +1,20 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 
 fn add(a: u64, b: u64) -> u64 + a b;
 
-fn print_bits(byte: u64) -> none {
-  let mask = 0b1000_0000;
-  let i = 0;
-  const count = 8;
-  while < i count {
-    let value = neq 0 and byte mask;
-    printf("%d", @value);
-    store64 at mask rshift mask 1;
-    store64 at i + 1 i;
-  }
-}
-
-fn print_bytes(buffer: ptr, size: u64) -> none {
-  const COLS = 4;
-  let i = 0;
-  while < i size {
-    let ch = load8 buffer;
-    print_bits(ch);
-    printf(" ", null);
-    store64 at i + 1 i;
-    store64 at buffer + 1 buffer;
-    if eq 0 % i COLS {
-      printf("\n", null);
-    }
-  }
-}
+// fn print_bits(fd: u64, byte: u64) -> none {
+//   let mask = 0b1000_0000;
+//   let i = 0;
+//   const count = 8;
+//   while < i count {
+//     let value = neq 0 and byte mask;
+//     dprintf(fd, "%d", @value);
+//     store64 at mask rshift mask 1;
+//     store64 at i + 1 i;
+//   }
+// }
 
 fn main -> none {
-  // let size = 32;
-  // let buffer: u8[size] = 0;
-  // memset(at buffer, 0, sizeof buffer);
-  // let bp = @buffer;
-  // let num = 100_12;
-  // asnprintf(at bp, at size, "num = %d, ", @num);
-  // asnprintf(at bp, at size, "%d", @num);
-
-  // let args: any = at buffer, size;
-  // printf("%s, %d\n", @args);
-
-  // print_bytes(@buffer, sizeof buffer);
 }

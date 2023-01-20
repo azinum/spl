@@ -725,10 +725,10 @@ fn token_to_compile_type(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
     type_init(type_out, TypeCString, 0, sizeof cstr, 1);
   }
   else if eq token_type T_IDENTIFIER {
-    let symbol = null;
+    let symbol = cast ptr<Symbol> null;
     let buffer: Buffer = 0;
     buffer_init(at buffer, cast ptr load64 + token Token.buffer, load64 + token Token.length);
-    if eq compile_lookup_value(block, fs, @buffer, @symbol, null, null) NoError {
+    if eq compile_lookup_value(block, fs, @buffer, at symbol, null, null) NoError {
       if neq symbol_out null {
         store64 symbol_out symbol;
       }
@@ -849,12 +849,12 @@ fn typecheck_value(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     ts_push_primitive(TypeCString, cast ptr<Type> null);
   }
   else if eq token_type T_IDENTIFIER {
-    let symbol: ptr = null;
+    let symbol = cast ptr<Symbol> null;
     let symbol_index = UINT64_MAX;
     let token_buffer: Buffer = 0;
     buffer_init(at token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
 
-    if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, null) NoError {
+    if eq compile_lookup_value(block, fs, @token_buffer, at symbol, @symbol_index, null) NoError {
       store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
       store64 + + ast Ast.token Token.v symbol_index;
       store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
@@ -881,11 +881,11 @@ fn typecheck_value(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     }
   }
   else if or eq token_type T_AT eq token_type T_AT_WORD {
-    let symbol: ptr = null;
+    let symbol = cast ptr<Symbol> null;
     let symbol_index = UINT64_MAX;
     let token_buffer: Buffer = 0;
     buffer_init(at token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
-    if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, null) NoError {
+    if eq compile_lookup_value(block, fs, @token_buffer, at symbol, @symbol_index, null) NoError {
       store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
       store64 + + ast Ast.token Token.v symbol_index;
       let type: Type = 0;
@@ -1260,9 +1260,9 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
     let type_count: u64 = load64 + at type Type.count;
     let type_size: u64 = load64 + at type Type.size;
 
-    let symbol: ptr = null;
+    let symbol= cast ptr<Symbol> null;
     let symbol_index = UINT64_MAX;
-    if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+    if eq compile_declare_value(block, fs, + ast Ast.token, at symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size * type_count type_size;
       store64 + symbol Symbol.num_elements_init ts_delta;
@@ -1303,9 +1303,9 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
 
     let argc: u64 = load64 + params Ast.count;
     if or eq argc MAX_FUNC_ARGC < argc MAX_FUNC_ARGC { // argc <= MAX_FUNC_ARGC
-      let symbol: ptr = null;
+      let symbol = cast ptr<Symbol> null;
       let symbol_index: u64 = UINT64_MAX;
-      if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+      if eq compile_declare_value(block, fs, + ast Ast.token, at symbol, @symbol_index) NoError {
         let local_block = block_push(cast ptr<Block> block);
         let type_size: u64 = compile_type_size(TypeFunc);
 
@@ -1343,9 +1343,9 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
           memcpy(@arg, + arg_node Ast.token, sizeof Token);
           memcpy(@arg_type_token, + load64 + + arg_node Ast.node * sizeof ptr 0 Ast.token, sizeof Token);
 
-          let arg_symbol: ptr = null;
+          let arg_symbol = cast ptr<Symbol> null;
           let arg_symbol_index: u64 = UINT64_MAX;
-          if eq compile_declare_value(local_block, func, @arg, @arg_symbol, @arg_symbol_index) NoError {
+          if eq compile_declare_value(local_block, func, @arg, at arg_symbol, @arg_symbol_index) NoError {
             let arg_type: Type = 0;
 
             let arg_type_node: ptr = cast ptr load64 + + arg_node Ast.node * sizeof ptr 0;
@@ -1449,11 +1449,11 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
 }
 
 fn typecheck_func_call(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  let symbol: ptr = null;
+  let symbol = cast ptr<Symbol> null;
   let symbol_index: u64 = UINT64_MAX;
   let token_buffer: Buffer = 0;
   buffer_init(at token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
-  if eq compile_lookup_value(block, fs, @token_buffer, @symbol, @symbol_index, null) NoError {
+  if eq compile_lookup_value(block, fs, @token_buffer, at symbol, @symbol_index, null) NoError {
     store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
     store64 + + ast Ast.token Token.v symbol_index;
     let arg_list = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
@@ -1718,10 +1718,10 @@ fn typecheck_sizeof(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     store64 @size sizeof ptr;
   }
   else if eq token_type T_IDENTIFIER {
-    let symbol = null;
+    let symbol = cast ptr<Symbol> null;
     let buffer: Buffer = 0;
     buffer_init(at buffer, cast ptr load64 + t Token.buffer, load64 + t Token.length);
-    if eq compile_lookup_value(block, fs, @buffer, @symbol, null, null) NoError {
+    if eq compile_lookup_value(block, fs, @buffer, at symbol, null, null) NoError {
       let type = cast ptr<Type> + symbol Symbol.type;
       store64 @size * load64 + type Type.count load64 + type Type.size;
     }
@@ -1756,11 +1756,11 @@ fn typecheck_enum(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   if is_numerical(at type) {
     while < i count {
       let node = cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
-      let symbol: ptr = null;
+      let symbol = cast ptr<Symbol> null;
       let symbol_index: u64 = UINT64_MAX;
       let imm: u64 = compile_push_value(+ @value Value.num, sizeof u64);
 
-      if eq compile_declare_value(block, fs, + node Ast.token, @symbol, @symbol_index) NoError {
+      if eq compile_declare_value(block, fs, + node Ast.token, at symbol, @symbol_index) NoError {
         store64 + symbol Symbol.imm imm;
         store64 + symbol Symbol.size compile_type_size(type_base(at type));
         store64 + symbol Symbol.konst 1;
@@ -1820,14 +1820,14 @@ fn typecheck_structure(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union:
     store64 + + field Ast.token Token.buffer it;
     store64 + + field Ast.token Token.length - tmp_it it;
 
-    let symbol: ptr = null;
+    let symbol = cast ptr<Symbol> null;
     let symbol_index: u64 = UINT64_MAX;
     let imm: u64 = compile_push_value(@field_offset, sizeof field_offset);
     let value: Value = 0;
     store64 + @value Value.num field_offset;
     store64 + @value Value.konst 1;
 
-    if eq compile_declare_value(block, fs, + field Ast.token, @symbol, @symbol_index) NoError {
+    if eq compile_declare_value(block, fs, + field Ast.token, at symbol, @symbol_index) NoError {
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size sizeof u64;
       store64 + symbol Symbol.konst 1;
@@ -1875,7 +1875,7 @@ fn typecheck_structure(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union:
     store64 @i + 1 i;
   }
   // struct symbol definition
-  let symbol: ptr = null;
+  let symbol= cast ptr<Symbol> null;
   let symbol_index: u64 = UINT64_MAX;
   let value: Value = 0;
   memset(@value, 0, sizeof Value);
@@ -1884,7 +1884,7 @@ fn typecheck_structure(block: ptr<Block>, fs: ptr<Function>, ast: ptr, is_union:
     store64 @field_offset largest_field_offset;
   }
 
-  if eq compile_declare_value(block, fs, + ast Ast.token, @symbol, @symbol_index) NoError {
+  if eq compile_declare_value(block, fs, + ast Ast.token, at symbol, @symbol_index) NoError {
     store64 + symbol Symbol.imm UINT64_MAX;
     store64 + symbol Symbol.size field_offset;
     store64 + symbol Symbol.konst 0;
@@ -2011,11 +2011,11 @@ fn typecheck_static_assert(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
 //                   | we're done
 //
 fn typecheck_field_access_collect(block: ptr<Block>, fs: ptr<Function>, ast: ptr, type_context: ptr<Type_context>) -> u64 {
-  let symbol = null;
+  let symbol = cast ptr<Symbol> null;
   let symbol_id = UINT64_MAX;
   let buffer: Buffer = 0;
   buffer_init(at buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
-  if eq compile_lookup_value(block, fs, @buffer, @symbol, @symbol_id, null) NoError {
+  if eq compile_lookup_value(block, fs, @buffer, at symbol, @symbol_id, null) NoError {
     store64 + type_context Type_context.symbol_id symbol_id;
     let type = cast ptr<Type> + symbol Symbol.type;
     if eq type_base(type) TypeStruct {

@@ -40,6 +40,15 @@ let ast_type_str: cstr[MAX_AST_TYPE] = cast cstr[MAX_AST_TYPE] "";
 const MAX_INTERNAL_NODE: u64 = 512; // how many nodes can each node hold?
 const MAX_AST_NODE: u64 = * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
+union Info (
+  type: Type,
+);
+
+struct Node_info (
+  symbol_id: u64,
+  info: Info
+);
+
 struct Ast (
   node: ptr[MAX_INTERNAL_NODE],
   count: u64,
@@ -48,6 +57,7 @@ struct Ast (
   konst: u64,
 
   type_context_id: u64,
+  info: Node_info
 );
 
 let ast_node_memory: Ast[MAX_AST_NODE] = 0;
@@ -60,6 +70,7 @@ fn ast_init_node(node: any, type: u64) -> none {
   store64 + node Ast.type type;
   store64 + node Ast.konst 0;
   store64 + node Ast.type_context_id UINT64_MAX;
+  memset(+ node Ast.info, 0, sizeof Node_info);
   token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
 }
 

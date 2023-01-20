@@ -33,9 +33,9 @@ fn compile_create_syscall(name: cstr, argc: u64) -> u64 {
   type_init(at type, TypeSyscallFunc, func_sig_id, sizeof ptr, 1);
   { let _ = type_commit_new(at type); }
 
-  let symbol: ptr = null;
+  let symbol = cast ptr<Symbol> null;
   let symbol_index = UINT64_MAX;
-  if eq compile_declare_value(block, cast ptr<Function> null, @token, @symbol, @symbol_index) NoError {
+  if eq compile_declare_value(block, cast ptr<Function> null, @token, at symbol, @symbol_index) NoError {
     store64 + symbol Symbol.size compile_type_size(TypeSyscallFunc);
     store64 + symbol Symbol.sym_type SYM_FUNC;
     memcpy(+ symbol Symbol.type, at type, sizeof Type);
@@ -68,9 +68,9 @@ fn compile_create_value(name: cstr, value: ptr<Value>, type: ptr<Type>) -> u64 {
 
   let imm: u64 = compile_push_value(+ value Value.num, sizeof u64);
   if neq imm UINT64_MAX {
-    let symbol: ptr = null;
+    let symbol = cast ptr<Symbol> null;
     let symbol_index = UINT64_MAX;
-    if eq compile_declare_value(block, cast ptr<Function> null, @token, @symbol, @symbol_index) NoError {
+    if eq compile_declare_value(block, cast ptr<Function> null, @token, at symbol, @symbol_index) NoError {
       let type_id = type_lookup(type);
       store64 + symbol Symbol.imm imm;
       store64 + symbol Symbol.size compile_type_size(type_id);
@@ -313,7 +313,7 @@ fn compile_state_init -> u64 {
     let _ = type_commit_new(at type);
   }
   {
-    type_init(at type, TypeStruct, 0, 0, 1); // NOTE(lucas): changed empty struct size to 0
+    type_init(at type, TypeStruct, 0, 0, 1);
     let _ = type_commit_new(at type);
   }
   {

@@ -30,6 +30,7 @@ include "src/value.spl"
 include "src/ast.spl"
 include "src/parser.spl"
 include "src/compile_state.spl"
+include "src/name_resolution.spl"
 include "src/typecheck.spl"
 include "src/ir.spl"
 include "src/ir_optimize.spl"
@@ -65,6 +66,12 @@ fn write_debug_information_html(path: cstr) -> none {
    }
    table, th, td {
      border: 1px solid black;
+     border-radius: 0.2em;
+     padding: 0.2em;
+     font-family: consolas, monospace, auto;
+   }
+   th {
+     background-color: #f0f0f0;
    }
    ul {
      list-style-type: none;
@@ -100,7 +107,6 @@ fn write_debug_information_html(path: cstr) -> none {
       }
     }
  </script>";
-
     html_begin_html(fd, "Title", "%s\n", @header_content);
     html_tag(fd, "h1", "%s", @path);
     ast_print_html(load64 + @p Parser.ast, fd);
