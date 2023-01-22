@@ -227,8 +227,13 @@ fn assert(cond: u64, message: cstr) -> none {
   }
 }
 
-fn open_file_writable(path: cstr) -> u64 {
+fn file_open_writable(path: cstr) -> u64 {
   let mode: u64 = 434; // 0662
   let flags: u64 = or or O_CREAT O_TRUNC O_WRONLY;
   open(path, flags, mode);
+}
+
+fn directory_create(path: cstr) -> u64 {
+  let mode: u64 = 493; // 0755
+  mkdir(path, mode);
 }

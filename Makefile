@@ -20,14 +20,14 @@ run_examples: ${SPL_EXAMPLES}
 
 test: SPL_FLAGS+=verbose-asm run
 
-main: SPL_FLAGS+=verbose-asm run debug-output
+main: SPL_FLAGS+=verbose-asm run
 main: main.spl
 
 run:
 	./${PROG} ${SPL_FLAGS} spl.spl
 
 update_bootstrap:
-	cp spl.spl.asm bootstrap/spl_linux_nasm_x86_64.asm
+	cp .cache/spl.spl.asm bootstrap/spl_linux_nasm_x86_64.asm
 
 bootstrap:
 	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && ld -arch x86_64 spl.o -o spl

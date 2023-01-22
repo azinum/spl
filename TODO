@@ -33,3 +33,4 @@
 - better support for multi-line strings
 - write type info to buffer instead only to file
 - abstract out types in code generator because they are reduntant
+- fix bug where printing an empty string terminates printing in printf functions

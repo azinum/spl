@@ -39,7 +39,7 @@ include "src/compile.spl"
 include "src/info.spl"
 
 fn write_debug_information(path: cstr) -> none {
-  let fd = open_file_writable(path);
+  let fd = file_open_writable(path);
   if neq fd ERROR {
     // ast_print(load64 + @p Parser.ast, 0, fd);
     ir_print(fd);
@@ -57,7 +57,7 @@ fn write_debug_information(path: cstr) -> none {
 }
 
 fn write_debug_information_html(path: cstr) -> none {
-  let fd = open_file_writable(path);
+  let fd = file_open_writable(path);
   if neq fd ERROR {
     let header_content =
 "<style>
@@ -184,22 +184,17 @@ fn spl_start(filename: cstr) -> u64 {
             if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
               if eq ir_optimize() NoError {
                 let target = TARGET_LINUX_NASM_X86_64;
+                let output_path = ".";
 
-                let output_file_path: u8[MAX_PATH_SIZE] = 0;
-                let filename = cast cstr load64 + @options Options.filename;
-                let diff = - cast u64 first_dot(filename) filename;
-                sprintf(@output_file_path, "%s", @filename);
-                store8 + @output_file_path diff 0; // null terminate
-
-                if eq compile(target, load64 + @options Options.compile, cast cstr @output_file_path) NoError {
+                if eq compile(
+                    target,
+                    load64 + @options Options.compile,
+                    load64 + @options Options.run,
+                    filename,
+                    output_path) NoError {
                   get_time(at time_end);
                   print_time_elapsed("total compilation time was", at time_start, at time_end);
                   compile_print_final();
-
-                  if load64 + @options Options.run {
-                    let command: cstr = cast cstr @output_file_path, cast cstr null;
-                    exec_command_echoed(STDOUT_FILENO, @command, envp);
-                  }
                 }
                 if load64 + @options Options.debug {
                   let path: u8[MAX_PATH_SIZE] = 0;

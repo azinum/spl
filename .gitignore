@@ -1,6 +1,3 @@
-examples/*spl.asm
-docker/
-
 *.swo
 *.swp
 *.o
@@ -16,3 +13,7 @@ cspl
 spl
 test
 main
+
+examples/*spl.asm
+docker/
+.cache/

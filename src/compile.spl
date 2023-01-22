@@ -113,63 +113,90 @@ fn compile_create_value(name: cstr, value: ptr<Value>, type: ptr<Type>) -> u64 {
   result;
 }
 
-fn compile(target: u64, should_compile_target: u64, output_file_path: cstr) -> u64 {
+fn compile(target: u64, should_compile_target: u64, should_run_target: u64, source_path: cstr, output_path: cstr) -> u64 {
   let result = NoError;
-  let fd = ERROR;
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
   get_time(at time_start);
 
+  let source_file = filename_from_path(source_path);
+
+  let exec_filename: u8[MAX_PATH_SIZE] = 0;
+  let dot = - cast u64 first_dot(source_file) source_file;
+  {
+    let args: any = dot, source_file;
+    sprintf(@exec_filename, "%*s", @args);
+  }
+
+  let exec_path: u8[MAX_PATH_SIZE] = 0;
+  {
+    let args: any = output_path, @exec_filename;
+    sprintf(@exec_path, "%s/%s", @args);
+  }
+
+  let cache_path = ".cache";
+
   if eq target TARGET_LINUX_NASM_X86_64 {
     let path: u8[MAX_PATH_SIZE] = 0;
-    sprintf(@path, "%s.spl.asm", @output_file_path);
-    let mode: u64 = 434; // 0662
-    let flags: u64 = or or O_CREAT O_TRUNC O_WRONLY;
-    store64 @fd open(cast cstr @path, flags, mode);
+    {
+      let args: any = cache_path, @exec_filename;
+      sprintf(@path, "%s/%s.asm", @args);
+    }
+    let fd = file_open_writable(cast cstr @path);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
       get_time(at time_end);
-
-      if and eq should_compile_target 1 eq result NoError {
+      if and should_compile_target eq result NoError {
         let o_path: u8[MAX_PATH_SIZE] = 0;
-        let args: any = output_file_path;
-        sprintf(@o_path, "%s.o", @args);
         {
-          let command: cstr = (
+          let args: any = cache_path, @exec_filename;
+          sprintf(@o_path, "%s/%s.o", @args);
+        }
+        {
+          let command: cstr =
             "/usr/bin/nasm",
             "-f elf64",
             cast cstr @path,
             "-o",
             cast cstr @o_path,
-            cast cstr null
-          );
+            cast cstr null;
           exec_command_echoed(STDOUT_FILENO, @command, envp);
         }
-        let command: cstr = (
-          "/usr/bin/gcc",
-          cast cstr @o_path,
-          "-o",
-          output_file_path,
-          "-nostdlib",
-          "-no-pie",
-          cast cstr null
-        );
-        exec_command_echoed(STDOUT_FILENO, @command, envp);
+        {
+          let command: cstr =
+            "/usr/bin/gcc",
+            cast cstr @o_path,
+            "-o",
+            cast cstr @exec_path,
+            "-nostdlib",
+            "-no-pie",
+            "-O3",
+            cast cstr null;
+          exec_command_echoed(STDOUT_FILENO, @command, envp);
+        }
       }
+      close(fd);
+    }
+    else {
+      let args: any = @path;
+      error("failed to open file `%s` for writing\n", @args);
+      store64 @result Error;
     }
   }
   else {
-    assert(0, "invalid compile target\n");
+    error("invalid compile target\n", null);
+    store64 @result Error;
   }
-  close(fd);
 
   if eq load64 + c Compile.status NoError {
     print_time_elapsed("code generation took", at time_start, at time_end);
     compile_print_unused();
-    // hello();
+    if should_run_target {
+      let command: cstr = cast cstr @exec_filename, cast cstr null;
+      exec_command_echoed(STDOUT_FILENO, @command, envp);
+    }
   }
-
   result;
 }
 

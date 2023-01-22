@@ -1,6 +1,6 @@
 // main.spl
 
-// include "lib/common.spl"
+include "lib/common.spl"
 
 // fn print_bits(fd: u64, byte: u64) -> none {
 //   let mask = 0b1000_0000;

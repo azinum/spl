@@ -401,3 +401,7 @@ fn exec_command(command_list: ptr, envp: ptr) -> none {
 fn socket(family: u64, type: u64, protocol: u64) -> u64 {
   syscall3(or SYSCALL_CLASS SYS_socket, family, type, protocol);
 }
+
+fn mkdir(path: cstr, mode: u64) -> u64 {
+  syscall2(or SYSCALL_CLASS SYS_mkdir, path, mode);
+}

@@ -480,5 +480,28 @@ fn first_dot(str: cstr) -> cstr {
   it;
 }
 
+fn filename_from_path(path: cstr) -> cstr {
+  let length = strlen(path);
+  let filename = path;
+  if > length 0 {
+    store64 @filename cast cstr + - length 1 path;
+    let i = length;
+    let done = 0;
+    while not done {
+      store64 @i - i 1;
+      let ch = load8 + path i;
+      if eq ch '/' {
+        store64 @i + i 1;
+        store64 @done 1;
+      }
+      if eq i 0 {
+        store64 @done 1;
+      }
+    }
+    store64 @filename + path i;
+  }
+  filename;
+}
+
 include "lib/platform.spl"
 include "lib/memory.spl"
