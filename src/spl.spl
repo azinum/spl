@@ -30,8 +30,8 @@ include "src/value.spl"
 include "src/ast.spl"
 include "src/parser.spl"
 include "src/compile_state.spl"
-include "src/name_resolution.spl"
 include "src/typecheck.spl"
+include "src/resolver.spl"
 include "src/ir.spl"
 include "src/ir_optimize.spl"
 include "src/codegen_nasm_x86_64.spl"
@@ -61,21 +61,15 @@ fn write_debug_information_html(path: cstr) -> none {
   if neq fd ERROR {
     let header_content =
 "<style>
-   table {
-     width: 100%;
-   }
+   * { font-family: consolas, monospace, auto; }
+   table { width: 100%; }
    table, th, td {
      border: 1px solid black;
      border-radius: 0.2em;
      padding: 0.2em;
-     font-family: consolas, monospace, auto;
    }
-   th {
-     background-color: #f0f0f0;
-   }
-   ul {
-     list-style-type: none;
-   }
+   th { background-color: #f0f0f0; }
+   ul { list-style-type: none; }
    .caret {
      cursor: pointer;
      user-select: none;
@@ -89,12 +83,8 @@ fn write_debug_information_html(path: cstr) -> none {
    .caret-down::before {
      transform: rotate(90deg);
    }
-   .nested {
-     display: none;
-   }
-   .active {
-     display: block;
-   }
+   .nested { display: none; }
+   .active { display: block; }
  </style>
  <script>
     window.onload = () => {
@@ -167,12 +157,13 @@ fn spl_start(filename: cstr) -> u64 {
     let size = read_file_into_buffer_and_null_terminate(fd, source);
     store64 @tmp_it + size tmp_it;
     if eq parser_init(filename, source) NoError {
+      let ast = cast ptr load64 + @p Parser.ast;
       {
         let time_start: Timespec = 0;
         let time_end: Timespec = 0;
         get_time(at time_start);
         ast_push(
-          cast ptr load64 + @p Parser.ast,
+          ast,
           parse()
         );
         get_time(at time_end);
@@ -180,38 +171,43 @@ fn spl_start(filename: cstr) -> u64 {
       }
       if and eq load64 + @p Parser.status NoError eq l.status NoError {
         if eq compile_state_init() NoError {
-          if eq typecheck_program(cast ptr load64 + @p Parser.ast) NoError {
-            if eq ir_start_compile(cast ptr load64 + @p Parser.ast) NoError {
-              if eq ir_optimize() NoError {
-                let target = TARGET_LINUX_NASM_X86_64;
-                let output_path = ".";
+          typecheck_init();
+          if eq resolver_init(ast) NoError {
+            // symbol_info_print(STDOUT_FILENO);
+            if eq typecheck_program(ast) NoError {
+              if eq ir_start_compile(ast) NoError {
+                if eq ir_optimize() NoError {
+                  let target = TARGET_LINUX_NASM_X86_64;
+                  let output_path = ".";
 
-                if eq compile(
-                    target,
-                    load64 + @options Options.compile,
-                    load64 + @options Options.run,
-                    filename,
-                    output_path) NoError {
-                  get_time(at time_end);
-                  print_time_elapsed("total compilation time was", at time_start, at time_end);
-                  compile_print_final();
-                }
-                if load64 + @options Options.debug {
-                  let path: u8[MAX_PATH_SIZE] = 0;
-                  sprintf(@path, "%s.debug", + @options Options.filename);
-                  write_debug_information(cast cstr @path);
+                  if eq compile(
+                      target,
+                      load64 + @options Options.compile,
+                      load64 + @options Options.run,
+                      filename,
+                      output_path) NoError {
+                    get_time(at time_end);
+                    print_time_elapsed("total compilation time was", at time_start, at time_end);
+                    compile_print_final();
+                  }
+                  if load64 + @options Options.debug {
+                    let path: u8[MAX_PATH_SIZE] = 0;
+                    sprintf(@path, "%s.debug", + @options Options.filename);
+                    write_debug_information(cast cstr @path);
 
-                  sprintf(@path, "%s.html", + @options Options.filename);
-                  write_debug_information_html(cast cstr @path);
+                    sprintf(@path, "%s.html", + @options Options.filename);
+                    write_debug_information_html(cast cstr @path);
+                  }
                 }
               }
             }
           }
+          resolver_free();
           compile_state_free();
         }
       }
       parser_free();
-      ast_free(null);
+      ast_free(ast);
     }
     close(fd);
   }

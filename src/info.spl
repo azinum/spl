@@ -4,7 +4,7 @@ fn symbol_info_print(fd: u64) -> none {
   dprintf(fd, "print_symbol_info:\n", null);
   let message = cast cstr tmp_it;
   let count: u64 = load64 + c Compile.symbol_count;
-  let i: u64 = 0;
+  let i = 0;
   while < i count {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
@@ -12,33 +12,31 @@ fn symbol_info_print(fd: u64) -> none {
     memcpy(at type, + symbol Symbol.type, sizeof Type);
     let type_size = * load64 + at type Type.size load64 + at type Type.count;
     let num_i_digits: u64 = digit_count(i);
-    let j: u64 = 0;
+    let j = 0;
 
-    if neq type_base(at type) TypeSyscallFunc {
-      while < j - 3 num_i_digits {
-        dprintf(fd, "0", null);
-        store64 @j + 1 j;
-      }
-      dprintf(fd, "%d: ", @i);
-      if eq type_base(at type) TypeFunc {
-        let func_sig = func_signature_from_id(type_sub_id(at type));
-        dprintf(fd, "%s", @name);
-        func_signature_print(fd, func_sig);
-      }
-      else {
-        let args: any = name;
-        dprintf(fd, "%s : ", @args);
-        type_print(fd, at type);
-      }
-      let args: any = (
-        type_size,
-        load64 + symbol Symbol.konst,
-        load64 + + symbol Symbol.value Value.konst,
-        load64 + symbol Symbol.ref_count,
-        load64 + symbol Symbol.local_id
-      );
-      dprintf(fd, " (size = %d, konst = %d, value.konst = %d, ref_count = %d, local_id = %d)\n", @args);
+    while < j - 3 num_i_digits {
+      dprintf(fd, "0", null);
+      store64 @j + 1 j;
     }
+    dprintf(fd, "%d: ", @i);
+    if or eq type_base(at type) TypeFunc eq type_base(at type) TypeSyscallFunc {
+      let func_sig = func_signature_from_id(type_sub_id(at type));
+      dprintf(fd, "%s", @name);
+      func_signature_print(fd, func_sig);
+    }
+    else {
+      let args: any = name;
+      dprintf(fd, "%s : ", @args);
+      type_print(fd, at type);
+    }
+    let args: any = (
+      type_size,
+      load64 + symbol Symbol.konst,
+      load64 + + symbol Symbol.value Value.konst,
+      load64 + symbol Symbol.ref_count,
+      load64 + symbol Symbol.local_id
+    );
+    dprintf(fd, " (size = %d, konst = %d, value.konst = %d, ref_count = %d, local_id = %d)\n", @args);
     store64 @i + 1 i;
   }
   store64 @tmp_it message;
@@ -59,8 +57,8 @@ fn symbol_info_print_html(fd: u64) -> none {
       html_tag(fd, "th", "Reference count", null);
     html_single_end_tag(fd, "tr");
 
-  let count: u64 = load64 + c Compile.symbol_count;
-  let i: u64 = 0;
+  let count = load64 + c Compile.symbol_count;
+  let i = 0;
   while < i count {
     let symbol = + + c Compile.symbols * sizeof Symbol i;
     let name = cast cstr + symbol Symbol.name;
@@ -73,25 +71,209 @@ fn symbol_info_print_html(fd: u64) -> none {
     let total_size = * type_size type_count;
     let konst = load64 + symbol Symbol.konst;
     let ref_count = load64 + symbol Symbol.ref_count;
-    if neq type_base(at type) TypeSyscallFunc {
-      html_single_tag(fd, "tr");
-        html_tag(fd, "td", "%d", @i);
-        html_tag(fd, "td", "%s", @name);
-        html_tag(fd, "td", "%s", @sym_type_name);
-        html_single_tag(fd, "td");
-        let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
-        let type_str: u8[buffer_size] = 0;
-        type_to_buffer(@type_str, buffer_size, at type);
-        html_plain_text(fd, cast cstr at type_str);
-        html_single_end_tag(fd, "td");
-        html_tag(fd, "td", "%d", @total_size);
-        html_tag(fd, "td", "%d", @type_size);
-        html_tag(fd, "td", "%d", @type_count);
-        html_tag(fd, "td", "%d", @konst);
-        html_tag(fd, "td", "%d", @ref_count);
-      html_single_end_tag(fd, "tr");
-    }
+    html_single_tag(fd, "tr");
+      html_tag(fd, "td", "%d", @i);
+      html_tag(fd, "td", "%s", @name);
+      html_tag(fd, "td", "%s", @sym_type_name);
+      html_single_tag(fd, "td");
+      let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+      let type_str: u8[buffer_size] = 0;
+      type_to_buffer(@type_str, buffer_size, at type);
+      html_plain_text(fd, cast cstr at type_str);
+      html_single_end_tag(fd, "td");
+      html_tag(fd, "td", "%d", @total_size);
+      html_tag(fd, "td", "%d", @type_size);
+      html_tag(fd, "td", "%d", @type_count);
+      html_tag(fd, "td", "%d", @konst);
+      html_tag(fd, "td", "%d", @ref_count);
+    html_single_end_tag(fd, "tr");
     store64 at i + 1 i;
   }
   html_single_end_tag(fd, "table");
+}
+
+fn ast_print(ast: any, level: u64, fd: u64) -> none {
+  if neq 0 ast {
+    {
+      let i = 0;
+      while < i level {
+        dprintf(fd, "   ", null);
+        store64 @i + 1 i;
+      }
+    }
+    let type: u64 = load64 + ast Ast.type;
+    let token: ptr = cast ptr + ast Ast.token;
+    let const_str = "NonConst", "Const";
+    let args: any = (
+      load64 + @ast_type_str * type sizeof cstr,
+      load64 + @token_type_str * load64 + token Token.type sizeof cstr,
+      load64 + @const_str * sizeof cstr load64 + ast Ast.konst,
+      load64 + token Token.length,
+      load64 + token Token.buffer
+    );
+    dprintf(fd, "<%s, %s, %s>, `%*s`\n", @args);
+    {
+      let i = 0;
+      let count = load64 + ast Ast.count;
+      while < i count {
+        let node = load64 + + ast Ast.node * i sizeof any;
+        ast_print(node, + 1 level, fd);
+        store64 @i + 1 i;
+      }
+    }
+  }
+}
+
+fn ast_print_node_content_html(ast: any, fd: u64) -> none {
+  let token = cast ptr<Token> + ast Ast.token;
+  let type: u64 = load64 + ast Ast.type;
+  let const_str =
+    "&zwj;", // zero width space character
+    "&ast;";  // asterisk
+
+  {
+    let args: any =
+      load64 + @ast_type_str * type sizeof cstr,
+      load64 + @const_str * sizeof cstr load64 + ast Ast.konst;
+    html_tag(fd, "b", "%s%s:", @args);
+  }
+  {
+    // fetch type from node info
+    let node_info = cast ptr<Node_info> + ast Ast.info;
+    let info = cast ptr<Info> + node_info Node_info.info;
+    let type = cast ptr<Type> + info Info.type;
+
+    // write type to buffer
+    let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+    let type_str: u8[buffer_size] = 0;
+    type_to_buffer(@type_str, buffer_size, type);
+
+    let args: any =
+      load64 + token Token.length,
+      load64 + token Token.buffer;
+    html_single_tag(fd, "i");
+    dprintf(fd, "%*s: ", @args);
+    html_single_end_tag(fd, "i");
+
+    // write the type to the span
+    if neq type_base(type) TypeNone {
+      html_single_tag(fd, "b");
+      html_plain_text(fd, cast cstr at type_str);
+      html_single_end_tag(fd, "b");
+    }
+  }
+}
+
+fn ast_print_nodes_html(ast: any, fd: u64) -> none {
+  if neq 0 ast {
+    let count = load64 + ast Ast.count;
+    if > count 0 {
+      html_single_tag(fd, "li");
+      html_single_tag_with_attr(fd, "span", "class='caret'", null);
+      ast_print_node_content_html(ast, fd);
+      html_single_end_tag(fd, "span");
+      html_single_tag_with_attr(fd, "ul", "class='nested'", null);
+      let i = 0;
+      while < i count {
+        let node = cast ptr load64 + + ast Ast.node * sizeof any i;
+        ast_print_nodes_html(node, fd);
+        store64 at i + 1 i;
+      }
+      html_single_end_tag(fd, "ul");
+      html_single_end_tag(fd, "li");
+    }
+    else {
+      html_single_tag(fd, "li");
+      ast_print_node_content_html(ast, fd);
+      html_single_end_tag(fd, "li");
+    }
+  }
+}
+
+fn ast_print_html(ast: any, fd: u64) -> none {
+  html_tag(fd, "h1", "AST", null);
+  html_single_tag(fd, "ul");
+  ast_print_nodes_html(ast, fd);
+  html_single_end_tag(fd, "ul");
+}
+
+fn ir_print(fd: u64) -> none {
+  puts(fd, "ir_print:\n");
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.ins_count;
+  while < i count {
+    // op: Op*
+    let op = cast ptr + + c Compile.ins * sizeof Op i;
+    let message = cast cstr tmp_it;
+
+    let num_digits: u64 = digit_count(i);
+    const num_zeros: u64 = 4;
+    let j: u64 = 0;
+    while < j - num_zeros num_digits {
+      tmp_push_cstr("0");
+      store64 @j + 1 j;
+    }
+    let dest: u64 = load64 + op Op.dest;
+    let src0: u64 = load64 + op Op.src0;
+    let src1: u64 = load64 + op Op.src1;
+    tmp_push_u64(i);
+    tmp_push_cstr(": ");
+    tmp_push_cstr("<");
+    tmp_push_cstr(cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i);
+    tmp_push_cstr(", ");
+    // NOTE(lucas): ugly hack to print UINT64_MAX
+    if neq dest UINT64_MAX tmp_push_u64(dest); else tmp_push_cstr("-1");
+    tmp_push_cstr(", ");
+    if neq src0 UINT64_MAX tmp_push_u64(src0); else tmp_push_cstr("-1");
+    tmp_push_cstr(", ");
+    if neq src1 UINT64_MAX tmp_push_u64(src1); else tmp_push_cstr("-1");
+    tmp_push_cstr(">\n");
+    tmp_push_byte(cast u8 0);
+
+    puts(fd, message);
+    store64 @tmp_it message;
+    store64 @i + 1 i;
+  }
+}
+
+fn ir_print_html(fd: u64) -> none {
+  html_tag(fd, "h1", "IR", null);
+  html_single_tag(fd, "table");
+    html_single_tag(fd, "tr");
+      html_tag(fd, "th", "Index", null);
+      html_tag(fd, "th", "Instruction", null);
+      html_tag(fd, "th", "Dest", null);
+      html_tag(fd, "th", "Src0", null);
+      html_tag(fd, "th", "Src1", null);
+    html_single_end_tag(fd, "tr");
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.ins_count;
+  while < i count {
+    let op = fetch_op(i);
+    let ins_name = cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i;
+    let dest: u64 = load64 + op Op.dest;
+    let src0: u64 = load64 + op Op.src0;
+    let src1: u64 = load64 + op Op.src1;
+    html_single_tag(fd, "tr");
+      html_tag(fd, "td", "%d", @i);
+      html_tag(fd, "td", "%s", @ins_name);
+      if neq dest NONE html_tag(fd, "td", "%d", @dest); else html_tag(fd, "td", "-1", null);
+      if neq src0 NONE html_tag(fd, "td", "%d", @src0); else html_tag(fd, "td", "-1", null);
+      if neq src1 NONE html_tag(fd, "td", "%d", @src1); else html_tag(fd, "td", "-1", null);
+    html_single_end_tag(fd, "tr");
+    store64 at i + 1 i;
+  }
+  html_single_end_tag(fd, "table");
+}
+
+fn ir_print_ins_count(fd: u64) -> none {
+  dprintf(fd, "ir_print_ins_count:\n", null);
+  let i = 0;
+  while < i MAX_IR_CODE {
+    let ir_str = cast cstr load64 + at ir_code_str * sizeof cstr i;
+    let ir_ins_count = load64 + at ir_code_count * sizeof u64 i;
+    let args: any = (ir_str, ir_ins_count);
+    dprintf(fd, "%s: %d\n", @args);
+    store64 at i + 1 i;
+  }
 }

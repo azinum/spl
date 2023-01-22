@@ -21,7 +21,7 @@ run_examples: ${SPL_EXAMPLES}
 
 test: SPL_FLAGS+=verbose-asm run
 
-main: SPL_FLAGS+=verbose-asm run
+main: SPL_FLAGS+=debug-output verbose-asm run
 main: main.spl
 
 run:
@@ -31,7 +31,7 @@ update_bootstrap:
 	cp .cache/spl.asm bootstrap/spl_linux_nasm_x86_64.asm
 
 bootstrap:
-	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && ld -arch x86_64 spl.o -o spl
+	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && gcc spl.o -o spl -nostdlib -no-pie
 
 performance_test:
 	perf record -e cycles -c 2000000 ./spl spl.spl verbose-asm

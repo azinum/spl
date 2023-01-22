@@ -15,7 +15,7 @@ struct Symbol (
 );
 
 const MAX_SYMBOL = 4096;
-const MAX_SYMBOL_PER_BLOCK = 2048;
+const MAX_SYMBOL_PER_BLOCK = * 2 2048;
 const MAX_STATIC_DATA = * 128 1024;
 const MAX_CSTRING = 2048;
 const MAX_SYSCALL_FUNCTION = 7;
@@ -107,19 +107,21 @@ fn compile_error(message: cstr) -> none {
 }
 
 // token: Token*
-fn compile_error_at(token: ptr, message: cstr) -> none {
+fn compile_error_at(token: ptr, format: cstr, args: any) -> none {
   if eq load64 + c Compile.status NoError {
-    let args: any = (
-      load64 + token Token.filename,
-      load64 + token Token.line,
-      load64 + token Token.column
-    );
-    color_set(COLOR_ERROR);
-    dprintf(STDERR_FILENO, "[compile-error]: ", null);
-    color_set(COLOR_EXTRA);
-    dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
-    color_reset();
-    dprintf(STDERR_FILENO, "%s", @message);
+    {
+      let args: any = (
+        load64 + token Token.filename,
+        load64 + token Token.line,
+        load64 + token Token.column
+      );
+      color_set(COLOR_ERROR);
+      dprintf(STDERR_FILENO, "[compile-error]: ", null);
+      color_set(COLOR_EXTRA);
+      dprintf(STDERR_FILENO, "%s:%d:%d: ", @args);
+      color_reset();
+    }
+    dprintf(STDERR_FILENO, format, args);
     printline(STDERR_FILENO, cast cstr load64 + token Token.source, cast cstr load64 + token Token.buffer, load64 + token Token.length, 1, NUM_LINES_TO_PRINT);
     store64 + c Compile.status Error;
   }
@@ -137,8 +139,8 @@ fn symbol_init(symbol: ptr) -> none {
   store64 + symbol Symbol.ref_count 0;
 }
 
-// block : Block*, fs : Function*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
-fn compile_lookup_value(block: ptr<Block>, fs: ptr<Function>, name: ptr, symbol: ptr<ptr<Symbol>>, symbol_index: ptr, levels_descend: ptr) -> u64 {
+// block : Block*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
+fn compile_lookup_value(block: ptr<Block>, name: ptr, symbol: ptr<ptr<Symbol>>, symbol_index: ptr, levels_descend: ptr) -> u64 {
   let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq block null {
     let copy: u8[MAX_NAME_SIZE] = 0;
@@ -168,13 +170,13 @@ fn compile_lookup_value(block: ptr<Block>, fs: ptr<Function>, name: ptr, symbol:
       if neq levels_descend null {
         store64 levels_descend + 1 load64 levels_descend;
       }
-      store64 @result compile_lookup_value(cast ptr<Block> load64 + block Block.parent, fs, name, symbol, symbol_index, levels_descend);
+      store64 @result compile_lookup_value(cast ptr<Block> load64 + block Block.parent, name, symbol, symbol_index, levels_descend);
     }
   }
   result;
 }
 
-fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbol: ptr<ptr<Symbol>>, symbol_index: ptr) -> u64 {
+fn compile_declare_value(block: ptr<Block>, token: ptr, symbol: ptr<ptr<Symbol>>, symbol_index: ptr) -> u64 {
   let result = Error;
   if < load64 + token Token.length MAX_NAME_SIZE {
     if < load64 + c Compile.symbol_count MAX_SYMBOL {
@@ -185,15 +187,10 @@ fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
         store64 + @token_buffer Buffer.length load64 + token Token.length;
 
         // we are only allowed to create a new symbol if none was found in the current block
-        let lookup_result = compile_lookup_value(block, fs, @token_buffer, symbol, null, @levels);
+        let lookup_result = compile_lookup_value(block, @token_buffer, symbol, null, @levels);
         if and eq lookup_result NoError eq levels 0 {
-          let message = cast cstr tmp_it;
-          tmp_push_cstr("symbol `");
-          tmp_push_str(load64 + token Token.buffer, load64 + token Token.length);
-          tmp_push_cstr("` already exists\n");
-          tmp_push_byte(cast u8 0);
-          compile_error(message);
-          store64 @tmp_it message;
+          let args: any = load64 + token Token.length, load64 + token Token.buffer;
+          compile_error_at(token, "symbol `%*s` already exists\n", @args);
         }
         else {
           let index = load64 + c Compile.symbol_count;
@@ -226,6 +223,18 @@ fn compile_declare_value(block: ptr<Block>, fs: ptr<Function>, token: ptr, symbo
   }
   else {
     assert(0, "value name too long\n");
+  }
+  result;
+}
+
+fn symbol_from_id(id: u64) -> ptr<Symbol> {
+  let result = cast ptr<Symbol> null;
+  let symbol_count = load64 + c Compile.symbol_count;
+  if < id symbol_count {
+    store64 @result + + c Compile.symbols * sizeof Symbol id;
+  }
+  else {
+    assert(0, "symbol_from_id: index out of range\n");
   }
   result;
 }

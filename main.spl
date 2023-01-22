@@ -1,6 +1,6 @@
 // main.spl
 
-include "lib/common.spl"
+// include "lib/common.spl"
 
 // fn print_bits(fd: u64, byte: u64) -> none {
 //   let mask = 0b1000_0000;
@@ -14,5 +14,17 @@ include "lib/common.spl"
 //   }
 // }
 
+struct T (
+  a: u64,
+  b: cstr
+);
+
+fn thing(t: ptr<T>) -> none {
+  print t;
+}
+
+
 fn main -> none {
+  let t: T = 0;
+  thing(at t);
 }

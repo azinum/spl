@@ -104,17 +104,17 @@ fn ast_print_node(ast: any, fd: u64) -> none {
   token_print(cast ptr token);
 }
 
-fn ast_push(ast: ptr, node: ptr) -> none {
+fn ast_push(ast: any, node: any) -> none {
   assert(neq 0 ast, "null ast node\n");
   if neq 0 node {
     assert(< load64 + Ast.count ast MAX_INTERNAL_NODE, "internal node capacity reached\n");
-    let count: ptr = + ast Ast.count;
+    let count: ptr = cast ptr + ast Ast.count;
     store64 + + ast Ast.node * load64 count sizeof any node;
     store64 count + 1 load64 count;
   }
 }
 
-fn ast_push_node(ast: ptr, type: u64, token : ptr) -> none {
+fn ast_push_node(ast: any, type: u64, token : ptr) -> none {
   assert(neq 0 ast, "null ast node\n");
   let node: ptr = ast_create(type);
   memcpy(+ node Ast.token, token, sizeof Token);
@@ -123,14 +123,18 @@ fn ast_push_node(ast: ptr, type: u64, token : ptr) -> none {
 
 fn ast_child_count(ast: any) -> u64 load64 + ast Ast.count;
 
-fn ast_pop(ast: ptr) -> none {
+fn ast_get_type(ast: any) -> u64 load64 + ast Ast.type;
+
+fn ast_is(ast: any, type: u64) -> u64 eq type load64 + ast Ast.type;
+
+fn ast_pop(ast: any) -> none {
   let child_count = cast ptr<u64> + ast Ast.count;
   if > deref child_count 0 {
     store64 child_count - deref child_count 1;
   }
 }
 
-fn ast_clear(ast: ptr) -> none {
+fn ast_clear(ast: any) -> none {
   store64 + ast Ast.count 0;
 }
 
@@ -150,89 +154,13 @@ fn ast_count(ast: any) -> u64 {
   count;
 }
 
-fn ast_print(ast: any, level: u64, fd: u64) -> none {
-  if neq 0 ast {
-    {
-      let i = 0;
-      while < i level {
-        dprintf(fd, "   ", null);
-        store64 @i + 1 i;
-      }
-    }
-    let type: u64 = load64 + ast Ast.type;
-    let token: ptr = cast ptr + ast Ast.token;
-    let const_str = "NonConst", "Const";
-    let args: any = (
-      load64 + @ast_type_str * type sizeof cstr,
-      load64 + @token_type_str * load64 + token Token.type sizeof cstr,
-      load64 + @const_str * sizeof cstr load64 + ast Ast.konst,
-      load64 + token Token.length,
-      load64 + token Token.buffer
-    );
-    dprintf(fd, "<%s, %s, %s>, `%*s`\n", @args);
-    {
-      let i = 0;
-      let count = load64 + ast Ast.count;
-      while < i count {
-        let node = load64 + + ast Ast.node * i sizeof any;
-        ast_print(node, + 1 level, fd);
-        store64 @i + 1 i;
-      }
-    }
+// NOTE(lucas): how to deal with bounds checking? just returns null if out of bounds for now.
+fn ast_node_from_index(ast: any, index: u64) -> ptr {
+  let node = null;
+  if load64 + ast Ast.count {
+    store64 @node load64 + + ast Ast.node * sizeof ptr index;
   }
-}
-
-fn ast_print_node_content_html(ast: any, fd: u64) -> none {
-  let token = cast ptr<Token> + ast Ast.token;
-  let type: u64 = load64 + ast Ast.type;
-  let const_str =
-    "&zwj;", // zero width space character
-    "&ast;";  // asterisk
-  {
-    let args: any =
-      load64 + @ast_type_str * type sizeof cstr,
-      load64 + @const_str * sizeof cstr load64 + ast Ast.konst;
-    html_tag(fd, "b", "%s%s:", @args);
-  }
-  {
-    let args: any =
-      load64 + token Token.length,
-      load64 + token Token.buffer;
-    dprintf(fd, "%*s", @args);
-  }
-}
-
-fn ast_print_nodes_html(ast: any, fd: u64) -> none {
-  if neq 0 ast {
-    let count = load64 + ast Ast.count;
-    if > count 0 {
-      html_single_tag(fd, "li");
-      html_single_tag_with_attr(fd, "span", "class='caret'", null);
-      ast_print_node_content_html(ast, fd);
-      html_single_end_tag(fd, "span");
-      html_single_tag_with_attr(fd, "ul", "class='nested'", null);
-      let i = 0;
-      while < i count {
-        let node = cast ptr load64 + + ast Ast.node * sizeof any i;
-        ast_print_nodes_html(node, fd);
-        store64 at i + 1 i;
-      }
-      html_single_end_tag(fd, "ul");
-      html_single_end_tag(fd, "li");
-    }
-    else {
-      html_single_tag(fd, "li");
-      ast_print_node_content_html(ast, fd);
-      html_single_end_tag(fd, "li");
-    }
-  }
-}
-
-fn ast_print_html(ast: any, fd: u64) -> none {
-  html_tag(fd, "h1", "AST", null);
-  html_single_tag(fd, "ul");
-  ast_print_nodes_html(ast, fd);
-  html_single_end_tag(fd, "ul");
+  node;
 }
 
 fn ast_init -> none {
@@ -269,5 +197,5 @@ fn ast_init -> none {
   store64 @ast_node_end + ast_node * sizeof Ast MAX_AST_NODE;
 }
 
-fn ast_free(ast: ptr) -> none {
+fn ast_free(ast: any) -> none {
 }

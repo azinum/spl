@@ -1,0 +1,138 @@
+// resolver.spl
+//
+// resolve names, types, and scopes/blocks
+//
+
+struct Resolver (
+  blocks: Block[MAX_BLOCK],
+  block_count: u64
+);
+
+let resolver = cast ptr<Resolver> null;
+
+fn resolver_func(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 Error;
+let _resolver_declare = resolver_func;
+let _resolver_declare_statements = resolver_func;
+
+fn resolver_state_init(r: ptr<Resolver>) -> u64 {
+  let result = NoError;
+
+  store64 + r Resolver.block_count 0;
+
+  result;
+}
+
+fn node_info_init(info: ptr<Node_info>) -> none {
+  store64 + info Node_info.symbol_id UINT64_MAX;
+  memset(+ info Node_info.info, 0, sizeof Info);
+} 
+
+fn resolver_block_push(r: ptr<Resolver>, parent: ptr<Block>) -> ptr<Block> {
+  let block = cast ptr<Block> null;
+  let block_count = cast ptr<u64> + r Resolver.block_count;
+  if < deref block_count MAX_BLOCK {
+    store64 @block + + r Resolver.blocks * sizeof Block deref block_count;
+    block_init(block, parent);
+    store64 block_count + 1 deref block_count;
+  }
+  else {
+    assert(0, "resolver_block_push: block stack overflow\n");
+  }
+  block;
+}
+
+fn resolver_block_pop(r: ptr<Resolver>) -> none {
+  let block_count = cast ptr<u64> + r Resolver.block_count;
+  if > deref block_count 0 {
+    store64 block_count - deref block_count 1;
+  }
+  else {
+    assert(0, "resolver_block_pop: block stack underflow\n");
+  }
+}
+
+fn resolver_function_declare(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+
+  let name_token = + node Ast.token;
+  let symbol = cast ptr<Symbol> null;
+  let symbol_index = UINT64_MAX;
+  let global_block = + c Compile.global;
+  if eq global_block block {
+    if eq compile_declare_value(block, name_token, at symbol, @symbol_index) NoError {
+      store64 + + node Ast.info Node_info.symbol_id symbol_index;
+    }
+    else {
+      compile_error_at(name_token, "symbol already exists\n", null);
+      store64 @result Error;
+    }
+  }
+  else {
+    compile_error_at(name_token, "functions are only permitted to be defined in the global block\n", null);
+    store64 @result Error;
+  }
+  result;
+}
+
+fn resolver_declare_statements(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+
+  let count = ast_child_count(ast);
+  let i = 0;
+  while and eq result NoError < i count {
+    let node = ast_node_from_index(ast, i);
+    if ast_is(node, AstFuncDefinition) {
+      store64 @result resolver_function_declare(r, node, block);
+    }
+    else if ast_is(node, AstStatementList) {
+      store64 @result resolver_declare_statements(r, node, block);
+    }
+    store64 @i + 1 i;
+  }
+  result;
+}
+
+fn resolver_declare(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+
+  let count = ast_child_count(ast);
+  let i = 0;
+  while < i count {
+    let node = ast_node_from_index(ast, i);
+    if ast_is(node, AstStatementList) {
+      let _ = resolver_declare_statements(r, node, block);
+    }
+    store64 @i + 1 i;
+  }
+
+  result;
+}
+
+fn resolve(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+  result;
+}
+
+fn resolver_init(ast: ptr) -> u64 {
+  let result = NoError;
+  store64 @resolver memory_alloc(sizeof Resolver);
+
+  store64 @_resolver_declare resolver_declare;
+  store64 @_resolver_declare_statements resolver_declare_statements;
+
+  store64 @result resolver_state_init(resolver);
+
+  let global_block = cast ptr<Block> + c Compile.global;
+
+  if eq result NoError {
+    store64 @result resolver_declare(resolver, ast, global_block);
+    if eq result NoError {
+      store64 @result resolve(resolver, ast, global_block);
+    }
+  }
+  result;
+}
+
+fn resolver_free -> none {
+  memory_free(cast ptr resolver);
+}

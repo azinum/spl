@@ -106,87 +106,6 @@ fn ir_compile_warning_at(token: ptr, message: cstr) -> none {
   store64 + c Compile.warning_count + 1 load64 + c Compile.warning_count;
 }
 
-fn ir_print(fd: u64) -> none {
-  puts(fd, "ir_print:\n");
-  let i: u64 = 0;
-  let count: u64 = load64 + c Compile.ins_count;
-  while < i count {
-    // op: Op*
-    let op = cast ptr + + c Compile.ins * sizeof Op i;
-    let message = cast cstr tmp_it;
-
-    let num_digits: u64 = digit_count(i);
-    const num_zeros: u64 = 4;
-    let j: u64 = 0;
-    while < j - num_zeros num_digits {
-      tmp_push_cstr("0");
-      store64 @j + 1 j;
-    }
-    let dest: u64 = load64 + op Op.dest;
-    let src0: u64 = load64 + op Op.src0;
-    let src1: u64 = load64 + op Op.src1;
-    tmp_push_u64(i);
-    tmp_push_cstr(": ");
-    tmp_push_cstr("<");
-    tmp_push_cstr(cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i);
-    tmp_push_cstr(", ");
-    // NOTE(lucas): ugly hack to print UINT64_MAX
-    if neq dest UINT64_MAX tmp_push_u64(dest); else tmp_push_cstr("-1");
-    tmp_push_cstr(", ");
-    if neq src0 UINT64_MAX tmp_push_u64(src0); else tmp_push_cstr("-1");
-    tmp_push_cstr(", ");
-    if neq src1 UINT64_MAX tmp_push_u64(src1); else tmp_push_cstr("-1");
-    tmp_push_cstr(">\n");
-    tmp_push_byte(cast u8 0);
-
-    puts(fd, message);
-    store64 @tmp_it message;
-    store64 @i + 1 i;
-  }
-}
-
-fn ir_print_html(fd: u64) -> none {
-  html_tag(fd, "h1", "IR", null);
-  html_single_tag(fd, "table");
-    html_single_tag(fd, "tr");
-      html_tag(fd, "th", "Index", null);
-      html_tag(fd, "th", "Instruction", null);
-      html_tag(fd, "th", "Dest", null);
-      html_tag(fd, "th", "Src0", null);
-      html_tag(fd, "th", "Src1", null);
-    html_single_end_tag(fd, "tr");
-  let i: u64 = 0;
-  let count: u64 = load64 + c Compile.ins_count;
-  while < i count {
-    let op = fetch_op(i);
-    let ins_name = cast cstr load64 + @ir_code_str * sizeof cstr load64 + op Op.i;
-    let dest: u64 = load64 + op Op.dest;
-    let src0: u64 = load64 + op Op.src0;
-    let src1: u64 = load64 + op Op.src1;
-    html_single_tag(fd, "tr");
-      html_tag(fd, "td", "%d", @i);
-      html_tag(fd, "td", "%s", @ins_name);
-      if neq dest NONE html_tag(fd, "td", "%d", @dest); else html_tag(fd, "td", "-1", null);
-      if neq src0 NONE html_tag(fd, "td", "%d", @src0); else html_tag(fd, "td", "-1", null);
-      if neq src1 NONE html_tag(fd, "td", "%d", @src1); else html_tag(fd, "td", "-1", null);
-    html_single_end_tag(fd, "tr");
-    store64 at i + 1 i;
-  }
-  html_single_end_tag(fd, "table");
-}
-
-fn ir_print_ins_count(fd: u64) -> none {
-  dprintf(fd, "ir_print_ins_count:\n", null);
-  let i = 0;
-  while < i MAX_IR_CODE {
-    let ir_str = cast cstr load64 + at ir_code_str * sizeof cstr i;
-    let ir_ins_count = load64 + at ir_code_count * sizeof u64 i;
-    let args: any = (ir_str, ir_ins_count);
-    dprintf(fd, "%s: %d\n", @args);
-    store64 at i + 1 i;
-  }
-}
-
 fn ir_push_ins(op: ptr<Op>, ins_count: ptr<u64>) -> u64 {
   if < load64 + c Compile.ins_count MAX_INS {
     if ins_count {
@@ -675,7 +594,7 @@ fn ir_compile_func_call(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> u64
       { let _ = ir_push_ins(at op, ins_count); }
     }
     else {
-      compile_error_at(+ ast Ast.token, "not a function and can not be called\n");
+      compile_error_at(+ ast Ast.token, "not a function and can not be called\n", null);
     }
   }
   load64 + c Compile.status;
@@ -910,7 +829,7 @@ fn ir_compile_field_access(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
     { let _ = ir_push_symbol(fs, at symbol, symbol_id, ins_count); }
   }
   else {
-    compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n");
+    compile_error_at(+ ast Ast.token, "invalid symbol in field access expression\n", null);
     assert(0, "ir_compile_field_access()\n");
   }
   load64 + c Compile.status;
