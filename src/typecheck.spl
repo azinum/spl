@@ -197,7 +197,7 @@ fn struct_type_info_printline(fd: u64, info: ptr<Struct_type_info>, flat: u64) -
 }
 
 fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Func_signature>) -> none {
-  asnprintf(buffer, size, "(", null);
+  let _ = asnprintf(buffer, size, "(", null);
   let arg_index: u64 = 0;
   let argc: u64 = load64 + func Func_signature.argc;
   while < arg_index argc {
@@ -205,10 +205,10 @@ fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Fu
     _type_write_to_buffer(buffer, size, arg_type);
     store64 @arg_index + 1 arg_index;
     if < arg_index argc {
-      asnprintf(buffer, size, ", ", null);
+      let _ = asnprintf(buffer, size, ", ", null);
     }
   }
-  asnprintf(buffer, size, ") -> ", null);
+  { let _ = asnprintf(buffer, size, ") -> ", null); }
   _type_write_to_buffer(buffer, size, cast ptr<Type> + func Func_signature.rtype);
 }
 
@@ -244,23 +244,23 @@ fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> no
   // check if this is a container type
   if type_is_container(type) {
     let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
-    asnprintf(buffer, size, "%s<", @args);
+    let _ = asnprintf(buffer, size, "%s<", @args);
     let next_type: Type = 0;
     memcpy(at next_type, + + c Compile.types * sizeof Type type_sub_id(type), sizeof Type);
     type_write_to_buffer(buffer, size, at next_type);
-    asnprintf(buffer, size, ">", null);
+    { let _ = asnprintf(buffer, size, ">", null); }
   }
   else if eq type_base(type) TypeStruct {
     let id = type_sub_id(type);
     let type_info = struct_fetch_type_info(id);
     let args: any = + type_info Struct_type_info.name;
-    asnprintf(buffer, size, "struct %s", @args);
+    let _ = asnprintf(buffer, size, "struct %s", @args);
   }
   else if eq type_base(type) TypeUnion {
     let id = type_sub_id(type);
     let type_info = struct_fetch_type_info(id);
     let args: any = + type_info Struct_type_info.name;
-    asnprintf(buffer, size, "union %s", @args);
+    let _ = asnprintf(buffer, size, "union %s", @args);
   }
   else if eq type_base(type) TypeFunc {
     let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
@@ -269,11 +269,11 @@ fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> no
   // primitive type
   else {
     let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
-    asnprintf(buffer, size, "%s", @args);
+    let _ = asnprintf(buffer, size, "%s", @args);
   }
   let count = load64 + type Type.count;
   if > count 1 {
-    asnprintf(buffer, size, "[%d]", @count);
+    let _ = asnprintf(buffer, size, "[%d]", @count);
   }
 }
 

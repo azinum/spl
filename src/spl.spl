@@ -207,7 +207,6 @@ fn spl_start(filename: cstr) -> u64 {
               }
             }
           }
-          // typecheck_print_types(STDOUT_FILENO);
           compile_state_free();
         }
       }

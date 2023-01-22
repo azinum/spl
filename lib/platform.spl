@@ -204,9 +204,10 @@ fn asprintf(buffer: ptr<ptr>, format: cstr, args: any) -> none {
 }
 
 // bounded and appending sprintf
-fn asnprintf(buffer: ptr<ptr>, size: ptr<u64>, format: cstr, args: any) -> none {
+fn asnprintf(buffer: ptr<ptr>, size: ptr<u64>, format: cstr, args: any) -> u64 {
+  let n = 0;
   if > deref size 0 {
-    let n = snprintf(deref buffer, deref size, format, args);
+    store64 @n snprintf(deref buffer, deref size, format, args);
     store64 buffer + n deref buffer;
     if eq n 0 {
       store64 size 0;
@@ -218,6 +219,7 @@ fn asnprintf(buffer: ptr<ptr>, size: ptr<u64>, format: cstr, args: any) -> none 
       store64 size 0;
     }
   }
+  n;
 }
 
 fn assert(cond: u64, message: cstr) -> none {

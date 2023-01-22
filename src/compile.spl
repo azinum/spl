@@ -143,6 +143,7 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
       let args: any = cache_path, @exec_filename;
       sprintf(@path, "%s/%s.asm", @args);
     }
+    let _ = directory_create(cache_path);
     let fd = file_open_writable(cast cstr @path);
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
