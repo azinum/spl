@@ -126,11 +126,11 @@ fn get_time(spec: ptr<Timespec>) -> none {
 }
 
 fn print_time_elapsed(message: cstr, time_start: ptr<Timespec>, time_end: ptr<Timespec>) -> none {
-  let nanoseconds = - load64 + time_end Timespec.tv_nsec load64 + time_start Timespec.tv_nsec;
-  let seconds =     - load64 + time_end Timespec.tv_sec  load64 + time_start Timespec.tv_sec;
-  let ms = + * 1000 seconds / nanoseconds 1000000;
-  let info = tmp_it;
+  let total_start = + (* 1000 load64 + time_start Timespec.tv_sec) (/ load64 + time_start Timespec.tv_nsec 1000000);
+  let total_end = + (* 1000 load64 + time_end Timespec.tv_sec) (/ load64 + time_end Timespec.tv_nsec 1000000);
+  let ms = - total_end total_start;
+  let info: u8[MAX_BUFFER_SIZE] = 0;
   let args: any = message, ms;
-  sprintf(cast ptr info, "%s %d ms\n", @args);
-  print_info(cast cstr info);
+  let _ = snprintf(cast ptr @info, MAX_BUFFER_SIZE, "%s %d ms\n", @args);
+  print_info(cast cstr @info);
 }

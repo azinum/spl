@@ -113,9 +113,10 @@ fn type_deflate(type: ptr<Type>, type_out: ptr<Type>) -> none {
     }
   }
 }
+
 // contract: Type[]
 fn type_from_contract(contract: ptr<Type>, count: u64, mode: u64, result_out: ptr<Type>) -> u64 {
-  assert(neq count 0, "number of elements in contract must be greater than 0\n");
+  assert(> count 0, "number of elements in contract must be greater than 0\n");
   let result = NoError;
   let fail: u64 = 0;
 

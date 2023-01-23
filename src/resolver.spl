@@ -374,6 +374,10 @@ fn resolver_init(ast: ptr) -> u64 {
   let result = NoError;
   store64 @resolver memory_alloc(sizeof Resolver);
 
+  let time_start: Timespec = 0;
+  let time_end: Timespec = 0;
+  get_time(at time_start);
+
   store64 @_resolver_define resolver_define;
 
   store64 @result resolver_state_init(resolver);
@@ -385,6 +389,8 @@ fn resolver_init(ast: ptr) -> u64 {
       store64 @result resolver_define_nodes(resolver, ast_node_from_index(ast, 0), global_block);
     }
   }
+  get_time(at time_end);
+  print_time_elapsed("resolver took", at time_start, at time_end);
   result;
 }
 

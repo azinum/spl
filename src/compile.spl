@@ -148,7 +148,9 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
     if neq fd ERROR {
       store64 @result compile_linux_nasm_x86_64(fd);
       get_time(at time_end);
+      print_time_elapsed("code generation took", at time_start, at time_end);
       if and should_compile_target eq result NoError {
+        get_time(at time_start);
         let o_path: u8[MAX_PATH_SIZE] = 0;
         {
           let args: any = cache_path, @exec_filename;
@@ -175,6 +177,8 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
             cast cstr null;
           exec_command_echoed(STDOUT_FILENO, @command, envp);
         }
+        get_time(at time_end);
+        print_time_elapsed("compiling linux_nasm_x86_64 took", at time_start, at time_end);
       }
       close(fd);
     }
@@ -190,7 +194,6 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
   }
 
   if eq load64 + c Compile.status NoError {
-    print_time_elapsed("code generation took", at time_start, at time_end);
     compile_print_unused();
     if should_run_target {
       let command: cstr = cast cstr @exec_filename, cast cstr null;
