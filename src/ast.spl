@@ -7,7 +7,6 @@ enum u64 (
   AstValue,
   AstExpression,
   AstExprList,
-  AstStatement,
   AstStatementList,
   AstBlockStatement,
   AstBinopExpression,
@@ -41,13 +40,8 @@ let ast_type_str: cstr[MAX_AST_TYPE] = cast cstr[MAX_AST_TYPE] "";
 const MAX_INTERNAL_NODE: u64 = 512; // how many nodes can each node hold?
 const MAX_AST_NODE: u64 = * MAX_INTERNAL_NODE MAX_INTERNAL_NODE;
 
-union Info (
+union Node_info (
   type: Type,
-);
-
-struct Node_info (
-  symbol_id: u64,
-  info: Info
 );
 
 struct Ast (
@@ -58,6 +52,8 @@ struct Ast (
   konst: u64,
 
   type_context_id: u64,
+  symbol_id: u64,
+  value: Value,
   info: Node_info
 );
 
@@ -70,7 +66,10 @@ fn ast_init_node(node: any, type: u64) -> none {
   store64 + node Ast.count 0;
   store64 + node Ast.type type;
   store64 + node Ast.konst 0;
+
   store64 + node Ast.type_context_id UINT64_MAX;
+  store64 + node Ast.symbol_id UINT64_MAX;
+  memset(+ node Ast.value, 0, sizeof Value);
   memset(+ node Ast.info, 0, sizeof Node_info);
   token_init(+ Ast.token node, "", 0, T_EOF, l.filename, l.source);
 }
@@ -127,6 +126,8 @@ fn ast_get_type(ast: any) -> u64 load64 + ast Ast.type;
 
 fn ast_is(ast: any, type: u64) -> u64 eq type load64 + ast Ast.type;
 
+fn ast_node_str(ast: any) -> cstr cast cstr load64 + @ast_type_str * sizeof cstr load64 + ast Ast.type;
+
 fn ast_pop(ast: any) -> none {
   let child_count = cast ptr<u64> + ast Ast.count;
   if > deref child_count 0 {
@@ -169,7 +170,6 @@ fn ast_init -> none {
   store64 + @ast_type_str * AstValue           sizeof cstr "Value";
   store64 + @ast_type_str * AstExpression      sizeof cstr "Expression";
   store64 + @ast_type_str * AstExprList        sizeof cstr "ExprList";
-  store64 + @ast_type_str * AstStatement       sizeof cstr "Statement";
   store64 + @ast_type_str * AstStatementList   sizeof cstr "StatementList";
   store64 + @ast_type_str * AstBlockStatement  sizeof cstr "BlockStatement";
   store64 + @ast_type_str * AstBinopExpression sizeof cstr "BinopExpression";

@@ -1,0 +1,160 @@
+// type_print.spl
+// a collection of functions to print types to buffers/files
+
+const DEFAULT_TYPE_BUFFER_SIZE = 256;
+
+fn type_print_func_sig(fd: u64, type: ptr<Type>) -> none {}
+let _type_print = type_print_func_sig;
+let _type_printline = type_print_func_sig;
+fn type_write_to_buffer_func_sig(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {}
+let _type_write_to_buffer = type_write_to_buffer_func_sig;
+
+fn struct_type_info_print(fd: u64, info: ptr<Struct_type_info>, flat: u64) -> none {
+  let i = 0;
+  let count = load64 + info Struct_type_info.count;
+  dprintf(fd, "(", null);
+  if eq flat 0 {
+    dprintf(fd, "\n", null);
+  }
+  while < i count {
+    let field = struct_fetch_field(info, i);
+    let field_type: Type = 0;
+    memcpy(at field_type, + field Struct_field.type, sizeof Type);
+
+    let args: any = + field Struct_field.name;
+    if eq flat 0 {
+      dprintf(fd, "  ", null);
+    }
+    dprintf(fd, "%s: ", @args);
+    _type_print(fd, at field_type);
+
+    store64 @i + 1 i;
+    if < i count {
+      dprintf(fd, ",", null);
+      if flat {
+        dprintf(fd, " ", null);
+      }
+    }
+    if eq flat 0 {
+      dprintf(fd, "\n", null);
+    }
+  }
+  dprintf(fd, ")", null);
+}
+
+fn struct_type_info_printline(fd: u64, info: ptr<Struct_type_info>, flat: u64) -> none {
+  struct_type_info_print(fd, info, flat);
+  dprintf(fd, "\n", null);
+}
+
+fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Func_signature>) -> none {
+  let _ = asnprintf(buffer, size, "(", null);
+  let arg_index: u64 = 0;
+  let argc: u64 = load64 + func Func_signature.argc;
+  while < arg_index argc {
+    let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
+    _type_write_to_buffer(buffer, size, arg_type);
+    store64 @arg_index + 1 arg_index;
+    if < arg_index argc {
+      let _ = asnprintf(buffer, size, ", ", null);
+    }
+  }
+  { let _ = asnprintf(buffer, size, ") -> ", null); }
+  _type_write_to_buffer(buffer, size, cast ptr<Type> + func Func_signature.rtype);
+}
+
+fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
+  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+  let buffer: u8[buffer_size] = 0;
+  let bp = at buffer;
+
+  func_signature_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, func);
+  let args: any = at buffer;
+  dprintf(fd, "%s", @args);
+}
+
+fn func_signatures_print(fd: u64) -> none {
+  dprintf(fd, "func_signatures_print:\n", null);
+  let i = 0;
+  let count = load64 + c Compile.func_sig_count;
+  while < i count {
+    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature i;
+    dprintf(fd, "%d: ", @i);
+    func_signature_print(fd, func);
+    dprintf(fd, "\n", null);
+    store64 at i + 1 i;
+  }
+}
+
+fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {
+  // check if this is a container type
+  if type_is_container(type) {
+    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
+    let _ = asnprintf(buffer, size, "%s<", @args);
+    let next_type: Type = 0;
+    memcpy(at next_type, + + c Compile.types * sizeof Type type_sub_id(type), sizeof Type);
+    type_write_to_buffer(buffer, size, at next_type);
+    { let _ = asnprintf(buffer, size, ">", null); }
+  }
+  else if eq type_base(type) TypeStruct {
+    let id = type_sub_id(type);
+    let type_info = struct_fetch_type_info(id);
+    let args: any = + type_info Struct_type_info.name;
+    let _ = asnprintf(buffer, size, "struct %s", @args);
+  }
+  else if eq type_base(type) TypeUnion {
+    let id = type_sub_id(type);
+    let type_info = struct_fetch_type_info(id);
+    let args: any = + type_info Struct_type_info.name;
+    let _ = asnprintf(buffer, size, "union %s", @args);
+  }
+  else if or eq type_base(type) TypeFunc eq type_base(type) TypeSyscallFunc {
+    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
+    func_signature_write_to_buffer(buffer, size, func);
+  }
+  // primitive type
+  else {
+    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
+    let _ = asnprintf(buffer, size, "%s", @args);
+  }
+  let count = load64 + type Type.count;
+  if > count 1 {
+    let _ = asnprintf(buffer, size, "[%d]", @count);
+  }
+}
+
+fn type_print(fd: u64, type: ptr<Type>) -> none {
+  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+  let buffer: u8[buffer_size] = 0;
+  let bp = at buffer;
+  type_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, type);
+  let args: any = at buffer;
+  dprintf(fd, "%s", @args);
+}
+
+fn type_to_buffer(buffer: ptr, size: u64, type: ptr<Type>) -> none {
+  type_write_to_buffer(at buffer, at size, type);
+}
+
+fn type_printline(fd: u64, type: ptr<Type>) -> none {
+  type_print(fd, type);
+  dprintf(fd, "\n", null);
+}
+
+fn print_defined_types(fd: u64) -> none {
+  dprintf(fd, "print_types:\n", null);
+  let i: u64 = 0;
+  let count: u64 = load64 + c Compile.type_count;
+  while < i count {
+    let type = cast ptr<Type> + + c Compile.types * sizeof Type i;
+    dprintf(fd, "%d: ", @i);
+    type_printline(fd, type);
+    store64 @i + 1 i;
+  }
+}
+
+fn type_print_init -> none {
+  store64 @_type_print type_print;
+  store64 @_type_printline type_printline;
+  store64 @_type_write_to_buffer type_write_to_buffer;
+}

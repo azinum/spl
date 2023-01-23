@@ -140,8 +140,7 @@ fn ast_print_node_content_html(ast: any, fd: u64) -> none {
   {
     // fetch type from node info
     let node_info = cast ptr<Node_info> + ast Ast.info;
-    let info = cast ptr<Info> + node_info Node_info.info;
-    let type = cast ptr<Type> + info Info.type;
+    let type = cast ptr<Type> + node_info Node_info.type;
 
     // write type to buffer
     let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;

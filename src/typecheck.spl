@@ -3,25 +3,9 @@
 // TODO(lucas): temporary, allow passing and pushing structs of any size
 const MAX_STRUCT_SIZE = sizeof u64;
 const MAX_PUSH_SIZE = sizeof u64;
-const DEFAULT_TYPE_BUFFER_SIZE = 256;
-
-enum u64 (
-  TYPE_CONTRACT_LOOKUP,
-  TYPE_CONTRACT_CREATE
-);
-
-enum u64 (
-  TYPE_CONSTRAINT_VALID, // valid constraint, we're good to continue
-  TYPE_CONSTRAINT_INVALID // not a valid constraint, stop
-);
 
 fn typecheck_function(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 0;
 let _typecheck = typecheck_function;
-fn type_print_func_sig(fd: u64, type: ptr<Type>) -> none {}
-let _type_print = type_print_func_sig;
-let _type_printline = type_print_func_sig;
-fn type_write_to_buffer_func_sig(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {}
-let _type_write_to_buffer = type_write_to_buffer_func_sig;
 
 let typecheck_funcs = cast typecheck_function[MAX_AST_TYPE] 0;
 
@@ -59,261 +43,6 @@ fn typecheck_error_at(token: ptr, format: cstr, args: any) -> none {
   store64 + c Compile.error_count + 1 load64 + c Compile.error_count;
 }
 
-fn type_context_init(context: ptr<Type_context>) -> none {
-  type_init(cast ptr<Type> + context Type_context.type, TypeNone, 0, 0, 1);
-  store64 + context Type_context.offset 0;
-  store64 + context Type_context.symbol_id UINT64_MAX;
-}
-
-fn type_context_push(context: ptr<Type_context>) -> u64 {
-  let id = cast ptr<u64> + c Compile.type_context_count;
-  let result = UINT64_MAX;
-  if < deref id MAX_TYPE_CONTEXT {
-    store64 @result deref id;
-    memcpy(+ + c Compile.type_contexts * sizeof Type_context deref id, context, sizeof Type_context);
-    store64 id + 1 deref id;
-  }
-  else {
-    assert(0, "type_context_push: type context capacity reached\n");
-  }
-  result;
-}
-
-fn type_context_from_id(id: u64) -> ptr<Type_context> {
-  let result = cast ptr<Type_context> null;
-  if < id load64 + c Compile.type_context_count {
-    store64 @result + + c Compile.type_contexts * sizeof Type_context id;
-  }
-  result;
-}
-
-fn struct_field_init(field: ptr<Struct_field>, name: ptr<u8[MAX_NAME_SIZE]>, length: u64, type: ptr<Type>, offset: u64) -> u64 {
-  let result = Error;
-  if < length MAX_NAME_SIZE {
-    strncpy(cast cstr + field Struct_field.name, cast cstr name, length);
-    memcpy(+ field Struct_field.type, type, sizeof Type);
-    store64 + field Struct_field.offset offset;
-    store64 @result NoError;
-  }
-  result;
-}
-
-fn struct_type_info_init(info: ptr<Struct_type_info>, name: ptr<u8[MAX_NAME_SIZE]>, name_length: u64) -> none {
-  memset(+ info Struct_type_info.name, 0, MAX_NAME_SIZE);
-  strncpy(cast cstr + info Struct_type_info.name, cast cstr name, name_length);
-  store64 + info Struct_type_info.count 0;
-}
-
-fn struct_lookup_field(info: ptr<Struct_type_info>, name: ptr<u8[MAX_NAME_SIZE]>) -> ptr<Struct_field> {
-  let result = cast ptr<Struct_field> null;
-
-  let i = 0;
-  let count = load64 + info Struct_type_info.count;
-  while < i count {
-    let lookup = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field i;
-    if eq strncmp(cast cstr + lookup Struct_field.name, cast cstr name, MAX_NAME_SIZE) 0 {
-      store64 @result lookup;
-    }
-    store64 @i + 1 i;
-  }
-
-  result;
-}
-
-fn struct_create_field(info: ptr<Struct_type_info>, field: ptr<Struct_field>) -> u64 {
-  let result = Error;
-  if eq struct_lookup_field(info, cast ptr<u8[MAX_NAME_SIZE]> + field Struct_field.name) null {
-    let index = cast ptr<u64> + info Struct_type_info.count;
-    let new_field = cast ptr<Struct_field> + + info Struct_type_info.fields * sizeof Struct_field deref index;
-    store64 index + 1 deref index;
-    memcpy(new_field, field, sizeof Struct_field);
-    store64 @result NoError;
-  }
-  result;
-}
-
-fn struct_fetch_field(info: ptr<Struct_type_info>, field_index: u64) -> ptr<Struct_field> {
-  let result = cast ptr<Struct_field> null;
-  let count = load64 + info Struct_type_info.count;
-  if < field_index count {
-    store64 @result + + info Struct_type_info.fields * sizeof Struct_field field_index;
-  }
-  result;
-}
-
-fn struct_fetch_type_info(id: u64) -> ptr<Struct_type_info> {
-  let result = cast ptr<Struct_type_info> null;
-  let struct_id = load64 + c Compile.struct_id;
-  if < id struct_id {
-    store64 @result + + c Compile.struct_type_info * sizeof Struct_type_info id;
-  }
-  result;
-}
-
-fn struct_type_push(info: ptr<Struct_type_info>) -> u64 {
-  let result = NoError;
-  let struct_id = cast ptr<u64> + c Compile.struct_id;
-  memcpy(cast any + + c Compile.struct_type_info * sizeof Struct_type_info deref struct_id, info, sizeof Struct_type_info);
-  store64 struct_id + 1 deref struct_id;
-  result;
-}
-
-fn struct_type_info_print(fd: u64, info: ptr<Struct_type_info>, flat: u64) -> none {
-  let i = 0;
-  let count = load64 + info Struct_type_info.count;
-  dprintf(fd, "(", null);
-  if eq flat 0 {
-    dprintf(fd, "\n", null);
-  }
-  while < i count {
-    let field = struct_fetch_field(info, i);
-    let field_type: Type = 0;
-    memcpy(at field_type, + field Struct_field.type, sizeof Type);
-
-    let args: any = + field Struct_field.name;
-    if eq flat 0 {
-      dprintf(fd, "  ", null);
-    }
-    dprintf(fd, "%s: ", @args);
-    _type_print(fd, at field_type);
-
-    store64 @i + 1 i;
-    if < i count {
-      dprintf(fd, ",", null);
-      if flat {
-        dprintf(fd, " ", null);
-      }
-    }
-    if eq flat 0 {
-      dprintf(fd, "\n", null);
-    }
-  }
-  dprintf(fd, ")", null);
-}
-
-fn struct_type_info_printline(fd: u64, info: ptr<Struct_type_info>, flat: u64) -> none {
-  struct_type_info_print(fd, info, flat);
-  dprintf(fd, "\n", null);
-}
-
-fn func_signature_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, func: ptr<Func_signature>) -> none {
-  let _ = asnprintf(buffer, size, "(", null);
-  let arg_index: u64 = 0;
-  let argc: u64 = load64 + func Func_signature.argc;
-  while < arg_index argc {
-    let arg_type = cast ptr<Type> + + func Func_signature.args * sizeof Type arg_index;
-    _type_write_to_buffer(buffer, size, arg_type);
-    store64 @arg_index + 1 arg_index;
-    if < arg_index argc {
-      let _ = asnprintf(buffer, size, ", ", null);
-    }
-  }
-  { let _ = asnprintf(buffer, size, ") -> ", null); }
-  _type_write_to_buffer(buffer, size, cast ptr<Type> + func Func_signature.rtype);
-}
-
-fn func_signature_print(fd: u64, func: ptr<Func_signature>) -> none {
-  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
-  let buffer: u8[buffer_size] = 0;
-  let bp = at buffer;
-
-  func_signature_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, func);
-  let args: any = at buffer;
-  dprintf(fd, "%s", @args);
-}
-
-fn func_signatures_print(fd: u64) -> none {
-  dprintf(fd, "func_signatures_print:\n", null);
-  let i = 0;
-  let count = load64 + c Compile.func_sig_count;
-  while < i count {
-    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature i;
-    dprintf(fd, "%d: ", @i);
-    func_signature_print(fd, func);
-    dprintf(fd, "\n", null);
-    store64 at i + 1 i;
-  }
-}
-
-// for now `ptr` is the only type that is a container i.e. a type that can contain other types
-fn type_is_container(type: ptr<Type>) -> u64 {
-  eq type_base(type) TypePtr;
-}
-
-fn type_write_to_buffer(buffer: ptr<ptr>, size: ptr<u64>, type: ptr<Type>) -> none {
-  // check if this is a container type
-  if type_is_container(type) {
-    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
-    let _ = asnprintf(buffer, size, "%s<", @args);
-    let next_type: Type = 0;
-    memcpy(at next_type, + + c Compile.types * sizeof Type type_sub_id(type), sizeof Type);
-    type_write_to_buffer(buffer, size, at next_type);
-    { let _ = asnprintf(buffer, size, ">", null); }
-  }
-  else if eq type_base(type) TypeStruct {
-    let id = type_sub_id(type);
-    let type_info = struct_fetch_type_info(id);
-    let args: any = + type_info Struct_type_info.name;
-    let _ = asnprintf(buffer, size, "struct %s", @args);
-  }
-  else if eq type_base(type) TypeUnion {
-    let id = type_sub_id(type);
-    let type_info = struct_fetch_type_info(id);
-    let args: any = + type_info Struct_type_info.name;
-    let _ = asnprintf(buffer, size, "union %s", @args);
-  }
-  else if or eq type_base(type) TypeFunc eq type_base(type) TypeSyscallFunc {
-    let func = cast ptr<Func_signature> + + c Compile.func_signatures * sizeof Func_signature type_sub_id(type);
-    func_signature_write_to_buffer(buffer, size, func);
-  }
-  // primitive type
-  else {
-    let args: any = load64 + @compile_type_str * sizeof cstr type_base(type);
-    let _ = asnprintf(buffer, size, "%s", @args);
-  }
-  let count = load64 + type Type.count;
-  if > count 1 {
-    let _ = asnprintf(buffer, size, "[%d]", @count);
-  }
-}
-
-fn type_print(fd: u64, type: ptr<Type>) -> none {
-  let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
-  let buffer: u8[buffer_size] = 0;
-  let bp = at buffer;
-  type_write_to_buffer(cast ptr<ptr> at bp, at buffer_size, type);
-  let args: any = at buffer;
-  dprintf(fd, "%s", @args);
-}
-
-fn type_to_buffer(buffer: ptr, size: u64, type: ptr<Type>) -> none {
-  type_write_to_buffer(at buffer, at size, type);
-}
-
-fn type_printline(fd: u64, type: ptr<Type>) -> none {
-  type_print(fd, type);
-  dprintf(fd, "\n", null);
-}
-
-fn typecheck_print_types(fd: u64) -> none {
-  dprintf(fd, "typecheck_print_types:\n", null);
-  let i: u64 = 0;
-  let count: u64 = load64 + c Compile.type_count;
-  while < i count {
-    let type = cast ptr<Type> + + c Compile.types * sizeof Type i;
-    dprintf(fd, "%d: ", @i);
-    type_printline(fd, type);
-    store64 @i + 1 i;
-  }
-}
-
-fn types_are_equal(a: ptr<Type>, b: ptr<Type>) -> u64 {
-  and and
-    eq load64 + a Type.base     load64 + b Type.base
-    eq load64 + a Type.sub_id   load64 + b Type.sub_id
-    eq load64 + a Type.count    load64 + b Type.count;
-}
-
 fn typecheck_print_stack(fd: u64) -> none {
   let i = 0;
   let count = load64 + c Compile.ts_count;
@@ -328,188 +57,6 @@ fn typecheck_print_stack(fd: u64) -> none {
     dprintf(fd, " = %d\n", @args);
     store64 @i + 1 i;
   }
-}
-
-fn type_from_id(id: u64, type_out: ptr<Type>) -> none {
-  let type_count: u64 = load64 + c Compile.type_count;
-  if < id type_count {
-    memcpy(type_out, + + c Compile.types * sizeof Type id, sizeof Type);
-  }
-  else {
-    assert(0, "type_from_id: bad type id\n");
-  }
-}
-
-fn compile_type_size(type_id: u64) -> u64 {
-  let result = 0;
-  if < type_id load64 + c Compile.type_count {
-    let type: Type = 0;
-    type_from_id(type_id, at type);
-    store64 @result load64 + at type Type.size;
-  }
-  result;
-}
-
-fn type_lookup(type: ptr<Type>) -> u64 {
-  let result: u64 = UINT64_MAX;
-  let done: u64 = 0;
-  let i: u64 = 0;
-  let type_count: u64 = load64 + c Compile.type_count;
-  while and eq done 0 < i type_count {
-    let t = cast ptr<Type> + + c Compile.types * sizeof Type i;
-    if types_are_equal(type, t) {
-      store64 @result i;
-      store64 @done 1;
-    }
-    store64 @i + 1 i;
-  }
-  result;
-}
-
-fn type_push_new(type: ptr<Type>) -> u64 {
-  let type_count = cast ptr<u64> + c Compile.type_count;
-  let id = deref type_count;
-  if < deref type_count MAX_COMPILE_TYPE {
-    memcpy(+ + c Compile.types * sizeof Type deref type_count, type, sizeof Type);
-    store64 type_count + 1 deref type_count;
-  }
-  else {
-    assert(0, "compile type capacity reached, increase capacity\n");
-  }
-  id; // return id of the newly created type
-}
-
-// same as type_push_new but hash the type as well
-// simply hashes the type struct itself
-fn type_commit_new(type: ptr<Type>) -> u64 {
-  store64 + type Type.hash 0; // reset hash, in case the type was modified
-  let hash = sdbm_hash(type, sizeof Type);
-  store64 + type Type.hash hash;
-  type_push_new(type);
-}
-
-// checks if `type` is valid inside of `container`
-fn type_check_constraints(container: ptr<Type>, type: ptr<Type>) -> u64 {
-  let result = TYPE_CONSTRAINT_INVALID;
-  if type_is_container(container) {
-    store64 @result TYPE_CONSTRAINT_VALID;
-  }
-  else if and eq type_base(container) MAX_PRIMITIVE_TYPE > type_base(container) MAX_PRIMITIVE_TYPE {
-    store64 @result TYPE_CONSTRAINT_VALID;
-  }
-  result;
-}
-
-fn type_deflate(type: ptr<Type>, type_out: ptr<Type>) -> none {
-  let id = type_sub_id(type);
-  if neq id 0 {
-    if type_is_container(type) { // this check should not be necessary
-      type_from_id(id, type_out);
-    }
-  }
-}
-
-// contract: Type[]
-fn type_from_contract(contract: ptr<Type>, count: u64, mode: u64, result_out: ptr<Type>) -> u64 {
-  assert(neq count 0, "number of elements in contract must be greater than 0\n");
-  let result = NoError;
-  let fail: u64 = 0;
-
-  type_init(result_out, TypeNone, 0, 0, 1);
-
-  if eq count 1 {
-    let type: Type = 0;
-    memcpy(at type, contract, sizeof Type);
-    let lookup: u64 = type_lookup(at type);
-    if neq lookup UINT64_MAX {
-      memcpy(result_out, at type, sizeof Type);
-    }
-    else if eq mode TYPE_CONTRACT_CREATE {
-      // TODO(lucas): check if this type is valid
-      { let _ = type_commit_new(at type); }
-      memcpy(result_out, at type, sizeof Type);
-    }
-    else {
-      store64 @fail 1;
-    }
-  }
-  else {
-    let i: u64 = - count 1;
-    let primary_type: Type = 0;
-    type_init(
-      at primary_type,
-      TypeNone,
-      0, // sub type id
-      0, // size
-      1  // count
-    );
-    let sub_type: Type = 0;
-    memcpy(at sub_type, + contract * sizeof Type i, sizeof Type);
-
-    while and eq fail 0 > i 0 {
-      memcpy(at primary_type, + contract * sizeof Type - i 1, sizeof Type);
-      let sub_type_id = type_lookup(at sub_type);
-      if and eq mode TYPE_CONTRACT_CREATE eq sub_type_id UINT64_MAX {
-        store64 @sub_type_id type_commit_new(at sub_type);
-      }
-      if neq sub_type_id UINT64_MAX {
-        let primary_type_count: u64 = load64 + at primary_type Type.count;
-        let type: Type = 0;
-        type_init(at type, type_base(at primary_type), sub_type_id, load64 + at primary_type Type.size, primary_type_count);
-
-        let constraint: u64 = type_check_constraints(at primary_type, at sub_type);
-        if eq constraint TYPE_CONSTRAINT_VALID {
-          let lookup: u64 = type_lookup(at type);
-          if eq lookup UINT64_MAX {
-            // type does not exist, create new type if mode is TYPE_CONTRACT_CREATE
-            if eq mode TYPE_CONTRACT_CREATE {
-              let new_type_id: u64 = type_commit_new(at type);
-              assert(neq new_type_id 0, "failed to push new type\n");
-              memcpy(result_out, at type, sizeof Type);
-              memcpy(at sub_type, at type, sizeof Type); // sub type is now the newly created type
-            }
-            else {
-              store64 @fail 1;
-            }
-          }
-          else {
-            // type exists
-            memcpy(result_out, at type, sizeof Type);
-            memcpy(at sub_type, at type, sizeof Type); // sub type is the newly created type
-          }
-        }
-        else { // constraint failed
-          store64 @fail 1;
-        }
-      }
-      else {
-        store64 @fail 1;
-      }
-      store64 @i - i 1;
-    }
-  }
-
-  if fail {
-    store64 @result Error;
-  }
-  result;
-}
-
-fn type_contract_stack_reset -> none {
-  store64 + c Compile.type_contract_count 0;
-}
-
-fn type_contract_stack_push(type: ptr<Type>) -> u64 {
-  let result = NoError;
-  let count = cast ptr<u64> + c Compile.type_contract_count;
-  if < deref count MAX_TYPE_CONTRACT_STACK {
-    memcpy(+ + c Compile.type_contract_stack * sizeof Type deref count, type, sizeof Type);
-    store64 count + 1 deref count;
-  }
-  else {
-    store64 @result Error;
-  }
-  result;
 }
 
 fn func_signature_init(func: ptr<Func_signature>) -> none {
@@ -605,6 +152,10 @@ fn ts_push_primitive(primitive: u64, type_out: ptr<Type>) -> none {
   let type: Type = 0;
   type_init(at type, primitive, 0, compile_type_size(primitive), 1);
   ts_push(at type, type_out);
+}
+
+fn type_init_primitive(type: ptr<Type>, primitive: u64) -> none {
+  type_init(type, primitive, 0, compile_type_size(primitive), 1);
 }
 
 fn ts_pop(type_out: ptr<Type>) -> none {
@@ -1272,11 +823,11 @@ fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
     type_init(at explicit_rtype, TypeNone, 0, 0, 1);
 
     let argc: u64 = load64 + params Ast.count;
-    if or eq argc MAX_FUNC_ARGC < argc MAX_FUNC_ARGC { // argc <= MAX_FUNC_ARGC
+    if < argc + MAX_FUNC_ARGC 1 { // argc <= MAX_FUNC_ARGC
       let symbol = cast ptr<Symbol> null;
 
       let node_info = cast ptr<Node_info> + ast Ast.info;
-      let symbol_id = load64 + node_info Node_info.symbol_id;
+      let symbol_id = load64 + ast Ast.symbol_id;
       if neq symbol_id UINT64_MAX {
         store64 @symbol symbol_from_id(symbol_id);
 
@@ -2067,16 +1618,12 @@ fn typecheck(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
 
 fn typecheck_init -> none {
   store64 @_typecheck typecheck;
-  store64 @_type_print type_print;
-  store64 @_type_printline type_printline;
-  store64 @_type_write_to_buffer type_write_to_buffer;
 
   store64 + @typecheck_funcs * sizeof ptr AstNone             typecheck_none;
   store64 + @typecheck_funcs * sizeof ptr AstRoot             typecheck_undefined;
   store64 + @typecheck_funcs * sizeof ptr AstValue            typecheck_value;
   store64 + @typecheck_funcs * sizeof ptr AstExpression       typecheck_expr;
   store64 + @typecheck_funcs * sizeof ptr AstExprList         typecheck_list_of_nodes;
-  store64 + @typecheck_funcs * sizeof ptr AstStatement        typecheck_list_of_nodes;
   store64 + @typecheck_funcs * sizeof ptr AstStatementList    typecheck_list_of_nodes;
   store64 + @typecheck_funcs * sizeof ptr AstBlockStatement   typecheck_block_statement;
   store64 + @typecheck_funcs * sizeof ptr AstBinopExpression  typecheck_binop_expr;

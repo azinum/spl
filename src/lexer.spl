@@ -166,6 +166,10 @@ fn token_print(token: ptr) -> none {
 
 fn lexer_token_type -> u64 load64 + @token Token.type;
 
+fn token_is(token: ptr<Token>, type: u64) -> u64 eq load64 + token Token.type type;
+
+fn token_str(token: ptr<Token>) -> cstr cast cstr load64 + @token_type_str * sizeof cstr load64 + token Token.type;
+
 fn compare(a: cstr, b: cstr, length: u64) -> u64 {
   let result = 1;
   let done = 0;

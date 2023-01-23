@@ -14,17 +14,16 @@
 //   }
 // }
 
-struct T (
-  a: u64,
-  b: cstr
-);
+fn f(x: u64) not 1;
 
-fn thing(t: ptr<T>) -> none {
-  print t;
-}
+fn g "hello there";
 
+enum u64 ( A, B, C );
+
+const a = 12;
+
+enum a (Q, S, T);
 
 fn main -> none {
-  let t: T = 0;
-  thing(at t);
+  print S;
 }
