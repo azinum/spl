@@ -11,6 +11,18 @@ enum u64 (
   TYPE_CONSTRAINT_INVALID // not a valid constraint, stop
 );
 
+fn node_info_init(info: ptr<Node_info>) -> none {
+  memset(info, 0, sizeof Node_info);
+}
+
+fn node_get_info(node: ptr) -> ptr<Node_info> {
+  cast ptr<Node_info> + node Ast.info;
+}
+
+fn node_info_get_type(node_info: ptr<Node_info>) -> ptr<Type> {
+  cast ptr<Type> + node_info Node_info.type;
+}
+
 fn types_are_equal(a: ptr<Type>, b: ptr<Type>) -> u64 {
   and and
     eq load64 + a Type.base     load64 + b Type.base

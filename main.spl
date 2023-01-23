@@ -14,16 +14,8 @@
 //   }
 // }
 
-fn f(x: u64) not 1;
-
-fn g "hello there";
-
-enum u64 ( A, B, C );
-
-const a = 12;
-
-enum a (Q, S, T);
+enum u64 A, B, C, D;
 
 fn main -> none {
-  print S;
+  print C;
 }

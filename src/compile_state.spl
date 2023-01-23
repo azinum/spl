@@ -233,9 +233,6 @@ fn symbol_from_id(id: u64) -> ptr<Symbol> {
   if < id symbol_count {
     store64 @result + + c Compile.symbols * sizeof Symbol id;
   }
-  else {
-    assert(0, "symbol_from_id: index out of range\n");
-  }
   result;
 }
 

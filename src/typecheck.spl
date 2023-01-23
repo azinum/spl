@@ -806,12 +806,9 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
 
 fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   if eq cast u64 block + c Compile.global {
-    let params = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-    let body = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-    let rtype_node: ptr = null;
-    if eq load64 + ast Ast.count 3 {
-      store64 @rtype_node load64 + + ast Ast.node * sizeof ptr 2;
-    }
+    let params = ast_node_from_index(ast, 0);
+    let body = ast_node_from_index(ast, 1);
+    let rtype_node = ast_node_from_index(ast, 2);
 
     let func_sig: Func_signature = 0;
     func_signature_init(at func_sig);
@@ -1263,46 +1260,45 @@ fn typecheck_sizeof(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
 }
 
 fn typecheck_enum(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  let type_node = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let enum_node = cast ptr load64 + + ast Ast.node * sizeof ptr 1;
+  let enum_type_node = ast_node_from_index(ast, 0); // the enum type
+  let enum_node = ast_node_from_index(ast, 1);  // list of enum values
+
   let value: Value = 0;
   store64 + @value Value.num 0;
   store64 + @value Value.konst 1;
-  let i: u64 = 0;
-  let count: u64 = load64 + enum_node Ast.count;
+  let value_num = cast ptr<u64> + @value Value.num;
 
-  let type: Type = 0;
-  token_to_compile_type(block, fs, + type_node Ast.token, null, at type);
-  if is_numerical(at type) {
-    while < i count {
-      let node = cast ptr load64 + + enum_node Ast.node * sizeof ptr i;
-      let symbol = cast ptr<Symbol> null;
-      let symbol_index: u64 = UINT64_MAX;
-      let imm: u64 = compile_push_value(+ @value Value.num, sizeof u64);
-
-      if eq compile_declare_value(block, + node Ast.token, at symbol, @symbol_index) NoError {
-        store64 + symbol Symbol.imm imm;
-        store64 + symbol Symbol.size compile_type_size(type_base(at type));
+  let type_info = node_get_info(enum_type_node);
+  let enum_type = node_info_get_type(type_info);
+  if is_numerical(enum_type) {
+    let i = 0;
+    let done = 0;
+    let enum_node_count = ast_child_count(enum_node);
+    while and not done < i enum_node_count {
+      let ident_node = ast_node_from_index(enum_node, i);
+      let ident_token = ast_token(ident_node);
+      let symbol_id = load64 + ident_node Ast.symbol_id;
+      let symbol = symbol_from_id(symbol_id);
+      if neq symbol null {
+        store64 + symbol Symbol.imm compile_push_value(value_num, sizeof u64);
+        store64 + symbol Symbol.size compile_type_size(type_base(enum_type));
         store64 + symbol Symbol.konst 1;
-        if eq cast u64 block + c Compile.global {
-          store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
-        }
-        else {
-          store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
-        }
-        memcpy(+ symbol Symbol.type, at type, sizeof Type);
+        memcpy(+ symbol Symbol.type, enum_type, sizeof Type);
         memcpy(+ symbol Symbol.value, @value, sizeof Value);
       }
       else {
-        compile_error_at(+ node Ast.token, "symbol already exists\n", null);
+        assert(0, "typecheck_enum: symbol not defined\n");
       }
-
-      store64 + @value Value.num + 1 load64 + @value Value.num;
+      store64 value_num + 1 deref value_num;
       store64 @i + 1 i;
     }
   }
   else {
-    typecheck_error_at(+ type_node Ast.token, "expected numerical type in enumerator expression\n", null);
+    let buffer_size = DEFAULT_TYPE_BUFFER_SIZE;
+    let type_str: u8[buffer_size] = 0;
+    type_to_buffer(@type_str, buffer_size, enum_type);
+    let args: any = at type_str;
+    typecheck_error_at(cast ptr ast_token(enum_type_node), "expected numerical type in enumerator, but got `%s`\n", @args);
   }
   load64 + c Compile.status;
 }

@@ -6,6 +6,7 @@ const MAX_TYPE_CONTRACT_SIZE = 8;
 struct Resolver (
   blocks: Block[MAX_BLOCK],
   block_count: u64,
+  global: ptr<Block>, // points to Compile.global
   type_contract: Type[MAX_TYPE_CONTRACT_SIZE],
   type_contract_size: u64,
 );
@@ -20,20 +21,9 @@ fn resolver_state_init(r: ptr<Resolver>) -> u64 {
 
   store64 + r Resolver.block_count 0;
   store64 + r Resolver.type_contract_size 0;
+  store64 + r Resolver.global + c Compile.global;
 
   result;
-}
-
-fn node_info_init(info: ptr<Node_info>) -> none {
-  memset(info, 0, sizeof Node_info);
-} 
-
-fn node_get_info(node: ptr) -> ptr<Node_info> {
-  cast ptr<Node_info> + node Ast.info;
-}
-
-fn node_info_get_type(node_info: ptr<Node_info>) -> ptr<Type> {
-  cast ptr<Type> + node_info Node_info.type;
 }
 
 fn resolver_block_push(r: ptr<Resolver>, parent: ptr<Block>) -> ptr<Block> {
@@ -136,13 +126,12 @@ fn resolver_type_from_node(r: ptr<Resolver>, node: ptr, block: ptr<Block>, type_
     let contract = cast ptr<Type> + r Resolver.type_contract;
     let contract_size = load64 + r Resolver.type_contract_size;
     store64 @result type_from_contract(contract, contract_size, type_contract_mode, type);
-    // printf("Resolver.type_contract_size: %d\n", @contract_size);
     resolver_type_contract_reset(r);
   }
   result;
 }
 
-fn resolver_function_declare(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
+fn resolver_declare_func(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
 
   let name_token = + node Ast.token;
@@ -153,7 +142,7 @@ fn resolver_function_declare(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> 
   node_info_init(node_info);
 
   if eq global_block block {
-    if eq compile_declare_value(block, name_token, at symbol, @symbol_index) NoError {
+    if eq compile_declare_value(block, cast ptr name_token, at symbol, @symbol_index) NoError {
       store64 + node Ast.symbol_id symbol_index;
     }
     else {
@@ -176,7 +165,7 @@ fn resolver_declare_statements(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) ->
   while and eq result NoError < i count {
     let node = ast_node_from_index(ast, i);
     if ast_is(node, AstFuncDefinition) {
-      store64 @result resolver_function_declare(r, node, block);
+      store64 @result resolver_declare_func(r, node, block);
     }
     else if ast_is(node, AstStatementList) {
       store64 @result resolver_declare_statements(r, node, block);
@@ -255,11 +244,38 @@ fn resolver_define_func(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
 
 fn resolver_define_enum(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
-  let type_node = ast_node_from_index(ast, 0);
+  let enum_type_node = ast_node_from_index(ast, 0);
+  let is_global = eq block load64 + r Resolver.global;
   let type: Type = 0;
-  if eq resolver_type_from_node(r, type_node, block, TYPE_CONTRACT_CREATE, at type) NoError {
-    let enum_type = node_info_get_type(node_get_info(ast));
+  if eq resolver_type_from_node(r, enum_type_node, block, TYPE_CONTRACT_CREATE, at type) NoError {
+    let enum_type = node_info_get_type(node_get_info(enum_type_node));
     memcpy(enum_type, at type, sizeof Type);
+    let enum_node = ast_node_from_index(ast, 1);
+    let enum_node_count = ast_child_count(enum_node);
+    let i = 0;
+    let done = 0;
+    while and not done < i enum_node_count {
+      let ident_node = ast_node_from_index(enum_node, i);
+      let ident_token = cast ptr<Token> + ident_node Ast.token;
+
+      let symbol = cast ptr<Symbol> null;
+      let symbol_id = UINT64_MAX;
+      if eq compile_declare_value(block, cast ptr ident_token, at symbol, @symbol_id) NoError {
+        store64 + ident_node Ast.symbol_id symbol_id;
+        if is_global {
+          store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+        }
+        else {
+          store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+        }
+      }
+      else {
+        compile_error_at(cast ptr ident_token, "symbol already exists\n", null);
+        store64 @done 1;
+        store64 @result Error;
+      }
+      store64 @i + 1 i;
+    }
   }
   result;
 }
@@ -362,7 +378,7 @@ fn resolver_init(ast: ptr) -> u64 {
 
   store64 @result resolver_state_init(resolver);
   if eq result NoError {
-    let global_block = cast ptr<Block> + c Compile.global;
+    let global_block = cast ptr<Block> load64 + resolver Resolver.global;
 
     store64 @result resolver_declare(resolver, ast, global_block);
     if eq result NoError {
