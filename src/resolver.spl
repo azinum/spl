@@ -67,9 +67,14 @@ fn resolver_type_contract_reset(r: ptr<Resolver>) -> none {
 
 fn resolver_type_from_node_token(r: ptr<Resolver>, node: ptr, block: ptr<Block>, type_out: ptr<Type>) -> u64 {
   let result = NoError;
-  type_init_primitive(type_out, TypeNone);
+
   let token = cast ptr<Token> + node Ast.token;
-  if token_is(token, T_ANY) {
+  type_init_primitive(type_out, TypeError);
+
+  if token_is(token, T_NONE) {
+    type_init_primitive(type_out, TypeNone);
+  }
+  else if token_is(token, T_ANY) {
     type_init_primitive(type_out, TypeAny);
   }
   else if token_is(token, T_PTR) {
@@ -91,14 +96,19 @@ fn resolver_type_from_node_token(r: ptr<Resolver>, node: ptr, block: ptr<Block>,
     type_init_primitive(type_out, TypeCString);
   }
   else if token_is(token, T_IDENTIFIER) {
-    // TODO: implement
+    let symbol = cast ptr<Symbol> null;
+    let name: Buffer = 0;
+    buffer_init(
+      at name,
+      cast ptr load64 + token Token.buffer,
+      load64 + token Token.length
+    );
+    if eq compile_lookup_value(block, @name, at symbol, null, null) NoError {
+      memcpy(type_out, + symbol Symbol.type, sizeof Type);
+    }
   }
   result;
 }
-
-// fn resolver_create_type_contract()
-
-// fn resolver_token_to_compile_type()
 
 fn resolver_collect_types_from_node(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
@@ -108,7 +118,13 @@ fn resolver_collect_types_from_node(r: ptr<Resolver>, node: ptr, block: ptr<Bloc
     if eq result NoError {
       let array_specifier_node = ast_node_from_index(node, 0);
       if not ast_is(array_specifier_node, AstNone) {
-        // TODO: implement
+        store64 @result _resolver_define(r, array_specifier_node, block);
+        let array_specifier_value: Value = 0;
+        if eq result NoError {
+          store64 @result const_eval(array_specifier_node, block, at array_specifier_value);
+          // TODO(lucas): type checking? how? i mean it is needed because we're creating a new type here, but i suppose the creation of the type will fail if invalidly constructed...
+          store64 + at type Type.count load64 + at array_specifier_value Value.num;
+        }
       }
       if eq resolver_type_contract_push(r, at type) NoError {
         let sub_node = ast_node_from_index(node, 1);
@@ -198,6 +214,9 @@ fn resolver_define_value(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
     store64 + ast Ast.konst 1;
     let type = node_info_get_type(node_get_info(ast));
     type_init_primitive(cast ptr<Type> type, TypeUnsigned64);
+    let value = cast ptr<Value> + ast Ast.value;
+    let num = load64 + token Token.v;
+    value_init(value, num, 1);
   }
   else if token_is(token, T_CSTRING) {
     let type = node_info_get_type(node_get_info(ast));
@@ -218,12 +237,22 @@ fn resolver_define_value(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
 
 fn resolver_define_binop(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
+
   let left = ast_node_from_index(ast, 0);
   let right = ast_node_from_index(ast, 1);
   assert(neq 0 left, "resolver_define_binop: left node is null\n");
   assert(neq 0 right, "resolver_define_binop: right node is null\n");
+
+  let left_value = cast ptr<Value> + left Ast.value;
+  let right_value = cast ptr<Value> + right Ast.value;
+
+  let value = cast ptr<Value> + ast Ast.value;
+
   store64 @result _resolver_define(r, left, block);
   store64 @result _resolver_define(r, right, block);
+
+  store64 + value Value.konst and value_konst(left_value) value_konst(right_value);
+
   result;
 }
 
@@ -294,78 +323,79 @@ fn resolver_define_nodes(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
 
 fn resolver_define(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
-  if ast_is(ast, AstNone) {
-  }
-  else if ast_is(ast, AstValue) {
-    store64 @result resolver_define_value(r, ast, block);
-  }
-  else if ast_is(ast, AstExpression) {
-    store64 @result resolver_define(r, ast, block);
-  }
-  else if ast_is(ast, AstExprList) {
-    store64 @result resolver_define_nodes(r, ast, block);
-  }
-  else if ast_is(ast, AstStatementList) {
-    store64 @result resolver_define_nodes(r, ast, block);
-  }
-  else if ast_is(ast, AstBlockStatement) {
-    let local_block = resolver_block_push(r, block);
-    store64 @result resolver_define_nodes(r, ast, local_block);
-    resolver_block_pop(r); // local_block
-  }
-  else if ast_is(ast, AstBinopExpression) {
-    store64 @result resolver_define_binop(r, ast, block);
-  }
-  else if ast_is(ast, AstUopExpression) {
-    store64 @result resolver_define_uop(r, ast, block);
-  }
-  else if ast_is(ast, AstConstStatement) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstLetStatement) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstFuncDefinition) {
-    store64 @result resolver_define_func(r, ast, block);
-  }
-  else if ast_is(ast, AstFuncCall) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstAssignment) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstStore) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstWhileStatement) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstIfStatement) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstSizeof) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstEnum) {
-    store64 @result resolver_define_enum(r, ast, block);
-    // TODO: implement
-  }
-  else if ast_is(ast, AstStruct) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstUnion) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstCastExpression) {
-    // TODO: implement
-  }
-  else if ast_is(ast, AstStaticAssert) {
-    // TODO: implement
-  }
-  else {
-    let args: any = ast_node_str(ast);
-    compile_error_at(+ ast Ast.token, "resolver_define: invalid AST node (%s)\n", @args);
-    assert(0, "");
+  if neq ast null {
+    if ast_is(ast, AstNone) {
+    }
+    else if ast_is(ast, AstValue) {
+      store64 @result resolver_define_value(r, ast, block);
+    }
+    else if ast_is(ast, AstExpression) {
+      store64 @result resolver_define(r, ast_node_from_index(ast, 0), block);
+    }
+    else if ast_is(ast, AstExprList) {
+      store64 @result resolver_define_nodes(r, ast, block);
+    }
+    else if ast_is(ast, AstStatementList) {
+      store64 @result resolver_define_nodes(r, ast, block);
+    }
+    else if ast_is(ast, AstBlockStatement) {
+      let local_block = resolver_block_push(r, block);
+      store64 @result resolver_define_nodes(r, ast, local_block);
+      resolver_block_pop(r); // local_block
+    }
+    else if ast_is(ast, AstBinopExpression) {
+      store64 @result resolver_define_binop(r, ast, block);
+    }
+    else if ast_is(ast, AstUopExpression) {
+      store64 @result resolver_define_uop(r, ast, block);
+    }
+    else if ast_is(ast, AstConstStatement) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstLetStatement) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstFuncDefinition) {
+      store64 @result resolver_define_func(r, ast, block);
+    }
+    else if ast_is(ast, AstFuncCall) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstAssignment) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstStore) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstWhileStatement) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstIfStatement) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstSizeof) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstEnum) {
+      store64 @result resolver_define_enum(r, ast, block);
+    }
+    else if ast_is(ast, AstStruct) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstUnion) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstCastExpression) {
+      // TODO: implement
+    }
+    else if ast_is(ast, AstStaticAssert) {
+      // TODO: implement
+    }
+    else {
+      let args: any = ast_node_str(ast);
+      compile_error_at(+ ast Ast.token, "resolver_define: invalid AST node (%s)\n", @args);
+      assert(0, "");
+    }
   }
   result;
 }
@@ -373,6 +403,8 @@ fn resolver_define(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
 fn resolver_init(ast: ptr) -> u64 {
   let result = NoError;
   store64 @resolver memory_alloc(sizeof Resolver);
+
+  store64 + c Compile.should_collapse_nodes 0; // temporary
 
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;

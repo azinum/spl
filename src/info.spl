@@ -92,50 +92,19 @@ fn symbol_info_print_html(fd: u64) -> none {
   html_single_end_tag(fd, "table");
 }
 
-fn ast_print(ast: any, level: u64, fd: u64) -> none {
-  if neq 0 ast {
-    {
-      let i = 0;
-      while < i level {
-        dprintf(fd, "   ", null);
-        store64 @i + 1 i;
-      }
-    }
-    let type: u64 = load64 + ast Ast.type;
-    let token: ptr = cast ptr + ast Ast.token;
-    let const_str = "NonConst", "Const";
-    let args: any = (
-      load64 + @ast_type_str * type sizeof cstr,
-      load64 + @token_type_str * load64 + token Token.type sizeof cstr,
-      load64 + @const_str * sizeof cstr load64 + ast Ast.konst,
-      load64 + token Token.length,
-      load64 + token Token.buffer
-    );
-    dprintf(fd, "<%s, %s, %s>, `%*s`\n", @args);
-    {
-      let i = 0;
-      let count = load64 + ast Ast.count;
-      while < i count {
-        let node = load64 + + ast Ast.node * i sizeof any;
-        ast_print(node, + 1 level, fd);
-        store64 @i + 1 i;
-      }
-    }
-  }
-}
-
 fn ast_print_node_content_html(ast: any, fd: u64) -> none {
   let token = cast ptr<Token> + ast Ast.token;
   let type: u64 = load64 + ast Ast.type;
   let const_str =
     "&zwj;", // zero width space character
-    "&ast;";  // asterisk
-
+    " &beta;",
+    " &alpha;";
   {
     let args: any =
       load64 + @ast_type_str * type sizeof cstr,
-      load64 + @const_str * sizeof cstr load64 + ast Ast.konst;
-    html_tag(fd, "b", "%s%s:", @args);
+      load64 + @const_str * sizeof cstr load64 + ast Ast.konst,
+      load64 + @const_str * sizeof cstr * 2 load64 + + ast Ast.value Value.konst;
+    html_tag(fd, "b", "%s%s%s:", @args);
   }
   {
     // fetch type from node info

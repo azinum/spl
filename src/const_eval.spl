@@ -1,0 +1,183 @@
+// const_eval.spl
+
+fn const_eval_func(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 { Error; }
+let _const_eval = const_eval_func;
+
+fn const_eval_expr_list(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
+  let result = NoError;
+  let i = 0;
+  let count = ast_child_count(ast);
+  let done = 0;
+  while and not done < i count {
+    let node = ast_node_from_index(ast, i);
+    store64 @result _const_eval(node, block, value_out);
+    if neq result NoError {
+      store64 @done 1;
+    }
+    store64 @i + 1 i;
+  }
+  result;
+}
+
+fn const_eval_value(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
+  NoError;
+}
+
+fn const_eval_binop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
+  let result = NoError;
+  let token = ast_token(ast);
+
+  let fs: Function = 0;
+  function_init(at fs);
+
+  { let _ = typecheck_binop(block, at fs, ast); }
+
+  let value = cast ptr<Value> + ast Ast.value;
+  value_init(value, 0, 1);
+
+  // reset the type and value stack
+  ts_reset();
+  vs_reset();
+  
+  let left = ast_node_from_index(ast, 0);
+  let right = ast_node_from_index(ast, 1);
+  store64 @result _const_eval(left, block, value_out);
+  if eq result NoError {
+    store64 @result _const_eval(right, block, value_out);
+    if eq result NoError {
+      let left_value = cast ptr<Value> + left Ast.value;
+      let right_value = cast ptr<Value> + right Ast.value;
+      if and value_konst(left_value) value_konst(right_value) {
+        let num = 0;
+        if token_is(token, T_ADD) {
+          store64 @num +
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_SUB) {
+          store64 @num -
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_MUL) {
+          store64 @num *
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_DIV) {
+          if eq load64 + right_value Value.num 0 {
+            store64 @result Error;
+            compile_error_at(cast ptr ast_token(right), "divide by zero arithmetic error\n", null);
+          }
+          else {
+            store64 @num /
+              load64 + left_value Value.num
+              load64 + right_value Value.num;
+          }
+        }
+        else if token_is(token, T_DIV) {
+          if eq load64 + right_value Value.num 0 {
+            store64 @result Error;
+            compile_error_at(cast ptr ast_token(right), "modulo by zero arithmetic error\n", null);
+          }
+          else {
+            store64 @num %
+              load64 + left_value Value.num
+              load64 + right_value Value.num;
+          }
+        }
+        else if token_is(token, T_LSHIFT) {
+          store64 @num lshift
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_RSHIFT) {
+          store64 @num rshift
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_LT) {
+          store64 @num <
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_GT) {
+          store64 @num >
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_AND) {
+          store64 @num and
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_OR) {
+          store64 @num or
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_XOR) {
+          store64 @num xor
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_EQ) {
+          store64 @num eq
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else if token_is(token, T_NEQ) {
+          store64 @num neq
+            load64 + left_value Value.num
+            load64 + right_value Value.num;
+        }
+        else {
+          assert(0, "unhandled operation\n");
+        }
+        store64 + value Value.num num;
+      }
+      else {
+        // TODO(lucas): improve error message
+        compile_error_at(cast ptr token, "can not do constant evaluation here\n", null);
+        store64 @result Error;
+      }
+    }
+  }
+  result;
+}
+
+fn const_eval_uop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
+  let result = NoError;
+  result;
+}
+
+fn const_eval(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
+  let result = Error;
+  store64 @_const_eval const_eval;
+  if neq ast null {
+    if ast_is(ast, AstExpression) {
+      let first = ast_node_from_index(ast, 0);
+      let first_value = cast ptr<Value> + first Ast.value;
+      let value = cast ptr<Value> + ast Ast.value;
+      store64 @result const_eval(first, block, value_out);
+      memcpy(value, first_value, sizeof Value);
+    }
+    else if ast_is(ast, AstExprList) {
+      store64 @result const_eval_expr_list(ast, block, value_out);
+    }
+    else if ast_is(ast, AstValue) {
+      store64 @result const_eval_value(ast, block, value_out);
+    }
+    else if ast_is(ast, AstBinopExpression) {
+      store64 @result const_eval_binop(ast, block, value_out);
+    }
+    else if ast_is(ast, AstUopExpression) {
+      store64 @result const_eval_uop(ast, block, value_out);
+    }
+  }
+  if eq result NoError {
+    let value = cast ptr<Value> + ast Ast.value;
+    memcpy(value_out, value, sizeof Value);
+  }
+  result;
+}

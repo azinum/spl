@@ -148,14 +148,20 @@ fn ts_push(type: ptr<Type>, type_out: ptr<Type>) -> none {
   }
 }
 
+fn ts_reset -> none {
+  let ts_count = cast ptr<u64> + c Compile.ts_count;
+  store64 ts_count 0;
+}
+
+fn vs_reset -> none {
+  let vs_count = cast ptr<u64> + c Compile.vs_count;
+  store64 vs_count 0;
+}
+
 fn ts_push_primitive(primitive: u64, type_out: ptr<Type>) -> none {
   let type: Type = 0;
   type_init(at type, primitive, 0, compile_type_size(primitive), 1);
   ts_push(at type, type_out);
-}
-
-fn type_init_primitive(type: ptr<Type>, primitive: u64) -> none {
-  type_init(type, primitive, 0, compile_type_size(primitive), 1);
 }
 
 fn ts_pop(type_out: ptr<Type>) -> none {
@@ -475,7 +481,7 @@ fn typecheck_block_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
   load64 + c Compile.status;
 }
 
-fn typecheck_binop_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+fn typecheck_binop(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   { let _ = typecheck_node_list(block, fs, ast); }
   let b: Type = 0;
   let a: Type = 0;
@@ -561,21 +567,24 @@ fn typecheck_binop_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
 
     // if the expression is constant it can be collapsed into a single node
     if konst {
-      ast_clear(ast);
-      ast_init_node(ast, AstValue);
-      let token = cast ptr<Token> + ast Ast.token;
-      store64 + token Token.type T_NUMBER;
-      store64 + token Token.v load64 + at value Value.num;
-      store64 + ast Ast.konst konst;
+      if load64 + c Compile.should_collapse_nodes {
+        ast_clear(ast);
+        ast_init_node(ast, AstValue);
+        store64 + ast Ast.type AstValue;
+        let token = cast ptr<Token> + ast Ast.token;
+        store64 + token Token.type T_NUMBER;
+        store64 + token Token.v load64 + at value Value.num;
+        store64 + ast Ast.konst konst;
+      }
     }
   }
   else {
-    typecheck_error("type mismatch in binary operator expression\n");
+    typecheck_error_at(cast ptr ast_token(ast), "type mismatch in binary operator expression\n", null);
   }
   load64 + c Compile.status;
 }
 
-fn typecheck_uop_expr(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+fn typecheck_uop(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let ts_count: u64 = load64 + c Compile.ts_count;
   { let _ = typecheck_node_list(block, fs, ast); }
   store64 + ast Ast.konst is_branch_konst_eval(ast);
@@ -1622,8 +1631,8 @@ fn typecheck_init -> none {
   store64 + @typecheck_funcs * sizeof ptr AstExprList         typecheck_list_of_nodes;
   store64 + @typecheck_funcs * sizeof ptr AstStatementList    typecheck_list_of_nodes;
   store64 + @typecheck_funcs * sizeof ptr AstBlockStatement   typecheck_block_statement;
-  store64 + @typecheck_funcs * sizeof ptr AstBinopExpression  typecheck_binop_expr;
-  store64 + @typecheck_funcs * sizeof ptr AstUopExpression    typecheck_uop_expr;
+  store64 + @typecheck_funcs * sizeof ptr AstBinopExpression  typecheck_binop;
+  store64 + @typecheck_funcs * sizeof ptr AstUopExpression    typecheck_uop;
   store64 + @typecheck_funcs * sizeof ptr AstConstStatement   typecheck_let_statement;
   store64 + @typecheck_funcs * sizeof ptr AstLetStatement     typecheck_let_statement;
   store64 + @typecheck_funcs * sizeof ptr AstFuncDefinition   typecheck_func_definition;
@@ -1650,6 +1659,8 @@ fn typecheck_program(ast: ptr) -> u64 {
   let time_start: Timespec = 0;
   let time_end: Timespec = 0;
   get_time(at time_start);
+
+  store64 + c Compile.should_collapse_nodes 1;
 
   let _ = typecheck(cast ptr<Block> + c Compile.global, cast ptr<Function> null, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
   get_time(at time_end);

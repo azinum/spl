@@ -21,3 +21,29 @@ fn function_init(func: ptr<Function>) -> none {
   store64 + func Function.argc 0;
   store64 + func Function.locals_offset 0;
 }
+
+fn value_init(value: ptr<Value>, num: u64, konst: u64) -> none {
+  function_init(cast ptr<Function> + value Value.func);
+  store64 + value Value.num num;
+  store64 + value Value.konst konst;
+}
+
+fn value_default(value: ptr<Value>) -> none {
+  function_init(cast ptr<Function> + value Value.func);
+  store64 + value Value.num 0;
+  store64 + value Value.konst 0;
+}
+
+fn value_konst(value: ptr<Value>) -> u64 {
+  load64 + value Value.konst;
+}
+
+fn value_print(value: ptr<Value>, fd: u64) -> none {
+  let args: any = load64 + value Value.num, load64 + value Value.konst;
+  dprintf(fd, "{ num: %d, konst: %d}", @args);
+}
+
+fn value_printline(value: ptr<Value>, fd: u64) -> none {
+  value_print(value, fd);
+  dprintf(fd, "\n", null);
+}

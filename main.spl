@@ -17,5 +17,4 @@
 enum u64 A, B, C, D;
 
 fn main -> none {
-  print C;
 }
