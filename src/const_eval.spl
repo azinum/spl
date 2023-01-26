@@ -27,13 +27,13 @@ fn const_eval_binop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
   let result = NoError;
   let token = ast_token(ast);
 
+  let value = cast ptr<Value> + ast Ast.value;
+  value_init(value, 0, 1);
+
   let fs: Function = 0;
   function_init(at fs);
 
   { let _ = typecheck_binop(block, at fs, ast); }
-
-  let value = cast ptr<Value> + ast Ast.value;
-  value_init(value, 0, 1);
 
   // reset the type and value stack
   ts_reset();
@@ -137,8 +137,6 @@ fn const_eval_binop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
         store64 + value Value.num num;
       }
       else {
-        // TODO(lucas): improve error message
-        compile_error_at(cast ptr token, "can not do constant evaluation here\n", null);
         store64 @result Error;
       }
     }
@@ -148,6 +146,34 @@ fn const_eval_binop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
 
 fn const_eval_uop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
   let result = NoError;
+
+  let token = ast_token(ast);
+  let fs: Function = 0;
+  function_init(at fs);
+
+  { let _ = typecheck_uop(block, at fs, ast); }
+  ts_reset();
+  vs_reset();
+
+  let first = ast_node_from_index(ast, 0);
+  store64 @result _const_eval(first, block, value_out);
+  if eq result NoError {
+    let value = cast ptr<Value> + ast Ast.value;
+    let first_value = cast ptr<Value> + first Ast.value;
+    let num = 0;
+    let konst = 1;
+    if token_is(token, T_LOGICAL_NOT) {
+      store64 @num not load64 + first_value Value.num;
+    }
+    else if token_is(token, T_NOT) {
+      store64 @num ~ load64 + first_value Value.num;
+    }
+    else {
+      store64 @konst 0;
+      store64 @result Error;
+    }
+    value_init(value, num, konst);
+  }
   result;
 }
 

@@ -14,7 +14,20 @@
 //   }
 // }
 
-enum u64 A, B, C, D;
+fn f(x: u64) -> u64 {
+  if > x 0 {
+    store64 @x g(- x 1);
+  }
+  x;
+}
 
-fn main -> none {
+fn g(x: u64) -> u64 {
+  if > x 0 {
+    store64 @x f(- x 1);
+  }
+  x;
+}
+
+fn main {
+  print f(24);
 }

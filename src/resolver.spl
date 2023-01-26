@@ -122,8 +122,12 @@ fn resolver_collect_types_from_node(r: ptr<Resolver>, node: ptr, block: ptr<Bloc
         let array_specifier_value: Value = 0;
         if eq result NoError {
           store64 @result const_eval(array_specifier_node, block, at array_specifier_value);
-          // TODO(lucas): type checking? how? i mean it is needed because we're creating a new type here, but i suppose the creation of the type will fail if invalidly constructed...
-          store64 + at type Type.count load64 + at array_specifier_value Value.num;
+          if eq result NoError {
+            store64 + at type Type.count load64 + at array_specifier_value Value.num;
+          }
+          else {
+            compile_error_at(cast ptr ast_token(array_specifier_node), "array size specifiers are required to be constant\n", null);
+          }
         }
       }
       if eq resolver_type_contract_push(r, at type) NoError {
@@ -147,6 +151,78 @@ fn resolver_type_from_node(r: ptr<Resolver>, node: ptr, block: ptr<Block>, type_
   result;
 }
 
+fn resolver_declare_func_signature(r: ptr<Resolver>, node: ptr, block: ptr<Block>, symbol: ptr<Symbol>) -> u64 {
+  let result = NoError;
+  let params = ast_node_from_index(node, 0);
+  let rtype_node = ast_node_from_index(node, 2);
+
+  let func_sig: Func_signature = 0;
+  func_signature_init(at func_sig);
+
+  let func_type: Type = 0;
+  type_init(at func_type, TypeFunc, 0, sizeof ptr, 1);
+
+  let return_type: Type = 0;
+  type_init(at return_type, TypeNone, 0, 0, 1);
+
+  if neq rtype_node null {
+    if neq resolver_type_from_node(r, rtype_node, block, TYPE_CONTRACT_LOOKUP, at return_type) NoError {
+      compile_error_at(cast ptr ast_token(rtype_node), "invalid or unknown return type\n", null);
+      store64 @result Error;
+    }
+    else {
+      func_signature_set_rtype(at func_sig, at return_type);
+    }
+  }
+
+  let argc = ast_child_count(params);
+  if and eq result NoError < argc + MAX_FUNC_ARGC 1 { // argc <= MAX_FUNC_ARGC
+    let i = 0;
+    while and eq result NoError < i argc {
+      let arg_node = ast_node_from_index(params, i);
+      let arg_token = ast_token(arg_node);
+      let arg_type_node = ast_node_from_index(arg_node, 0);
+      let arg_type: Type = 0;
+      if eq resolver_type_from_node(r, arg_type_node, block, TYPE_CONTRACT_LOOKUP, at arg_type) NoError {
+        let type_size = load64 + at arg_type Type.size;
+        if > type_size MAX_PUSH_SIZE {
+          let args: any = MAX_PUSH_SIZE;
+          compile_error_at(cast ptr ast_token(arg_type_node), "can not use a type with a size greater than %d\n", @args);
+          store64 @result Error;
+        }
+        else {
+          // store64 + symbol Symbol.imm UINT64_MAX;
+          // store64 + symbol Symbol.size type_size;
+          // store64 + symbol Symbol.local_id + sizeof ptr * sizeof ptr i;
+          // store64 + symbol Symbol.sym_type SYM_FUNC_ARG;
+          // memcpy(+ symbol Symbol.type, at arg_type, sizeof Type);
+          // memcpy(+ symbol Symbol.token, arg_token, sizeof Token);
+          // store64 + + symbol Symbol.token Token.v i; // TODO(lucas): store symbol id elsewhere
+          { let _ = func_signature_add_arg(at func_sig, at arg_type, 0); }
+        }
+      }
+      else {
+        compile_error_at(cast ptr ast_token(arg_type_node), "invalid or unknown type\n", null);
+        store64 @result Error;
+      }
+      store64 @i + 1 i;
+    }
+    if eq result NoError {
+      let func_sig_id = func_signature_push(at func_sig);
+      let func_sig_type = func_signature_from_id(func_sig_id);
+      store64 + at func_type Type.sub_id func_sig_id;
+      let new_type_id = type_commit_new(at func_type);
+      memcpy(+ symbol Symbol.type, at func_type, sizeof Type);
+    }
+  }
+  else {
+    compile_error_at(cast ptr ast_token(params), "function parameter limit count reached\n", null);
+    store64 @result Error;
+  }
+
+  result;
+}
+
 fn resolver_declare_func(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
 
@@ -160,6 +236,7 @@ fn resolver_declare_func(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 
   if eq global_block block {
     if eq compile_declare_value(block, cast ptr name_token, at symbol, @symbol_index) NoError {
       store64 + node Ast.symbol_id symbol_index;
+      store64 @result resolver_declare_func_signature(r, node, block, symbol);
     }
     else {
       compile_error_at(name_token, "symbol already exists\n", null);
