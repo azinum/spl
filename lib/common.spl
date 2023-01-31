@@ -5,6 +5,9 @@ const ERROR = - 0 2;
 const NoError = 0;
 const Error = 1;
 
+const true = 1;
+const false = 0;
+
 // https://www.asciitable.com/
 enum u8 (
   ASCII_NUL, // null

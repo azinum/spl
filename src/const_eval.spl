@@ -180,6 +180,7 @@ fn const_eval_uop(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
 fn const_eval(ast: ptr, block: ptr<Block>, value_out: ptr<Value>) -> u64 {
   let result = Error;
   store64 @_const_eval const_eval;
+
   if neq ast null {
     if ast_is(ast, AstExpression) {
       let first = ast_node_from_index(ast, 0);

@@ -1,5 +1,6 @@
 // resolver.spl
 // resolve names, types, and scopes/blocks
+// NOTE: blocks are handled in the define phase, everything in declare happens on the global block anyways
 
 const MAX_TYPE_CONTRACT_SIZE = 8;
 
@@ -182,23 +183,17 @@ fn resolver_declare_func_signature(r: ptr<Resolver>, node: ptr, block: ptr<Block
       let arg_node = ast_node_from_index(params, i);
       let arg_token = ast_token(arg_node);
       let arg_type_node = ast_node_from_index(arg_node, 0);
-      let arg_type: Type = 0;
-      if eq resolver_type_from_node(r, arg_type_node, block, TYPE_CONTRACT_LOOKUP, at arg_type) NoError {
-        let type_size = load64 + at arg_type Type.size;
+      let arg_type = node_info_get_type(node_get_info(arg_node));
+
+      if eq resolver_type_from_node(r, arg_type_node, block, TYPE_CONTRACT_LOOKUP, arg_type) NoError {
+        let type_size = load64 + arg_type Type.size;
         if > type_size MAX_PUSH_SIZE {
           let args: any = MAX_PUSH_SIZE;
           compile_error_at(cast ptr ast_token(arg_type_node), "can not use a type with a size greater than %d\n", @args);
           store64 @result Error;
         }
         else {
-          // store64 + symbol Symbol.imm UINT64_MAX;
-          // store64 + symbol Symbol.size type_size;
-          // store64 + symbol Symbol.local_id + sizeof ptr * sizeof ptr i;
-          // store64 + symbol Symbol.sym_type SYM_FUNC_ARG;
-          // memcpy(+ symbol Symbol.type, at arg_type, sizeof Type);
-          // memcpy(+ symbol Symbol.token, arg_token, sizeof Token);
-          // store64 + + symbol Symbol.token Token.v i; // TODO(lucas): store symbol id elsewhere
-          { let _ = func_signature_add_arg(at func_sig, at arg_type, 0); }
+          { let _ = func_signature_add_arg(at func_sig, arg_type, 0); }
         }
       }
       else {
@@ -219,24 +214,47 @@ fn resolver_declare_func_signature(r: ptr<Resolver>, node: ptr, block: ptr<Block
     compile_error_at(cast ptr ast_token(params), "function parameter limit count reached\n", null);
     store64 @result Error;
   }
-
   result;
+}
+
+fn resolver_func_init(r: ptr<Resolver>, symbol: ptr<Symbol>, symbol_id: u64, argc: u64) -> none {
+  store64 + symbol Symbol.imm UINT64_MAX;
+  store64 + symbol Symbol.size sizeof ptr;
+  store64 + symbol Symbol.konst false;
+  store64 + symbol Symbol.sym_type SYM_FUNC;
+
+  let value = cast ptr<Value> + symbol Symbol.value;
+  value_init(value, 0, 0);
+  let func = cast ptr<Function> + value Value.func;
+  function_init(func);
+  store64 + func Function.label symbol_id;
+  store64 + func Function.argc argc;
+  store64 + func Function.locals_offset 0;
 }
 
 fn resolver_declare_func(r: ptr<Resolver>, node: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
+  let params = ast_node_from_index(node, 0);
+  let argc = ast_child_count(params);
 
   let name_token = + node Ast.token;
   let symbol = cast ptr<Symbol> null;
-  let symbol_index = UINT64_MAX;
+  let symbol_id = UINT64_MAX;
   let global_block = + c Compile.global;
   let node_info = cast ptr<Node_info> + node Ast.info;
   node_info_init(node_info);
 
   if eq global_block block {
-    if eq compile_declare_value(block, cast ptr name_token, at symbol, @symbol_index) NoError {
-      store64 + node Ast.symbol_id symbol_index;
+    if eq compile_declare_value(block, cast ptr name_token, at symbol, @symbol_id) NoError {
+      store64 + node Ast.symbol_id symbol_id;
       store64 @result resolver_declare_func_signature(r, node, block, symbol);
+      resolver_func_init(r, symbol, symbol_id, argc);
+      if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
+        let ref_count = cast ptr<u64> + symbol Symbol.ref_count;
+        let entry_point = cast ptr<u64> + c Compile.entry_point;
+        store64 ref_count + 1 deref ref_count;
+        store64 entry_point + 1 deref entry_point;
+      }
     }
     else {
       compile_error_at(name_token, "symbol already exists\n", null);
@@ -301,7 +319,35 @@ fn resolver_define_value(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
     type_init_primitive(cast ptr<Type> type, TypeCString);
   }
   else if token_is(token, T_IDENTIFIER) {
-    // TODO: implement
+    let symbol = cast ptr<Symbol> null;
+    let symbol_id = UINT64_MAX;
+    let name: Buffer = 0;
+    buffer_init(
+      at name,
+      cast ptr load64 + token Token.buffer,
+      load64 + token Token.length
+    );
+    if eq compile_lookup_value(block, @name, at symbol, @symbol_id, null) NoError {
+      let node_info = node_get_info(ast);
+      let type = node_info_get_type(node_info);
+
+      // store symbol id in ast
+      store64 + ast Ast.symbol_id symbol_id;
+
+      // store type in ast
+      memcpy(type, + symbol Symbol.type, sizeof Type);
+      let value = cast ptr<Value> + ast Ast.value;
+      memcpy(value, + symbol Symbol.value, sizeof Value);
+
+      // increment ref count
+      let ref_count = cast ptr<u64> + symbol Symbol.ref_count;
+      store64 ref_count + 1 deref ref_count;
+    }
+    else {
+      let args: any = load64 + at name Buffer.length, load64 + at name Buffer.data;
+      compile_error_at(cast ptr token, "symbol `%*s` not defined\n", @args);
+      store64 @result Error;
+    }
   }
   else if or token_is(token, T_AT) token_is(token, T_AT_WORD) {
     // TODO: implement
@@ -339,12 +385,89 @@ fn resolver_define_uop(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   _resolver_define(r, operand, block);
 }
 
+fn resolver_define_const_statement(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+
+  let name_token = ast_token(ast);
+  let rhs = ast_node_from_index(ast, 0);
+  let type_node = ast_node_from_index(ast, 1);
+
+  // let type: Type = 0;
+  // type_init_primitive(at type, TypeNone);
+
+  // if neq type_node null {
+  //   store64 @result resolver_type_from_node(r, type_node, block, TYPE_CONTRACT_CREATE, at type);
+  // }
+
+  let value = cast ptr<Value> + rhs Ast.value;
+  { let _ = _resolver_define(r, rhs, block); } // first visit the rhs to then be able to const evaluate it
+
+  if eq const_eval(rhs, block, value) NoError {
+    value_printline(value, STDOUT_FILENO);
+    let symbol = cast ptr<Symbol> null;
+    let symbol_id = cast ptr<u64> + ast Ast.symbol_id;
+    if eq compile_declare_value(block, cast ptr name_token, at symbol, cast ptr symbol_id) NoError {
+
+    }
+    else {
+      compile_error_at(cast ptr name_token, "symbol already exists\n", null);
+      store64 @result Error;
+    }
+  }
+  else {
+    compile_error_at(cast ptr name_token, "tried to bind a non-constant to a constant\n", null);
+    store64 @result Error;
+  }
+
+  result;
+}
+
+fn resolver_define_func_params(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
+  let result = NoError;
+  let i = 0;
+  let count = ast_child_count(ast);
+  while and eq result NoError < i count {
+    let node = ast_node_from_index(ast, i);
+    let node_token = ast_token(node);
+
+    let node_info = node_get_info(node);
+    let type = node_info_get_type(node_info);
+    let size = load64 + type Type.size;
+
+    let symbol = cast ptr<Symbol> null;
+    let symbol_id = cast ptr<u64> + node Ast.symbol_id;
+    if eq compile_declare_value(block, cast ptr node_token, at symbol, cast ptr symbol_id) NoError {
+      store64 + symbol Symbol.imm UINT64_MAX;
+      store64 + symbol Symbol.size size;
+      store64 + symbol Symbol.konst false;
+      store64 + symbol Symbol.local_id + sizeof ptr * sizeof ptr i;
+      store64 + symbol Symbol.sym_type SYM_FUNC_ARG;
+      memcpy(+ symbol Symbol.type, type, sizeof Type);
+      memcpy(+ symbol Symbol.token, node_token, sizeof Token);
+      store64 + + symbol Symbol.token Token.v i; // TODO(lucas): make sure local_id is used instead of this
+    }
+    else {
+      compile_error_at(cast ptr node_token, "symbol already exists\n", null);
+      store64 @result Error;
+    }
+    store64 @i + 1 i;
+  }
+  result;
+}
+
 fn resolver_define_func(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
   let params = ast_node_from_index(ast, 0);
   let body   = ast_node_from_index(ast, 1);
-  let rtype  = ast_node_from_index(ast, 2);
-  store64 @result _resolver_define(r, body, block);
+
+  // NOTE(lucas): return type is already resolved by resolver_declare_func_signature
+
+  let local_block = resolver_block_push(r, block);
+  store64 @result resolver_define_func_params(r, params, local_block);
+  if eq result NoError {
+    store64 @result _resolver_define(r, body, local_block);
+  }
+  resolver_block_pop(r); // local_block
   result;
 }
 
@@ -359,15 +482,13 @@ fn resolver_define_enum(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
     let enum_node = ast_node_from_index(ast, 1);
     let enum_node_count = ast_child_count(enum_node);
     let i = 0;
-    let done = 0;
-    while and not done < i enum_node_count {
+    while and eq result NoError < i enum_node_count {
       let ident_node = ast_node_from_index(enum_node, i);
       let ident_token = cast ptr<Token> + ident_node Ast.token;
 
       let symbol = cast ptr<Symbol> null;
-      let symbol_id = UINT64_MAX;
-      if eq compile_declare_value(block, cast ptr ident_token, at symbol, @symbol_id) NoError {
-        store64 + ident_node Ast.symbol_id symbol_id;
+      let symbol_id = cast ptr<u64> + ident_node Ast.symbol_id;
+      if eq compile_declare_value(block, cast ptr ident_token, at symbol, cast ptr symbol_id) NoError {
         if is_global {
           store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
         }
@@ -377,7 +498,6 @@ fn resolver_define_enum(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
       }
       else {
         compile_error_at(cast ptr ident_token, "symbol already exists\n", null);
-        store64 @done 1;
         store64 @result Error;
       }
       store64 @i + 1 i;
@@ -427,7 +547,7 @@ fn resolver_define(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
       store64 @result resolver_define_uop(r, ast, block);
     }
     else if ast_is(ast, AstConstStatement) {
-      // TODO: implement
+      store64 @result resolver_define_const_statement(r, ast, block);
     }
     else if ast_is(ast, AstLetStatement) {
       // TODO: implement

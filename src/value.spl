@@ -15,7 +15,7 @@ struct Value (
 );
 
 fn function_init(func: ptr<Function>) -> none {
-  store64 + func Function.ir_address 0;
+  store64 + func Function.ir_address UINT64_MAX;
   store64 + func Function.ir_body_size 0;
   store64 + func Function.label 0;
   store64 + func Function.argc 0;
@@ -39,8 +39,14 @@ fn value_konst(value: ptr<Value>) -> u64 {
 }
 
 fn value_print(value: ptr<Value>, fd: u64) -> none {
-  let args: any = load64 + value Value.num, load64 + value Value.konst;
-  dprintf(fd, "{ num: %d, konst: %d}", @args);
+  let func = cast ptr<Function> + value Value.func;
+  let args: any = (
+    load64 + value Value.num,
+    load64 + value Value.konst,
+    load64 + func Function.label,
+    load64 + func Function.argc
+  );
+  dprintf(fd, "{ num: %d, konst: %d, func: { label: %d, argc: %d }, }", @args);
 }
 
 fn value_printline(value: ptr<Value>, fd: u64) -> none {

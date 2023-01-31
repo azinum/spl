@@ -65,7 +65,7 @@ fn ast_init_node(node: any, type: u64) -> none {
   store64 + node Ast.node 0;
   store64 + node Ast.count 0;
   store64 + node Ast.type type;
-  store64 + node Ast.konst 0;
+  store64 + node Ast.konst false;
 
   store64 + node Ast.type_context_id UINT64_MAX;
   store64 + node Ast.symbol_id UINT64_MAX;
@@ -165,10 +165,6 @@ fn ast_print_node(ast: any, fd: u64) -> none {
   token_print(cast ptr token);
 }
 
-fn ast_print_value(ast: any, fd: u64) -> none {
-
-}
-
 fn ast_print(ast: any, level: u64, fd: u64) -> none {
   if neq 0 ast {
     {
@@ -181,13 +177,15 @@ fn ast_print(ast: any, level: u64, fd: u64) -> none {
     let type = load64 + ast Ast.type;
     let token = cast ptr<Token> + ast Ast.token;
     let const_str = "NonConst", "Const";
+    let boolean_str = "false", "true";
+
     {
       let args: any = (
         load64 + @ast_type_str * type sizeof cstr,
         load64 + @token_type_str * load64 + token Token.type sizeof cstr,
-        load64 + @const_str * sizeof cstr load64 + ast Ast.konst
+        load64 + @boolean_str * sizeof cstr eq load64 + ast Ast.konst true
       );
-      dprintf(fd, "<%s, %s, %s>", @args);
+      dprintf(fd, "<%s, %s, konst: %s>", @args);
     }
     if token_is(token, AstValue) {
       dprintf(fd, ": ", null);
@@ -211,7 +209,6 @@ fn ast_print(ast: any, level: u64, fd: u64) -> none {
     }
   }
 }
-
 
 fn ast_init -> none {
   store64 + @ast_type_str * AstNone            sizeof cstr "None";

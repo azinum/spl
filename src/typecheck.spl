@@ -637,6 +637,13 @@ fn typecheck_uop(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   load64 + c Compile.status;
 }
 
+fn typecheck_const_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
+  let result = NoError;
+  let rhs = ast_node_from_index(ast, 0);
+  let type_node = ast_node_from_index(ast, 1);
+  result;
+}
+
 // AST representation:
 // LetStatement
 //   ExprList
@@ -651,11 +658,8 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
   let konst = eq load64 + ast Ast.type AstConstStatement;
   let ts_count = load64 + c Compile.ts_count;
   let num_elements = 1;
-  let rhs = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
-  let ast_type = null;
-  if eq load64 + ast Ast.count 2 {
-    store64 @ast_type cast ptr load64 + + ast Ast.node * sizeof ptr 1;
-  }
+  let rhs = ast_node_from_index(ast, 0);
+  let ast_type = ast_node_from_index(ast, 1);
 
   // typecheck the rhs of the statement
   { let _ = typecheck_node_list(block, fs, rhs); }
@@ -814,167 +818,38 @@ fn typecheck_let_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u6
 }
 
 fn typecheck_func_definition(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
-  if eq cast u64 block + c Compile.global {
-    let params = ast_node_from_index(ast, 0);
-    let body = ast_node_from_index(ast, 1);
-    let rtype_node = ast_node_from_index(ast, 2);
+  let body = ast_node_from_index(ast, 1);
 
-    let func_sig: Func_signature = 0;
-    func_signature_init(at func_sig);
+  let return_type_node = ast_node_from_index(ast, 2);
+  let return_type = node_info_get_type(
+    node_get_info(
+      return_type_node
+    )
+  );
 
-    let func_type: Type = 0;
-    type_init(at func_type, TypeFunc, 0, sizeof ptr, 1);
+  let symbol_id = load64 + ast Ast.symbol_id;
+  let symbol = symbol_from_id(symbol_id);
+  assert(cast u64 neq symbol null, "something went very wrong\n");
 
-    let explicit_rtype: Type = 0;
-    type_init(at explicit_rtype, TypeNone, 0, 0, 1);
-
-    let argc: u64 = load64 + params Ast.count;
-    if < argc + MAX_FUNC_ARGC 1 { // argc <= MAX_FUNC_ARGC
-      let symbol = cast ptr<Symbol> null;
-
-      let node_info = cast ptr<Node_info> + ast Ast.info;
-      let symbol_id = load64 + ast Ast.symbol_id;
-      if neq symbol_id UINT64_MAX {
-        store64 @symbol symbol_from_id(symbol_id);
-
-        let local_block = block_push(cast ptr<Block> block);
-        let type_size: u64 = compile_type_size(TypeFunc);
-
-        store64 + symbol Symbol.imm UINT64_MAX;
-        store64 + symbol Symbol.size type_size;
-        store64 + symbol Symbol.konst 0;
-        store64 + symbol Symbol.sym_type SYM_FUNC;
-        store64 + + ast Ast.token Token.v symbol_id;
-        memcpy(+ symbol Symbol.token, + ast Ast.token, sizeof Token);
-        let value = cast ptr<Value> + symbol Symbol.value;
-        store64 + value Value.konst 0;
-        let func = cast ptr<Function> + value Value.func;
-        function_init(func);
-        store64 + func Function.ir_address UINT64_MAX;
-        store64 + func Function.label symbol_id;
-        store64 + func Function.argc argc;
-        store64 + func Function.locals_offset 0;
-
-        if neq rtype_node null {
-          if eq type_contract_from_type_node(block, fs, rtype_node, TYPE_CONTRACT_CREATE, at explicit_rtype, 1) NoError {
-            // explicit return type
-            func_signature_set_rtype(at func_sig, at explicit_rtype);
-          }
-          else {
-            typecheck_error_at(+ rtype_node Ast.token, "unknown or invalid return type in function definition\n", null);
-          }
-        }
-
-        let i: u64 = 0;
-        let fail: u64 = 0;
-        while and eq fail 0 < i argc {
-          let arg_node = cast ptr load64 + + params Ast.node * sizeof ptr i;
-          let arg: Token = 0;
-          let arg_type_token: Token = 0;
-          memcpy(@arg, + arg_node Ast.token, sizeof Token);
-          memcpy(@arg_type_token, + load64 + + arg_node Ast.node * sizeof ptr 0 Ast.token, sizeof Token);
-
-          let arg_symbol = cast ptr<Symbol> null;
-          let arg_symbol_index: u64 = UINT64_MAX;
-          if eq compile_declare_value(local_block, @arg, at arg_symbol, @arg_symbol_index) NoError {
-            let arg_type: Type = 0;
-
-            let arg_type_node: ptr = cast ptr load64 + + arg_node Ast.node * sizeof ptr 0;
-            if eq type_contract_from_type_node(block, fs, arg_type_node, TYPE_CONTRACT_CREATE, at arg_type, 0) NoError {
-              let arg_type_id: u64 = type_lookup(at arg_type);
-              assert(neq arg_type_id UINT64_MAX, "invalid type\n");
-              let size: u64 = compile_type_size(arg_type_id);
-              store64 @size compile_type_size(arg_type_id);
-              if > size MAX_PUSH_SIZE {
-                let args: any = MAX_PUSH_SIZE;
-                typecheck_error_at(@arg_type_token, "can not have a parameter of type struct with a greater size than %d\n", @args);
-                store64 @fail 1;
-              }
-              if eq fail 0 {
-                store64 + arg_symbol Symbol.imm UINT64_MAX;
-                store64 + arg_symbol Symbol.size size;
-                store64 + arg_symbol Symbol.konst 0;
-                store64 + arg_symbol Symbol.local_id + sizeof u64 * sizeof u64 i;
-                store64 + arg_symbol Symbol.sym_type SYM_FUNC_ARG;
-                memcpy(+ arg_symbol Symbol.type, at arg_type, sizeof Type);
-                memcpy(+ arg_symbol Symbol.token, @arg, sizeof Token);
-                store64 + + arg_symbol Symbol.token Token.v i; // TODO(lucas): store argument index in symbol value field instead. TODO(lucas): remove this as it is not used anymore (not for function arguments anyway)
-                { let _ = func_signature_add_arg(at func_sig, at arg_type, 0); }
-              }
-            }
-            else {
-              typecheck_error_at(@arg_type_token, "unknown or invalid type\n", null);
-            }
-          }
-          else {
-            compile_error_at(@arg, "duplicate argument name\n", null);
-            store64 @fail 1;
-          }
-          store64 @i + 1 i;
-        }
-
-        let func_sig_id = func_signature_push(at func_sig);
-        let func_sig_type = func_signature_from_id(func_sig_id);
-
-        store64 + at func_type Type.sub_id func_sig_id;
-
-        let new_type_id: u64 = type_commit_new(at func_type); // TODO(lucas): handle error
-        memcpy(+ symbol Symbol.type, at func_type, sizeof Type);
-
-        let ts_count: u64 = load64 + c Compile.ts_count;
-
-        let func_body_block = block_push(local_block);
-        { let _ = typecheck_node_list(func_body_block, fs, body); }
-
-        let konst_body: u64 = is_branch_konst_eval(body);
-        store64 + body Ast.konst konst_body;
-        store64 + ast Ast.konst konst_body;
-        store64 + + symbol Symbol.value Value.konst konst_body;
-
-        let rtype: Type = 0;
-        type_init(at rtype, TypeNone, 0, 0, 1);
-        let ts_delta: u64 = - load64 + c Compile.ts_count ts_count;
-        if > ts_delta 1 {
-          typecheck_error_at(+ ast Ast.token, "too many values produced by function\n", null);
-        }
-        else {
-          if neq ts_delta 0 {
-            { let _ = vs_pop(cast ptr<Value> null); }
-            ts_pop(at rtype);
-          }
-
-          if rtype_node {
-            if and neq types_are_equal(at explicit_rtype, at rtype) 1 neq type_base(at explicit_rtype) TypeAny {
-              // TODO(lucas): more detailed error message
-              typecheck_error_at(+ rtype_node Ast.token, "function returns a value that does not match the return type\n", null);
-            }
-          }
-          // type inference for the return type
-          else {
-            // inferred return type
-            func_signature_set_rtype(func_sig_type, at rtype);
-          }
-
-          if eq strncmp(cast cstr + symbol Symbol.name, "main", MAX_NAME_SIZE) 0 {
-            store64 + symbol Symbol.ref_count + load64 + symbol Symbol.ref_count 1;
-            store64 + c Compile.entry_point + load64 + c Compile.entry_point 1;
-          }
-        }
-        block_pop(); // func_body_block
-        block_pop(); // local_block
+  let ts_count = load64 + c Compile.ts_count;
+  { let _ = typecheck_node_list(block, fs, body); }
+  let ts_delta = - load64 + c Compile.ts_count ts_count;
+  if < ts_delta 2 { // <= 1
+    if neq ts_delta 0 {
+      let top: Type = 0;
+      { let _ = vs_pop(cast ptr<Value> null); }
+      ts_pop(at top);
+      if and
+        neq types_are_equal(return_type, at top) 0
+        neq type_base(return_type) TypeAny {
+        typecheck_error_at(cast ptr ast_token(return_type_node), "function returns a value that does not match the return type\n", null);
       }
-      else {
-        compile_error_at(+ ast Ast.token, "symbol already exists\n", null);
-      }
-    }
-    else {
-      let args: any = MAX_FUNC_ARGC;
-      compile_error_at(+ ast Ast.token, "reached function parameter count limit of %d\n", @args);
     }
   }
   else {
-    compile_error_at(+ ast Ast.token, "functions are only permitted to be defined in the global block\n", null);
+    typecheck_error_at(cast ptr ast_token(ast), "too many values produced by function\n", null);
   }
+
   load64 + c Compile.status;
 }
 
@@ -1156,7 +1031,6 @@ fn typecheck_while_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> 
   }
   load64 + c Compile.status;
 }
-
 
 fn typecheck_if_statement(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
   let cond = cast ptr load64 + + ast Ast.node * sizeof ptr 0;
@@ -1633,7 +1507,7 @@ fn typecheck_init -> none {
   store64 + @typecheck_funcs * sizeof ptr AstBlockStatement   typecheck_block_statement;
   store64 + @typecheck_funcs * sizeof ptr AstBinopExpression  typecheck_binop;
   store64 + @typecheck_funcs * sizeof ptr AstUopExpression    typecheck_uop;
-  store64 + @typecheck_funcs * sizeof ptr AstConstStatement   typecheck_let_statement;
+  store64 + @typecheck_funcs * sizeof ptr AstConstStatement   typecheck_const_statement;
   store64 + @typecheck_funcs * sizeof ptr AstLetStatement     typecheck_let_statement;
   store64 + @typecheck_funcs * sizeof ptr AstFuncDefinition   typecheck_func_definition;
   store64 + @typecheck_funcs * sizeof ptr AstFuncCall         typecheck_func_call;
@@ -1660,7 +1534,7 @@ fn typecheck_program(ast: ptr) -> u64 {
   let time_end: Timespec = 0;
   get_time(at time_start);
 
-  store64 + c Compile.should_collapse_nodes 1;
+  // store64 + c Compile.should_collapse_nodes 1;
 
   let _ = typecheck(cast ptr<Block> + c Compile.global, cast ptr<Function> null, cast ptr load64 + + ast Ast.node * sizeof ptr 0);
   get_time(at time_end);
