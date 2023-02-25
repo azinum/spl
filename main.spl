@@ -14,11 +14,8 @@
 //   }
 // }
 
-enum u64 (
-  A, B, C
-);
+enum u64 A, B, C, D;
 
 fn main -> none {
-
-  print B;
+  print C;
 }

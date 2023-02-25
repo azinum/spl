@@ -71,10 +71,6 @@ fn compile_type_size(type_id: u64) -> u64 {
   result;
 }
 
-fn type_init_primitive(type: ptr<Type>, primitive: u64) -> none {
-  type_init(type, primitive, 0, compile_type_size(primitive), 1);
-}
-
 fn type_push_new(type: ptr<Type>) -> u64 {
   let type_count = cast ptr<u64> + c Compile.type_count;
   let id = deref type_count;
@@ -124,7 +120,7 @@ fn type_from_contract(contract: ptr<Type>, count: u64, mode: u64, result_out: pt
   let result = NoError;
   let fail: u64 = 0;
 
-  type_init_primitive(result_out, TypeError);
+  type_init(result_out, TypeNone, 0, 0, 1);
 
   if eq count 1 {
     let type: Type = 0;

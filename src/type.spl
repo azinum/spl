@@ -4,9 +4,9 @@ const MAX_FUNC_ARGC = 6; // TODO(lucas): temporary, pass additional arguments vi
 const MAX_NAME_SIZE = 64;
 
 // primitive types that maps directly to the list of types
+// TODO(lucas): add error type
 enum u64 (
   TypeNone,
-  TypeError,
   TypeAny,
   TypePtr,
   TypeUnsigned64,

@@ -251,7 +251,6 @@ fn compile_state_init -> u64 {
   store64 + c Compile.type_context_count 0;
   store64 + c Compile.warning_count 0;
   store64 + c Compile.error_count 0;
-  store64 + c Compile.should_collapse_nodes 1;
 
   store64 + @ir_code_str * I_NOP                sizeof cstr "I_NOP";
   store64 + @ir_code_str * I_POP                sizeof cstr "I_POP";
@@ -306,7 +305,6 @@ fn compile_state_init -> u64 {
   memset(at ir_code_count, 0, sizeof ir_code_count);
 
   store64 + @compile_type_str * TypeNone           sizeof cstr "none";
-  store64 + @compile_type_str * TypeError          sizeof cstr "error";
   store64 + @compile_type_str * TypeAny            sizeof cstr "any";
   store64 + @compile_type_str * TypePtr            sizeof cstr "ptr";
   store64 + @compile_type_str * TypeUnsigned64     sizeof cstr "u64";
@@ -328,10 +326,6 @@ fn compile_state_init -> u64 {
   let type: Type = 0;
   {
     type_init(at type, TypeNone, 0, 0, 1);
-    let _ = type_commit_new(at type);
-  }
-  {
-    type_init(at type, TypeError, 0, 0, 1);
     let _ = type_commit_new(at type);
   }
   {

@@ -87,9 +87,7 @@ struct Compile (
   type_context_count:  u64,
 
   warning_count:       u64,
-  error_count:         u64,
-
-  should_collapse_nodes: u64, // NOTE(lucas): temporary, remove this when refactoring of the typechecker and related things is complete
+  error_count:         u64
 );
 
 // c: ptr<Compile>
@@ -141,7 +139,7 @@ fn symbol_init(symbol: ptr) -> none {
   store64 + symbol Symbol.ref_count 0;
 }
 
-// name: ptr<Buffer>, symbol_index: ptr<u64>, levels_descend: ptr<u64>
+// block : Block*, name : Buffer*, symbol : Symbol**, symbol_index : u64*, levels_descend : u64*
 fn compile_lookup_value(block: ptr<Block>, name: ptr, symbol: ptr<ptr<Symbol>>, symbol_index: ptr, levels_descend: ptr) -> u64 {
   let result = Error;
   if and < load64 + name Buffer.length MAX_NAME_SIZE neq block null {

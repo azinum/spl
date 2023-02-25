@@ -2,7 +2,6 @@
 // basic test suite for a subset of language features
 
 include "lib/common.spl"
-include "lib/colors.spl"
 
 let test_count = 0;
 let test_passed = 0;
@@ -63,20 +62,10 @@ fn test_start -> none {
 
 fn test_finalize -> none {
   let args: any = test_failed, test_passed, test_count;
-  if > test_failed 0 {
-    dprintf(STDERR_FILENO, "tests complete: ", null);
-    color_set(COLOR_RED); dprintf(STDERR_FILENO, "FAILED", null); color_reset();
-    dprintf(STDERR_FILENO, ". %d failed, %d passed, %d total\n", @args);
-  }
-  else {
-    dprintf(STDERR_FILENO, "tests complete: ", null);
-    color_set(COLOR_GREEN); put("success"); color_reset();
-    printf(". %d failed, %d passed, %d total\n", @args);
-  }
+  printf("tests complete: %d failed, %d passed, %d total\n", @args);
 }
 
 fn main -> none {
-  colors_init(STDOUT_FILENO);
   test_init();
   test_start();
   test_finalize();

@@ -21,7 +21,7 @@ run_examples: ${SPL_EXAMPLES}
 
 test: SPL_FLAGS+=verbose-asm run
 
-main: SPL_FLAGS+=debug-output verbose verbose-asm no-com
+main: SPL_FLAGS+=debug-output verbose verbose-asm
 main: main.spl
 
 run:

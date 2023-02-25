@@ -65,7 +65,7 @@ fn ast_init_node(node: any, type: u64) -> none {
   store64 + node Ast.node 0;
   store64 + node Ast.count 0;
   store64 + node Ast.type type;
-  store64 + node Ast.konst false;
+  store64 + node Ast.konst 0;
 
   store64 + node Ast.type_context_id UINT64_MAX;
   store64 + node Ast.symbol_id UINT64_MAX;
@@ -94,6 +94,15 @@ fn ast_create_with_token(type: u64, token: ptr<Token>) -> ptr {
   node;
 }
 
+fn ast_print_node(ast: any, fd: u64) -> none {
+  let count = load64 + Ast.count ast;
+  let type = load64 + Ast.type ast;
+  let token = + Ast.token ast;
+  let args: any = count, type;
+  dprintf(STDOUT_FILENO, "count = %d\ntype = %d\n", @args);
+  token_print(cast ptr token);
+}
+
 fn ast_push(ast: any, node: any) -> none {
   assert(neq 0 ast, "null ast node\n");
   if neq 0 node {
@@ -118,8 +127,6 @@ fn ast_get_type(ast: any) -> u64 load64 + ast Ast.type;
 fn ast_token(ast: any) -> ptr<Token> cast ptr<Token> + ast Ast.token;
 
 fn ast_is(ast: any, type: u64) -> u64 eq type load64 + ast Ast.type;
-
-fn ast_value(ast: any) -> ptr<Value> cast ptr<Value> + ast Ast.value;
 
 fn ast_node_str(ast: any) -> cstr cast cstr load64 + @ast_type_str * sizeof cstr load64 + ast Ast.type;
 
@@ -150,66 +157,13 @@ fn ast_count(ast: any) -> u64 {
   count;
 }
 
+// NOTE(lucas): how to deal with bounds checking? just returns null if out of bounds for now.
 fn ast_node_from_index(ast: any, index: u64) -> ptr {
   let node = null;
   if load64 + ast Ast.count {
     store64 @node load64 + + ast Ast.node * sizeof ptr index;
   }
   node;
-}
-
-fn ast_print_node(ast: any, fd: u64) -> none {
-  let count = load64 + Ast.count ast;
-  let type = load64 + Ast.type ast;
-  let token = + Ast.token ast;
-  let args: any = count, type;
-  dprintf(STDOUT_FILENO, "count = %d\ntype = %d\n", @args);
-  token_print(cast ptr token);
-}
-
-fn ast_print(ast: any, level: u64, fd: u64) -> none {
-  if neq 0 ast {
-    {
-      let i = 0;
-      while < i level {
-        dprintf(fd, "   ", null);
-        store64 @i + 1 i;
-      }
-    }
-    let type = load64 + ast Ast.type;
-    let token = cast ptr<Token> + ast Ast.token;
-    let const_str = "NonConst", "Const";
-    let boolean_str = "false", "true";
-
-    {
-      let args: any = (
-        load64 + @ast_type_str * type sizeof cstr,
-        load64 + @token_type_str * load64 + token Token.type sizeof cstr,
-        load64 + @boolean_str * sizeof cstr eq load64 + ast Ast.konst true
-      );
-      dprintf(fd, "<%s, %s, konst: %s>", @args);
-    }
-    if token_is(token, AstValue) {
-      dprintf(fd, ": ", null);
-      value_print(cast ptr<Value> + ast Ast.value, fd);
-    }
-    {
-      let args: any = (load64 + token Token.length, load64 + token Token.buffer);
-      if > load64 + token Token.length 0 {
-        dprintf(fd, ": %*s", @args);
-      }
-    }
-    dprintf(fd, "\n", null);
-    {
-      let i = 0;
-      let count = load64 + ast Ast.count;
-      while < i count {
-        let node = load64 + + ast Ast.node * i sizeof any;
-        ast_print(node, + 1 level, fd);
-        store64 @i + 1 i;
-      }
-    }
-  }
 }
 
 fn ast_init -> none {

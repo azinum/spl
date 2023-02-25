@@ -33,7 +33,6 @@ include "src/compile_state.spl"
 include "src/type_contract.spl"
 include "src/type_print.spl"
 include "src/typecheck.spl"
-include "src/const_eval.spl"
 include "src/resolver.spl"
 include "src/ir.spl"
 include "src/ir_optimize.spl"
@@ -44,7 +43,7 @@ include "src/info.spl"
 fn write_debug_information(path: cstr) -> none {
   let fd = file_open_writable(path);
   if neq fd ERROR {
-    ast_print(load64 + @p Parser.ast, 0, fd);
+    // ast_print(load64 + @p Parser.ast, 0, fd);
     ir_print(fd);
     func_signatures_print(fd);
     // print_defined_types(fd);
