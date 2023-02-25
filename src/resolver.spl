@@ -388,26 +388,28 @@ fn resolver_define_uop(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
 fn resolver_define_const_statement(r: ptr<Resolver>, ast: ptr, block: ptr<Block>) -> u64 {
   let result = NoError;
 
+  let is_global = eq block load64 + r Resolver.global;
   let name_token = ast_token(ast);
   let rhs = ast_node_from_index(ast, 0);
   let type_node = ast_node_from_index(ast, 1);
 
-  // let type: Type = 0;
-  // type_init_primitive(at type, TypeNone);
-
-  // if neq type_node null {
-  //   store64 @result resolver_type_from_node(r, type_node, block, TYPE_CONTRACT_CREATE, at type);
-  // }
+  if neq type_node null {
+    let type = node_info_get_type(node_get_info(type_node));
+    store64 @result resolver_type_from_node(r, type_node, block, TYPE_CONTRACT_CREATE, type);
+  }
 
   let value = cast ptr<Value> + rhs Ast.value;
   { let _ = _resolver_define(r, rhs, block); } // first visit the rhs to then be able to const evaluate it
-
   if eq const_eval(rhs, block, value) NoError {
-    value_printline(value, STDOUT_FILENO);
     let symbol = cast ptr<Symbol> null;
     let symbol_id = cast ptr<u64> + ast Ast.symbol_id;
     if eq compile_declare_value(block, cast ptr name_token, at symbol, cast ptr symbol_id) NoError {
-
+      if is_global {
+        store64 + symbol Symbol.sym_type SYM_GLOBAL_VAR;
+      }
+      else {
+        store64 + symbol Symbol.sym_type SYM_LOCAL_VAR;
+      }
     }
     else {
       compile_error_at(cast ptr name_token, "symbol already exists\n", null);

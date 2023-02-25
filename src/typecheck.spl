@@ -386,30 +386,17 @@ fn typecheck_value(block: ptr<Block>, fs: ptr<Function>, ast: ptr) -> u64 {
     ts_push_primitive(TypeCString, cast ptr<Type> null);
   }
   else if eq token_type T_IDENTIFIER {
-    let symbol = cast ptr<Symbol> null;
-    let symbol_index = UINT64_MAX;
-    let token_buffer: Buffer = 0;
-    buffer_init(at token_buffer, cast ptr load64 + + ast Ast.token Token.buffer, load64 + + ast Ast.token Token.length);
-
-    if eq compile_lookup_value(block, @token_buffer, at symbol, @symbol_index, null) NoError {
-      store64 + symbol Symbol.ref_count + 1 load64 + symbol Symbol.ref_count;
-      store64 + + ast Ast.token Token.v symbol_index;
-      store64 + ast Ast.konst load64 + + symbol Symbol.value Value.konst;
-      let type: Type = 0;
-      memcpy(at type, + symbol Symbol.type, sizeof Type);
-      let size = load64 + at type Type.size;
-      if > size MAX_PUSH_SIZE {
-        let args: any = MAX_PUSH_SIZE;
-        typecheck_error_at(+ ast Ast.token, "can not push an item with size greater than %d\n", @args);
-      }
-      else {
-        { let _ = vs_push(cast ptr<Value> + symbol Symbol.value); }
-        ts_push(at type, cast ptr<Type> null);
-      }
+    let symbol_id = load64 + ast Ast.symbol_id;
+    let symbol = symbol_from_id(symbol_id);
+    if symbol {
+      let type_info = node_get_info(ast);
+      let type = node_info_get_type(type_info);
+      let value = ast_value(ast);
+      ts_push(type, cast ptr<Type> null);
+      { let _ = vs_push(value); }
     }
     else {
-      let args: any = load64 + @token_buffer Buffer.length, load64 + @token_buffer Buffer.data;
-      compile_error_at(+ ast Ast.token, "symbol `%*s` not defined\n", @args);
+      assert(0, "symbol not defined\n");
     }
   }
   else if or eq token_type T_AT eq token_type T_AT_WORD {
