@@ -1,0 +1,7 @@
+// codegen_common.spl
+
+fn o(fd: u64, format: cstr, args: any) -> none {
+  dprintf(fd, format, args);
+}
+
+fn vo_empty(fd: u64, format: cstr, args: any) -> none {}

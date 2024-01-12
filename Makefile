@@ -30,8 +30,16 @@ run:
 update_bootstrap:
 	cp .cache/spl.asm bootstrap/spl_linux_nasm_x86_64.asm
 
+update_bootstrap_fasm:
+	cp .cache/spl.fasm bootstrap/spl_linux_fasm_x86_64.fasm
+
 bootstrap:
 	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && gcc spl.o -o spl -nostdlib -no-pie
+
+bootstrap_fasm:
+	fasm -m 2024583 bootstrap/spl_linux_fasm_x86_64.fasm
+	mv bootstrap/spl_linux_fasm_x86_64 spl
+	chmod +x spl
 
 performance_test:
 	perf record -e cycles -c 2000000 ./spl spl.spl verbose-asm

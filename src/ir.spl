@@ -64,6 +64,8 @@ let _ir_compile = ir_func_signature;
 
 enum u64 (
   TARGET_LINUX_NASM_X86_64,
+  TARGET_LINUX_FASM_X86_64,
+
   MAX_COMPILE_TARGET
 );
 

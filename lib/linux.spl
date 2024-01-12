@@ -4,6 +4,19 @@ const STDIN_FILENO = 0;
 const STDOUT_FILENO = 1;
 const STDERR_FILENO = 2;
 
+// https://code.woboq.org/gcc/include/bits/time.h.html
+const CLOCK_REALTIME = 0;
+const CLOCK_MONOTONIC = 1;
+const CLOCK_PROCESS_CPUTIME_ID = 2;
+const CLOCK_THREAD_CPUTIME_ID = 3;
+const CLOCK_MONOTONIC_RAW = 4;
+const CLOCK_REALTIME_COARSE = 5;
+const CLOCK_MONOTONIC_COARSE = 6;
+const CLOCK_BOOTTIME = 7;
+const CLOCK_REALTIME_ALARM = 8;
+const CLOCK_BOOTTIME_ALARM = 9;
+const CLOCK_TAI = 11;
+
 const SYS_read = 0;
 const SYS_write = 1;
 const SYS_open = 2;
@@ -443,6 +456,9 @@ fn exec_command(command_list: ptr, envp: ptr) -> none {
   let pid: u64 = fork();
   if eq pid 0 { // child process
     let result = execve(cast cstr load64 command_list, command_list, envp);
+    // execve only returns on error
+    // TODO(lucas): access to errno to be able to print the error
+    exit(0);
   }
   else if > pid 0 { // parent
     let done: u64 = 0;

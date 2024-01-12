@@ -188,6 +188,62 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
       store64 @result Error;
     }
   }
+  else if eq target TARGET_LINUX_FASM_X86_64 {
+    let path: u8[MAX_PATH_SIZE] = 0;
+    {
+      let args: any = cache_path, @exec_filename;
+      sprintf(@path, "%s/%s.fasm", @args);
+    }
+    let _ = directory_create(cache_path);
+    let fd = file_open_writable(cast cstr @path);
+    if neq fd ERROR {
+      store64 @result compile_linux_fasm_x86_64(fd);
+      get_time(at time_end);
+      print_time_elapsed("code generation took", at time_start, at time_end);
+      if and should_compile_target eq result NoError {
+        get_time(at time_start);
+        let o_path: u8[MAX_PATH_SIZE] = 0;
+        {
+          let args: any = cache_path, @exec_filename;
+          sprintf(@o_path, "%s/%s", @args);
+        }
+
+        {
+          let command: cstr =
+            "/usr/bin/fasm",
+            cast cstr @path,
+            "-m",
+            "2024583",
+            cast cstr null;
+          exec_command_echoed(STDOUT_FILENO, @command, envp);
+        }
+        {
+          let command: cstr =
+            "/bin/chmod",
+            "+x",
+            cast cstr @o_path,
+            cast cstr null;
+          exec_command_echoed(STDOUT_FILENO, @command, envp);
+        }
+        {
+          let command: cstr =
+            "/bin/mv",
+            cast cstr @o_path,
+            ".",
+            cast cstr null;
+          exec_command_echoed(STDOUT_FILENO, @command, envp);
+        }
+        get_time(at time_end);
+        print_time_elapsed("compiling linux_fasm_x86_64 took", at time_start, at time_end);
+      }
+      close(fd);
+    }
+    else {
+      let args: any = @path;
+      error("failed to open file `%s` for writing\n", @args);
+      store64 @result Error;
+    }
+  }
   else {
     error("invalid compile target\n", null);
     store64 @result Error;

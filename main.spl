@@ -2,20 +2,16 @@
 
 // include "lib/common.spl"
 
-// fn print_bits(fd: u64, byte: u64) -> none {
-//   let mask = 0b1000_0000;
-//   let i = 0;
-//   const count = 8;
-//   while < i count {
-//     let value = neq 0 and byte mask;
-//     dprintf(fd, "%d", @value);
-//     store64 at mask rshift mask 1;
-//     store64 at i + 1 i;
-//   }
-// }
-
 enum u64 A, B, C, D;
 
+fn add(a: u64, b: u64) {
+  + a b;
+}
+
 fn main -> none {
-  print C;
+  let a = "Hello, World!";
+  let b = "abcd";
+  const c = 12;
+  let d = c;
+  print d;
 }

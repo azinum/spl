@@ -9,7 +9,8 @@ struct Options (
   disable_dce:      u64,
   disable_colors:   u64,
   verbose:          u64,
-  verbose_asm:      u64
+  verbose_asm:      u64,
+  fasm:             u64
 );
 
 let options: Options = 0;
@@ -36,7 +37,9 @@ include "src/typecheck.spl"
 include "src/resolver.spl"
 include "src/ir.spl"
 include "src/ir_optimize.spl"
+include "src/codegen_common.spl"
 include "src/codegen_nasm_x86_64.spl"
+include "src/codegen_fasm_x86_64.spl"
 include "src/compile.spl"
 include "src/info.spl"
 
@@ -126,6 +129,7 @@ OPTIONS:
    disable-colors  - disable colored text output
    verbose         - enable verbose output
    verbose-asm     - enable verbose assembly code
+   fasm            - generate fasm code
    version         - print spl version id
    help            - show help menu\n"
   , @prog);
@@ -141,12 +145,18 @@ fn spl_options_init -> none {
   store64 + @options Options.disable_colors 0;
   store64 + @options Options.verbose 0;
   store64 + @options Options.verbose_asm 0;
+  store64 + @options Options.fasm 0;
 }
 
 fn spl_start(filename: cstr) -> u64 {
   let result = NoError;
   if eq load64 + @options Options.disable_colors 0 {
     colors_init(STDOUT_FILENO);
+  }
+
+  let target = TARGET_LINUX_NASM_X86_64;
+  if load64 + @options Options.fasm {
+    = at target TARGET_LINUX_FASM_X86_64;
   }
 
   let time_start: Timespec = 0;
@@ -180,7 +190,6 @@ fn spl_start(filename: cstr) -> u64 {
             if eq typecheck_program(ast) NoError {
               if eq ir_start_compile(ast) NoError {
                 if eq ir_optimize() NoError {
-                  let target = TARGET_LINUX_NASM_X86_64;
                   let output_path = ".";
 
                   if eq compile(
@@ -285,6 +294,9 @@ fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
       }
       else if eq 0 strcmp(argument, "verbose-asm") {
         store64 + @options Options.verbose_asm 1;
+      }
+      else if eq 0 strcmp(argument, "fasm") {
+        store64 + @options Options.fasm 1;
       }
       else if eq 0 strcmp(argument, "version") {
         version_id_print(STDOUT_FILENO);
