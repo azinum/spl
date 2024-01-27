@@ -620,15 +620,13 @@ fn compile_linux_fasm_x86_64(fd: u64) -> u64 {
     let i = 0;
     let count: u64 = load64 + c Compile.symbol_count;
     while < i count {
-      // symbol : Symbol*
-      let symbol = cast ptr + + c Compile.symbols * sizeof Symbol i;
+      let symbol = cast ptr<Symbol> + + c Compile.symbols * sizeof Symbol i;
       let sym_type: u64 = load64 + symbol Symbol.sym_type;
-      if and eq load64 + symbol Symbol.konst 0 or eq sym_type SYM_LOCAL_VAR eq sym_type SYM_GLOBAL_VAR {
+      if and eq load64 + symbol Symbol.konst 0 eq sym_type SYM_GLOBAL_VAR {
         let type: Type = 0;
         memcpy(at type, + symbol Symbol.type, sizeof Type);
         let size: u64 = load64 + symbol Symbol.size;
         let name = cast cstr + symbol Symbol.name;
-        // assert(eq * load64 + at type Type.size load64 + at type Type.count load64 + symbol Symbol.size, cast cstr + symbol Symbol.name);
         if eq 0 or eq type_base(at type) TypeNone eq type_base(at type) TypeSyscallFunc {
           {
             let args: any = i, size;
