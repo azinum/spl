@@ -6,6 +6,7 @@
 *.spl.html
 *.exe
 *.spl.c
+*.bin
 
 .DS_Store
 cspl.dSYM

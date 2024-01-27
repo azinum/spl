@@ -19,6 +19,11 @@ const MAX_SYMBOL_PER_BLOCK = * 2 2048;
 const MAX_STATIC_DATA = * 128 1024;
 const MAX_CSTRING = 2048;
 const MAX_SYSCALL_FUNCTION = 7;
+const MAX_BLOCK = 256;
+const MAX_TYPE_STACK = 256;
+const MAX_INS = * 128 1024;  // TODO(lucas): temp
+// how many types can we use to construct a type contract
+const MAX_TYPE_CONTRACT_STACK = 16;
 
 struct Block (
   symbols:      u64[MAX_SYMBOL_PER_BLOCK], // index into compile state symbols
@@ -26,20 +31,12 @@ struct Block (
   parent:       ptr
 );
 
-const MAX_BLOCK = 256;
-
 struct Op (
   i:    u64,
   dest: u64,
   src0: u64,
   src1: u64
 );
-
-const MAX_TYPE_STACK = 256;
-const MAX_INS = * 128 1024;  // TODO(lucas): temp
-
-// how many types can we use to construct a type contract
-const MAX_TYPE_CONTRACT_STACK = 16;
 
 struct Compile (
   ins:                 Op[MAX_INS],
@@ -91,7 +88,7 @@ struct Compile (
 );
 
 // c: ptr<Compile>
-let c: ptr = null;
+let c = null;
 
 let compile_type_str = cast cstr[MAX_COMPILE_TYPE] "";
 
@@ -347,4 +344,13 @@ fn compile_state_print(fd: u64) -> none {
  type_count          = %d/%d
  type_context_count  = %d/%d\n"
   , @args);
+}
+
+fn compile_state_dump(path: cstr) -> none {
+  let state = cast ptr<Compile> c;
+  let fd = open(path, or or O_CREAT O_TRUNC O_WRONLY, 436); // 0664 rw-rw-r
+  if neq fd ERROR {
+    write(fd, state, sizeof Compile);
+    close(fd);
+  }
 }

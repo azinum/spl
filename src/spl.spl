@@ -10,7 +10,8 @@ struct Options (
   disable_colors:   u64,
   verbose:          u64,
   verbose_asm:      u64,
-  nasm:             u64
+  nasm:             u64,
+  dump:             u64
 );
 
 let options: Options = 0;
@@ -130,6 +131,7 @@ OPTIONS:
    verbose         - enable verbose output
    verbose-asm     - enable verbose assembly code
    nasm            - generate nasm code (default: fasm)
+   dump            - dump compile state to file
    version         - print spl version id
    help            - show help menu\n"
   , @prog);
@@ -146,6 +148,7 @@ fn spl_options_init -> none {
   store64 + @options Options.verbose 0;
   store64 + @options Options.verbose_asm 0;
   store64 + @options Options.nasm 0;
+  store64 + @options Options.dump 0;
 }
 
 fn spl_start(filename: cstr) -> u64 {
@@ -209,6 +212,11 @@ fn spl_start(filename: cstr) -> u64 {
 
                     sprintf(@path, "%s.html", + @options Options.filename);
                     write_debug_information_html(cast cstr @path);
+                  }
+                  if load64 + @options Options.dump {
+                    let path: u8[MAX_PATH_SIZE] = 0;
+                    sprintf(@path, "%s.bin", + @options Options.filename);
+                    compile_state_dump(cast cstr @path);
                   }
                 }
               }
@@ -297,6 +305,9 @@ fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
       }
       else if eq 0 strcmp(argument, "nasm") {
         store64 + @options Options.nasm 1;
+      }
+      else if eq 0 strcmp(argument, "dump") {
+        store64 + @options Options.dump 1;
       }
       else if eq 0 strcmp(argument, "version") {
         version_id_print(STDOUT_FILENO);
