@@ -213,7 +213,7 @@ fn compile(target: u64, should_compile_target: u64, should_run_target: u64, sour
             "/usr/bin/fasm",
             cast cstr @path,
             "-m",
-            "2024583",
+            "2049166",
             cast cstr null;
           exec_command_echoed(STDOUT_FILENO, @command, envp);
         }

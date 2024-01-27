@@ -10,7 +10,7 @@ struct Options (
   disable_colors:   u64,
   verbose:          u64,
   verbose_asm:      u64,
-  fasm:             u64
+  nasm:             u64
 );
 
 let options: Options = 0;
@@ -129,7 +129,7 @@ OPTIONS:
    disable-colors  - disable colored text output
    verbose         - enable verbose output
    verbose-asm     - enable verbose assembly code
-   fasm            - generate fasm code
+   nasm            - generate nasm code (default: fasm)
    version         - print spl version id
    help            - show help menu\n"
   , @prog);
@@ -145,7 +145,7 @@ fn spl_options_init -> none {
   store64 + @options Options.disable_colors 0;
   store64 + @options Options.verbose 0;
   store64 + @options Options.verbose_asm 0;
-  store64 + @options Options.fasm 0;
+  store64 + @options Options.nasm 0;
 }
 
 fn spl_start(filename: cstr) -> u64 {
@@ -154,9 +154,9 @@ fn spl_start(filename: cstr) -> u64 {
     colors_init(STDOUT_FILENO);
   }
 
-  let target = TARGET_LINUX_NASM_X86_64;
-  if load64 + @options Options.fasm {
-    = at target TARGET_LINUX_FASM_X86_64;
+  let target = TARGET_LINUX_FASM_X86_64;
+  if load64 + @options Options.nasm {
+    = at target TARGET_LINUX_NASM_X86_64;
   }
 
   let time_start: Timespec = 0;
@@ -295,8 +295,8 @@ fn spl_main(argc: u64, argv: any, envptr: ptr) -> none {
       else if eq 0 strcmp(argument, "verbose-asm") {
         store64 + @options Options.verbose_asm 1;
       }
-      else if eq 0 strcmp(argument, "fasm") {
-        store64 + @options Options.fasm 1;
+      else if eq 0 strcmp(argument, "nasm") {
+        store64 + @options Options.nasm 1;
       }
       else if eq 0 strcmp(argument, "version") {
         version_id_print(STDOUT_FILENO);

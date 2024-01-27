@@ -6,10 +6,6 @@ all: spl
 
 SPL_FLAGS=
 
-clean:
-	rm -f *.o ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.html, ${SPL_SRC}}
-	rm -drf .cache
-
 ${SPL_SRC}:
 	./${PROG} ${SPL_FLAGS} $@.spl
 
@@ -19,27 +15,30 @@ examples: ${SPL_EXAMPLES}
 run_examples: SPL_FLAGS+=run
 run_examples: ${SPL_EXAMPLES}
 
-test: SPL_FLAGS+=verbose-asm run
+test: SPL_FLAGS+=verbose-asm
 
 main: SPL_FLAGS+=debug-output verbose verbose-asm
 main: main.spl
+
+spl: SPL_FLAGS+=verbose
+spl: src/spl.spl
 
 run:
 	./${PROG} ${SPL_FLAGS} spl.spl
 
 update_bootstrap:
-	cp .cache/spl.asm bootstrap/spl_linux_nasm_x86_64.asm
-
-update_bootstrap_fasm:
 	cp .cache/spl.fasm bootstrap/spl_linux_fasm_x86_64.fasm
 
-bootstrap:
-	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && gcc spl.o -o spl -nostdlib -no-pie
+update_bootstrap_nasm:
+	cp .cache/spl.asm bootstrap/spl_linux_nasm_x86_64.asm
 
-bootstrap_fasm:
+bootstrap:
 	fasm -m 2024583 bootstrap/spl_linux_fasm_x86_64.fasm
 	mv bootstrap/spl_linux_fasm_x86_64 spl
 	chmod +x spl
+
+bootstrap_nasm:
+	nasm -f elf64 bootstrap/spl_linux_nasm_x86_64.asm -o spl.o && gcc spl.o -o spl -nostdlib -no-pie
 
 performance_test:
 	perf record -e cycles -c 2000000 ./spl spl.spl verbose-asm
@@ -65,6 +64,10 @@ install:
 uninstall:
 	rm ${INSTALL_DIR}/${PROG}
 	rm -dr ${LIB_DIR}/${PROG}
+
+clean:
+	rm -f *.o ${SPL_SRC} ${addsuffix .o, ${SPL_SRC}} ${addsuffix .spl.asm, ${SPL_SRC}} ${addsuffix .spl.debug, ${SPL_SRC}} ${addsuffix .spl.html, ${SPL_SRC}}
+	rm -drf .cache
 
 .SUFFIXES:
 .PHONY: ${SPL_SRC} bootstrap

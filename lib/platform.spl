@@ -12,7 +12,7 @@ struct Timespec (
   tv_nsec : u64
 );
 
-// if eq PLATFORM PLATFORM_LINUX {
+//if eq PLATFORM PLATFORM_LINUX {
 include "lib/linux.spl"
 // }
 // else if eq PLATFORM PLATFORM_OSX {

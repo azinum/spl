@@ -49,20 +49,20 @@ include "tests/lib/common.spl"
 
 fn test_start -> none {
   printf("running tests...\n", null);
-  printf("arith...\n", null);       test_arith();
-  printf("sizeof...\n", null);      test_sizeof();
-  printf("bitwise...\n", null);     test_bitwise();
-  printf("function...\n", null);    test_function();
-  printf("struct...\n", null);      test_struct();
-  printf("array...\n", null);       test_array();
-  printf("const...\n", null);       test_const();
+  test_arith();
+  test_sizeof();
+  test_bitwise();
+  test_function();
+  test_struct();
+  test_array();
+  test_const();
 
-  printf("lib_common...\n", null);  test_lib_common();
+  test_lib_common();
 }
 
 fn test_finalize -> none {
-  let args: any = test_failed, test_passed, test_count;
-  printf("tests complete: %d failed, %d passed, %d total\n", @args);
+  let args: any = test_passed, test_failed, test_count;
+  printf("tests complete: %d passed, %d failed, %d total\n", @args);
 }
 
 fn main -> none {
