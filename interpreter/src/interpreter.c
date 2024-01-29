@@ -4,6 +4,8 @@
 #include "common.h"
 
 #include <fcntl.h>
+#include <time.h>
+#include <sys/syscall.h>
 
 #define MAX_SYMBOL (4096)
 #define MAX_SYMBOL_PER_BLOCK (4096)
@@ -27,6 +29,15 @@
   #define verbose_printf(...) printf(__VA_ARGS__)
 #else
   #define verbose_printf(...)
+#endif
+
+#ifdef SLOW_INTERPRET
+  #define THINK(ms) { \
+    static struct timespec ts = { .tv_sec = ms / 1000, .tv_nsec = ms * 1000000, }; \
+    nanosleep(&ts, NULL); \
+  }
+#else
+  #define THINK(ms)
 #endif
 
 #if 0
@@ -157,7 +168,7 @@ typedef enum Ir_code {
   I_LABEL,
   I_CALL, // <label, argc, rtype>
   I_ADDR_CALL, // <x, argc, rtype>
-  I_JMP, // <label, positite_offset, negative_offset>
+  I_JMP, // <label, positive_offset, negative_offset>
   I_JZ, // <label, offset, x>
   I_BEGIN_FUNC, // <x, argc, frame_size>
   I_LOOP_LABEL,
@@ -302,9 +313,11 @@ typedef struct Compile {
   size_t error_count;
 } PACK_AND_ALIGN Compile;
 
+void printbits(size_t v);
+void tabs(size_t count);
 Compile* compile_state_new(const char* path);
 void prepare_interpreter(Compile* c, size_t* entry_point);
-void interpret(Compile* c, size_t ip);
+void interpret(Compile* c, size_t ip, size_t depth);
 void compile_state_free(Compile* c);
 
 i32 main(void) {
@@ -312,10 +325,33 @@ i32 main(void) {
   if (c) {
     size_t ip = 0;
     prepare_interpreter(c, &ip);
-    interpret(c, ip);
+    interpret(c, ip, 0);
     compile_state_free(c);
   }
   return EXIT_SUCCESS;
+}
+
+void printbits(size_t v) {
+  for (size_t i = (size_t)sizeof(v) - 1;;) {
+    for (size_t bit = 8; bit > 0; --bit) {
+      char byte = *((char*)&v + i);
+      printf("%d", EXTRACTBIT(bit, byte) != 0);
+    }
+    printf(" ");
+    if (i == 0) {
+      break;
+    }
+    i -= 1;
+  }
+  printf("\n");
+}
+
+void tabs(size_t count) {
+  const char* tab = "  ";
+  (void)tab;
+  for (size_t i = 0; i < count; ++i) {
+    verbose_printf("%s", tab);
+  }
 }
 
 Compile* compile_state_new(const char* path) {
@@ -342,16 +378,27 @@ void prepare_interpreter(Compile* c, size_t* entry_point) {
   }
 }
 
-void interpret(Compile* c, size_t ip) {
+void interpret(Compile* c, size_t ip, size_t depth) {
   (void)ir_code_str;
-  #define MAX_STACK (Kb(8) / sizeof(size_t))
+  #define STACK_SIZE (Kb(8))
+  #define MAX_STACK (STACK_SIZE / sizeof(size_t))
   size_t stack[MAX_STACK] = {0};
   size_t sp = 0; // stack pointer
   size_t bsp = 0; // base stack pointer
 
   #define STACK_PUSH(V) (stack[sp++] = (size_t)V)
   #define STACK_POP(N) (sp -= N, stack[sp])
-  #define STACK_TOP(OFFSET) (stack[sp + OFFSET])
+  #define STACK_TOP(OFFSET) (stack[sp + OFFSET - 1])
+
+  #define STACK_PRINT() do {                                          \
+    for (size_t stack_index = 0; stack_index < sp; ++stack_index) {   \
+      verbose_printf("%7zu: %zu", stack_index, stack[stack_index]);   \
+      if (stack_index+1 == bsp) {                                     \
+        verbose_printf(" <- bsp");                                    \
+      }                                                               \
+      verbose_printf("\n");                                           \
+    }                                                                 \
+  } while (0)
 
   // x86_64 style registers
   typedef union Register {
@@ -418,104 +465,159 @@ void interpret(Compile* c, size_t ip) {
 
   for (; ip < c->ins_count; ++ip) {
     const Op* op = &c->ins[ip];
+    tabs(depth);
     verbose_printf("%4zu: %s: ", ip, ir_code_str[op->i]);
+    THINK(100);
     switch (op->i) {
       case I_NOP: {
         verbose_printf("\n");
         break;
       }
       case I_POP: {
-        NOT_IMPLEMENTED();
+        *(REG_VALUE_FROM_TYPE(RAX, 64)) = STACK_POP(1);
         verbose_printf("\n");
         break;
       }
+      // <size, local_id, x>
       case I_MOVE_LOCAL: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t size = op->dest;
+        const size_t local_id = op->src0;
+        const size_t offset = (bsp - 1) + (local_id / sizeof(size_t));
+        size_t mask = ~0;
+        mask >>= 64 - (size * 8);
+        size_t top = STACK_TOP(0);
+        (void)top;
+        size_t value = STACK_POP(1);
+        stack[offset] = value & mask;
+        verbose_printf("value = %zu, size = %zu, local_id = %zu, offset = %zu, top = %zu\n", value, size, local_id, offset, top);
         break;
       }
       case I_STORE64: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t* a = (size_t*)STACK_POP(1);
+        *a = b;
         verbose_printf("\n");
         break;
       }
       case I_STORE32: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t* a = (size_t*)STACK_POP(1);
+        *(u32*)a = (u32)b;
         verbose_printf("\n");
         break;
       }
       case I_STORE16: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t* a = (size_t*)STACK_POP(1);
+        *(u16*)a = (u16)b;
         verbose_printf("\n");
         break;
       }
       case I_STORE8: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t* a = (size_t*)STACK_POP(1);
+        *(u8*)a = (u8)b;
         verbose_printf("\n");
         break;
       }
       case I_LOAD64: {
-        NOT_IMPLEMENTED();
+        size_t* value = (size_t*)STACK_POP(1);
+        STACK_PUSH(*value);
         verbose_printf("\n");
         break;
       }
       case I_LOAD32: {
-        NOT_IMPLEMENTED();
+        size_t* value = (size_t*)STACK_POP(1);
+        STACK_PUSH(*(u32*)value);
         verbose_printf("\n");
         break;
       }
       case I_LOAD16: {
-        NOT_IMPLEMENTED();
+        size_t* value = (size_t*)STACK_POP(1);
+        STACK_PUSH(*(u16*)value);
         verbose_printf("\n");
         break;
       }
       case I_LOAD8: {
-        NOT_IMPLEMENTED();
+        size_t* value = (size_t*)STACK_POP(1);
+        STACK_PUSH(*(u8*)value);
         verbose_printf("\n");
         break;
       }
+      // <x, id, x>
       case I_PUSH_ADDR_OF: {
-        NOT_IMPLEMENTED();
+        const size_t id = op->src0;
+        Symbol* symbol = &c->symbols[id];
+        switch (symbol->sym_type) {
+          case SYM_FUNC: {
+            Function func = symbol->value.func;
+            const size_t addr = (size_t)(size_t*)&c->ins[func.ir_address];
+            STACK_PUSH(addr);
+            break;
+          }
+          case SYM_GLOBAL_VAR: {
+            const size_t addr = (size_t)(size_t*)&c->imm[symbol->imm];
+            STACK_PUSH(addr);
+            break;
+          }
+          default: {
+            ASSERT(!"can not take the address of this kind of symbol");
+            break;
+          }
+        }
         verbose_printf("\n");
         break;
       }
+      // <x, local_id, x>
       case I_PUSH_LOCAL_ADDR_OF: {
-        NOT_IMPLEMENTED();
+        size_t local_id = op->src0;
+        const size_t offset = (bsp - 1) + (local_id / sizeof(size_t));
+        size_t* addr = &stack[offset];
+        STACK_PUSH((size_t)addr);
         verbose_printf("\n");
         break;
       }
+      // <type, id, size>
       case I_PUSH: {
-        NOT_IMPLEMENTED();
+        const size_t type = op->dest;
+        const size_t id   = op->src0;
+        if (type == TypeCString) {
+          // TODO(lucas): working with strings does not work fully yet, put cstrings at another location and format them properly
+          const size_t imm = c->cstrings[id] + sizeof(size_t);
+          size_t* addr = (size_t*)&c->imm[imm];
+          STACK_PUSH((size_t)addr);
+        }
+        else if (type == TypeFunc) {
+          Symbol* symbol = &c->symbols[id];
+          Function func = symbol->value.func;
+          size_t* addr = (size_t*)&c->ins[func.ir_address];
+          verbose_printf("ir_address = %zu, %zu", func.ir_address, *addr);
+          STACK_PUSH((size_t)addr);
+        }
+        else {
+          const size_t size = op->src1;
+          const Symbol* symbol = &c->symbols[id];
+          const size_t imm = symbol->imm;
+          const size_t* value = (size_t*)&c->imm[imm];
+          size_t mask = ~0;
+          mask >>= 64 - (size * 8);
+          STACK_PUSH(*value & mask);
+        }
         verbose_printf("\n");
         break;
       }
+      // <size, local_id, x>
       case I_PUSH_LOCAL: {
         const size_t size = op->dest;
-        const size_t local_offset = op->src0;
-        const size_t offset_index = local_offset / sizeof(size_t);
-        size_t value = stack[bsp + offset_index];
-        switch (size) {
-          case 1: {
-            STACK_PUSH((size_t)((u8)value));
-            break;
-          }
-          case 2: {
-            STACK_PUSH((size_t)((u16)value));
-            break;
-          }
-          case 4: {
-            STACK_PUSH((size_t)((u32)value));
-            break;
-          }
-          case 8: {
-            STACK_PUSH(value);
-            break;
-          }
-          default:
-            ASSERT(!"invalid size");
-            break;
-        }
-        verbose_printf("value = %zu, size = %zu, local_offset = %zu, offset_index = %zu\n", value, size, local_offset, offset_index);
+        const size_t local_id = op->src0;
+        const size_t offset = (bsp - 1) + (local_id / sizeof(size_t));
+        const size_t value = stack[offset];
+        size_t mask = ~0;
+        mask >>= 64 - (size * 8);
+        STACK_PUSH(value & mask);
+        size_t top = STACK_TOP(0);
+        (void)top;
+        verbose_printf("value = %zu, size = %zu, local_id = %zu, offset = %zu, top = %zu\n", value, size, local_id, offset, top);
         break;
       }
       // <size, imm, x>
@@ -611,43 +713,49 @@ void interpret(Compile* c, size_t ip) {
         break;
       }
       case I_OR: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t a = STACK_POP(1);
+        STACK_PUSH(a || b);
         verbose_printf("\n");
         break;
       }
       case I_XOR: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t a = STACK_POP(1);
+        STACK_PUSH(a ^ b);
         verbose_printf("\n");
         break;
       }
       case I_EQ: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t a = STACK_POP(1);
+        STACK_PUSH(a == b);
         verbose_printf("\n");
         break;
       }
       case I_NEQ: {
-        NOT_IMPLEMENTED();
+        size_t b = STACK_POP(1);
+        size_t a = STACK_POP(1);
+        STACK_PUSH(a != b);
         verbose_printf("\n");
         break;
       }
       // <x, frame_size, x>
       case I_RET: {
-        size_t frame_size = op->src0;
-        size_t argc = frame_size / 8;
+        const size_t frame_size = op->src0;
+        const size_t frame_count = (frame_size / sizeof(size_t));
         Register* r = REG_FROM_TYPE(RAX);
         r->v64 = STACK_POP(1);
-        size_t _ = STACK_POP(argc);
-        (void)_;
-        verbose_printf("frame_size = %zu, argc = %zu, rax = %zu\n", frame_size, argc, r->v64);
+        sp -= frame_count;
+        verbose_printf("frame_size = %zu, frame_count = %zu, rax = %zu\n", frame_size, frame_count, r->v64);
         return;
       }
       // <x, frame_size, x>
       case I_NORET: {
-        size_t frame_size = op->src0;
-        size_t argc = frame_size / 8;
-        size_t _ = STACK_POP(argc);
-        (void)_;
-        verbose_printf("frame_size = %zu, argc = %zu\n", frame_size, argc);
+        const size_t frame_size = op->src0;
+        const size_t frame_count = (frame_size / sizeof(size_t));
+        sp -= frame_count;
+        verbose_printf("frame_size = %zu, frame_count = %zu\n", frame_size, frame_count);
         return;
       }
       case I_PRINT: {
@@ -662,87 +770,196 @@ void interpret(Compile* c, size_t ip) {
       }
       // <label, argc, rtype>
       case I_CALL: {
-        size_t label = op->dest;
-        size_t argc = op->src0;
-        size_t has_return_value = op->src1 != NONE;
+        const size_t label = op->dest;
+        const size_t argc = op->src0;
+        const size_t has_return_value = op->src1 != NONE;
         Symbol* symbol = &c->symbols[label];
         Function func = symbol->value.func;
         size_t ip_jump = func.ir_address;
         for (size_t i = 0; i < argc; ++i) {
           Register* r = REG_FROM_TYPE(func_call_regs[i]);
           r->v64 = STACK_POP(1);
+          verbose_printf("%s = %zu, ", regs_str[func_call_regs[i]], r->v64);
         }
         verbose_printf("%s (addr: %zu)\n", symbol->name, ip_jump);
-        interpret(c, ip_jump);
+        interpret(c, ip_jump, depth + 1);
         if (has_return_value) {
           STACK_PUSH(*REG_VALUE_FROM_TYPE(RAX, 64));
         }
         break;
       }
+      // <x, argc, rtype>
       case I_ADDR_CALL: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t argc = op->src0;
+        const size_t has_return_value = op->src1 != NONE;
+        const size_t* addr = (size_t*)STACK_POP(1);
+        const size_t ip_jump = ((size_t)addr - (size_t)&c->ins[0]) / sizeof(Op);
+        for (size_t i = 0; i < argc; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+          verbose_printf("%s = %zu, ", regs_str[func_call_regs[i]], r->v64);
+        }
+        verbose_printf("ip: %zu, addr: %zu\n", ip, *addr);
+        interpret(c, ip_jump, depth + 1);
+        if (has_return_value) {
+          STACK_PUSH(*REG_VALUE_FROM_TYPE(RAX, 64));
+        }
         break;
       }
+
+      // <label, positive_offset, negative_offset>
       case I_JMP: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        size_t positive_offset = op->src0;
+        size_t negative_offset = op->src1;
+        if (positive_offset != NONE) {
+          ip += positive_offset - 1;
+          verbose_printf("+%zu, %zu -> %zu\n", positive_offset, ip - positive_offset + 1, ip + 1);
+          break;
+        }
+        ip -= negative_offset + 1;
+        verbose_printf("-%zu, %zu -> %zu\n", negative_offset, ip + negative_offset + 1, ip + 1);
         break;
       }
+      // <label, offset, x>
       case I_JZ: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        size_t offset = op->src0;
+        size_t value = STACK_POP(1);
+        if (value == 0) {
+          ip += offset - 1;
+        }
+        verbose_printf("%zu == 0, offset = %zu, %zu -> %zu\n", value, offset, ip - (size_t)(value == 0) * (offset - 1), ip + (size_t)(value == 0));
         break;
       }
+      // <x, argc, frame_size>
       case I_BEGIN_FUNC: {
-        size_t argc = op->src0;
-        bsp = sp - 1;
+        const size_t argc = op->src0;
+        const size_t frame_size = op->src1;
+        const size_t frame_count = frame_size / sizeof(size_t);
+        bsp = sp;
         for (size_t i = 0; i < argc; ++i) {
           const Register* r = REG_FROM_TYPE(func_call_regs[i]);
           STACK_PUSH(r->v64);
           verbose_printf("mov %s, %zu; push %s; ", regs_str[func_call_regs[i]], r->v64, regs_str[func_call_regs[i]]);
         }
+        sp = bsp + frame_count;
         verbose_printf("\n");
         break;
       }
       case I_LOOP_LABEL: {
-        NOT_IMPLEMENTED();
         verbose_printf("\n");
         break;
       }
       case I_SYSCALL0: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        size_t rvalue = syscall(code);
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL1: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 1; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue = syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL2: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 2; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue = syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[1], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL3: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 3; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue = syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[1], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[2], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL4: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 4; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue =syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[1], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[2], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[3], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL5: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 5; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue = syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[1], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[2], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[3], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[4], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       case I_SYSCALL6: {
-        NOT_IMPLEMENTED();
-        verbose_printf("\n");
+        const size_t code = STACK_POP(1);
+        *REG_VALUE_FROM_TYPE(RAX, 64) = code;
+        for (size_t i = 0; i < 6; ++i) {
+          Register* r = REG_FROM_TYPE(func_call_regs[i]);
+          r->v64 = STACK_POP(1);
+        }
+        size_t rvalue = syscall(
+          code,
+          *REG_VALUE_FROM_TYPE(func_call_regs[0], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[1], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[2], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[3], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[4], 64),
+          *REG_VALUE_FROM_TYPE(func_call_regs[5], 64)
+        );
+        STACK_PUSH(rvalue);
+        verbose_printf("syscall(%zu)\n", code);
         break;
       }
       default: {

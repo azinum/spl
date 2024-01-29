@@ -1,8 +1,28 @@
 // test.spl
 // spl dump test.spl
 
+// COMPILER BUG:
+//  = @a + 1 a;
+
+include "lib/common.spl"
+
 fn add(a: u64, b: u64) + a b;
 
+// fn rec(n: u64) -> u64 {
+//   let result = n;
+//   if < n 10 {
+//     = at result rec(+ n 1);
+//   }
+//   result;
+// }
+//
+// fn rec2(n: u64, count: u64) {
+//   if < n count rec2(+ n 1, count); else n;
+// }
+
 fn main -> none {
-  print add(2, 3);
+  common_init();
+  let s = "Hello, World\n";
+  let len = strlen(s);
+  write(STDOUT_FILENO, s, len);
 }
