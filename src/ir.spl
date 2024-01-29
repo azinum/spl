@@ -778,7 +778,7 @@ fn ir_compile_if_statement(fs: ptr<Function>, ast: ptr, ins_count: ptr<u64>) -> 
           let jz = cast ptr + + c Compile.ins * sizeof Op body_start_address;
           // else_jmp: Op*
           let else_jmp = cast ptr + + c Compile.ins * sizeof Op else_start_address;
-          store64 + jz Op.src0 else_body_size;
+          store64 + jz Op.src0 body_size;
           store64 + else_jmp Op.src0 else_body_size;
         }
       }
